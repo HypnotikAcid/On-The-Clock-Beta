@@ -102,38 +102,116 @@ def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, e
             """, (guild_id, end_utc, start_utc))
         return cur.fetchall()
 
-def generate_csv_report(sessions_data, guild_tz="UTC"):
-    """Generate CSV content from sessions data."""
+async def generate_csv_report(bot, sessions_data, guild_tz="UTC"):
+    """Generate organized CSV content from sessions data with usernames."""
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # CSV Headers
-    writer.writerow(["User ID", "Date", "Clock In", "Clock Out", "Duration (hours)", "Duration (h:m:s)"])
-    
+    # Group sessions by user
+    user_sessions = {}
     for user_id, clock_in_iso, clock_out_iso, duration_seconds in sessions_data:
+        if user_id not in user_sessions:
+            user_sessions[user_id] = []
+        user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
+    
+    # Generate organized format for each user
+    for user_id, sessions in user_sessions.items():
+        # Fetch Discord user to get display name
+        try:
+            discord_user = await bot.fetch_user(user_id)
+            user_display_name = discord_user.display_name or discord_user.name
+        except:
+            user_display_name = f"User-{user_id}"  # Fallback if user not found
+        
+        # Calculate date range for this user
+        all_dates = []
+        for clock_in_iso, _, _ in sessions:
+            clock_in_dt = datetime.fromisoformat(clock_in_iso)
+            date_formatted = fmt(clock_in_dt, guild_tz).split()[0]
+            all_dates.append(date_formatted)
+        
+        date_range = f"{min(all_dates)} to {max(all_dates)}" if len(set(all_dates)) > 1 else min(all_dates)
+        
+        # Employee header with username
+        writer.writerow([f"Employee: {user_display_name} - Shift Report ({date_range})"])
+        writer.writerow([])  # Empty row
+        
+        # Process each session for this user
+        for clock_in_iso, clock_out_iso, duration_seconds in sessions:
+            # Parse timestamps
+            clock_in_dt = datetime.fromisoformat(clock_in_iso)
+            clock_out_dt = datetime.fromisoformat(clock_out_iso)
+            
+            # Format day and times
+            day_of_week = clock_in_dt.strftime("%A")  # Full day name
+            date_str = fmt(clock_in_dt, guild_tz).split()[0]
+            in_time = fmt(clock_in_dt, guild_tz).split()[1:3]  # Time and timezone
+            out_time = fmt(clock_out_dt, guild_tz).split()[1:3]
+            
+            # Duration in decimal hours
+            total_hours = round(duration_seconds / 3600, 2)
+            
+            # Write shift details
+            writer.writerow([f"{day_of_week} ({date_str}):"])
+            writer.writerow([f"IN - {' '.join(in_time)}"])
+            writer.writerow([f"OUT - {' '.join(out_time)}"])
+            writer.writerow([f"{total_hours} total hours"])
+            writer.writerow([])  # Empty row between shifts
+        
+        # Add separator between employees
+        writer.writerow(["=" * 50])
+        writer.writerow([])
+    
+    return output.getvalue()
+
+async def generate_individual_csv_report(bot, user_id, sessions, guild_tz="UTC"):
+    """Generate CSV for a single user."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Fetch Discord user to get display name
+    try:
+        discord_user = await bot.fetch_user(user_id)
+        user_display_name = discord_user.display_name or discord_user.name
+    except:
+        user_display_name = f"User-{user_id}"  # Fallback if user not found
+    
+    # Calculate date range for this user
+    all_dates = []
+    for clock_in_iso, _, _ in sessions:
+        clock_in_dt = datetime.fromisoformat(clock_in_iso)
+        date_formatted = fmt(clock_in_dt, guild_tz).split()[0]
+        all_dates.append(date_formatted)
+    
+    date_range = f"{min(all_dates)} to {max(all_dates)}" if len(set(all_dates)) > 1 else min(all_dates)
+    
+    # Employee header with username
+    writer.writerow([f"Employee: {user_display_name} - Shift Report ({date_range})"])
+    writer.writerow([])  # Empty row
+    
+    # Process each session for this user
+    for clock_in_iso, clock_out_iso, duration_seconds in sessions:
         # Parse timestamps
         clock_in_dt = datetime.fromisoformat(clock_in_iso)
         clock_out_dt = datetime.fromisoformat(clock_out_iso)
         
-        # Format for CSV
-        date_str = fmt(clock_in_dt, guild_tz).split()[0]  # Extract date part
-        clock_in_str = fmt(clock_in_dt, guild_tz)
-        clock_out_str = fmt(clock_out_dt, guild_tz)
+        # Format day and times
+        day_of_week = clock_in_dt.strftime("%A")  # Full day name
+        date_str = fmt(clock_in_dt, guild_tz).split()[0]
+        in_time = fmt(clock_in_dt, guild_tz).split()[1:3]  # Time and timezone
+        out_time = fmt(clock_out_dt, guild_tz).split()[1:3]
         
-        # Duration formatting
-        duration_hours = round(duration_seconds / 3600, 2)
-        duration_hms = human_duration(duration_seconds)
+        # Duration in decimal hours
+        total_hours = round(duration_seconds / 3600, 2)
         
-        writer.writerow([
-            str(user_id),
-            date_str,
-            clock_in_str,
-            clock_out_str,
-            duration_hours,
-            duration_hms
-        ])
+        # Write shift details
+        writer.writerow([f"{day_of_week} ({date_str}):"])
+        writer.writerow([f"IN - {' '.join(in_time)}"])
+        writer.writerow([f"OUT - {' '.join(out_time)}"])
+        writer.writerow([f"{total_hours} total hours"])
+        writer.writerow([])  # Empty row between shifts
     
-    return output.getvalue()
+    return output.getvalue(), user_display_name
 
 # --- Time helpers ---
 def now_utc():
@@ -311,21 +389,35 @@ async def set_timezone(interaction: discord.Interaction, tz: str):
     set_guild_setting(interaction.guild_id, "timezone", tz)
     await interaction.response.send_message(f"✅ Timezone set to `{tz}` (display only).", ephemeral=True)
 
-@tree.command(name="report", description="Generate CSV timesheet report for user within date range")
+@tree.command(name="report", description="Generate CSV timesheet reports")
 @app_commands.describe(
-    user="User to generate report for (leave blank for all users)",
+    report_type="Select report type",
     start_date="Start date (YYYY-MM-DD format)",
-    end_date="End date (YYYY-MM-DD format)"
+    end_date="End date (YYYY-MM-DD format)",
+    user="User to generate report for (required when report_type is 'user')"
 )
+@app_commands.choices(report_type=[
+    app_commands.Choice(name="Individual User Report", value="user"),
+    app_commands.Choice(name="All Users (Separate Files)", value="all")
+])
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def generate_report(
     interaction: discord.Interaction, 
+    report_type: app_commands.Choice[str],
     start_date: str,
     end_date: str,
     user: Optional[discord.User] = None
 ):
     await interaction.response.defer(ephemeral=True)
+    
+    # Validate user parameter based on report type
+    if report_type.value == "user" and user is None:
+        await interaction.followup.send(
+            "❌ You must specify a user when generating an individual user report", 
+            ephemeral=True
+        )
+        return
     
     try:
         # Validate date format and order
@@ -364,42 +456,86 @@ async def generate_report(
     start_utc = start_boundary.astimezone(timezone.utc).isoformat()
     end_utc = end_boundary.astimezone(timezone.utc).isoformat()
     
-    # Query database with UTC boundaries
-    user_id = user.id if user else None
-    sessions_data = get_sessions_report(interaction.guild_id, user_id, start_utc, end_utc)
-    
-    if not sessions_data:
-        user_mention = f" for {user.mention}" if user else ""
+    if report_type.value == "user":
+        # Generate report for specific user
+        user_id = user.id
+        sessions_data = get_sessions_report(interaction.guild_id, user_id, start_utc, end_utc)
+        
+        if not sessions_data:
+            await interaction.followup.send(
+                f"📭 No completed timesheet entries found for {user.mention} between {start_date} and {end_date}",
+                ephemeral=True
+            )
+            return
+        
+        # Generate single CSV
+        csv_content = await generate_csv_report(bot, sessions_data, guild_tz_name)
+        
+        # Create file
+        filename = f"timesheet_report_{start_date}_to_{end_date}_{user.display_name}.csv"
+        
+        file = discord.File(
+            io.BytesIO(csv_content.encode('utf-8')), 
+            filename=filename
+        )
+        
+        # Send file
+        total_entries = len(sessions_data)
+        
         await interaction.followup.send(
-            f"📭 No completed timesheet entries found{user_mention} between {start_date} and {end_date}",
+            f"📊 Generated timesheet report for **{user.display_name}**\n"
+            f"📅 **Period:** {start_date} to {end_date}\n"
+            f"📝 **Entries:** {total_entries} completed shifts\n"
+            f"🕐 **Timezone:** {guild_tz_name}",
+            file=file,
             ephemeral=True
         )
-        return
-    
-    # Generate CSV
-    csv_content = generate_csv_report(sessions_data, guild_tz_name)
-    
-    # Create file
-    user_suffix = f"_{user.display_name}" if user else "_all_users"
-    filename = f"timesheet_report_{start_date}_to_{end_date}{user_suffix}.csv"
-    
-    file = discord.File(
-        io.BytesIO(csv_content.encode('utf-8')), 
-        filename=filename
-    )
-    
-    # Send file
-    user_text = f" for **{user.display_name}**" if user else " for **all users**"
-    total_entries = len(sessions_data)
-    
-    await interaction.followup.send(
-        f"📊 Generated timesheet report{user_text}\n"
-        f"📅 **Period:** {start_date} to {end_date}\n"
-        f"📝 **Entries:** {total_entries} completed shifts\n"
-        f"🕐 **Timezone:** {guild_tz_name}",
-        file=file,
-        ephemeral=True
-    )
+        
+    else:  # report_type.value == "all"
+        # Generate separate reports for all users
+        sessions_data = get_sessions_report(interaction.guild_id, None, start_utc, end_utc)
+        
+        if not sessions_data:
+            await interaction.followup.send(
+                f"📭 No completed timesheet entries found for any users between {start_date} and {end_date}",
+                ephemeral=True
+            )
+            return
+        
+        # Group sessions by user
+        user_sessions = {}
+        for user_id, clock_in_iso, clock_out_iso, duration_seconds in sessions_data:
+            if user_id not in user_sessions:
+                user_sessions[user_id] = []
+            user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
+        
+        # Generate separate CSV files for each user
+        files = []
+        total_users = len(user_sessions)
+        total_entries = len(sessions_data)
+        
+        for user_id, sessions in user_sessions.items():
+            csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_tz_name)
+            
+            # Create file for this user
+            filename = f"timesheet_report_{start_date}_to_{end_date}_{user_display_name}.csv"
+            
+            file = discord.File(
+                io.BytesIO(csv_content.encode('utf-8')), 
+                filename=filename
+            )
+            files.append(file)
+        
+        # Send all files
+        await interaction.followup.send(
+            f"📊 Generated individual timesheet reports for **{total_users} users**\n"
+            f"📅 **Period:** {start_date} to {end_date}\n"
+            f"📝 **Total Entries:** {total_entries} completed shifts\n"
+            f"🕐 **Timezone:** {guild_tz_name}\n\n"
+            f"📁 **Files:** One CSV per employee",
+            files=files,
+            ephemeral=True
+        )
 
 if __name__ == "__main__":
     init_db()
