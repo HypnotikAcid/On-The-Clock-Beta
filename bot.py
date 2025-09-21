@@ -2,8 +2,10 @@ import os
 import sqlite3
 import csv
 import io
+import threading
 from datetime import datetime, timezone
 from typing import Optional
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import discord
 from discord import app_commands
@@ -14,6 +16,43 @@ TOKEN = os.getenv("DISCORD_TOKEN")            # required
 DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
 GUILD_ID = os.getenv("GUILD_ID")              # optional but makes commands appear instantly (guild sync)
 DEFAULT_TZ = "UTC"
+HTTP_PORT = int(os.getenv("PORT", "5000"))     # Health check server port
+
+# --- Health Check HTTP Server ---
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/" or self.path == "/health":
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {
+                "status": "healthy",
+                "service": "discord-bot",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            self.wfile.write(str(response).encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def do_HEAD(self):
+        if self.path == "/" or self.path == "/health":
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def log_message(self, format, *args):
+        # Suppress default HTTP server logs to avoid cluttering Discord bot logs
+        pass
+
+def start_health_server():
+    """Start the health check HTTP server in a separate thread"""
+    httpd = HTTPServer(('0.0.0.0', HTTP_PORT), HealthCheckHandler)
+    print(f"🔧 Health check server starting on http://0.0.0.0:{HTTP_PORT}")
+    httpd.serve_forever()
 
 def db():
     conn = sqlite3.connect(DB_PATH)
@@ -541,4 +580,12 @@ if __name__ == "__main__":
     init_db()
     if not TOKEN:
         raise SystemExit("Set DISCORD_TOKEN in your environment.")
+    
+    # Start health check server in a separate thread
+    health_thread = threading.Thread(target=start_health_server, daemon=True)
+    health_thread.start()
+    print(f"✅ Health check server thread started")
+    
+    # Start Discord bot (this will block)
+    print(f"🤖 Starting Discord bot...")
     bot.run(TOKEN)

@@ -1,5 +1,5 @@
 modules = ["python-3.11"]
-
+run = "python3 bot.py"
 [nix]
 channel = "stable-25_05"
 
@@ -25,3 +25,6 @@ args = "python3 bot.py"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[deployment]
+deploymentTarget = "cloudrun"
