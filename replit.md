@@ -47,7 +47,9 @@ Preferred communication style: Simple, everyday language.
 - **Stripe Products:**
   - Basic Tier: `prod_T6UoMM5s7PdD8q` ($5/month)
   - Pro Tier: `prod_T6UpgjUKoIEMtu` ($10/month)
-- **Price IDs:** (Pending - need monthly recurring price IDs for integration)
+- **Stripe Price IDs:**
+  - Basic Monthly: `price_1SAHpL3Jrp0J9Adlfowh5qpr` ($5/month recurring)
+  - Pro Monthly: `price_1SAHqH3Jrp0J9AdlFSJpJ32A` ($10/month recurring)
 
 ## Security Considerations
 - Bot token authentication required for Discord API access
