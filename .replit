@@ -1,4 +1,4 @@
-modules = ["python-3.11"]
+modules = ["python-3.11", "postgresql-16"]
 run = "python3 bot.py"
 [nix]
 channel = "stable-25_05"
@@ -34,6 +34,10 @@ run = ["sh", "-c", "python bot.py"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 38715
+externalPort = 3000
 
 [agent]
 expertMode = true
