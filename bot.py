@@ -2,6 +2,7 @@ import os
 import sqlite3
 import csv
 import io
+import json
 import threading
 from datetime import datetime, timezone
 from typing import Optional
@@ -41,7 +42,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "service": "discord-bot",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-            self.wfile.write(str(response).encode())
+            self.wfile.write(json.dumps(response).encode())
         else:
             self.send_response(404)
             self.end_headers()
@@ -59,12 +60,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.end_headers()
     
     def get_dashboard_html(self):
-        # Get bot status info
-        bot_status = "🟢 Online" if bot.is_ready() else "🔴 Offline"
-        guild_count = len(bot.guilds) if bot.is_ready() else "Loading..."
+        # Get bot status info (use class attribute to avoid LSP error)
+        bot_instance = getattr(type(self), 'bot', None)
+        bot_status = "🟢 Online" if bot_instance and bot_instance.is_ready() else "🔴 Offline"
+        guild_count = len(bot_instance.guilds) if bot_instance and bot_instance.is_ready() else "Loading..."
         
         # Get bot's client ID for invite URL
-        bot_id = bot.user.id if bot.is_ready() and bot.user else "1418446753379913809"
+        bot_id = bot_instance.user.id if bot_instance and bot_instance.is_ready() and bot_instance.user else "1418446753379913809"
         invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=2048&scope=bot%20applications.commands"
         
         return f"""
@@ -224,6 +226,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             margin: 15px 0;
             border-radius: 5px;
         }}
+        .free-tier {{
+            border-left-color: #28a745;
+            background: #1e3a28;
+        }}
+        .pro-tier {{
+            border-left-color: #5865F2;
+            background: #2b2d42;
+        }}
         .footer {{
             margin-top: 30px;
             color: #b9bbbe;
@@ -305,13 +315,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         
         <div class="pricing-info">
             <h3>💰 Subscription Plans</h3>
-            <div class="pricing-tier">
-                <strong>Basic - $5/month</strong><br>
-                Clock In/Out • Individual Time Info • Basic Tracking
+            <div class="pricing-tier free-tier">
+                <strong>Free - Admin Testing</strong><br>
+                Server admin can test all features • Sample reports only
             </div>
             <div class="pricing-tier">
+                <strong>Basic - $5/month</strong><br>
+                Full team access • Clock In/Out • Individual Time Info • Basic Tracking
+            </div>
+            <div class="pricing-tier pro-tier">
                 <strong>Pro - $10/month</strong><br>
-                Everything in Basic • CSV Reports • Multiple Managers • Advanced Features
+                Everything in Basic • Real CSV Reports • Multiple Managers • Advanced Features
             </div>
         </div>
         
@@ -330,6 +344,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 def start_health_server():
     """Start the health check HTTP server in a separate thread"""
+    # Pass bot reference to handler to fix LSP error
+    HealthCheckHandler.bot = bot
     httpd = HTTPServer(('0.0.0.0', HTTP_PORT), HealthCheckHandler)
     print(f"🔧 Health check server starting on http://0.0.0.0:{HTTP_PORT}")
     httpd.serve_forever()
@@ -367,6 +383,45 @@ def init_db():
             duration_seconds INTEGER
         )
         """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS server_subscriptions (
+            guild_id INTEGER PRIMARY KEY,
+            tier TEXT NOT NULL DEFAULT 'free',
+            subscription_id TEXT,
+            expires_at TEXT,
+            status TEXT DEFAULT 'active'
+        )
+        """)
+
+# --- Subscription/Tier Management ---
+def get_server_tier(guild_id: int) -> str:
+    """Get subscription tier for a server (free/basic/pro)"""
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT tier FROM server_subscriptions WHERE guild_id = ?",
+            (guild_id,)
+        )
+        result = cursor.fetchone()
+        return result[0] if result else "free"
+
+def set_server_tier(guild_id: int, tier: str, subscription_id: str = None):
+    """Set subscription tier for a server"""
+    with db() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO server_subscriptions 
+            (guild_id, tier, subscription_id, status) 
+            VALUES (?, ?, ?, 'active')
+        """, (guild_id, tier, subscription_id))
+
+def check_tier_access(guild_id: int, required_tier: str) -> bool:
+    """Check if server has access to features requiring a specific tier"""
+    tier_hierarchy = {'free': 0, 'basic': 1, 'pro': 2}
+    current_tier = get_server_tier(guild_id)
+    return tier_hierarchy.get(current_tier, 0) >= tier_hierarchy.get(required_tier, 0)
+
+def is_server_admin(user: discord.Member) -> bool:
+    """Check if user is server administrator (for free tier restrictions)"""
+    return user.guild_permissions.administrator
 
 def get_guild_setting(guild_id: int, key: str, default=None):
     # Map of allowed keys to their SQL column queries
