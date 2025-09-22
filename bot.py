@@ -316,16 +316,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         <div class="pricing-info">
             <h3>💰 Subscription Plans</h3>
             <div class="pricing-tier free-tier">
-                <strong>Free - Admin Testing</strong><br>
-                Server admin can test all features • Sample reports only • 30 days data retention
+                <strong>Free - Testing Only</strong><br>
+                Server admin can test all features • Sample reports only • No data retention
             </div>
             <div class="pricing-tier">
                 <strong>Basic - $5/month</strong><br>
-                Full team access • Clock In/Out • Individual Time Info • 6 months data retention
+                Full team access • Clock In/Out • Individual Time Info • 1 week data retention
             </div>
             <div class="pricing-tier pro-tier">
                 <strong>Pro - $10/month</strong><br>
-                Everything in Basic • Real CSV Reports • Multiple Managers • 2 years data retention
+                Everything in Basic • Real CSV Reports • Multiple Managers • 30 days data retention
             </div>
         </div>
         
@@ -438,11 +438,11 @@ def get_retention_days(guild_id: int) -> int:
     """Get data retention days based on subscription tier"""
     tier = get_server_tier(guild_id)
     retention_policy = {
-        'free': 30,      # 1 month
-        'basic': 180,    # 6 months  
-        'pro': 730       # 2 years
+        'free': 0,       # No retention - test only
+        'basic': 7,      # 1 week  
+        'pro': 30        # 1 month (30 days)
     }
-    return retention_policy.get(tier, 30)
+    return retention_policy.get(tier, 0)
 
 def cleanup_old_sessions(guild_id: int = None) -> int:
     """Clean up old session data based on retention policy. Returns count of deleted records."""
@@ -1403,7 +1403,7 @@ async def manual_cleanup(interaction: discord.Interaction):
         embed.add_field(name="Data Retention", value=f"{retention_days} days", inline=True)
         embed.add_field(
             name="Retention Policy",
-            value="**Free:** 30 days\n**Basic:** 180 days (6 months)\n**Pro:** 730 days (2 years)",
+            value="**Free:** No retention (test only)\n**Basic:** 7 days (1 week)\n**Pro:** 30 days (1 month)",
             inline=False
         )
         
