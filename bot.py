@@ -21,7 +21,15 @@ HTTP_PORT = int(os.getenv("PORT", "5000"))     # Health check server port
 # --- Health Check HTTP Server ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/" or self.path == "/health":
+        if self.path == "/":
+            # Serve HTML dashboard page at root
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            html_content = self.get_dashboard_html()
+            self.wfile.write(html_content.encode())
+        elif self.path == "/health":
+            # Keep JSON health check for deployment
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -38,11 +46,189 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         if self.path == "/" or self.path == "/health":
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            if self.path == "/":
+                self.send_header('Content-type', 'text/html')
+            else:
+                self.send_header('Content-type', 'application/json')
             self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()
+    
+    def get_dashboard_html(self):
+        # Get bot status info
+        bot_status = "🟢 Online" if bot.is_ready() else "🔴 Offline"
+        guild_count = len(bot.guilds) if bot.is_ready() else "Loading..."
+        
+        return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On the Clock - Discord Timeclock Bot</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }}
+        .container {{
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }}
+        .header {{
+            margin-bottom: 30px;
+        }}
+        .bot-title {{
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #5865F2;
+            margin-bottom: 10px;
+        }}
+        .bot-subtitle {{
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 20px;
+        }}
+        .status-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }}
+        .status-card {{
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid #5865F2;
+        }}
+        .status-title {{
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }}
+        .status-value {{
+            font-size: 1.5em;
+            color: #5865F2;
+        }}
+        .features {{
+            margin: 30px 0;
+            text-align: left;
+        }}
+        .features h3 {{
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }}
+        .feature-list {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }}
+        .feature-item {{
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 3px solid #28a745;
+        }}
+        .add-bot {{
+            background: #5865F2;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 20px 0;
+            transition: background 0.3s;
+        }}
+        .add-bot:hover {{
+            background: #4752C4;
+        }}
+        .footer {{
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.9em;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="bot-title">⏰ On the Clock</h1>
+            <p class="bot-subtitle">Professional Discord Timeclock Bot</p>
+        </div>
+        
+        <div class="status-grid">
+            <div class="status-card">
+                <div class="status-title">Bot Status</div>
+                <div class="status-value">{bot_status}</div>
+            </div>
+            <div class="status-card">
+                <div class="status-title">Active Servers</div>
+                <div class="status-value">{guild_count}</div>
+            </div>
+            <div class="status-card">
+                <div class="status-title">Last Updated</div>
+                <div class="status-value">{datetime.now(timezone.utc).strftime("%H:%M UTC")}</div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <h3>🚀 Features</h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <strong>⏱️ Clock In/Out</strong><br>
+                    Easy-to-use buttons for time tracking
+                </div>
+                <div class="feature-item">
+                    <strong>📊 Time Reports</strong><br>
+                    Generate CSV reports for payroll
+                </div>
+                <div class="feature-item">
+                    <strong>🌍 Timezone Support</strong><br>
+                    Customizable timezone settings per server
+                </div>
+                <div class="feature-item">
+                    <strong>🔒 Role Permissions</strong><br>
+                    Control who can view time information
+                </div>
+                <div class="feature-item">
+                    <strong>📱 Direct Messages</strong><br>
+                    Automatic notifications to managers
+                </div>
+                <div class="feature-item">
+                    <strong>💾 Persistent Data</strong><br>
+                    Reliable SQLite database storage
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Built for businesses and teams who need reliable time tracking in Discord</p>
+            <p>Questions? Contact your server administrator</p>
+        </div>
+    </div>
+</body>
+</html>
+        """
     
     def log_message(self, format, *args):
         # Suppress default HTTP server logs to avoid cluttering Discord bot logs
@@ -89,15 +275,37 @@ def init_db():
         """)
 
 def get_guild_setting(guild_id: int, key: str, default=None):
+    # Map of allowed keys to their SQL column queries
+    column_queries = {
+        'recipient_user_id': "SELECT recipient_user_id FROM guild_settings WHERE guild_id=?",
+        'button_channel_id': "SELECT button_channel_id FROM guild_settings WHERE guild_id=?",
+        'button_message_id': "SELECT button_message_id FROM guild_settings WHERE guild_id=?",
+        'timezone': "SELECT timezone FROM guild_settings WHERE guild_id=?"
+    }
+    
+    if key not in column_queries:
+        raise ValueError(f"Invalid column name: {key}")
+    
     with db() as conn:
-        cur = conn.execute(f"SELECT {key} FROM guild_settings WHERE guild_id=?", (guild_id,))
+        cur = conn.execute(column_queries[key], (guild_id,))
         row = cur.fetchone()
         return row[0] if row and row[0] is not None else default
 
 def set_guild_setting(guild_id: int, key: str, value):
+    # Map of allowed keys to their SQL update queries
+    update_queries = {
+        'recipient_user_id': "UPDATE guild_settings SET recipient_user_id=? WHERE guild_id=?",
+        'button_channel_id': "UPDATE guild_settings SET button_channel_id=? WHERE guild_id=?",
+        'button_message_id': "UPDATE guild_settings SET button_message_id=? WHERE guild_id=?",
+        'timezone': "UPDATE guild_settings SET timezone=? WHERE guild_id=?"
+    }
+    
+    if key not in update_queries:
+        raise ValueError(f"Invalid column name: {key}")
+    
     with db() as conn:
         conn.execute("INSERT OR IGNORE INTO guild_settings(guild_id) VALUES (?)", (guild_id,))
-        conn.execute(f"UPDATE guild_settings SET {key}=? WHERE guild_id=?", (value, guild_id))
+        conn.execute(update_queries[key], (value, guild_id))
 
 def get_active_session(guild_id: int, user_id: int):
     with db() as conn:
@@ -705,6 +913,63 @@ async def list_info_roles(interaction: discord.Interaction):
         description="\n".join(role_mentions),
         color=discord.Color.blue()
     )
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@tree.command(name="help", description="List all available slash commands")
+@app_commands.guild_only()
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🤖 Bot Commands Help",
+        description="Here are all the available slash commands:",
+        color=discord.Color.green()
+    )
+    
+    # General Commands
+    embed.add_field(
+        name="📋 General Commands",
+        value=(
+            "`/help` - Show this help message\n"
+            "`/report <user> <start_date> <end_date>` - Generate timesheet report for a user"
+        ),
+        inline=False
+    )
+    
+    # Admin Commands
+    embed.add_field(
+        name="⚙️ Administrator Commands",
+        value=(
+            "`/setup_timeclock [channel]` - Post the time clock buttons\n"
+            "`/set_recipient <user>` - Set who gets DM notifications\n"
+            "`/set_timezone <timezone>` - Set display timezone (e.g., America/New_York)"
+        ),
+        inline=False
+    )
+    
+    # Role Management Commands
+    embed.add_field(
+        name="🔑 Role Management Commands",
+        value=(
+            "`/add_info_role <role>` - Allow a role to use the Info button\n"
+            "`/remove_info_role <role>` - Remove Info button access from a role\n"
+            "`/list_info_roles` - Show all roles with Info button access"
+        ),
+        inline=False
+    )
+    
+    # Button Information
+    embed.add_field(
+        name="🔘 Time Clock Buttons",
+        value=(
+            "🟢 **Clock In** - Start tracking your time\n"
+            "🔴 **Clock Out** - Stop tracking and log your shift\n"
+            "🔵 **Info** - View your hours (requires authorized role)\n"
+            "🟢 **Reports** - Generate all user reports (admin only)"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text="💡 Tip: Use the time clock buttons for quick access to common features!")
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 

@@ -19,16 +19,22 @@ args = "Discord Bot"
 name = "Discord Bot"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 bot.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
+args = "python bot.py"
+waitForPort = 5000
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "gce"
+run = ["sh", "-c", "python bot.py"]
 
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 35653
+externalPort = 3000
