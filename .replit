@@ -35,9 +35,5 @@ run = ["sh", "-c", "python bot.py"]
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 33267
-externalPort = 3000
-
 [agent]
 expertMode = true
