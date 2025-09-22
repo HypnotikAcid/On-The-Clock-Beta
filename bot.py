@@ -4,7 +4,7 @@ import csv
 import io
 import json
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -317,15 +317,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             <h3>💰 Subscription Plans</h3>
             <div class="pricing-tier free-tier">
                 <strong>Free - Admin Testing</strong><br>
-                Server admin can test all features • Sample reports only
+                Server admin can test all features • Sample reports only • 30 days data retention
             </div>
             <div class="pricing-tier">
                 <strong>Basic - $5/month</strong><br>
-                Full team access • Clock In/Out • Individual Time Info • Basic Tracking
+                Full team access • Clock In/Out • Individual Time Info • 6 months data retention
             </div>
             <div class="pricing-tier pro-tier">
                 <strong>Pro - $10/month</strong><br>
-                Everything in Basic • Real CSV Reports • Multiple Managers • Advanced Features
+                Everything in Basic • Real CSV Reports • Multiple Managers • 2 years data retention
             </div>
         </div>
         
@@ -383,6 +383,16 @@ def init_db():
             duration_seconds INTEGER
         )
         """)
+        
+        # Add indexes for performance
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_sessions_guild_clock_out 
+        ON sessions(guild_id, clock_out)
+        """)
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_sessions_guild_user_clock_out 
+        ON sessions(guild_id, user_id, clock_out)
+        """)
         conn.execute("""
         CREATE TABLE IF NOT EXISTS server_subscriptions (
             guild_id INTEGER PRIMARY KEY,
@@ -422,6 +432,51 @@ def check_tier_access(guild_id: int, required_tier: str) -> bool:
 def is_server_admin(user: discord.Member) -> bool:
     """Check if user is server administrator (for free tier restrictions)"""
     return user.guild_permissions.administrator
+
+# --- Data Retention Management ---
+def get_retention_days(guild_id: int) -> int:
+    """Get data retention days based on subscription tier"""
+    tier = get_server_tier(guild_id)
+    retention_policy = {
+        'free': 30,      # 1 month
+        'basic': 180,    # 6 months  
+        'pro': 730       # 2 years
+    }
+    return retention_policy.get(tier, 30)
+
+def cleanup_old_sessions(guild_id: int = None) -> int:
+    """Clean up old session data based on retention policy. Returns count of deleted records."""
+    deleted_count = 0
+    with db() as conn:
+        if guild_id:
+            # Clean up specific guild - only delete COMPLETED sessions older than retention period
+            retention_days = get_retention_days(guild_id)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            
+            cursor = conn.execute("""
+                DELETE FROM sessions 
+                WHERE guild_id = ? AND clock_out IS NOT NULL AND clock_out < ?
+            """, (guild_id, cutoff_date.isoformat()))
+            deleted_count = cursor.rowcount
+        else:
+            # Clean up all guilds based on their individual retention policies
+            guilds_cursor = conn.execute("SELECT DISTINCT guild_id FROM sessions")
+            for (guild_id,) in guilds_cursor.fetchall():
+                retention_days = get_retention_days(guild_id)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+                
+                cursor = conn.execute("""
+                    DELETE FROM sessions 
+                    WHERE guild_id = ? AND clock_out IS NOT NULL AND clock_out < ?
+                """, (guild_id, cutoff_date.isoformat()))
+                deleted_count += cursor.rowcount
+        
+        # Optimize database after cleanup
+        if deleted_count > 0:
+            conn.execute("PRAGMA wal_checkpoint")
+            conn.execute("VACUUM")
+    
+    return deleted_count
 
 def get_guild_setting(guild_id: int, key: str, default=None):
     # Map of allowed keys to their SQL column queries
@@ -1306,6 +1361,60 @@ async def generate_report(
         ephemeral=True
     )
 
+# --- Scheduled Tasks ---
+def schedule_daily_cleanup():
+    """Schedule daily cleanup task"""
+    def daily_cleanup():
+        while True:
+            try:
+                # Run cleanup at 2 AM UTC daily
+                deleted_count = cleanup_old_sessions()
+                if deleted_count > 0:
+                    print(f"🧹 Daily cleanup: Removed {deleted_count} old session records")
+                
+                # Sleep for 24 hours
+                threading.Event().wait(86400)  # 24 hours in seconds
+            except Exception as e:
+                print(f"❌ Error during daily cleanup: {e}")
+                threading.Event().wait(3600)  # Wait 1 hour before retrying
+    
+    cleanup_thread = threading.Thread(target=daily_cleanup, daemon=True)
+    cleanup_thread.start()
+    print("⏰ Daily cleanup scheduler started")
+
+@tree.command(name="data_cleanup", description="Manually trigger data cleanup (Admin only)")
+@app_commands.default_permissions(administrator=True)  
+@app_commands.guild_only()
+async def manual_cleanup(interaction: discord.Interaction):
+    """Allow admins to manually trigger data cleanup"""
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        deleted_count = cleanup_old_sessions(interaction.guild_id)
+        retention_days = get_retention_days(interaction.guild_id)
+        tier = get_server_tier(interaction.guild_id)
+        
+        embed = discord.Embed(
+            title="🧹 Data Cleanup Complete",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Records Removed", value=f"{deleted_count} old sessions", inline=True)
+        embed.add_field(name="Current Tier", value=f"{tier.title()}", inline=True)
+        embed.add_field(name="Data Retention", value=f"{retention_days} days", inline=True)
+        embed.add_field(
+            name="Retention Policy",
+            value="**Free:** 30 days\n**Basic:** 180 days (6 months)\n**Pro:** 730 days (2 years)",
+            inline=False
+        )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(
+            f"❌ Error during cleanup: {str(e)}", 
+            ephemeral=True
+        )
+
 if __name__ == "__main__":
     init_db()
     if not TOKEN:
@@ -1315,6 +1424,9 @@ if __name__ == "__main__":
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
     print(f"✅ Health check server thread started")
+    
+    # Start daily cleanup scheduler
+    schedule_daily_cleanup()
     
     # Start Discord bot (this will block)
     print(f"🤖 Starting Discord bot...")
