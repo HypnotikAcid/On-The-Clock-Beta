@@ -63,6 +63,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         bot_status = "🟢 Online" if bot.is_ready() else "🔴 Offline"
         guild_count = len(bot.guilds) if bot.is_ready() else "Loading..."
         
+        # Get bot's client ID for invite URL
+        bot_id = bot.user.id if bot.is_ready() and bot.user else "1418446753379913809"
+        invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=2048&scope=bot%20applications.commands"
+        
         return f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -153,21 +157,34 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             border: 1px solid #42464d;
             color: #dcddde;
         }}
-        .add-bot {{
+        .add-bot-section {{
+            margin: 40px 0 20px 0;
+            text-align: center;
+        }}
+        .add-bot-btn {{
             background: #5865F2;
             color: white;
             padding: 15px 30px;
             border: none;
             border-radius: 10px;
-            font-size: 1.1em;
+            font-size: 1.2em;
+            font-weight: bold;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
-            margin: 20px 0;
-            transition: background 0.3s;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(88, 101, 242, 0.3);
         }}
-        .add-bot:hover {{
+        .add-bot-btn:hover {{
             background: #4752C4;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(88, 101, 242, 0.4);
+        }}
+        .add-bot-note {{
+            color: #b9bbbe;
+            font-size: 0.9em;
+            margin-top: 10px;
         }}
         .footer {{
             margin-top: 30px;
@@ -226,6 +243,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     Reliable SQLite database storage
                 </div>
             </div>
+        </div>
+        
+        <div class="add-bot-section">
+            <a href="{invite_url}" target="_blank" class="add-bot-btn">
+                🤖 Add to Your Discord Server
+            </a>
+            <p class="add-bot-note">Requires administrator permissions to set up</p>
         </div>
         
         <div class="footer">
