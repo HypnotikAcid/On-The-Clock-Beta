@@ -186,6 +186,44 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             font-size: 0.9em;
             margin-top: 10px;
         }}
+        .beta-disclaimer {{
+            background: #3e2723;
+            border: 2px solid #ff6b35;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            color: #ffccbc;
+        }}
+        .beta-disclaimer h3 {{
+            color: #ff6b35;
+            margin-bottom: 15px;
+        }}
+        .beta-disclaimer ul {{
+            margin: 15px 0;
+            padding-left: 20px;
+        }}
+        .beta-disclaimer li {{
+            margin: 8px 0;
+        }}
+        .pricing-info {{
+            background: #2c2f36;
+            border: 1px solid #42464d;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 30px 0;
+        }}
+        .pricing-info h3 {{
+            color: #f39c12;
+            margin-bottom: 20px;
+            text-align: center;
+        }}
+        .pricing-tier {{
+            background: #36393f;
+            border-left: 4px solid #f39c12;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }}
         .footer {{
             margin-top: 30px;
             color: #b9bbbe;
@@ -250,6 +288,31 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 🤖 Add to Your Discord Server
             </a>
             <p class="add-bot-note">Requires administrator permissions to set up</p>
+        </div>
+        
+        <div class="beta-disclaimer">
+            <h3>⚠️ Beta Software Notice</h3>
+            <p><strong>This application is in beta testing.</strong> By using this service, you acknowledge:</p>
+            <ul>
+                <li>🔧 Features may not work as expected and bugs may occur</li>
+                <li>⏰ Service downtime and maintenance may happen without notice</li>
+                <li>💾 Data loss is possible and backups are not guaranteed</li>
+                <li>🚫 This service may be discontinued at any time without notice</li>
+                <li>📜 No warranty or guarantee of service availability is provided</li>
+            </ul>
+            <p><strong>Use at your own risk.</strong> This bot is provided "as-is" without any warranties.</p>
+        </div>
+        
+        <div class="pricing-info">
+            <h3>💰 Subscription Plans</h3>
+            <div class="pricing-tier">
+                <strong>Basic - $5/month</strong><br>
+                Clock In/Out • Individual Time Info • Basic Tracking
+            </div>
+            <div class="pricing-tier">
+                <strong>Pro - $10/month</strong><br>
+                Everything in Basic • CSV Reports • Multiple Managers • Advanced Features
+            </div>
         </div>
         
         <div class="footer">
