@@ -15,7 +15,7 @@ from discord.ext import commands
 TOKEN = os.getenv("DISCORD_TOKEN")            # required
 DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
 GUILD_ID = os.getenv("GUILD_ID")              # optional but makes commands appear instantly (guild sync)
-DEFAULT_TZ = "UTC"
+DEFAULT_TZ = "America/New_York"
 HTTP_PORT = int(os.getenv("PORT", "5000"))     # Health check server port
 
 # --- Health Check HTTP Server ---
@@ -25,6 +25,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Serve HTML dashboard page at root
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
             self.end_headers()
             html_content = self.get_dashboard_html()
             self.wfile.write(html_content.encode())
@@ -75,17 +78,18 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         }}
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #333;
+            color: #e0e6ed;
         }}
         .container {{
-            background: white;
+            background: #2c2f36;
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border: 1px solid #3e4147;
             padding: 40px;
             max-width: 800px;
             width: 90%;
@@ -102,7 +106,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         }}
         .bot-subtitle {{
             font-size: 1.2em;
-            color: #666;
+            color: #b9bbbe;
             margin-bottom: 20px;
         }}
         .status-grid {{
@@ -112,14 +116,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             margin: 30px 0;
         }}
         .status-card {{
-            background: #f8f9fa;
+            background: #36393f;
             border-radius: 15px;
             padding: 20px;
             border-left: 4px solid #5865F2;
+            border: 1px solid #42464d;
         }}
         .status-title {{
             font-weight: bold;
-            color: #333;
+            color: #dcddde;
             margin-bottom: 5px;
         }}
         .status-value {{
@@ -131,7 +136,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             text-align: left;
         }}
         .features h3 {{
-            color: #333;
+            color: #ffffff;
             margin-bottom: 15px;
             text-align: center;
         }}
@@ -141,10 +146,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             gap: 15px;
         }}
         .feature-item {{
-            background: #f8f9fa;
+            background: #36393f;
             padding: 15px;
             border-radius: 10px;
             border-left: 3px solid #28a745;
+            border: 1px solid #42464d;
+            color: #dcddde;
         }}
         .add-bot {{
             background: #5865F2;
@@ -164,7 +171,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         }}
         .footer {{
             margin-top: 30px;
-            color: #666;
+            color: #b9bbbe;
             font-size: 0.9em;
         }}
     </style>
@@ -187,7 +194,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             </div>
             <div class="status-card">
                 <div class="status-title">Last Updated</div>
-                <div class="status-value">{datetime.now(timezone.utc).strftime("%H:%M UTC")}</div>
+                <div class="status-value">{datetime.now().astimezone(__import__('zoneinfo').ZoneInfo('America/New_York')).strftime('%H:%M %Z')}</div>
             </div>
         </div>
         
@@ -253,7 +260,7 @@ def init_db():
             recipient_user_id INTEGER,
             button_channel_id INTEGER,
             button_message_id INTEGER,
-            timezone TEXT DEFAULT 'UTC'
+            timezone TEXT DEFAULT 'America/New_York'
         )
         """)
         conn.execute("""
@@ -380,7 +387,7 @@ def user_has_authorized_role(guild_id: int, user_roles):
     user_role_ids = [role.id for role in user_roles]
     return any(role_id in authorized_roles for role_id in user_role_ids)
 
-def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "UTC"):
+def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "America/New_York"):
     """Get current session, daily, and weekly hours for a user."""
     from zoneinfo import ZoneInfo
     
@@ -458,7 +465,7 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "UTC")
     
     return current_session_seconds, daily_seconds, weekly_seconds
 
-async def generate_csv_report(bot, sessions_data, guild_tz="UTC"):
+async def generate_csv_report(bot, sessions_data, guild_tz="America/New_York"):
     """Generate organized CSV content from sessions data with usernames."""
     output = io.StringIO()
     writer = csv.writer(output)
@@ -520,7 +527,7 @@ async def generate_csv_report(bot, sessions_data, guild_tz="UTC"):
     
     return output.getvalue()
 
-async def generate_individual_csv_report(bot, user_id, sessions, guild_tz="UTC"):
+async def generate_individual_csv_report(bot, user_id, sessions, guild_tz="America/New_York"):
     """Generate CSV for a single user."""
     output = io.StringIO()
     writer = csv.writer(output)
@@ -576,7 +583,7 @@ def now_utc():
 def fmt(dt: datetime, tz_name: Optional[str]) -> str:
     try:
         from zoneinfo import ZoneInfo
-        tz = ZoneInfo(tz_name) if tz_name else ZoneInfo("UTC")
+        tz = ZoneInfo(tz_name) if tz_name else ZoneInfo("America/New_York")
     except Exception:
         tz = timezone.utc
     return dt.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
