@@ -43,7 +43,14 @@ Preferred communication style: Simple, everyday language.
 - **Gateway Connection**: Persistent WebSocket connection for receiving events
 - **REST API**: HTTP requests for Discord operations like sending messages and managing servers
 
+## Payment Integration
+- **Stripe Products:**
+  - Basic Tier: `prod_T6UoMM5s7PdD8q` ($5/month)
+  - Pro Tier: `prod_T6UpgjUKoIEMtu` ($10/month)
+- **Price IDs:** (Pending - need monthly recurring price IDs for integration)
+
 ## Security Considerations
 - Bot token authentication required for Discord API access
 - Sensitive parameter handling through secure decorators
 - Logging security to prevent credential exposure
+- Stripe API key management through Replit integrations
