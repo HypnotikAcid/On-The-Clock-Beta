@@ -1068,57 +1068,106 @@ async def list_info_roles(interaction: discord.Interaction):
 @tree.command(name="help", description="List all available slash commands")
 @app_commands.guild_only()
 async def help_command(interaction: discord.Interaction):
+    # Get current server tier
+    server_tier = get_server_tier(interaction.guild_id)
+    tier_color = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
+    
     embed = discord.Embed(
         title="🤖 Bot Commands Help",
-        description="Here are all the available slash commands:",
-        color=discord.Color.green()
+        description=f"**Current Plan:** {server_tier.title()}\nHere are all available commands:",
+        color=tier_color.get(server_tier, discord.Color.green())
     )
     
-    # General Commands
-    embed.add_field(
-        name="📋 General Commands",
-        value=(
-            "`/help` - Show this help message\n"
-            "`/report <user> <start_date> <end_date>` - Generate timesheet report for a user"
-        ),
-        inline=False
-    )
+    # Free Tier Commands (Admin Only)
+    if server_tier == "free":
+        embed.add_field(
+            name="🆓 Free Tier Commands (Admin Only)",
+            value=(
+                "`/help` - Show this help message\n"
+                "`/setup_timeclock [channel]` - Post the time clock buttons\n"
+                "`/set_timezone <timezone>` - Set display timezone\n"
+                "`/report <user> <start_date> <end_date>` - Sample report with fake data"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🔒 Upgrade to Basic ($5/month) for:",
+            value=(
+                "• Full team access to timeclock\n"
+                "• All admin commands for everyone\n"
+                "• Role management features"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🔒 Upgrade to Pro ($10/month) for:",
+            value=(
+                "• Everything in Basic\n"
+                "• Real CSV timesheet reports\n"
+                "• Multiple manager notifications\n"
+                "• Advanced features"
+            ),
+            inline=False
+        )
     
-    # Admin Commands
-    embed.add_field(
-        name="⚙️ Administrator Commands",
-        value=(
-            "`/setup_timeclock [channel]` - Post the time clock buttons\n"
-            "`/set_recipient <user>` - Set who gets DM notifications\n"
-            "`/set_timezone <timezone>` - Set display timezone (e.g., America/New_York)"
-        ),
-        inline=False
-    )
+    # Basic Tier Commands
+    elif server_tier == "basic":
+        embed.add_field(
+            name="✅ Basic Tier Commands",
+            value=(
+                "`/help` - Show this help message\n"
+                "`/setup_timeclock [channel]` - Post the time clock buttons\n"
+                "`/set_recipient <user>` - Set who gets DM notifications\n"
+                "`/set_timezone <timezone>` - Set display timezone\n"
+                "`/add_info_role <role>` - Allow a role to use the Info button\n"
+                "`/remove_info_role <role>` - Remove Info button access\n"
+                "`/list_info_roles` - Show all roles with Info button access"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🔒 Upgrade to Pro ($10/month) for:",
+            value=(
+                "• Real CSV timesheet reports\n"
+                "• Multiple manager notifications\n"
+                "• Advanced time tracking features"
+            ),
+            inline=False
+        )
     
-    # Role Management Commands
-    embed.add_field(
-        name="🔑 Role Management Commands",
-        value=(
-            "`/add_info_role <role>` - Allow a role to use the Info button\n"
-            "`/remove_info_role <role>` - Remove Info button access from a role\n"
-            "`/list_info_roles` - Show all roles with Info button access"
-        ),
-        inline=False
-    )
+    # Pro Tier Commands
+    else:  # pro tier
+        embed.add_field(
+            name="✅ All Commands Available",
+            value=(
+                "`/help` - Show this help message\n"
+                "`/setup_timeclock [channel]` - Post the time clock buttons\n"
+                "`/set_recipient <user>` - Set who gets DM notifications\n"
+                "`/set_timezone <timezone>` - Set display timezone\n"
+                "`/add_info_role <role>` - Allow a role to use the Info button\n"
+                "`/remove_info_role <role>` - Remove Info button access\n"
+                "`/list_info_roles` - Show all roles with Info button access\n"
+                "`/report <user> <start_date> <end_date>` - Generate real CSV reports"
+            ),
+            inline=False
+        )
     
-    # Button Information
+    # Button Information (available to all tiers)
     embed.add_field(
         name="🔘 Time Clock Buttons",
         value=(
             "🟢 **Clock In** - Start tracking your time\n"
             "🔴 **Clock Out** - Stop tracking and log your shift\n"
             "🔵 **Info** - View your hours (requires authorized role)\n"
-            "🟢 **Reports** - Generate all user reports (admin only)"
+            "🟢 **Reports** - Generate reports (tier restrictions apply)"
         ),
         inline=False
     )
     
-    embed.set_footer(text="💡 Tip: Use the time clock buttons for quick access to common features!")
+    embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | Contact admin to upgrade plans")
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -1138,6 +1187,54 @@ async def generate_report(
 ):
     await interaction.response.defer(ephemeral=True)
     
+    # Check tier access for reports
+    guild_id = interaction.guild_id
+    server_tier = get_server_tier(guild_id)
+    
+    # Free tier: Admin only + fake data
+    if server_tier == "free":
+        if not is_server_admin(interaction.user):
+            await interaction.followup.send(
+                "🔒 **Free Tier Limitation**\n"
+                "Only server administrators can test the report feature.\n"
+                "Upgrade to Basic ($5/month) for full team access to timeclock features!",
+                ephemeral=True
+            )
+            return
+        
+        # Return fake CSV for free tier
+        fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
+        filename = f"sample_report_{start_date}_to_{end_date}_{user.name}.csv"
+        
+        file = discord.File(
+            io.BytesIO(fake_csv.encode('utf-8')), 
+            filename=filename
+        )
+        
+        await interaction.followup.send(
+            f"📊 **Free Tier Sample Report** for **{user.name}**\n"
+            f"🎯 This is sample data. Upgrade to Pro ($10/month) for real reports!\n"
+            f"📅 Date Range: {start_date} to {end_date}",
+            file=file,
+            ephemeral=True
+        )
+        return
+    
+    # Basic tier: No reports access
+    elif server_tier == "basic":
+        await interaction.followup.send(
+            "🔒 **Pro Feature Required**\n"
+            "CSV reports are available with Pro plan ($10/month).\n\n"
+            "**Pro Plan Includes:**\n"
+            "• Real CSV timesheet reports\n"
+            "• Multiple manager notifications\n"
+            "• Advanced time tracking features\n\n"
+            "Contact your server administrator to upgrade!",
+            ephemeral=True
+        )
+        return
+    
+    # Pro tier: Full access continues with normal function
     try:
         # Validate date format and order
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
