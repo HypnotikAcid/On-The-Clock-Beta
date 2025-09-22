@@ -7,6 +7,8 @@ import threading
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import parse_qs
+import stripe
 
 import discord
 from discord import app_commands
@@ -18,6 +20,21 @@ DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
 GUILD_ID = os.getenv("GUILD_ID")              # optional but makes commands appear instantly (guild sync)
 DEFAULT_TZ = "America/New_York"
 HTTP_PORT = int(os.getenv("PORT", "5000"))     # Health check server port
+
+# --- Stripe Configuration ---
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PRICE_IDS = {
+    'basic': 'price_1SAHpL3Jrp0J9Adlfowh5qpr',   # $5/month
+    'pro': 'price_1SAHqH3Jrp0J9AdlFSJpJ32A'      # $10/month  
+}
+
+# Get domain for Stripe redirects
+def get_domain():
+    if os.getenv('REPLIT_DEPLOYMENT'):
+        return os.getenv('REPLIT_DEV_DOMAIN')
+    else:
+        domains = os.getenv('REPLIT_DOMAINS', '')
+        return domains.split(',')[0] if domains else 'localhost:5000'
 
 # --- Health Check HTTP Server ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -43,8 +60,123 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self.wfile.write(json.dumps(response).encode())
+        elif self.path.startswith("/checkout/"):
+            # Handle checkout session creation
+            self.handle_checkout()
+        elif self.path in ["/success", "/cancel"]:
+            # Handle payment result pages
+            self.handle_payment_result()
         else:
             self.send_response(404)
+            self.end_headers()
+    
+    def do_POST(self):
+        if self.path == "/webhook":
+            # Handle Stripe webhooks
+            self.handle_stripe_webhook()
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def handle_checkout(self):
+        """Create Stripe checkout session"""
+        try:
+            # Parse URL: /checkout/basic/123456789 or /checkout/pro/123456789
+            path_parts = self.path.strip('/').split('/')
+            if len(path_parts) != 3:
+                raise ValueError("Invalid checkout URL format")
+            
+            _, tier, guild_id = path_parts
+            
+            if tier not in STRIPE_PRICE_IDS:
+                raise ValueError(f"Invalid tier: {tier}")
+            
+            domain = get_domain()
+            
+            # Create Stripe checkout session
+            checkout_session = stripe.checkout.Session.create(
+                line_items=[{
+                    'price': STRIPE_PRICE_IDS[tier],
+                    'quantity': 1,
+                }],
+                mode='subscription',
+                success_url=f'https://{domain}/success?session_id={{CHECKOUT_SESSION_ID}}',
+                cancel_url=f'https://{domain}/cancel',
+                metadata={
+                    'guild_id': guild_id,
+                    'tier': tier
+                },
+                automatic_tax={'enabled': True},
+            )
+            
+            # Redirect to Stripe checkout
+            self.send_response(303)
+            self.send_header('Location', checkout_session.url)
+            self.end_headers()
+            
+        except Exception as e:
+            print(f"❌ Checkout error: {e}")
+            self.send_response(400)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(f"<h1>Error</h1><p>Failed to create checkout session: {e}</p>".encode())
+    
+    def handle_payment_result(self):
+        """Handle success/cancel pages"""
+        if self.path.startswith("/success"):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            html = """
+            <html><body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1>🎉 Payment Successful!</h1>
+                <p>Your Discord server subscription is now active!</p>
+                <p>Return to Discord to start using your premium features.</p>
+            </body></html>
+            """
+            self.wfile.write(html.encode())
+        else:  # cancel
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            html = """
+            <html><body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1>❌ Payment Cancelled</h1>
+                <p>No charges were made. You can try again anytime.</p>
+                <p>Return to Discord and use the upgrade command again when ready.</p>
+            </body></html>
+            """
+            self.wfile.write(html.encode())
+    
+    def handle_stripe_webhook(self):
+        """Handle Stripe webhook events"""
+        try:
+            content_length = int(self.headers['Content-Length'])
+            payload = self.rfile.read(content_length)
+            
+            # For now, just parse the event (webhook signature verification can be added later)
+            event = json.loads(payload.decode('utf-8'))
+            
+            # Handle successful subscription creation
+            if event['type'] == 'checkout.session.completed':
+                session = event['data']['object']
+                guild_id = session['metadata']['guild_id']
+                tier = session['metadata']['tier']
+                subscription_id = session.get('subscription')
+                
+                # Update database with new subscription
+                set_server_tier(int(guild_id), tier, subscription_id)
+                print(f"✅ Subscription activated: Guild {guild_id} -> {tier.title()}")
+            
+            # Send success response
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(b'{"received": true}')
+            
+        except Exception as e:
+            print(f"❌ Webhook error: {e}")
+            self.send_response(400)
             self.end_headers()
     
     def do_HEAD(self):
@@ -1412,6 +1544,145 @@ async def manual_cleanup(interaction: discord.Interaction):
     except Exception as e:
         await interaction.followup.send(
             f"❌ Error during cleanup: {str(e)}", 
+            ephemeral=True
+        )
+
+# --- Subscription Management Commands ---
+@tree.command(name="upgrade", description="Upgrade your server to Basic or Pro plan")
+@app_commands.describe(plan="Choose Basic ($5/month) or Pro ($10/month)")
+@app_commands.choices(plan=[
+    app_commands.Choice(name="Basic - $5/month", value="basic"),
+    app_commands.Choice(name="Pro - $10/month", value="pro")
+])
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def upgrade_server(interaction: discord.Interaction, plan: str):
+    """Create Stripe checkout link for server upgrade"""
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        current_tier = get_server_tier(interaction.guild_id)
+        
+        # Check if already on this tier or higher
+        tier_hierarchy = {'free': 0, 'basic': 1, 'pro': 2}
+        if tier_hierarchy.get(current_tier, 0) >= tier_hierarchy.get(plan, 0):
+            await interaction.followup.send(
+                f"✅ Your server is already on **{current_tier.title()}** plan or higher!\n"
+                f"Use `/subscription_status` to view current subscription details.",
+                ephemeral=True
+            )
+            return
+        
+        domain = get_domain()
+        checkout_url = f"https://{domain}/checkout/{plan}/{interaction.guild_id}"
+        
+        plan_details = {
+            'basic': "**Basic Plan - $5/month**\n• Full team access to timeclock\n• All admin commands\n• Role management\n• 1 week data retention",
+            'pro': "**Pro Plan - $10/month**\n• Everything in Basic\n• Real CSV reports\n• Multiple manager notifications\n• 30 days data retention"
+        }
+        
+        embed = discord.Embed(
+            title=f"💳 Upgrade to {plan.title()} Plan",
+            description=plan_details[plan],
+            color=discord.Color.blue()
+        )
+        embed.add_field(
+            name="Next Steps",
+            value=f"Click the button below to complete your upgrade through Stripe.\n"
+                  f"You'll be redirected to a secure checkout page.",
+            inline=False
+        )
+        
+        # Create a view with a button that opens the checkout URL
+        view = discord.ui.View()
+        button = discord.ui.Button(
+            label=f"Upgrade to {plan.title()} - ${5 if plan == 'basic' else 10}/month",
+            style=discord.ButtonStyle.primary,
+            url=checkout_url
+        )
+        view.add_item(button)
+        
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(
+            f"❌ Error creating checkout session: {str(e)}", 
+            ephemeral=True
+        )
+
+@tree.command(name="subscription_status", description="View current subscription status")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def subscription_status(interaction: discord.Interaction):
+    """Show current subscription tier and details"""
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT tier, subscription_id, expires_at, status
+                FROM server_subscriptions 
+                WHERE guild_id = ?
+            """, (interaction.guild_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                tier = "free"
+                subscription_id = None
+                expires_at = None
+                status = "active"
+            else:
+                tier, subscription_id, expires_at, status = result
+        
+        tier_colors = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
+        tier_emojis = {"free": "🆓", "basic": "💼", "pro": "⭐"}
+        
+        embed = discord.Embed(
+            title=f"{tier_emojis.get(tier, '❓')} Subscription Status",
+            color=tier_colors.get(tier, discord.Color.gray())
+        )
+        
+        embed.add_field(name="Current Plan", value=tier.title(), inline=True)
+        embed.add_field(name="Status", value=status.title(), inline=True)
+        
+        if subscription_id:
+            embed.add_field(name="Subscription ID", value=f"`{subscription_id}`", inline=True)
+        
+        if expires_at:
+            embed.add_field(name="Next Billing", value=f"<t:{int(datetime.fromisoformat(expires_at).timestamp())}:f>", inline=True)
+        
+        # Show plan features
+        plan_features = {
+            'free': "• Admin-only testing\n• Sample reports\n• No data retention",
+            'basic': "• Full team access\n• All admin commands\n• Role management\n• 1 week data retention",
+            'pro': "• Everything in Basic\n• Real CSV reports\n• Multiple managers\n• 30 days data retention"
+        }
+        
+        embed.add_field(
+            name="Plan Features",
+            value=plan_features.get(tier, "Unknown plan"),
+            inline=False
+        )
+        
+        # Show upgrade options for lower tiers
+        if tier == "free":
+            embed.add_field(
+                name="Upgrade Options",
+                value="Use `/upgrade basic` or `/upgrade pro` to upgrade your server!",
+                inline=False
+            )
+        elif tier == "basic":
+            embed.add_field(
+                name="Upgrade Option",
+                value="Use `/upgrade pro` to upgrade to Pro plan!",
+                inline=False
+            )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(
+            f"❌ Error fetching subscription status: {str(e)}", 
             ephemeral=True
         )
 
