@@ -227,6 +227,38 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.send_response(400)
             self.end_headers()
     
+    def purge_all_guild_data(self, guild_id: int):
+        """Purge all data for a guild when subscription lapses"""
+        try:
+            with db() as conn:
+                # Set timeout for database operations
+                conn.execute("PRAGMA busy_timeout = 5000")
+                
+                # Delete all sessions data
+                sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
+                sessions_deleted = sessions_cursor.rowcount
+                
+                # Delete guild settings
+                settings_cursor = conn.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))
+                settings_deleted = settings_cursor.rowcount
+                
+                # Delete authorized roles
+                roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
+                roles_deleted = roles_cursor.rowcount
+                
+                # Reset subscription to free tier (don't delete subscription record)
+                conn.execute("""
+                    UPDATE server_subscriptions 
+                    SET tier = 'free', subscription_id = NULL, customer_id = NULL, 
+                        expires_at = NULL, status = 'cancelled'
+                    WHERE guild_id = ?
+                """, (guild_id,))
+                
+                print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {roles_deleted} roles")
+                
+        except Exception as e:
+            print(f"❌ Error purging guild data for {guild_id}: {e}")
+    
     def handle_subscription_change(self, subscription):
         """Handle subscription status changes"""
         try:
@@ -268,9 +300,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if result:
                     guild_id = result[0]
                     
-                    # Downgrade to free tier
-                    set_server_tier(guild_id, 'free')
-                    print(f"⬇️ Subscription cancelled: Guild {guild_id} -> Free")
+                    # Purge all guild data and revert to free tier
+                    self.purge_all_guild_data(guild_id)
+                    print(f"⬇️ Subscription cancelled: Guild {guild_id} -> Free with data purged")
                     
         except Exception as e:
             print(f"❌ Error handling subscription cancellation: {e}")
