@@ -107,8 +107,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(response).encode())
         # Remove insecure GET checkout endpoint - checkout now done via Discord commands only
-        elif self.path in ["/success", "/cancel"]:
-            # Handle payment result pages
+        elif self.path.startswith("/success") or self.path.startswith("/cancel"):
+            # Handle payment result pages (with or without query parameters)
             self.handle_payment_result()
         else:
             self.send_response(404)
