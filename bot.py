@@ -951,7 +951,7 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
     
     return current_session_seconds, daily_seconds, weekly_seconds
 
-async def generate_csv_report(bot, sessions_data, guild_tz="America/New_York"):
+async def generate_csv_report(bot, sessions_data, guild_id, guild_tz="America/New_York"):
     """Generate organized CSV content from sessions data with usernames."""
     output = io.StringIO()
     writer = csv.writer(output)
@@ -965,10 +965,10 @@ async def generate_csv_report(bot, sessions_data, guild_tz="America/New_York"):
     
     # Generate organized format for each user
     for user_id, sessions in user_sessions.items():
-        # Fetch Discord user to get username
+        # Fetch Discord user to get display name based on guild preference
         try:
             discord_user = await bot.fetch_user(user_id)
-            user_display_name = discord_user.name
+            user_display_name = get_user_display_name(discord_user, guild_id)
         except:
             user_display_name = f"User-{user_id}"  # Fallback if user not found
         
@@ -1013,15 +1013,15 @@ async def generate_csv_report(bot, sessions_data, guild_tz="America/New_York"):
     
     return output.getvalue()
 
-async def generate_individual_csv_report(bot, user_id, sessions, guild_tz="America/New_York"):
+async def generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz="America/New_York"):
     """Generate CSV for a single user."""
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Fetch Discord user to get username
+    # Fetch Discord user to get display name based on guild preference
     try:
         discord_user = await bot.fetch_user(user_id)
-        user_display_name = discord_user.name
+        user_display_name = get_user_display_name(discord_user, guild_id)
     except:
         user_display_name = f"User-{user_id}"  # Fallback if user not found
     
@@ -1261,7 +1261,7 @@ class TimeClockView(discord.ui.View):
         total_entries = len(sessions_data)
         
         for user_id, sessions in user_sessions.items():
-            csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_tz_name)
+            csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name)
             
             start_date_str = start_date.strftime("%Y-%m-%d")
             end_date_str = end_date.strftime("%Y-%m-%d")
@@ -1588,15 +1588,17 @@ async def generate_report(
         
         # Return fake CSV for free tier
         fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
-        filename = f"{user.name}_sample_report_{start_date}_to_{end_date}.csv"
+        user_display_name = get_user_display_name(user, interaction.guild_id)
+        filename = f"{user_display_name}_sample_report_{start_date}_to_{end_date}.csv"
         
         file = discord.File(
             io.BytesIO(fake_csv.encode('utf-8')), 
             filename=filename
         )
         
+        user_display_name = get_user_display_name(user, interaction.guild_id)
         await interaction.followup.send(
-            f"📊 **Free Tier Sample Report** for **{user.name}**\n"
+            f"📊 **Free Tier Sample Report** for **{user_display_name}**\n"
             f"🎯 This is sample data. Upgrade to Pro ($10/month) for real reports!\n"
             f"📅 Date Range: {start_date} to {end_date}",
             file=file,
@@ -1661,17 +1663,19 @@ async def generate_report(
     sessions_data = get_sessions_report(interaction.guild_id, user_id, start_utc, end_utc)
     
     if not sessions_data:
+        user_display_name = get_user_display_name(user, interaction.guild_id)
         await interaction.followup.send(
-            f"📭 No completed timesheet entries found for **{user.name}** between {start_date} and {end_date}",
+            f"📭 No completed timesheet entries found for **{user_display_name}** between {start_date} and {end_date}",
             ephemeral=True
         )
         return
     
     # Generate single CSV
-    csv_content = await generate_csv_report(bot, sessions_data, guild_tz_name)
+    csv_content = await generate_csv_report(bot, sessions_data, interaction.guild_id, guild_tz_name)
     
-    # Create file using Discord username at the beginning
-    filename = f"{user.name}_timesheet_report_{start_date}_to_{end_date}.csv"
+    # Create file using display name preference at the beginning
+    user_display_name = get_user_display_name(user, interaction.guild_id)
+    filename = f"{user_display_name}_timesheet_report_{start_date}_to_{end_date}.csv"
     
     file = discord.File(
         io.BytesIO(csv_content.encode('utf-8')), 
@@ -1682,7 +1686,7 @@ async def generate_report(
     total_entries = len(sessions_data)
     
     await interaction.followup.send(
-        f"📊 Generated timesheet report for **{user.name}**\n"
+        f"📊 Generated timesheet report for **{user_display_name}**\n"
         f"📅 **Period:** {start_date} to {end_date}\n"
         f"📝 **Entries:** {total_entries} completed shifts\n"
         f"🕐 **Timezone:** {guild_tz_name}",
