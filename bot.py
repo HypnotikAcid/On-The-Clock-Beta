@@ -5,8 +5,9 @@ import io
 import json
 import threading
 import time
+import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, Dict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
 import stripe
@@ -29,6 +30,15 @@ STRIPE_PRICE_IDS = {
     'basic': 'price_1SAHpL3Jrp0J9Adlfowh5qpr',   # $5/month
     'pro': 'price_1SAHqH3Jrp0J9AdlFSJpJ32A'      # $10/month  
 }
+
+# Guild-based locks to prevent race conditions in setup operations
+guild_setup_locks: Dict[int, asyncio.Lock] = {}
+
+def get_guild_lock(guild_id: int) -> asyncio.Lock:
+    """Get or create an asyncio lock for a specific guild"""
+    if guild_id not in guild_setup_locks:
+        guild_setup_locks[guild_id] = asyncio.Lock()
+    return guild_setup_locks[guild_id]
 
 # Get domain for Stripe redirects
 def get_domain():
@@ -1473,25 +1483,61 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
     # Defer the response early to avoid timeout issues
     await interaction.response.defer(ephemeral=True)
     
-    # Clean up any existing timeclock message first
-    old_channel_id = get_guild_setting(interaction.guild_id, "button_channel_id")
-    old_message_id = get_guild_setting(interaction.guild_id, "button_message_id")
+    # Use guild-specific lock to prevent race conditions
+    guild_lock = get_guild_lock(interaction.guild_id)
     
-    if old_channel_id and old_message_id:
+    async with guild_lock:
+        print(f"🔒 Acquired lock for guild {interaction.guild_id}")
+        print(f"🔧 Setting up timeclock in {ch.name} (Guild: {interaction.guild_id})")
+        
+        # Enhanced cleanup: Remove ALL existing timeclock messages using component detection
+        deleted_count = 0
         try:
-            old_channel = bot.get_channel(old_channel_id)
-            if old_channel:
-                old_message = await old_channel.fetch_message(old_message_id)
-                await old_message.delete()
-                print(f"🧹 Deleted old timeclock message in {old_channel.name}")
+            # Delete tracked message first
+            old_channel_id = get_guild_setting(interaction.guild_id, "button_channel_id")
+            old_message_id = get_guild_setting(interaction.guild_id, "button_message_id")
+            
+            if old_channel_id and old_message_id:
+                try:
+                    old_channel = bot.get_channel(old_channel_id)
+                    if old_channel:
+                        old_message = await old_channel.fetch_message(old_message_id)
+                        await old_message.delete()
+                        deleted_count += 1
+                        print(f"🧹 Deleted tracked timeclock message in {old_channel.name}")
+                except Exception as e:
+                    print(f"⚠️ Could not delete tracked message: {e}")
+            
+            # More robust cleanup: Find messages with timeclock custom_ids
+            async for message in ch.history(limit=100):
+                if (message.author == bot.user and 
+                    message.components and
+                    any(component.children for component in message.components
+                        if any(button.custom_id and button.custom_id.startswith("timeclock:")
+                               for button in component.children if hasattr(button, 'custom_id')))):
+                    try:
+                        await message.delete()
+                        deleted_count += 1
+                        print(f"🧹 Deleted timeclock message by custom_id (ID: {message.id})")
+                    except Exception as e:
+                        print(f"⚠️ Could not delete message {message.id}: {e}")
+            
+            print(f"🧹 Total messages cleaned up: {deleted_count}")
+            
         except Exception as e:
-            print(f"⚠️ Could not delete old timeclock message: {e}")
-    
-    # Create new timeclock message
-    view = TimeClockView()
-    msg = await ch.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
-    set_guild_setting(interaction.guild_id, "button_channel_id", ch.id)
-    set_guild_setting(interaction.guild_id, "button_message_id", msg.id)
+            print(f"⚠️ Error during cleanup: {e}")
+        
+        # Create new timeclock message
+        view = TimeClockView()
+        msg = await ch.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
+        
+        # Store the new message info
+        set_guild_setting(interaction.guild_id, "button_channel_id", ch.id)
+        set_guild_setting(interaction.guild_id, "button_message_id", msg.id)
+        
+        print(f"✅ Created new timeclock message (ID: {msg.id}) in {ch.name}")
+        print(f"🔓 Released lock for guild {interaction.guild_id}")
+        
     await interaction.followup.send(f"✅ Posted timeclock in {ch.mention}.", ephemeral=True)
 
 @tree.command(name="set_recipient", description="Set who receives private time entries (DMs)")
