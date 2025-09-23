@@ -1306,6 +1306,40 @@ class TimeClockView(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
         
         guild_id = interaction.guild.id
+        server_tier = get_server_tier(guild_id)
+        
+        # Free tier: Admin only + fake data 
+        if server_tier == "free":
+            fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
+            filename = f"sample_report_last_30_days.csv"
+            
+            file = discord.File(
+                io.BytesIO(fake_csv.encode('utf-8')), 
+                filename=filename
+            )
+            
+            await interaction.followup.send(
+                f"📊 **Free Tier Sample Report**\n"
+                f"🎯 This is sample data. Upgrade to Pro ($10/month) for real reports!\n"
+                f"📅 Date Range: Last 30 days",
+                file=file,
+                ephemeral=True
+            )
+            return
+        
+        # Basic tier: No reports access
+        elif server_tier == "basic":
+            await interaction.followup.send(
+                "🔒 **Pro Feature Required**\n"
+                "CSV reports are available with Pro plan ($10/month).\n\n"
+                "**Pro Plan Includes:**\n"
+                "• Real CSV timesheet reports\n"
+                "• Multiple manager notifications\n"
+                "• Advanced time tracking features\n\n"
+                "Contact your server administrator to upgrade!",
+                ephemeral=True
+            )
+            return
         guild_tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
         
         # Generate report for last 30 days automatically
