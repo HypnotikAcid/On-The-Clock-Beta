@@ -1376,16 +1376,7 @@ class TimeClockView(discord.ui.View):
         """Build view with conditional buttons based on server tier"""
         server_tier = get_server_tier(guild_id)
         
-        # Add core buttons (row 0)
-        on_clock_btn = discord.ui.Button(
-            label="On the Clock", 
-            style=discord.ButtonStyle.secondary, 
-            custom_id="timeclock:onclock", 
-            row=0
-        )
-        on_clock_btn.callback = self.on_the_clock
-        self.add_item(on_clock_btn)
-        
+        # Add core buttons (row 0) - Clock In first, On the Clock last
         clock_in_btn = discord.ui.Button(
             label="Clock In", 
             style=discord.ButtonStyle.success, 
@@ -1412,6 +1403,15 @@ class TimeClockView(discord.ui.View):
         )
         help_btn.callback = self.show_help
         self.add_item(help_btn)
+        
+        on_clock_btn = discord.ui.Button(
+            label="On the Clock", 
+            style=discord.ButtonStyle.secondary, 
+            custom_id="timeclock:onclock", 
+            row=0
+        )
+        on_clock_btn.callback = self.on_the_clock
+        self.add_item(on_clock_btn)
         
         # Conditional second row buttons
         if server_tier == "free":
