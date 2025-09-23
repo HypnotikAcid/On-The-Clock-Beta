@@ -823,22 +823,22 @@ def set_server_tier(guild_id: int, tier: str, subscription_id: str = None, custo
             # Full subscription with customer info
             conn.execute("""
                 INSERT OR REPLACE INTO server_subscriptions 
-                (guild_id, tier, subscription_id, customer_id, status) 
-                VALUES (?, ?, ?, ?, 'active')
+                (guild_id, tier, subscription_id, expires_at, status, customer_id) 
+                VALUES (?, ?, ?, NULL, 'active', ?)
             """, (guild_id, tier, subscription_id, customer_id))
         elif subscription_id:
             # Subscription without customer (legacy)
             conn.execute("""
                 INSERT OR REPLACE INTO server_subscriptions 
-                (guild_id, tier, subscription_id, status) 
-                VALUES (?, ?, ?, 'active')
+                (guild_id, tier, subscription_id, expires_at, status) 
+                VALUES (?, ?, ?, NULL, 'active')
             """, (guild_id, tier, subscription_id))
         else:
             # Free tier or manual assignment
             conn.execute("""
                 INSERT OR REPLACE INTO server_subscriptions 
-                (guild_id, tier, status) 
-                VALUES (?, ?, 'active')
+                (guild_id, tier, expires_at, status) 
+                VALUES (?, ?, NULL, 'active')
             """, (guild_id, tier))
 
 def check_tier_access(guild_id: int, required_tier: str) -> bool:
