@@ -640,6 +640,9 @@ def start_health_server():
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")  # Write-Ahead Logging for better concurrency
+    conn.execute("PRAGMA busy_timeout = 5000")  # 5 second timeout globally
+    conn.execute("PRAGMA synchronous = NORMAL")  # Balance between safety and performance
     return conn
 
 def init_db():
@@ -763,8 +766,6 @@ def cleanup_old_sessions(guild_id: int = None) -> int:
     for attempt in range(max_retries):
         try:
             with db() as conn:
-                # Set a reasonable timeout for database operations
-                conn.execute("PRAGMA busy_timeout = 5000")  # 5 second timeout
                 
                 if guild_id:
                     # Clean up specific guild - only delete COMPLETED sessions older than retention period
@@ -1435,6 +1436,9 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         await interaction.response.send_message("No channel resolved.", ephemeral=True)
         return
     
+    # Defer the response early to avoid timeout issues
+    await interaction.response.defer(ephemeral=True)
+    
     # Clean up any existing timeclock message first
     old_channel_id = get_guild_setting(interaction.guild_id, "button_channel_id")
     old_message_id = get_guild_setting(interaction.guild_id, "button_message_id")
@@ -1454,7 +1458,7 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
     msg = await ch.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
     set_guild_setting(interaction.guild_id, "button_channel_id", ch.id)
     set_guild_setting(interaction.guild_id, "button_message_id", msg.id)
-    await interaction.response.send_message(f"✅ Posted timeclock in {ch.mention}.", ephemeral=True)
+    await interaction.followup.send(f"✅ Posted timeclock in {ch.mention}.", ephemeral=True)
 
 @tree.command(name="set_recipient", description="Set who receives private time entries (DMs)")
 @app_commands.describe(user="Manager/admin who should receive time entries via DM")
