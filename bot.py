@@ -1546,7 +1546,7 @@ async def generate_report(
         
         # Return fake CSV for free tier
         fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
-        filename = f"sample_report_{start_date}_to_{end_date}_{user.name}.csv"
+        filename = f"{user.name}_sample_report_{start_date}_to_{end_date}.csv"
         
         file = discord.File(
             io.BytesIO(fake_csv.encode('utf-8')), 
@@ -1628,8 +1628,8 @@ async def generate_report(
     # Generate single CSV
     csv_content = await generate_csv_report(bot, sessions_data, guild_tz_name)
     
-    # Create file using Discord username (not display name)
-    filename = f"timesheet_report_{start_date}_to_{end_date}_{user.name}.csv"
+    # Create file using Discord username at the beginning
+    filename = f"{user.name}_timesheet_report_{start_date}_to_{end_date}.csv"
     
     file = discord.File(
         io.BytesIO(csv_content.encode('utf-8')), 
