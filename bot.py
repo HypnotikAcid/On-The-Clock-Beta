@@ -2136,7 +2136,7 @@ async def subscription_status(interaction: discord.Interaction):
         
         embed = discord.Embed(
             title=f"{tier_emojis.get(tier, '❓')} Subscription Status",
-            color=tier_colors.get(tier, discord.Color.gray())
+            color=tier_colors.get(tier, discord.Color.greyple())
         )
         
         embed.add_field(name="Current Plan", value=tier.title(), inline=True)
