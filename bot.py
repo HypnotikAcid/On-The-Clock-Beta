@@ -1328,6 +1328,22 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
     if ch is None:
         await interaction.response.send_message("No channel resolved.", ephemeral=True)
         return
+    
+    # Clean up any existing timeclock message first
+    old_channel_id = get_guild_setting(interaction.guild_id, "button_channel_id")
+    old_message_id = get_guild_setting(interaction.guild_id, "button_message_id")
+    
+    if old_channel_id and old_message_id:
+        try:
+            old_channel = bot.get_channel(old_channel_id)
+            if old_channel:
+                old_message = await old_channel.fetch_message(old_message_id)
+                await old_message.delete()
+                print(f"🧹 Deleted old timeclock message in {old_channel.name}")
+        except Exception as e:
+            print(f"⚠️ Could not delete old timeclock message: {e}")
+    
+    # Create new timeclock message
     view = TimeClockView()
     msg = await ch.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
     set_guild_setting(interaction.guild_id, "button_channel_id", ch.id)
