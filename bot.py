@@ -715,6 +715,12 @@ def init_db():
             status TEXT DEFAULT 'active'
         )
         """)
+        
+        # Add customer_id column if it doesn't exist (for existing databases)
+        try:
+            conn.execute("ALTER TABLE server_subscriptions ADD COLUMN customer_id TEXT")
+        except:
+            pass  # Column already exists
 
 # --- Subscription/Tier Management ---
 def get_server_tier(guild_id: int) -> str:
