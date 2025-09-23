@@ -1596,11 +1596,17 @@ def purge_timeclock_data_only(guild_id: int):
         raise e  # Re-raise so the error can be caught by the calling function
 
 def format_shift_duration(seconds: int) -> str:
-    """Format seconds into 'This Shift: HH:hrs::MM:Mins::SS:seconds' format"""
+    """Format seconds into clean 'X hrs Y mins' format"""
     h = int(seconds // 3600)
     m = int((seconds % 3600) // 60)
     s = int(seconds % 60)
-    return f"This Shift: {h:02d}:hrs::{m:02d}:Mins::{s:02d}:seconds"
+    
+    if h > 0:
+        return f"{h} hr{'s' if h != 1 else ''} {m} min{'s' if m != 1 else ''}"
+    elif m > 0:
+        return f"{m} min{'s' if m != 1 else ''} {s} sec{'s' if s != 1 else ''}"
+    else:
+        return f"{s} second{'s' if s != 1 else ''}"
 
 # --- Discord bot ---
 intents = discord.Intents.default()
@@ -1715,8 +1721,9 @@ class TimeClockView(discord.ui.View):
                 from zoneinfo import ZoneInfo
                 guild_tz = ZoneInfo(tz_name)
             except Exception:
-                guild_tz = timezone.utc
-                tz_name = "UTC"
+                # If timezone fails, fallback to EST instead of UTC
+                guild_tz = ZoneInfo(DEFAULT_TZ)
+                tz_name = "America/New_York (EST)"
             
             embed = discord.Embed(
                 title="🕒 Team Currently On the Clock",
