@@ -12,6 +12,7 @@ from typing import Optional, Dict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
 import stripe
+from stripe import StripeError, SignatureVerificationError
 
 import discord
 from discord import app_commands
@@ -55,7 +56,7 @@ def owner_only(func):
     return wrapper
 
 # --- Proper Interaction Response Helper ---
-async def send_reply(interaction: discord.Interaction, content: Optional[str] = None, ephemeral: bool = True, **kwargs) -> discord.WebhookMessage:
+async def send_reply(interaction: discord.Interaction, content: Optional[str] = None, ephemeral: bool = True, **kwargs):
     """
     Proper helper function to handle Discord interaction responses.
     Uses followup if interaction is already responded to, otherwise uses initial response.
@@ -69,15 +70,22 @@ async def send_reply(interaction: discord.Interaction, content: Optional[str] = 
     Returns:
         The sent message object
     """
+    # Handle None content by only passing content if it's not None
+    send_kwargs = {'ephemeral': ephemeral, **kwargs}
+    if content is not None:
+        send_kwargs['content'] = content
+    
     if interaction.response.is_done():
-        return await interaction.followup.send(content=content, ephemeral=ephemeral, **kwargs)
+        return await interaction.followup.send(**send_kwargs)
     else:
-        return await interaction.response.send_message(content=content, ephemeral=ephemeral, **kwargs)
+        await interaction.response.send_message(**send_kwargs)
+        return await interaction.original_response()
 
 # Get domain for Stripe redirects
-def get_domain():
+def get_domain() -> str:
     if os.getenv('REPLIT_DEPLOYMENT'):
-        return os.getenv('REPLIT_DEV_DOMAIN')
+        domain = os.getenv('REPLIT_DEV_DOMAIN')
+        return domain if domain else 'localhost:5000'
     else:
         domains = os.getenv('REPLIT_DOMAINS', '')
         return domains.split(',')[0] if domains else 'localhost:5000'
@@ -109,9 +117,9 @@ def create_secure_checkout_session(guild_id: int, tier: str) -> str:
             billing_address_collection='required',
         )
         
-        return checkout_session.url
+        return checkout_session.url or ""
         
-    except stripe.error.StripeError as e:
+    except StripeError as e:
         raise ValueError(f"Stripe error: {str(e)}")
     except Exception as e:
         raise ValueError(f"Checkout creation failed: {str(e)}")
@@ -483,7 +491,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 print(f"❌ Invalid webhook payload: {e}")
                 self.send_response(400)
                 return
-            except stripe.error.SignatureVerificationError as e:
+            except SignatureVerificationError as e:
                 print(f"❌ Invalid webhook signature: {e}")
                 self.send_response(400)
                 return
@@ -542,7 +550,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"📋 Session details: Customer={full_session.get('customer')}, Subscription={full_session.get('subscription')}")
             
             # Verify the price ID matches our expected tiers
-            if full_session.line_items.data:
+            if full_session.line_items and full_session.line_items.data and full_session.line_items.data[0].price:
                 price_id = full_session.line_items.data[0].price.id
                 print(f"💰 Price ID: {price_id}")
                 
@@ -578,6 +586,50 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
         except Exception as e:
             print(f"❌ Error processing checkout session: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def handle_subscription_cancellation(self, subscription):
+        """Handle subscription cancellation events"""
+        try:
+            print(f"🔄 Processing subscription cancellation: {subscription.get('id', 'unknown')}")
+            
+            # Find guild by subscription_id or customer_id
+            subscription_id = subscription.get('id')
+            customer_id = subscription.get('customer')
+            
+            if not subscription_id:
+                print("❌ No subscription ID in cancellation event")
+                return
+                
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT guild_id FROM server_subscriptions 
+                    WHERE subscription_id = ? OR customer_id = ?
+                """, (subscription_id, customer_id))
+                result = cursor.fetchone()
+                
+                if result:
+                    guild_id = result[0]
+                    print(f"🎯 Found guild {guild_id} for cancelled subscription")
+                    
+                    # Update subscription status to cancelled and downgrade to free
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET tier = 'free', status = 'cancelled'
+                        WHERE guild_id = ?
+                    """, (guild_id,))
+                    
+                    # Purge data according to free tier policy (no retention)
+                    print(f"🗑️ Purging data for cancelled subscription - Guild {guild_id}")
+                    self.purge_timeclock_data_only(guild_id)
+                    
+                    print(f"✅ Subscription cancellation processed: Guild {guild_id} downgraded to free")
+                else:
+                    print(f"❌ No guild found for subscription {subscription_id}")
+                    
+        except Exception as e:
+            print(f"❌ Error processing subscription cancellation: {e}")
             import traceback
             traceback.print_exc()
     
@@ -1052,7 +1104,7 @@ def purge_guild_data_for_testing(guild_id: int):
 def start_health_server():
     """Start the health check HTTP server in a separate thread"""
     # Pass bot reference to handler to fix LSP error
-    HealthCheckHandler.bot = bot
+    setattr(HealthCheckHandler, 'bot', bot)
     httpd = HTTPServer(('0.0.0.0', HTTP_PORT), HealthCheckHandler)
     print(f"🔧 Health check server starting on http://0.0.0.0:{HTTP_PORT}")
     httpd.serve_forever()
@@ -1202,7 +1254,7 @@ def get_server_tier(guild_id: int) -> str:
         
         return tier
 
-def set_server_tier(guild_id: int, tier: str, subscription_id: str = None, customer_id: str = None):
+def set_server_tier(guild_id: int, tier: str, subscription_id: Optional[str] = None, customer_id: Optional[str] = None):
     """Set subscription tier for a server"""
     with db() as conn:
         if subscription_id and customer_id:
@@ -1248,7 +1300,7 @@ def get_retention_days(guild_id: int) -> int:
     }
     return retention_policy.get(tier, 0)
 
-def cleanup_old_sessions(guild_id: int = None) -> int:
+def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
     """Clean up old session data based on retention policy. Returns count of deleted records."""
     deleted_count = 0
     max_retries = 3
@@ -1762,7 +1814,7 @@ async def setup_hook():
 bot.setup_hook = setup_hook
 
 class TimeClockView(discord.ui.View):
-    def __init__(self, guild_id: int = None):
+    def __init__(self, guild_id: Optional[int] = None):
         super().__init__(timeout=None)  # persistent view
         self.guild_id = guild_id
         
@@ -1847,6 +1899,14 @@ class TimeClockView(discord.ui.View):
         
         # Check clock access permissions
         server_tier = get_server_tier(guild_id)
+        # Type guard: ensure we have a Member for guild-specific functions
+        if not isinstance(interaction.user, discord.Member):
+            await interaction.followup.send(
+                "❌ Unable to verify access permissions. Please try again.",
+                ephemeral=True
+            )
+            return
+        
         if not user_has_clock_access(interaction.user, server_tier):
             await interaction.followup.send(
                 "🔒 **Access Restricted**\n"
@@ -1882,10 +1942,16 @@ class TimeClockView(discord.ui.View):
             try:
                 from zoneinfo import ZoneInfo
                 guild_tz = ZoneInfo(tz_name)
-            except Exception:
-                # If timezone fails, fallback to EST instead of UTC
-                guild_tz = ZoneInfo(DEFAULT_TZ)
-                tz_name = "America/New_York (EST)"
+            except (ImportError, Exception):
+                # If timezone or ZoneInfo import fails, fallback to EST instead of UTC
+                try:
+                    from zoneinfo import ZoneInfo
+                    guild_tz = ZoneInfo(DEFAULT_TZ)
+                    tz_name = "America/New_York (EST)"
+                except ImportError:
+                    # ZoneInfo not available, use UTC
+                    guild_tz = timezone.utc
+                    tz_name = "UTC"
             
             embed = discord.Embed(
                 title="🕒 Team Currently On the Clock",
@@ -1955,8 +2021,8 @@ class TimeClockView(discord.ui.View):
                     
                     # Format times
                     clock_in_time = clock_in_local.strftime("%I:%M %p")
-                    total_day_time = format_duration_hhmmss(total_day_seconds)
-                    shift_time = format_shift_duration(shift_seconds)
+                    total_day_time = format_duration_hhmmss(int(total_day_seconds))
+                    shift_time = format_shift_duration(int(shift_seconds))
                     
                     # Create fancy formatted entry
                     user_entry = (
@@ -2032,6 +2098,14 @@ class TimeClockView(discord.ui.View):
             
             # Check clock access permissions
             server_tier = get_server_tier(guild_id)
+            # Type guard: ensure we have a Member for guild-specific functions
+            if not isinstance(interaction.user, discord.Member):
+                await interaction.followup.send(
+                    "❌ Unable to verify access permissions. Please try again.",
+                    ephemeral=True
+                )
+                return
+            
             if not user_has_clock_access(interaction.user, server_tier):
                 await interaction.followup.send(
                     "🔒 **Access Restricted**\n"
@@ -2084,6 +2158,14 @@ class TimeClockView(discord.ui.View):
             
             # Check clock access permissions
             server_tier = get_server_tier(guild_id)
+            # Type guard: ensure we have a Member for guild-specific functions
+            if not isinstance(interaction.user, discord.Member):
+                await interaction.followup.send(
+                    "❌ Unable to verify access permissions. Please try again.",
+                    ephemeral=True
+                )
+                return
+            
             if not user_has_clock_access(interaction.user, server_tier):
                 await interaction.followup.send(
                     "🔒 **Access Restricted**\n"
@@ -2165,6 +2247,14 @@ class TimeClockView(discord.ui.View):
             
             # Check clock access permissions
             server_tier = get_server_tier(interaction.guild.id)
+            # Type guard: ensure we have a Member for guild-specific functions
+            if not isinstance(interaction.user, discord.Member):
+                await send_reply(interaction,
+                    "❌ Unable to verify access permissions. Please try again.",
+                    ephemeral=True
+                )
+                return
+            
             if not user_has_clock_access(interaction.user, server_tier):
                 await send_reply(interaction,
                     "🔒 **Access Restricted**\n"
@@ -2293,6 +2383,14 @@ class TimeClockView(discord.ui.View):
             return
         
         # Check if user has admin access (Discord admin OR custom admin role)
+        # Type guard: ensure we have a Member for guild-specific functions
+        if not isinstance(interaction.user, discord.Member):
+            await send_reply(interaction,
+                "❌ Unable to verify admin permissions. Please try again.",
+                ephemeral=True
+            )
+            return
+        
         if not user_has_admin_access(interaction.user):
             await send_reply(interaction,
                 "❌ **Access Denied - Admin Role Required**\n\n"
@@ -2332,6 +2430,8 @@ class TimeClockView(discord.ui.View):
         
         # Basic and Pro tier: Full reports access with retention limits
         guild_tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
+        if guild_tz_name is None:
+            guild_tz_name = DEFAULT_TZ
         
         # Determine report range based on tier
         if server_tier == "basic":
@@ -2343,7 +2443,7 @@ class TimeClockView(discord.ui.View):
         from zoneinfo import ZoneInfo
         from datetime import timedelta
         try:
-            guild_tz = ZoneInfo(guild_tz_name)
+            guild_tz = ZoneInfo(guild_tz_name or DEFAULT_TZ)
         except Exception:
             guild_tz = timezone.utc
             guild_tz_name = "UTC"
@@ -2385,7 +2485,7 @@ class TimeClockView(discord.ui.View):
         if total_users == 1:
             # Single user: Send CSV file directly (not zipped)
             user_id, sessions = next(iter(user_sessions.items()))
-            csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name)
+            csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name or DEFAULT_TZ)
             
             safe_user_name = sanitize_filename(user_display_name)
             filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
@@ -2408,7 +2508,7 @@ class TimeClockView(discord.ui.View):
             
             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_archive:
                 for user_id, sessions in user_sessions.items():
-                    csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name)
+                    csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name or DEFAULT_TZ)
                     safe_user_name = sanitize_filename(user_display_name)
                     csv_filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
                     # Explicitly encode CSV content to UTF-8 bytes for zip
@@ -2431,6 +2531,10 @@ class TimeClockView(discord.ui.View):
 
     async def show_upgrade(self, interaction: discord.Interaction):
         """Show upgrade options for free tier servers"""
+        if not interaction.guild:
+            await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+            return
+            
         guild_id = interaction.guild.id
         server_tier = get_server_tier(guild_id)
         
@@ -2624,7 +2728,10 @@ async def on_ready():
         synced_count = 0
     
     print(f"🎯 Final result: {synced_count} commands synced {sync_location}")
-    print(f"🤖 Logged in as {bot.user} ({bot.user.id})")
+    if bot.user:
+        print(f"🤖 Logged in as {bot.user} ({bot.user.id})")
+    else:
+        print("🤖 Bot user information not available")
 
 @bot.event
 async def on_guild_join(guild):
@@ -2696,7 +2803,7 @@ async def on_guild_join(guild):
     # Add footer with support info
     embed.set_footer(
         text="Need help? Contact support or check our documentation",
-        icon_url=bot.user.avatar.url if bot.user.avatar else None
+        icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
     )
     
     # Try to send the welcome message to the server owner
@@ -2743,26 +2850,41 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         return
     
     # Use guild-specific lock to prevent race conditions
-    guild_lock = get_guild_lock(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.edit_original_response(content="❌ This command must be used in a server.")
+        return
+    guild_lock = get_guild_lock(guild_id)
     
     async with guild_lock:
         print(f"🔒 Acquired lock for guild {interaction.guild_id}")
-        print(f"🔧 Setting up timeclock in {ch.name} (Guild: {interaction.guild_id})")
+        channel_name = getattr(ch, 'name', f'Channel ID {ch.id}')
+        print(f"🔧 Setting up timeclock in {channel_name} (Guild: {interaction.guild_id})")
         
         # Enhanced idempotent setup: Check if existing message is functional
         should_create_new = True
-        old_channel_id = get_guild_setting(interaction.guild_id, "button_channel_id")
-        old_message_id = get_guild_setting(interaction.guild_id, "button_message_id")
+        msg = None  # Initialize to prevent unbound variable
+        old_channel_id = get_guild_setting(guild_id, "button_channel_id")
+        old_message_id = get_guild_setting(guild_id, "button_message_id")
         
         # First check if we have a working timeclock message in the target channel
-        if old_channel_id == ch.id and old_message_id:
+        if old_channel_id == ch.id and old_message_id and hasattr(ch, 'fetch_message'):
             try:
                 existing_message = await ch.fetch_message(old_message_id)
                 # Check if message has timeclock components
-                if (existing_message.components and
-                    any(component.children for component in existing_message.components
-                        if any(button.custom_id and button.custom_id.startswith("timeclock:")
-                               for button in component.children if hasattr(button, 'custom_id')))):
+                has_timeclock_components = False
+                if existing_message.components:
+                    for component in existing_message.components:
+                        if hasattr(component, 'children') and component.children:
+                            for button in component.children:
+                                if (hasattr(button, 'custom_id') and 
+                                    button.custom_id and 
+                                    button.custom_id.startswith("timeclock:")):
+                                    has_timeclock_components = True
+                                    break
+                            if has_timeclock_components:
+                                break
+                if has_timeclock_components:
                     print(f"✅ Found functional timeclock message (ID: {old_message_id}) in target channel")
                     should_create_new = False
                     msg = existing_message
@@ -2781,27 +2903,37 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
                 if old_channel_id and old_channel_id != ch.id and old_message_id:
                     try:
                         old_channel = bot.get_channel(old_channel_id)
-                        if old_channel:
+                        if old_channel and hasattr(old_channel, 'fetch_message'):
                             old_message = await old_channel.fetch_message(old_message_id)
                             await old_message.delete()
                             deleted_count += 1
-                            print(f"🧹 Deleted tracked timeclock message in {old_channel.name}")
+                            channel_name = getattr(old_channel, 'name', f'Channel ID {old_channel.id}')
+                            print(f"🧹 Deleted tracked timeclock message in {channel_name}")
                     except Exception as e:
                         print(f"⚠️ Could not delete tracked message: {e}")
                 
-                # Clean up any timeclock messages in target channel
-                async for message in ch.history(limit=50):
-                    if (message.author == bot.user and 
-                        message.components and
-                        any(component.children for component in message.components
-                            if any(button.custom_id and button.custom_id.startswith("timeclock:")
-                                   for button in component.children if hasattr(button, 'custom_id')))):
-                        try:
-                            await message.delete()
-                            deleted_count += 1
-                            print(f"🧹 Deleted old timeclock message (ID: {message.id})")
-                        except Exception as e:
-                            print(f"⚠️ Could not delete message {message.id}: {e}")
+                # Clean up any timeclock messages in target channel (only for text-based channels)
+                if hasattr(ch, 'history'):
+                    async for message in ch.history(limit=50):
+                        has_timeclock_components = False
+                        if (message.author == bot.user and message.components):
+                            for component in message.components:
+                                if hasattr(component, 'children') and component.children:
+                                    for button in component.children:
+                                        if (hasattr(button, 'custom_id') and 
+                                            button.custom_id and 
+                                            button.custom_id.startswith("timeclock:")):
+                                            has_timeclock_components = True
+                                            break
+                                    if has_timeclock_components:
+                                        break
+                        if has_timeclock_components:
+                            try:
+                                await message.delete()
+                                deleted_count += 1
+                                print(f"🧹 Deleted old timeclock message (ID: {message.id})")
+                            except Exception as e:
+                                print(f"⚠️ Could not delete message {message.id}: {e}")
                 
                 print(f"🧹 Cleaned up {deleted_count} old messages")
                 
@@ -2810,6 +2942,9 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
             
             # Create new timeclock message with conditional buttons
             try:
+                if not hasattr(ch, 'send'):
+                    await interaction.edit_original_response(content="❌ This channel type does not support sending messages.")
+                    return
                 view = TimeClockView(guild_id=interaction.guild_id)
                 msg = await ch.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
                 print(f"✅ Created new timeclock message (ID: {msg.id})")
@@ -2819,28 +2954,41 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
                 return
         
         # Store the new message info
-        set_guild_setting(interaction.guild_id, "button_channel_id", ch.id)
-        set_guild_setting(interaction.guild_id, "button_message_id", msg.id)
-        
-        print(f"✅ Created new timeclock message (ID: {msg.id}) in {ch.name}")
+        if msg:
+            set_guild_setting(guild_id, "button_channel_id", ch.id)
+            set_guild_setting(guild_id, "button_message_id", msg.id)
+            
+            channel_name = getattr(ch, 'name', f'Channel ID {ch.id}')
+            print(f"✅ Timeclock message ready (ID: {msg.id}) in {channel_name}")
+        else:
+            print("⚠️ No timeclock message available")
         print(f"🔓 Released lock for guild {interaction.guild_id}")
         
     # Send final response using edit since we deferred
-    await interaction.edit_original_response(content=f"✅ Posted timeclock in {ch.mention}.")
+    channel_mention = getattr(ch, 'mention', f'<#{ch.id}>')
+    await interaction.edit_original_response(content=f"✅ Posted timeclock in {channel_mention}.")
 
 @tree.command(name="set_recipient", description="Set who receives private time entries (DMs)")
 @app_commands.describe(user="Manager/admin who should receive time entries via DM")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def set_recipient(interaction: discord.Interaction, user: discord.User):
-    set_guild_setting(interaction.guild_id, "recipient_user_id", user.id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    set_guild_setting(guild_id, "recipient_user_id", user.id)
     await send_reply(interaction, f"✅ Set recipient to {user.mention}.", ephemeral=True)
 
 @tree.command(name="set_timezone", description="Set display timezone (e.g., America/New_York)")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def set_timezone(interaction: discord.Interaction, tz: str):
-    set_guild_setting(interaction.guild_id, "timezone", tz)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    set_guild_setting(guild_id, "timezone", tz)
     await send_reply(interaction, f"✅ Timezone set to `{tz}` (display only).", ephemeral=True)
 
 @tree.command(name="toggle_name_display", description="Toggle between username and nickname display")
@@ -2852,7 +3000,11 @@ async def set_timezone(interaction: discord.Interaction, tz: str):
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def toggle_name_display(interaction: discord.Interaction, mode: app_commands.Choice[str]):
-    set_guild_setting(interaction.guild_id, "name_display_mode", mode.value)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    set_guild_setting(guild_id, "name_display_mode", mode.value)
     
     if mode.value == "username":
         await send_reply(interaction,
@@ -2873,8 +3025,12 @@ async def toggle_name_display(interaction: discord.Interaction, mode: app_comman
 @app_commands.describe(role="Role to grant admin access (Reports, Upgrade buttons)")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
-async def add_admin_role(interaction: discord.Interaction, role: discord.Role):
-    add_admin_role(interaction.guild_id, role.id)
+async def add_admin_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    add_admin_role(guild_id, role.id)
     await send_reply(interaction, f"✅ Added {role.mention} to admin roles. They can now use Reports and Upgrade buttons.", ephemeral=True)
 
 @tree.command(name="remove_admin_role", description="Remove a role's admin access to Reports and Upgrade buttons")
@@ -2882,14 +3038,23 @@ async def add_admin_role(interaction: discord.Interaction, role: discord.Role):
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def remove_admin_role_cmd(interaction: discord.Interaction, role: discord.Role):
-    remove_admin_role(interaction.guild_id, role.id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    remove_admin_role(guild_id, role.id)
     await send_reply(interaction, f"✅ Removed {role.mention} from admin roles. They can no longer use Reports and Upgrade buttons.", ephemeral=True)
 
 @tree.command(name="list_admin_roles", description="List all roles with admin access")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def list_admin_roles(interaction: discord.Interaction):
-    admin_role_ids = get_admin_roles(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    admin_role_ids = get_admin_roles(guild_id)
     
     if not admin_role_ids:
         await send_reply(interaction, "No custom admin roles configured. Only Discord Administrators can use Reports/Upgrade buttons.", ephemeral=True)
@@ -2898,7 +3063,7 @@ async def list_admin_roles(interaction: discord.Interaction):
     # Get role objects
     admin_roles = []
     for role_id in admin_role_ids:
-        role = interaction.guild.get_role(role_id)
+        role = interaction.guild.get_role(role_id) if interaction.guild else None
         if role:
             admin_roles.append(role.mention)
         else:
@@ -2920,7 +3085,11 @@ async def list_admin_roles(interaction: discord.Interaction):
 @app_commands.guild_only()
 async def set_main_role(interaction: discord.Interaction, role: discord.Role):
     """Set the primary admin role that gets all admin functions"""
-    set_guild_setting(interaction.guild_id, "main_admin_role_id", role.id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    set_guild_setting(guild_id, "main_admin_role_id", role.id)
     
     embed = discord.Embed(
         title="🛡️ Main Admin Role Set",
@@ -2950,7 +3119,12 @@ async def set_main_role(interaction: discord.Interaction, role: discord.Role):
 @app_commands.guild_only()
 async def show_main_role(interaction: discord.Interaction):
     """Show the current main admin role"""
-    main_role_id = get_guild_setting(interaction.guild_id, "main_admin_role_id")
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    main_role_id = get_guild_setting(guild_id, "main_admin_role_id")
     
     if not main_role_id:
         embed = discord.Embed(
@@ -2964,7 +3138,7 @@ async def show_main_role(interaction: discord.Interaction):
             inline=False
         )
     else:
-        role = interaction.guild.get_role(main_role_id)
+        role = interaction.guild.get_role(main_role_id) if interaction.guild else None
         if role:
             embed = discord.Embed(
                 title="🛡️ Main Admin Role",
@@ -2995,7 +3169,12 @@ async def show_main_role(interaction: discord.Interaction):
 @app_commands.guild_only()
 async def clear_main_role(interaction: discord.Interaction):
     """Clear the main admin role"""
-    main_role_id = get_guild_setting(interaction.guild_id, "main_admin_role_id")
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    main_role_id = get_guild_setting(guild_id, "main_admin_role_id")
     
     if not main_role_id:
         await send_reply(interaction,
@@ -3005,11 +3184,11 @@ async def clear_main_role(interaction: discord.Interaction):
         return
     
     # Get role name before clearing (if it exists)
-    role = interaction.guild.get_role(main_role_id)
+    role = interaction.guild.get_role(main_role_id) if interaction.guild else None
     role_name = role.mention if role else f"<Deleted Role: {main_role_id}>"
     
     # Clear the main admin role
-    set_guild_setting(interaction.guild_id, "main_admin_role_id", None)
+    set_guild_setting(guild_id, "main_admin_role_id", None)
     
     embed = discord.Embed(
         title="🛡️ Main Admin Role Cleared",
@@ -3032,8 +3211,12 @@ async def clear_main_role(interaction: discord.Interaction):
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def add_employee_role_cmd(interaction: discord.Interaction, role: discord.Role):
-    add_employee_role(interaction.guild_id, role.id)
-    server_tier = get_server_tier(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    add_employee_role(guild_id, role.id)
+    server_tier = get_server_tier(guild_id)
     
     # Provide helpful context based on server tier
     if server_tier == "free":
@@ -3048,6 +3231,9 @@ async def add_employee_role_cmd(interaction: discord.Interaction, role: discord.
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def remove_employee_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    if interaction.guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
     remove_employee_role(interaction.guild_id, role.id)
     await send_reply(interaction, f"✅ Removed {role.mention} from employee roles. They can no longer use timeclock functions (unless admin).", ephemeral=True)
 
@@ -3055,6 +3241,9 @@ async def remove_employee_role_cmd(interaction: discord.Interaction, role: disco
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def list_employee_roles(interaction: discord.Interaction):
+    if interaction.guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
     clock_role_ids = get_clock_roles(interaction.guild_id)
     server_tier = get_server_tier(interaction.guild_id)
     
@@ -3092,6 +3281,9 @@ async def list_employee_roles(interaction: discord.Interaction):
 @tree.command(name="help", description="List all available slash commands")
 @app_commands.guild_only()
 async def help_command(interaction: discord.Interaction):
+    if interaction.guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
     # Get current server tier
     server_tier = get_server_tier(interaction.guild_id)
     tier_color = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
@@ -3279,7 +3471,7 @@ async def generate_report(
         )
         return
     
-    # Get guild timezone
+    # Get guild timezone (guild_id already checked above)
     guild_tz_name = get_guild_setting(interaction.guild_id, "timezone", DEFAULT_TZ)
     
     # Convert date range to UTC boundaries for proper filtering
@@ -3297,7 +3489,7 @@ async def generate_report(
     start_utc = start_boundary.astimezone(timezone.utc).isoformat()
     end_utc = end_boundary.astimezone(timezone.utc).isoformat()
     
-    # Generate report for specific user
+    # Generate report for specific user (guild_id already checked above)
     user_id = user.id
     sessions_data = get_sessions_report(interaction.guild_id, user_id, start_utc, end_utc)
     
