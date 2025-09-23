@@ -1811,8 +1811,11 @@ class TimeClockView(discord.ui.View):
 
     async def on_the_clock(self, interaction: discord.Interaction):
         """Show all currently clocked in users with their times"""
+        # Defer immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+        
         if interaction.guild is None:
-            await interaction.response.send_message("Use this in a server.", ephemeral=True)
+            await interaction.followup.send("Use this in a server.", ephemeral=True)
             return
             
         guild_id = interaction.guild.id
@@ -1821,14 +1824,14 @@ class TimeClockView(discord.ui.View):
         server_tier = get_server_tier(guild_id)
         if not user_has_clock_access(interaction.user, server_tier):
             if server_tier == "free":
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "🔒 **Free Tier Limitation**\n"
                     "Only server administrators can use the timeclock on the free plan.\n"
                     "Upgrade to Basic ($5/month) for full team access!",
                     ephemeral=True
                 )
             else:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "🔒 **Access Restricted**\n"
                     "You need an authorized role to use the timeclock.\n"
                     "Ask an administrator to add your role with `/add_clock_role @yourrole`",
@@ -1853,7 +1856,7 @@ class TimeClockView(discord.ui.View):
                     description="No one is currently clocked in.",
                     color=discord.Color.gold()
                 )
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.followup.send(embed=embed, ephemeral=True)
                 return
             
             # Get timezone setting
@@ -1988,18 +1991,21 @@ class TimeClockView(discord.ui.View):
                 inline=True
             )
             
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             
         except Exception as e:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "❌ Error retrieving active users. Please try again.", 
                 ephemeral=True
             )
             print(f"Error in on_the_clock: {e}")
 
     async def clock_in(self, interaction: discord.Interaction):
+        # Defer immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+        
         if interaction.guild is None:
-            await interaction.response.send_message("Use this in a server.", ephemeral=True)
+            await interaction.followup.send("Use this in a server.", ephemeral=True)
             return
         guild_id = interaction.guild.id
         user_id = interaction.user.id
@@ -2008,14 +2014,14 @@ class TimeClockView(discord.ui.View):
         server_tier = get_server_tier(guild_id)
         if not user_has_clock_access(interaction.user, server_tier):
             if server_tier == "free":
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "🔒 **Free Tier Limitation**\n"
                     "Only server administrators can use the timeclock on the free plan.\n"
                     "Upgrade to Basic ($5/month) for full team access!",
                     ephemeral=True
                 )
             else:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "🔒 **Access Restricted**\n"
                     "You need an authorized role to use the timeclock.\n"
                     "Ask an administrator to add your role with `/add_clock_role @yourrole`",
@@ -2024,14 +2030,17 @@ class TimeClockView(discord.ui.View):
             return
         
         if get_active_session(guild_id, user_id):
-            await interaction.response.send_message("You're already clocked in.", ephemeral=True)
+            await interaction.followup.send("You're already clocked in.", ephemeral=True)
             return
         start_session(guild_id, user_id, now_utc().isoformat())
-        await interaction.response.send_message("✅ Clocked in. Have a great shift!", ephemeral=True)
+        await interaction.followup.send("✅ Clocked in. Have a great shift!", ephemeral=True)
 
     async def clock_out(self, interaction: discord.Interaction):
+        # Defer immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+        
         if interaction.guild is None:
-            await interaction.response.send_message("Use this in a server.", ephemeral=True)
+            await interaction.followup.send("Use this in a server.", ephemeral=True)
             return
         guild_id = interaction.guild.id
         user_id = interaction.user.id
@@ -2040,14 +2049,14 @@ class TimeClockView(discord.ui.View):
         server_tier = get_server_tier(guild_id)
         if not user_has_clock_access(interaction.user, server_tier):
             if server_tier == "free":
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "🔒 **Free Tier Limitation**\n"
                     "Only server administrators can use the timeclock on the free plan.\n"
                     "Upgrade to Basic ($5/month) for full team access!",
                     ephemeral=True
                 )
             else:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "🔒 **Access Restricted**\n"
                     "You need an authorized role to use the timeclock.\n"
                     "Ask an administrator to add your role with `/add_clock_role @yourrole`",
@@ -2057,7 +2066,7 @@ class TimeClockView(discord.ui.View):
         
         active = get_active_session(guild_id, user_id)
         if not active:
-            await interaction.response.send_message("You don't have an active session.", ephemeral=True)
+            await interaction.followup.send("You don't have an active session.", ephemeral=True)
             return
 
         session_id, clock_in_iso = active
@@ -2067,7 +2076,7 @@ class TimeClockView(discord.ui.View):
         close_session(session_id, end_dt.isoformat(), elapsed)
 
         tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"🔚 Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}",
             ephemeral=True
         )
