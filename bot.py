@@ -176,32 +176,45 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 print("❌ Missing Stripe signature header")
                 print("📋 Available headers:", list(self.headers.keys()))
                 
-            # For testing, process webhook data with bypass option
-            print("🧪 Processing webhook in test mode - bypassing signature verification")
+            # Production webhook signature verification (ENABLED for live mode)
+            print("🔐 Verifying webhook signature for production...")
             try:
-                import json
-                event_data = json.loads(payload.decode('utf-8'))
-                print(f"🔔 Webhook event type: {event_data.get('type', 'unknown')}")
+                # Verify webhook signature using Stripe
+                event = stripe.Webhook.construct_event(
+                    payload, sig_header, webhook_secret
+                )
+                print(f"✅ Webhook signature verified successfully")
+                print(f"🔔 Webhook event type: {event.get('type', 'unknown')}")
                 
-                if event_data.get('type') == 'checkout.session.completed':
+                if event.get('type') == 'checkout.session.completed':
                     print("💳 Processing checkout.session.completed event")
-                    session = event_data['data']['object']
+                    session = event['data']['object']
                     self.process_checkout_completed(session)
-                elif event_data.get('type') == 'customer.subscription.updated':
+                elif event.get('type') == 'customer.subscription.updated':
                     print("🔄 Processing customer.subscription.updated event")
-                    subscription = event_data['data']['object']
+                    subscription = event['data']['object']
                     # Handle subscription updates if needed
-                elif event_data.get('type') == 'customer.subscription.deleted':
+                elif event.get('type') == 'customer.subscription.deleted':
                     print("❌ Processing customer.subscription.deleted event")
-                    subscription = event_data['data']['object']
+                    subscription = event['data']['object']
                     self.handle_subscription_cancellation(subscription)
                 else:
-                    print(f"ℹ️ Unhandled event type: {event_data.get('type')}")
+                    print(f"ℹ️ Unhandled event type: {event.get('type')}")
                     
+            except ValueError as e:
+                print(f"❌ Invalid webhook payload: {e}")
+                self.send_response(400)
+                return
+            except stripe.error.SignatureVerificationError as e:
+                print(f"❌ Invalid webhook signature: {e}")
+                self.send_response(400)
+                return
             except Exception as debug_e:
                 print(f"🐛 Error processing webhook: {debug_e}")
                 import traceback
                 traceback.print_exc()
+                self.send_response(500)
+                return
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
