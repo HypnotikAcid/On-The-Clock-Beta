@@ -193,7 +193,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     # Handle subscription updates if needed
                 elif event_data.get('type') == 'customer.subscription.deleted':
                     print("❌ Processing customer.subscription.deleted event")
-                    # Handle subscription cancellations if needed
+                    subscription = event_data['data']['object']
+                    self.handle_subscription_cancellation(subscription)
                 else:
                     print(f"ℹ️ Unhandled event type: {event_data.get('type')}")
                     
@@ -2193,6 +2194,142 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
     except Exception as e:
         await interaction.followup.send(
             f"❌ Error creating checkout session: {str(e)}", 
+            ephemeral=True
+        )
+
+@tree.command(name="test_subscription_lapse", description="Test subscription cancellation (Admin only)")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def test_subscription_lapse(interaction: discord.Interaction):
+    """Test what happens when a subscription is cancelled/lapses"""
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        # Check current subscription
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT tier, subscription_id, customer_id, status
+                FROM server_subscriptions 
+                WHERE guild_id = ?
+            """, (interaction.guild_id,))
+            result = cursor.fetchone()
+            
+            if not result or result[0] == 'free':
+                await interaction.followup.send("❌ This server is already on the Free tier. Upgrade first to test subscription lapse.", ephemeral=True)
+                return
+            
+            tier, sub_id, customer_id, status = result
+            
+        # Create webhook handler instance to test purge function
+        temp_handler = HealthCheckHandler()
+        
+        # Test the data purging process
+        temp_handler.purge_all_guild_data(interaction.guild_id)
+        
+        embed = discord.Embed(
+            title="🧪 Subscription Lapse Test Complete",
+            description="Simulated subscription cancellation and data purging",
+            color=discord.Color.orange()
+        )
+        
+        embed.add_field(name="Previous Tier", value=tier.title(), inline=True)
+        embed.add_field(name="New Tier", value="Free", inline=True)
+        embed.add_field(name="Data Status", value="All data purged", inline=True)
+        
+        embed.add_field(
+            name="What was removed:",
+            value="• All timeclock sessions\n• Guild settings\n• Authorized roles\n• Subscription details",
+            inline=False
+        )
+        
+        embed.add_field(
+            name="Next Steps:",
+            value="Use `/subscription_status` to verify Free tier\nUpgrade again to test full flow",
+            inline=False
+        )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(
+            f"❌ Error during subscription lapse test: {str(e)}", 
+            ephemeral=True
+        )
+
+@tree.command(name="test_tier_access", description="Test access controls for different tiers (Admin only)")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+@app_commands.describe(
+    test_tier="Which tier to test access for"
+)
+@app_commands.choices(test_tier=[
+    app_commands.Choice(name="Free", value="free"),
+    app_commands.Choice(name="Basic", value="basic"),
+    app_commands.Choice(name="Pro", value="pro")
+])
+async def test_tier_access(interaction: discord.Interaction, test_tier: str):
+    """Test what features are available for each tier"""
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        # Get current tier for comparison
+        current_tier = get_server_tier(interaction.guild_id)
+        
+        embed = discord.Embed(
+            title=f"🔍 Tier Access Test: {test_tier.title()}",
+            color=discord.Color.blue()
+        )
+        
+        embed.add_field(name="Current Tier", value=current_tier.title(), inline=True)
+        embed.add_field(name="Testing Tier", value=test_tier.title(), inline=True)
+        
+        # Test feature access
+        features = {
+            'Timeclock Setup': check_tier_access(interaction.guild_id, 'free'),
+            'Basic Commands': check_tier_access(interaction.guild_id, 'free'),
+            'Role Management': check_tier_access(interaction.guild_id, 'basic'),
+            'CSV Reports': check_tier_access(interaction.guild_id, 'pro'),
+            'Extended Retention': check_tier_access(interaction.guild_id, 'pro')
+        }
+        
+        # Test data retention
+        retention_days = get_retention_days(interaction.guild_id)
+        
+        access_text = ""
+        for feature, has_access in features.items():
+            status = "✅" if has_access else "❌"
+            access_text += f"{status} {feature}\n"
+        
+        embed.add_field(
+            name="Feature Access",
+            value=access_text,
+            inline=False
+        )
+        
+        embed.add_field(
+            name="Data Retention",
+            value=f"{retention_days} days",
+            inline=True
+        )
+        
+        # Add tier restrictions info
+        restrictions = {
+            'free': "• Admin-only testing\n• No data retention\n• Sample reports only",
+            'basic': "• Full team access\n• 7 days retention\n• All admin commands",
+            'pro': "• Everything in Basic\n• 30 days retention\n• Real CSV reports"
+        }
+        
+        embed.add_field(
+            name=f"{test_tier.title()} Tier Features",
+            value=restrictions.get(test_tier, "Unknown tier"),
+            inline=False
+        )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(
+            f"❌ Error during tier access test: {str(e)}", 
             ephemeral=True
         )
 
