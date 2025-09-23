@@ -1334,6 +1334,23 @@ def format_duration_hhmmss(seconds: int) -> str:
     s = int(seconds % 60)
     return f"{h:02d}:{m:02d}:{s:02d}"
 
+def purge_timeclock_data_only(guild_id: int):
+    """Standalone function to purge only timeclock sessions data, preserving subscription and core settings"""
+    try:
+        with db() as conn:
+            # Set timeout for database operations
+            conn.execute("PRAGMA busy_timeout = 5000")
+            
+            # Delete all sessions data only
+            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
+            sessions_deleted = sessions_cursor.rowcount
+            
+            print(f"🗑️ Timeclock data purged for Guild {guild_id}: {sessions_deleted} sessions deleted (subscription preserved)")
+            
+    except Exception as e:
+        print(f"❌ Error purging timeclock data for {guild_id}: {e}")
+        raise e  # Re-raise so the error can be caught by the calling function
+
 def format_shift_duration(seconds: int) -> str:
     """Format seconds into 'This Shift: HH:hrs::MM:Mins::SS:seconds' format"""
     h = int(seconds // 3600)
@@ -2352,9 +2369,8 @@ class PurgeConfirmationView(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
         
         try:
-            # Create temporary webhook handler instance to access purge function
-            temp_handler = StripeWebhookHandler()
-            temp_handler.purge_timeclock_data_only(self.guild_id)
+            # Use standalone purge function
+            purge_timeclock_data_only(self.guild_id)
             
             embed = discord.Embed(
                 title="🗑️ Timeclock Data Purge Complete",
