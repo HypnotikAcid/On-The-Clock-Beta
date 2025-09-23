@@ -1772,22 +1772,16 @@ async def help_command(interaction: discord.Interaction):
         )
         
         embed.add_field(
-            name="🔒 Upgrade to Basic ($5/month) for:",
+            name="💰 Upgrade Options:",
             value=(
+                "**Basic ($5/month):**\n"
                 "• Full team access to timeclock\n"
-                "• All admin commands for everyone\n"
-                "• Role management features"
-            ),
-            inline=False
-        )
-        
-        embed.add_field(
-            name="🔒 Upgrade to Pro ($10/month) for:",
-            value=(
+                "• CSV reports (7 days retention)\n"
+                "• Role management features\n\n"
+                "**Pro ($10/month):**\n"
                 "• Everything in Basic\n"
-                "• Real CSV timesheet reports\n"
-                "• Multiple manager notifications\n"
-                "• Advanced features"
+                "• CSV reports (30 days retention)\n"
+                "• Multiple manager notifications"
             ),
             inline=False
         )
@@ -1811,8 +1805,8 @@ async def help_command(interaction: discord.Interaction):
         embed.add_field(
             name="💰 Upgrade Options:",
             value=(
-                "**Basic ($5/month):** CSV reports, full team access, 1 week retention\n"
-                "**Pro ($10/month):** Extended CSV reports, multiple managers, 30 days retention"
+                "**Basic ($5/month):** CSV reports (7 days retention), full team access\n"
+                "**Pro ($10/month):** CSV reports (30 days retention), multiple managers"
             ),
             inline=False
         )
