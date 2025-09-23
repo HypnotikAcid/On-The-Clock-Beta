@@ -858,11 +858,19 @@ def get_server_tier(guild_id: int) -> str:
     """Get subscription tier for a server (free/basic/pro)"""
     with db() as conn:
         cursor = conn.execute(
-            "SELECT tier FROM server_subscriptions WHERE guild_id = ?",
+            "SELECT tier, status FROM server_subscriptions WHERE guild_id = ?",
             (guild_id,)
         )
         result = cursor.fetchone()
-        return result[0] if result else "free"
+        if not result:
+            return "free"
+        
+        tier, status = result
+        # If subscription is cancelled, treat as free tier
+        if status == "cancelled":
+            return "free"
+        
+        return tier
 
 def set_server_tier(guild_id: int, tier: str, subscription_id: str = None, customer_id: str = None):
     """Set subscription tier for a server"""
