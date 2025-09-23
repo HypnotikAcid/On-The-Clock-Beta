@@ -2087,47 +2087,104 @@ class TimeClockView(discord.ui.View):
             )
             return
             
+        # Get current server tier for comprehensive help display
+        server_tier = get_server_tier(interaction.guild.id)
+        tier_color = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
+        
         embed = discord.Embed(
-            title="🛠️ Timeclock Help Commands",
-            description="Available slash commands for the timeclock bot:",
-            color=discord.Color.blue()
+            title="📋 Complete Command Reference",
+            description=f"**Current Plan:** {server_tier.title()}\n\n**All 20 available slash commands organized by function:**",
+            color=tier_color.get(server_tier, discord.Color.green())
         )
         
-        # Basic commands
+        # Setup & Configuration Commands
         embed.add_field(
-            name="📊 General Commands",
-            value="`/help` - Show all commands\n"
-                  "`/subscription_status` - View subscription details\n"
-                  "`/cancel_subscription` - Learn how to cancel",
+            name="⚙️ Setup & Configuration",
+            value=(
+                "`/setup_timeclock [channel]` - Post a persistent Clock In/Clock Out message\n"
+                "`/set_recipient <user>` - Set who receives private time entries (DMs)\n"
+                "`/set_timezone <timezone>` - Set display timezone (e.g., America/New_York)\n"
+                "`/toggle_name_display` - Toggle between username and nickname display\n"
+                "`/help` - List all available slash commands"
+            ),
             inline=False
         )
         
-        # Admin commands
+        # Admin Role Management Commands
         embed.add_field(
-            name="👑 Admin Commands",
-            value="`/setup_timeclock` - Create timeclock interface\n"
-                  "`/report @user start-date end-date` - Generate CSV reports\n"
-                  "`/data_cleanup` - Clean old data\n"
-                  "`/purge` - Delete ALL server data",
+            name="👤 Admin Role Management",
+            value=(
+                "`/add_admin_role <role>` - Add a role that can access Reports and Upgrade buttons\n"
+                "`/remove_admin_role <role>` - Remove a role's admin access to Reports and Upgrade buttons\n"
+                "`/list_admin_roles` - List all roles with admin access\n"
+                "`/set_main_role <role>` - Set the primary admin role (gets all admin functions)\n"
+                "`/show_main_role` - View the current main admin role\n"
+                "`/clear_main_role` - Remove the main admin role designation"
+            ),
             inline=False
         )
         
-        # Settings commands
+        # Employee Role Management Commands
         embed.add_field(
-            name="⚙️ Settings Commands",
-            value="`/set_timezone` - Set server timezone\n"
-                  "`/set_recipient` - Set manager for notifications\n"
-                  "`/toggle_name_display` - Switch username/nickname",
+            name="👥 Employee Role Management",
+            value=(
+                "`/add_employee_role <role>` - Add a role that can use timeclock functions\n"
+                "`/remove_employee_role <role>` - Remove a role's access to timeclock functions\n"
+                "`/list_employee_roles` - List all roles that can use timeclock functions"
+            ),
             inline=False
         )
         
-        # Subscription commands
+        # Reports & Data Management Commands
         embed.add_field(
-            name="💳 Subscription Commands",
-            value="`/upgrade basic` - Upgrade to Basic ($5/month)\n"
-                  "`/upgrade pro` - Upgrade to Pro ($10/month)",
+            name="📊 Reports & Data Management",
+            value=(
+                "`/report <user> <start_date> <end_date>` - Generate CSV timesheet report for individual user\n"
+                "`/data_cleanup` - Manually trigger data cleanup (Admin only)\n"
+                "`/purge` - Permanently delete timeclock data (preserves subscription)"
+            ),
             inline=False
         )
+        
+        # Subscription Management Commands
+        embed.add_field(
+            name="💳 Subscription Management",
+            value=(
+                "`/upgrade` - Upgrade your server to Basic or Pro plan\n"
+                "`/cancel_subscription` - Learn how to cancel your subscription\n"
+                "`/subscription_status` - View current subscription status"
+            ),
+            inline=False
+        )
+        
+        # Tier Information & Features
+        tier_info = "\n\n**Plan Features:**\n"
+        if server_tier == "free":
+            tier_info += (
+                "🆓 **Free Tier:** Admin-only testing • Sample reports • Employee roles configured but inactive\n"
+                "💡 **Upgrade Benefits:** Basic ($5/mo) unlocks full team access & real CSV reports"
+            )
+        elif server_tier == "basic":
+            tier_info += (
+                "💙 **Basic Tier:** Full team access • Real CSV reports • 7-day data retention\n"
+                "💡 **Pro Benefits:** 30-day retention • Multiple manager notifications • Extended features"
+            )
+        else:  # pro tier
+            tier_info += "💜 **Pro Tier:** All features unlocked • 30-day retention • Multiple managers • Priority support"
+        
+        embed.add_field(
+            name="🔘 Interactive Timeclock Buttons",
+            value=(
+                "🟢 **Clock In** - Start tracking your time\n"
+                "🔴 **Clock Out** - Stop tracking and log your shift\n"
+                "📊 **Reports** - Generate timesheet reports (admin access)\n"
+                "⬆️ **Upgrade** - Upgrade to Basic/Pro plans\n" + 
+                tier_info
+            ),
+            inline=False
+        )
+        
+        embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | 20 total commands available | Contact admin for upgrades")
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
