@@ -348,6 +348,22 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"❌ Error purging guild data for {guild_id}: {e}")
 
+    def purge_timeclock_data_only(self, guild_id: int):
+        """Purge only timeclock sessions data, preserving subscription and core settings"""
+        try:
+            with db() as conn:
+                # Set timeout for database operations
+                conn.execute("PRAGMA busy_timeout = 5000")
+                
+                # Delete all sessions data only
+                sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
+                sessions_deleted = sessions_cursor.rowcount
+                
+                print(f"🗑️ Timeclock data purged for Guild {guild_id}: {sessions_deleted} sessions deleted (subscription preserved)")
+                
+        except Exception as e:
+            print(f"❌ Error purging timeclock data for {guild_id}: {e}")
+
 def purge_guild_data_for_testing(guild_id: int):
     """Standalone function to purge guild data for testing purposes"""
     try:
@@ -2326,7 +2342,7 @@ class PurgeConfirmationView(discord.ui.View):
         self.guild_id = guild_id
         self.confirmed = False
     
-    @discord.ui.button(label="✅ Yes, Purge All Data", style=discord.ButtonStyle.danger, custom_id="purge_yes")
+    @discord.ui.button(label="✅ Yes, Purge Timeclock Data", style=discord.ButtonStyle.danger, custom_id="purge_yes")
     async def confirm_purge(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Handle purge confirmation"""
         if not is_server_admin(interaction.user):
@@ -2338,21 +2354,26 @@ class PurgeConfirmationView(discord.ui.View):
         try:
             # Create temporary webhook handler instance to access purge function
             temp_handler = StripeWebhookHandler()
-            temp_handler.purge_all_guild_data(self.guild_id)
+            temp_handler.purge_timeclock_data_only(self.guild_id)
             
             embed = discord.Embed(
-                title="🗑️ Data Purge Complete",
-                description="All server data has been permanently removed.",
-                color=discord.Color.red()
+                title="🗑️ Timeclock Data Purge Complete",
+                description="All timeclock sessions have been permanently removed.",
+                color=discord.Color.green()
             )
             embed.add_field(
                 name="What was removed:",
-                value="• All time clock sessions\n• All server settings\n• All role permissions\n• Subscription reset to Free tier",
+                value="• All time clock sessions (all users, all dates)",
+                inline=False
+            )
+            embed.add_field(
+                name="What was preserved:",
+                value="• Subscription status remains unchanged\n• Server settings kept intact\n• Role permissions preserved",
                 inline=False
             )
             embed.add_field(
                 name="⚠️ This action cannot be undone",
-                value="Your server is now on the Free tier with no retained data.",
+                value="Your timeclock history has been cleared, but your subscription and settings remain active.",
                 inline=False
             )
             
@@ -2371,7 +2392,7 @@ class PurgeConfirmationView(discord.ui.View):
         """Handle purge cancellation"""
         embed = discord.Embed(
             title="✅ Purge Cancelled",
-            description="No data was removed. Your server data remains intact.",
+            description="No timeclock data was removed. Your server data remains intact.",
             color=discord.Color.green()
         )
         
@@ -2383,11 +2404,11 @@ class PurgeConfirmationView(discord.ui.View):
         for item in self.children:
             item.disabled = True
 
-@tree.command(name="purge", description="Permanently delete ALL server data (Admin only)")
+@tree.command(name="purge", description="Permanently delete timeclock data (preserves subscription)")
 @app_commands.default_permissions(administrator=True)  
 @app_commands.guild_only()
 async def purge_data(interaction: discord.Interaction):
-    """Allow admins to manually purge all server data"""
+    """Allow admins to manually purge timeclock data only"""
     # Double-check admin status
     if not is_server_admin(interaction.user):
         await interaction.response.send_message("❌ Only server administrators can use this command.", ephemeral=True)
@@ -2395,23 +2416,27 @@ async def purge_data(interaction: discord.Interaction):
     
     # Create warning embed
     embed = discord.Embed(
-        title="⚠️ DANGER: Data Purge Warning",
-        description="This will **permanently delete ALL** server data!",
-        color=discord.Color.red()
+        title="⚠️ WARNING: Timeclock Data Purge",
+        description="This will **permanently delete ALL timeclock sessions**!",
+        color=discord.Color.orange()
     )
     embed.add_field(
         name="What will be deleted:",
+        value="• **All time clock sessions** (all users, all dates)",
+        inline=False
+    )
+    embed.add_field(
+        name="What will be preserved:",
         value=(
-            "• **All time clock sessions** (all users)\n"
-            "• **All server settings** (recipients, timezone, etc.)\n"
-            "• **All role permissions** for Info button\n"
-            "• **Subscription reset** to Free tier"
+            "• **Subscription status** (Basic/Pro plans remain active)\n"
+            "• **Server settings** (timezone, recipients, etc.)\n"
+            "• **Role permissions** for buttons"
         ),
         inline=False
     )
     embed.add_field(
         name="⚠️ THIS CANNOT BE UNDONE",
-        value="Make sure you really want to delete everything before confirming.",
+        value="All historical timeclock data will be permanently lost.",
         inline=False
     )
     
