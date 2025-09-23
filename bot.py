@@ -1609,6 +1609,29 @@ def format_shift_duration(seconds: int) -> str:
     else:
         return f"{s} second{'s' if s != 1 else ''}"
 
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename to prevent path traversal and ensure safe file names"""
+    import re
+    
+    # Remove path separators and other unsafe characters
+    filename = re.sub(r'[/\\:*?"<>|]', '_', filename)
+    
+    # Replace multiple underscores with single underscore
+    filename = re.sub(r'_+', '_', filename)
+    
+    # Remove leading/trailing whitespace and underscores
+    filename = filename.strip(' _')
+    
+    # Limit length to 50 characters
+    if len(filename) > 50:
+        filename = filename[:47] + '...'
+    
+    # Ensure we don't end up with empty filename
+    if not filename or filename.isspace():
+        filename = "user"
+    
+    return filename
+
 # --- Discord bot ---
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -2067,35 +2090,59 @@ class TimeClockView(discord.ui.View):
                 user_sessions[user_id] = []
             user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
         
-        # Generate separate CSV files for each user
-        files = []
+        # Generate CSV files for each user
         total_users = len(user_sessions)
         total_entries = len(sessions_data)
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+        tier_note = f"({server_tier.title()} tier - {report_days} days max)" if server_tier == "basic" else f"({server_tier.title()} tier)"
         
-        for user_id, sessions in user_sessions.items():
+        if total_users == 1:
+            # Single user: Send CSV file directly (not zipped)
+            user_id, sessions = next(iter(user_sessions.items()))
             csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name)
             
-            start_date_str = start_date.strftime("%Y-%m-%d")
-            end_date_str = end_date.strftime("%Y-%m-%d")
-            filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{user_display_name}.csv"
-            
+            safe_user_name = sanitize_filename(user_display_name)
+            filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
             file = discord.File(
                 io.BytesIO(csv_content.encode('utf-8')), 
                 filename=filename
             )
-            files.append(file)
-        
-        # Send all files
-        tier_note = f"({server_tier.title()} tier - {report_days} days max)" if server_tier == "basic" else f"({server_tier.title()} tier)"
-        await interaction.followup.send(
-            f"📊 Generated individual timesheet reports for **{total_users} users** {tier_note}\n"
-            f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
-            f"📝 **Total Entries:** {total_entries} completed shifts\n"
-            f"🕐 **Timezone:** {guild_tz_name}\n\n"
-            f"📁 **Files:** One CSV per employee",
-            files=files,
-            ephemeral=True
-        )
+            
+            await interaction.followup.send(
+                f"📊 Generated timesheet report for **{user_display_name}** {tier_note}\n"
+                f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+                f"📝 **Total Entries:** {total_entries} completed shifts\n"
+                f"🕐 **Timezone:** {guild_tz_name}",
+                file=file,
+                ephemeral=True
+            )
+        else:
+            # Multiple users: Create zip file containing all CSV files
+            zip_buffer = io.BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_archive:
+                for user_id, sessions in user_sessions.items():
+                    csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name)
+                    safe_user_name = sanitize_filename(user_display_name)
+                    csv_filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
+                    # Explicitly encode CSV content to UTF-8 bytes for zip
+                    zip_archive.writestr(csv_filename, csv_content.encode('utf-8'))
+            
+            zip_buffer.seek(0)
+            zip_filename = f"timesheet_reports_{start_date_str}_to_{end_date_str}_all_users.zip"
+            
+            zip_discord_file = discord.File(zip_buffer, filename=zip_filename)
+            
+            await interaction.followup.send(
+                f"📊 Generated timesheet reports for **{total_users} users** {tier_note}\n"
+                f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+                f"📝 **Total Entries:** {total_entries} completed shifts\n"
+                f"🕐 **Timezone:** {guild_tz_name}\n\n"
+                f"📁 **Delivery:** ZIP file containing individual CSV for each employee",
+                file=zip_discord_file,
+                ephemeral=True
+            )
 
     async def show_upgrade(self, interaction: discord.Interaction):
         """Show upgrade options for free tier servers"""
