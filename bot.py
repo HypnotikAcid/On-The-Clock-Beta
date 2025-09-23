@@ -577,8 +577,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 settings_deleted = settings_cursor.rowcount
                 
                 # Delete authorized roles
-                roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
-                roles_deleted = roles_cursor.rowcount
+                auth_roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
+                auth_roles_deleted = auth_roles_cursor.rowcount
+                
+                # Delete admin roles
+                admin_roles_cursor = conn.execute("DELETE FROM admin_roles WHERE guild_id = ?", (guild_id,))
+                admin_roles_deleted = admin_roles_cursor.rowcount
+                
+                # Delete clock roles
+                clock_roles_cursor = conn.execute("DELETE FROM clock_roles WHERE guild_id = ?", (guild_id,))
+                clock_roles_deleted = clock_roles_cursor.rowcount
                 
                 # Reset subscription to free tier (don't delete subscription record)
                 conn.execute("""
@@ -588,7 +596,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     WHERE guild_id = ?
                 """, (guild_id,))
                 
-                print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {roles_deleted} roles")
+                print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {clock_roles_deleted} clock roles")
                 
         except Exception as e:
             print(f"❌ Error purging guild data for {guild_id}: {e}")
@@ -625,8 +633,16 @@ def purge_guild_data_for_testing(guild_id: int):
             settings_deleted = settings_cursor.rowcount
             
             # Delete authorized roles
-            roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
-            roles_deleted = roles_cursor.rowcount
+            auth_roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
+            auth_roles_deleted = auth_roles_cursor.rowcount
+            
+            # Delete admin roles
+            admin_roles_cursor = conn.execute("DELETE FROM admin_roles WHERE guild_id = ?", (guild_id,))
+            admin_roles_deleted = admin_roles_cursor.rowcount
+            
+            # Delete clock roles
+            clock_roles_cursor = conn.execute("DELETE FROM clock_roles WHERE guild_id = ?", (guild_id,))
+            clock_roles_deleted = clock_roles_cursor.rowcount
             
             # Reset subscription to free tier (don't delete subscription record)
             conn.execute("""
@@ -636,8 +652,8 @@ def purge_guild_data_for_testing(guild_id: int):
                 WHERE guild_id = ?
             """, (guild_id,))
             
-            print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {roles_deleted} roles")
-            return sessions_deleted + settings_deleted + roles_deleted
+            print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {clock_roles_deleted} clock roles")
+            return sessions_deleted + settings_deleted + auth_roles_deleted + admin_roles_deleted + clock_roles_deleted
             
     except Exception as e:
         print(f"❌ Error purging guild data for {guild_id}: {e}")
@@ -1096,6 +1112,20 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS admin_roles (
+            guild_id INTEGER,
+            role_id INTEGER,
+            PRIMARY KEY (guild_id, role_id)
+        )
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS clock_roles (
+            guild_id INTEGER,
+            role_id INTEGER,
+            PRIMARY KEY (guild_id, role_id)
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             guild_id INTEGER NOT NULL,
@@ -1354,6 +1384,75 @@ def get_authorized_roles(guild_id: int):
     with db() as conn:
         cur = conn.execute("SELECT role_id FROM authorized_roles WHERE guild_id=?", (guild_id,))
         return [row[0] for row in cur.fetchall()]
+
+def add_admin_role(guild_id: int, role_id: int):
+    """Add a role as admin for Reports/Upgrade button access."""
+    with db() as conn:
+        conn.execute("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (?, ?)", 
+                     (guild_id, role_id))
+
+def remove_admin_role(guild_id: int, role_id: int):
+    """Remove a role from admin Reports/Upgrade button access."""
+    with db() as conn:
+        conn.execute("DELETE FROM admin_roles WHERE guild_id=? AND role_id=?", 
+                     (guild_id, role_id))
+
+def get_admin_roles(guild_id: int):
+    """Get all admin role IDs for a guild."""
+    with db() as conn:
+        cur = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id=?", (guild_id,))
+        return [row[0] for row in cur.fetchall()]
+
+def user_has_admin_access(user: discord.Member):
+    """Check if user has admin access (Discord admin OR custom admin role)."""
+    # Check Discord administrator permission first
+    if user.guild_permissions.administrator:
+        return True
+    
+    # Check custom admin roles
+    admin_roles = get_admin_roles(user.guild.id)
+    user_role_ids = [role.id for role in user.roles]
+    
+    return any(role_id in user_role_ids for role_id in admin_roles)
+
+def add_clock_role(guild_id: int, role_id: int):
+    """Add a role that can use clock in/out buttons."""
+    with db() as conn:
+        conn.execute("INSERT OR IGNORE INTO clock_roles (guild_id, role_id) VALUES (?, ?)", 
+                     (guild_id, role_id))
+
+def remove_clock_role(guild_id: int, role_id: int):
+    """Remove a role from clock in/out button access."""
+    with db() as conn:
+        conn.execute("DELETE FROM clock_roles WHERE guild_id=? AND role_id=?", 
+                     (guild_id, role_id))
+
+def get_clock_roles(guild_id: int):
+    """Get all clock role IDs for a guild."""
+    with db() as conn:
+        cur = conn.execute("SELECT role_id FROM clock_roles WHERE guild_id=?", (guild_id,))
+        return [row[0] for row in cur.fetchall()]
+
+def user_has_clock_access(user: discord.Member, server_tier: str):
+    """Check if user can access clock buttons based on server tier and roles."""
+    guild_id = user.guild.id
+    
+    # Free tier: only admins (current behavior)
+    if server_tier == "free":
+        return user_has_admin_access(user)
+    
+    # Basic/Pro tier: check clock roles OR admin access
+    # If no clock roles are configured, default to admin-only
+    clock_roles = get_clock_roles(guild_id)
+    if not clock_roles:
+        return user_has_admin_access(user)
+    
+    # Check if user has any of the configured clock roles
+    user_role_ids = [role.id for role in user.roles]
+    has_clock_role = any(role_id in user_role_ids for role_id in clock_roles)
+    
+    # Allow access if user has clock role OR admin access
+    return has_clock_role or user_has_admin_access(user)
 
 def user_has_authorized_role(guild_id: int, user_roles):
     """Check if user has any authorized role."""
@@ -1718,6 +1817,25 @@ class TimeClockView(discord.ui.View):
             
         guild_id = interaction.guild.id
         
+        # Check clock access permissions
+        server_tier = get_server_tier(guild_id)
+        if not user_has_clock_access(interaction.user, server_tier):
+            if server_tier == "free":
+                await interaction.response.send_message(
+                    "🔒 **Free Tier Limitation**\n"
+                    "Only server administrators can use the timeclock on the free plan.\n"
+                    "Upgrade to Basic ($5/month) for full team access!",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    "🔒 **Access Restricted**\n"
+                    "You need an authorized role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_clock_role @yourrole`",
+                    ephemeral=True
+                )
+            return
+        
         try:
             # Get all currently clocked in users
             with db() as conn:
@@ -1886,15 +2004,23 @@ class TimeClockView(discord.ui.View):
         guild_id = interaction.guild.id
         user_id = interaction.user.id
         
-        # Check free tier restrictions
+        # Check clock access permissions
         server_tier = get_server_tier(guild_id)
-        if server_tier == "free" and not is_server_admin(interaction.user):
-            await interaction.response.send_message(
-                "🔒 **Free Tier Limitation**\n"
-                "Only server administrators can use the timeclock on the free plan.\n"
-                "Upgrade to Basic ($5/month) for full team access!",
-                ephemeral=True
-            )
+        if not user_has_clock_access(interaction.user, server_tier):
+            if server_tier == "free":
+                await interaction.response.send_message(
+                    "🔒 **Free Tier Limitation**\n"
+                    "Only server administrators can use the timeclock on the free plan.\n"
+                    "Upgrade to Basic ($5/month) for full team access!",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    "🔒 **Access Restricted**\n"
+                    "You need an authorized role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_clock_role @yourrole`",
+                    ephemeral=True
+                )
             return
         
         if get_active_session(guild_id, user_id):
@@ -1910,15 +2036,23 @@ class TimeClockView(discord.ui.View):
         guild_id = interaction.guild.id
         user_id = interaction.user.id
         
-        # Check free tier restrictions
+        # Check clock access permissions
         server_tier = get_server_tier(guild_id)
-        if server_tier == "free" and not is_server_admin(interaction.user):
-            await interaction.response.send_message(
-                "🔒 **Free Tier Limitation**\n"
-                "Only server administrators can use the timeclock on the free plan.\n"
-                "Upgrade to Basic ($5/month) for full team access!",
-                ephemeral=True
-            )
+        if not user_has_clock_access(interaction.user, server_tier):
+            if server_tier == "free":
+                await interaction.response.send_message(
+                    "🔒 **Free Tier Limitation**\n"
+                    "Only server administrators can use the timeclock on the free plan.\n"
+                    "Upgrade to Basic ($5/month) for full team access!",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    "🔒 **Access Restricted**\n"
+                    "You need an authorized role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_clock_role @yourrole`",
+                    ephemeral=True
+                )
             return
         
         active = get_active_session(guild_id, user_id)
@@ -1965,6 +2099,29 @@ class TimeClockView(discord.ui.View):
 
     async def show_help(self, interaction: discord.Interaction):
         """Show help commands instead of user time info"""
+        if interaction.guild is None:
+            await interaction.response.send_message("Use this in a server.", ephemeral=True)
+            return
+        
+        # Check clock access permissions
+        server_tier = get_server_tier(interaction.guild.id)
+        if not user_has_clock_access(interaction.user, server_tier):
+            if server_tier == "free":
+                await interaction.response.send_message(
+                    "🔒 **Free Tier Limitation**\n"
+                    "Only server administrators can use the timeclock on the free plan.\n"
+                    "Upgrade to Basic ($5/month) for full team access!",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    "🔒 **Access Restricted**\n"
+                    "You need an authorized role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_clock_role @yourrole`",
+                    ephemeral=True
+                )
+            return
+            
         embed = discord.Embed(
             title="🛠️ Timeclock Help Commands",
             description="Available slash commands for the timeclock bot:",
@@ -2016,9 +2173,9 @@ class TimeClockView(discord.ui.View):
             await interaction.response.send_message("Use this in a server.", ephemeral=True)
             return
         
-        # Check if user has administrator permissions
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You need administrator permissions to generate reports.", ephemeral=True)
+        # Check if user has admin access (Discord admin OR custom admin role)
+        if not user_has_admin_access(interaction.user):
+            await interaction.response.send_message("❌ You need administrator permissions or an admin role to generate reports.", ephemeral=True)
             return
         
         await interaction.response.defer(ephemeral=True)
@@ -2243,6 +2400,106 @@ async def on_ready():
     print(f"🎯 Final result: {synced_count} commands synced {sync_location}")
     print(f"🤖 Logged in as {bot.user} ({bot.user.id})")
 
+@bot.event
+async def on_guild_join(guild):
+    """Send welcome message with setup instructions when bot joins a new server"""
+    print(f"🎉 Bot joined new server: {guild.name} (ID: {guild.id})")
+    
+    # Try to find the person who added the bot (guild owner as fallback)
+    inviter = guild.owner
+    
+    # Create a fancy welcome embed
+    embed = discord.Embed(
+        title="⏰ Welcome to On the Clock!",
+        description="Thanks for adding our professional Discord timeclock bot to your server!",
+        color=discord.Color.blurple()
+    )
+    
+    # Add setup instructions
+    embed.add_field(
+        name="🚀 Quick Setup",
+        value=(
+            "1️⃣ Run `/setup_timeclock` in your desired channel\n"
+            "2️⃣ Configure role access with `/add_clock_role @role`\n"
+            "3️⃣ Set admin roles with `/add_admin_role @role` (optional)\n"
+            "4️⃣ Your team can start tracking time immediately!"
+        ),
+        inline=False
+    )
+    
+    # Add access control explanation
+    embed.add_field(
+        name="🔐 Access Control",
+        value=(
+            "**Clock In/Out/Help/On the Clock buttons:**\n"
+            "• Free tier: Admins only\n"
+            "• Basic/Pro tier: Any role you specify\n\n"
+            "**Reports/Upgrade buttons:**\n"
+            "• Discord Administrators\n"
+            "• Custom admin roles (via `/add_admin_role`)"
+        ),
+        inline=False
+    )
+    
+    # Add subscription tier information
+    embed.add_field(
+        name="💼 Subscription Tiers",
+        value=(
+            "**🆓 Free (Current):** Admin-only access, sample reports\n"
+            "**💼 Basic ($5/month):** Full team access, 7-day reports\n"
+            "**⭐ Pro ($10/month):** Everything + 30-day reports\n\n"
+            "Use `/upgrade basic` or `/upgrade pro` to unlock full features!"
+        ),
+        inline=False
+    )
+    
+    # Add feature highlights
+    embed.add_field(
+        name="✨ Key Features",
+        value=(
+            "• One-click time tracking with Discord buttons\n"
+            "• Smart timezone support (EST/EDT by default)\n"
+            "• Professional CSV reports for payroll\n"
+            "• Real-time \"who's on the clock\" status\n"
+            "• Role-based access control\n"
+            "• Secure Stripe payment integration"
+        ),
+        inline=False
+    )
+    
+    # Add footer with support info
+    embed.set_footer(
+        text="Need help? Contact support or check our documentation",
+        icon_url=bot.user.avatar.url if bot.user.avatar else None
+    )
+    
+    # Try to send the welcome message to the server owner
+    try:
+        if inviter:
+            await inviter.send(embed=embed)
+            print(f"✅ Sent welcome message to {inviter} in {guild.name}")
+        else:
+            print(f"⚠️ Could not find owner for {guild.name}")
+    except discord.Forbidden:
+        print(f"❌ Could not DM owner of {guild.name} - DMs disabled")
+        # Try to send to system channel or first text channel as fallback
+        target_channel = guild.system_channel
+        if not target_channel:
+            # Find first text channel the bot can send to
+            for channel in guild.text_channels:
+                if channel.permissions_for(guild.me).send_messages:
+                    target_channel = channel
+                    break
+        
+        if target_channel:
+            try:
+                await target_channel.send(f"👋 {inviter.mention}" if inviter else "👋 Hello!", embed=embed)
+                print(f"✅ Sent welcome message to #{target_channel.name} in {guild.name}")
+            except Exception as e:
+                print(f"❌ Could not send welcome message anywhere in {guild.name}: {e}")
+    except Exception as e:
+        print(f"❌ Error sending welcome message for {guild.name}: {e}")
+
 @tree.command(name="setup_timeclock", description="Post a persistent Clock In/Clock Out message")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
@@ -2366,6 +2623,112 @@ async def add_info_role(interaction: discord.Interaction, role: discord.Role):
 async def remove_info_role(interaction: discord.Interaction, role: discord.Role):
     remove_authorized_role(interaction.guild_id, role.id)
     await interaction.response.send_message(f"✅ Removed {role.mention} from authorized roles for Info button access.", ephemeral=True)
+
+@tree.command(name="add_admin_role", description="Add a role that can access Reports and Upgrade buttons")
+@app_commands.describe(role="Role to grant admin access (Reports, Upgrade buttons)")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def add_admin_role(interaction: discord.Interaction, role: discord.Role):
+    add_admin_role(interaction.guild_id, role.id)
+    await interaction.response.send_message(f"✅ Added {role.mention} to admin roles. They can now use Reports and Upgrade buttons.", ephemeral=True)
+
+@tree.command(name="remove_admin_role", description="Remove a role's admin access to Reports and Upgrade buttons")
+@app_commands.describe(role="Role to remove admin access from")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def remove_admin_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    remove_admin_role(interaction.guild_id, role.id)
+    await interaction.response.send_message(f"✅ Removed {role.mention} from admin roles. They can no longer use Reports and Upgrade buttons.", ephemeral=True)
+
+@tree.command(name="list_admin_roles", description="List all roles with admin access")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def list_admin_roles(interaction: discord.Interaction):
+    admin_role_ids = get_admin_roles(interaction.guild_id)
+    
+    if not admin_role_ids:
+        await interaction.response.send_message("No custom admin roles configured. Only Discord Administrators can use Reports/Upgrade buttons.", ephemeral=True)
+        return
+    
+    # Get role objects
+    admin_roles = []
+    for role_id in admin_role_ids:
+        role = interaction.guild.get_role(role_id)
+        if role:
+            admin_roles.append(role.mention)
+        else:
+            admin_roles.append(f"<Deleted Role: {role_id}>")
+    
+    embed = discord.Embed(
+        title="🛡️ Admin Roles",
+        description="Roles that can access Reports and Upgrade buttons:",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Custom Admin Roles", value="\n".join(admin_roles), inline=False)
+    embed.add_field(name="Note", value="Discord Administrators always have admin access.", inline=False)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@tree.command(name="add_clock_role", description="Add a role that can use Clock In/Out buttons")
+@app_commands.describe(role="Role to grant clock access (Clock In/Out/Help/On the Clock buttons)")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def add_clock_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    add_clock_role(interaction.guild_id, role.id)
+    server_tier = get_server_tier(interaction.guild_id)
+    
+    # Provide helpful context based on server tier
+    if server_tier == "free":
+        message = f"✅ Added {role.mention} to clock roles.\n⚠️ **Note:** Your server is on the Free tier, so only admins can use clock buttons regardless of roles. Upgrade to Basic/Pro for full role-based access!"
+    else:
+        message = f"✅ Added {role.mention} to clock roles. Members with this role can now use Clock In/Out/Help/On the Clock buttons."
+    
+    await interaction.response.send_message(message, ephemeral=True)
+
+@tree.command(name="remove_clock_role", description="Remove a role's access to Clock In/Out buttons")
+@app_commands.describe(role="Role to remove clock access from")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def remove_clock_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    remove_clock_role(interaction.guild_id, role.id)
+    await interaction.response.send_message(f"✅ Removed {role.mention} from clock roles. They can no longer use Clock In/Out buttons (unless admin).", ephemeral=True)
+
+@tree.command(name="list_clock_roles", description="List all roles that can use Clock In/Out buttons")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def list_clock_roles(interaction: discord.Interaction):
+    clock_role_ids = get_clock_roles(interaction.guild_id)
+    server_tier = get_server_tier(interaction.guild_id)
+    
+    embed = discord.Embed(
+        title="🕐 Clock Access Roles",
+        description="Roles that can use Clock In/Out/Help/On the Clock buttons:",
+        color=discord.Color.green()
+    )
+    
+    if not clock_role_ids:
+        if server_tier == "free":
+            embed.add_field(name="Access Control", value="**Free Tier:** Only administrators can use clock buttons.\nUpgrade to Basic/Pro and configure roles for team access!", inline=False)
+        else:
+            embed.add_field(name="Access Control", value="**No clock roles configured.** Only administrators can use clock buttons.\nUse `/add_clock_role @role` to grant access to your team!", inline=False)
+    else:
+        # Get role objects
+        clock_roles = []
+        for role_id in clock_role_ids:
+            role = interaction.guild.get_role(role_id)
+            if role:
+                clock_roles.append(role.mention)
+            else:
+                clock_roles.append(f"<Deleted Role: {role_id}>")
+        
+        embed.add_field(name="Clock Roles", value="\n".join(clock_roles), inline=False)
+        
+        if server_tier == "free":
+            embed.add_field(name="⚠️ Free Tier Limitation", value="These roles are configured but won't take effect until you upgrade to Basic/Pro. Currently only admins can use clock buttons.", inline=False)
+    
+    embed.add_field(name="Note", value="Administrators always have clock access regardless of role configuration.", inline=False)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @tree.command(name="list_info_roles", description="List all roles authorized for Info button access")
 @app_commands.default_permissions(administrator=True)
@@ -2514,7 +2877,7 @@ async def generate_report(
     
     # Free tier: Admin only + fake data
     if server_tier == "free":
-        if not is_server_admin(interaction.user):
+        if not user_has_admin_access(interaction.user):
             await interaction.followup.send(
                 "🔒 **Free Tier Limitation**\n"
                 "Only server administrators can test the report feature.\n"
@@ -2706,7 +3069,7 @@ class PurgeConfirmationView(discord.ui.View):
     @discord.ui.button(label="✅ Yes, Purge Timeclock Data", style=discord.ButtonStyle.danger, custom_id="purge_yes")
     async def confirm_purge(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Handle purge confirmation"""
-        if not is_server_admin(interaction.user):
+        if not user_has_admin_access(interaction.user):
             await interaction.response.send_message("❌ Only administrators can use this command.", ephemeral=True)
             return
         
