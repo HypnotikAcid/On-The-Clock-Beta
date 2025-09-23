@@ -106,7 +106,251 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.send_header('Pragma', 'no-cache')
             self.send_header('Expires', '0')
             self.end_headers()
-            html_content = self.get_dashboard_html()
+            
+            # Get bot status info inline to avoid method issues
+            bot_instance = getattr(type(self), 'bot', None)
+            bot_status = "🟢 Online" if bot_instance and bot_instance.is_ready() else "🔴 Offline"
+            guild_count = len(bot_instance.guilds) if bot_instance and bot_instance.is_ready() else "Loading..."
+            
+            # Get bot's client ID for invite URL
+            bot_id = bot_instance.user.id if bot_instance and bot_instance.is_ready() and bot_instance.user else "1418446753379913809"
+            invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=2048&scope=bot%20applications.commands"
+            
+            html_content = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On the Clock - Discord Timeclock Bot</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e0e6ed;
+        }}
+        .container {{
+            background: #2c2f36;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border: 1px solid #3e4147;
+            padding: 40px;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }}
+        .header {{
+            margin-bottom: 30px;
+        }}
+        .bot-title {{
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #5865F2;
+            margin-bottom: 10px;
+        }}
+        .bot-subtitle {{
+            font-size: 1.2em;
+            color: #b9bbbe;
+            margin-bottom: 20px;
+        }}
+        .status-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }}
+        .status-card {{
+            background: #36393f;
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid #5865F2;
+            border: 1px solid #42464d;
+        }}
+        .status-title {{
+            font-weight: bold;
+            color: #dcddde;
+            margin-bottom: 8px;
+        }}
+        .status-value {{
+            font-size: 1.1em;
+            color: #5865F2;
+        }}
+        .features {{
+            text-align: left;
+            margin: 30px 0;
+            background: #36393f;
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #42464d;
+        }}
+        .features h3 {{
+            color: #5865F2;
+            margin-bottom: 15px;
+            text-align: center;
+        }}
+        .features ul {{
+            list-style: none;
+            color: #dcddde;
+        }}
+        .features li {{
+            margin: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }}
+        .features li:before {{
+            content: "✅";
+            position: absolute;
+            left: 0;
+        }}
+        .add-bot-btn {{
+            display: inline-block;
+            background: #5865F2;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin: 20px 0;
+            transition: background-color 0.3s;
+        }}
+        .add-bot-btn:hover {{
+            background: #4752C4;
+        }}
+        .beta-warning {{
+            background: #faa61a;
+            color: #2c2f36;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+        }}
+        .beta-warning h3 {{
+            margin-bottom: 10px;
+        }}
+        .beta-warning ul {{
+            text-align: left;
+            margin: 10px 0;
+        }}
+        .pricing-info {{
+            background: #36393f;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 1px solid #42464d;
+        }}
+        .pricing-info h3 {{
+            color: #5865F2;
+            margin-bottom: 20px;
+        }}
+        .pricing-tier {{
+            background: #2c2f36;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #5865F2;
+        }}
+        .free-tier {{
+            border-left-color: #faa61a;
+        }}
+        .pro-tier {{
+            border-left-color: #57F287;
+        }}
+        .footer {{
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #42464d;
+            color: #b9bbbe;
+            font-size: 0.9em;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="bot-title">⏰ On the Clock</div>
+            <div class="bot-subtitle">Professional Discord Timeclock Bot for Business Teams</div>
+        </div>
+        
+        <div class="status-grid">
+            <div class="status-card">
+                <div class="status-title">Bot Status</div>
+                <div class="status-value">{bot_status}</div>
+            </div>
+            <div class="status-card">
+                <div class="status-title">Active Servers</div>
+                <div class="status-value">{guild_count}</div>
+            </div>
+            <div class="status-card">
+                <div class="status-title">Last Updated</div>
+                <div class="status-value">Just Now</div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <h3>🚀 Core Features</h3>
+            <ul>
+                <li>Easy Clock In/Out with Discord buttons</li>
+                <li>Automatic timezone support with EST default</li>
+                <li>CSV timesheet reports for payroll</li>
+                <li>Multi-tier subscription system (Free/Basic/Pro)</li>
+                <li>Role-based access control</li>
+                <li>Private time entry via DMs</li>
+                <li>Automatic data retention policies</li>
+                <li>Stripe payment integration</li>
+                <li>Real-time "On the Clock" status display</li>
+                <li>Admin purge and cleanup commands</li>
+            </ul>
+        </div>
+        
+        <a href="{invite_url}" class="add-bot-btn">
+            🔗 Add Bot to Your Discord Server
+        </a>
+        
+        <div class="beta-warning">
+            <h3>⚠️ Beta Service Disclaimer</h3>
+            <p>This bot is currently in beta testing. Please be aware:</p>
+            <ul>
+                <li>💾 Data loss is possible and backups are not guaranteed</li>
+                <li>🚫 This service may be discontinued at any time without notice</li>
+                <li>📜 No warranty or guarantee of service availability is provided</li>
+            </ul>
+            <p><strong>Use at your own risk.</strong> This bot is provided "as-is" without any warranties.</p>
+        </div>
+        
+        <div class="pricing-info">
+            <h3>💰 Subscription Plans</h3>
+            <div class="pricing-tier free-tier">
+                <strong>Free - Testing Only</strong><br>
+                Server admin can test all features • Sample reports only • No data retention
+            </div>
+            <div class="pricing-tier">
+                <strong>Basic - $5/month</strong><br>
+                Full team access • Clock In/Out • CSV Reports • 1 week data retention
+            </div>
+            <div class="pricing-tier pro-tier">
+                <strong>Pro - $10/month</strong><br>
+                Everything in Basic • Extended CSV Reports • Multiple Managers • 30 days data retention
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Built for businesses and teams who need reliable time tracking in Discord</p>
+            <p>Questions? Contact your server administrator</p>
+        </div>
+    </div>
+</body>
+</html>
+            """
             self.wfile.write(html_content.encode())
         elif self.path == "/health":
             # Keep JSON health check for deployment
