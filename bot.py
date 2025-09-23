@@ -705,11 +705,11 @@ def purge_guild_data_for_testing(guild_id: int):
             </div>
             <div class="pricing-tier">
                 <strong>Basic - $5/month</strong><br>
-                Full team access • Clock In/Out • Individual Time Info • 1 week data retention
+                Full team access • Clock In/Out • CSV Reports • 1 week data retention
             </div>
             <div class="pricing-tier pro-tier">
                 <strong>Pro - $10/month</strong><br>
-                Everything in Basic • Real CSV Reports • Multiple Managers • 30 days data retention
+                Everything in Basic • Extended CSV Reports • Multiple Managers • 30 days data retention
             </div>
         </div>
         
@@ -1459,29 +1459,23 @@ class TimeClockView(discord.ui.View):
             
             await interaction.followup.send(
                 f"📊 **Free Tier Sample Report**\n"
-                f"🎯 This is sample data. Upgrade to Pro ($10/month) for real reports!\n"
+                f"🎯 This is sample data. Upgrade to Basic ($5/month) or Pro ($10/month) for real reports!\n"
                 f"📅 Date Range: Last 30 days",
                 file=file,
                 ephemeral=True
             )
             return
         
-        # Basic tier: No reports access
-        elif server_tier == "basic":
-            await interaction.followup.send(
-                "🔒 **Pro Feature Required**\n"
-                "CSV reports are available with Pro plan ($10/month).\n\n"
-                "**Pro Plan Includes:**\n"
-                "• Real CSV timesheet reports\n"
-                "• Multiple manager notifications\n"
-                "• Advanced time tracking features\n\n"
-                "Contact your server administrator to upgrade!",
-                ephemeral=True
-            )
-            return
+        # Basic and Pro tier: Full reports access with retention limits
         guild_tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
         
-        # Generate report for last 30 days automatically
+        # Determine report range based on tier
+        if server_tier == "basic":
+            report_days = 7  # Basic tier: 7 days max
+        else:  # pro tier
+            report_days = 30  # Pro tier: 30 days max
+        
+        # Generate report for tier-appropriate days
         from zoneinfo import ZoneInfo
         from datetime import timedelta
         try:
@@ -1490,9 +1484,9 @@ class TimeClockView(discord.ui.View):
             guild_tz = timezone.utc
             guild_tz_name = "UTC"
         
-        # Calculate date range (last 30 days)
+        # Calculate date range based on tier limits
         end_date = datetime.now(guild_tz)
-        start_date = end_date - timedelta(days=30)
+        start_date = end_date - timedelta(days=report_days)
         
         start_boundary = datetime.combine(start_date.date(), datetime.min.time()).replace(tzinfo=guild_tz)
         end_boundary = datetime.combine(end_date.date(), datetime.max.time()).replace(tzinfo=guild_tz)
@@ -1505,7 +1499,7 @@ class TimeClockView(discord.ui.View):
         
         if not sessions_data:
             await interaction.followup.send(
-                "📭 No completed timesheet entries found for the last 30 days",
+                f"📭 No completed timesheet entries found for the last {report_days} days",
                 ephemeral=True
             )
             return
@@ -1536,9 +1530,10 @@ class TimeClockView(discord.ui.View):
             files.append(file)
         
         # Send all files
+        tier_note = f"({server_tier.title()} tier - {report_days} days max)" if server_tier == "basic" else f"({server_tier.title()} tier)"
         await interaction.followup.send(
-            f"📊 Generated individual timesheet reports for **{total_users} users**\n"
-            f"📅 **Period:** Last 30 days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+            f"📊 Generated individual timesheet reports for **{total_users} users** {tier_note}\n"
+            f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
             f"📝 **Total Entries:** {total_entries} completed shifts\n"
             f"🕐 **Timezone:** {guild_tz_name}\n\n"
             f"📁 **Files:** One CSV per employee",
@@ -1814,11 +1809,10 @@ async def help_command(interaction: discord.Interaction):
         )
         
         embed.add_field(
-            name="🔒 Upgrade to Pro ($10/month) for:",
+            name="💰 Upgrade Options:",
             value=(
-                "• Real CSV timesheet reports\n"
-                "• Multiple manager notifications\n"
-                "• Advanced time tracking features"
+                "**Basic ($5/month):** CSV reports, full team access, 1 week retention\n"
+                "**Pro ($10/month):** Extended CSV reports, multiple managers, 30 days retention"
             ),
             inline=False
         )
@@ -1882,7 +1876,7 @@ async def generate_report(
             await interaction.followup.send(
                 "🔒 **Free Tier Limitation**\n"
                 "Only server administrators can test the report feature.\n"
-                "Upgrade to Basic ($5/month) for full team access to timeclock features!",
+                "Upgrade to Basic ($5/month) for full team access and CSV reports!",
                 ephemeral=True
             )
             return
@@ -1900,28 +1894,18 @@ async def generate_report(
         user_display_name = get_user_display_name(user, interaction.guild_id)
         await interaction.followup.send(
             f"📊 **Free Tier Sample Report** for **{user_display_name}**\n"
-            f"🎯 This is sample data. Upgrade to Pro ($10/month) for real reports!\n"
+            f"🎯 This is sample data. Upgrade to Basic ($5/month) or Pro ($10/month) for real reports!\n"
             f"📅 Date Range: {start_date} to {end_date}",
             file=file,
             ephemeral=True
         )
         return
     
-    # Basic tier: No reports access
-    elif server_tier == "basic":
-        await interaction.followup.send(
-            "🔒 **Pro Feature Required**\n"
-            "CSV reports are available with Pro plan ($10/month).\n\n"
-            "**Pro Plan Includes:**\n"
-            "• Real CSV timesheet reports\n"
-            "• Multiple manager notifications\n"
-            "• Advanced time tracking features\n\n"
-            "Contact your server administrator to upgrade!",
-            ephemeral=True
-        )
-        return
+    # Basic and Pro tier: Full reports access with retention limits
+    # Get tier limits
+    tier_limits = {"basic": 7, "pro": 30}
+    max_days = tier_limits.get(server_tier, 30)
     
-    # Pro tier: Full access continues with normal function
     try:
         # Validate date format and order
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -1930,6 +1914,17 @@ async def generate_report(
         if start_dt > end_dt:
             await interaction.followup.send(
                 "❌ Start date must be before or equal to end date", 
+                ephemeral=True
+            )
+            return
+        
+        # Check retention limits for Basic tier
+        days_requested = (end_dt - start_dt).days + 1
+        if days_requested > max_days:
+            await interaction.followup.send(
+                f"❌ **{server_tier.title()} tier limitation**: Reports limited to {max_days} days maximum.\n"
+                f"You requested {days_requested} days. Please choose a shorter date range.\n\n"
+                f"💡 Upgrade to Pro for extended 30-day reports!" if server_tier == "basic" else "",
                 ephemeral=True
             )
             return
@@ -2198,8 +2193,8 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
         checkout_url = create_secure_checkout_session(interaction.guild_id, plan)
         
         plan_details = {
-            'basic': "**Basic Plan - $5/month**\n• Full team access to timeclock\n• All admin commands\n• Role management\n• 1 week data retention",
-            'pro': "**Pro Plan - $10/month**\n• Everything in Basic\n• Real CSV reports\n• Multiple manager notifications\n• 30 days data retention"
+            'basic': "**Basic Plan - $5/month**\n• Full team access to timeclock\n• All admin commands\n• CSV Reports\n• Role management\n• 1 week data retention",
+            'pro': "**Pro Plan - $10/month**\n• Everything in Basic\n• Extended CSV reports\n• Multiple manager notifications\n• 30 days data retention"
         }
         
         embed = discord.Embed(
@@ -2409,8 +2404,8 @@ async def subscription_status(interaction: discord.Interaction):
         # Show plan features
         plan_features = {
             'free': "• Admin-only testing\n• Sample reports\n• No data retention",
-            'basic': "• Full team access\n• All admin commands\n• Role management\n• 1 week data retention",
-            'pro': "• Everything in Basic\n• Real CSV reports\n• Multiple managers\n• 30 days data retention"
+            'basic': "• Full team access\n• All admin commands\n• CSV Reports\n• Role management\n• 1 week data retention",
+            'pro': "• Everything in Basic\n• Extended CSV reports\n• Multiple managers\n• 30 days data retention"
         }
         
         embed.add_field(
