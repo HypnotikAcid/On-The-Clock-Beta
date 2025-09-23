@@ -2138,7 +2138,16 @@ class TimeClockView(discord.ui.View):
         
         # Check if user has admin access (Discord admin OR custom admin role)
         if not user_has_admin_access(interaction.user):
-            await interaction.response.send_message("❌ You need administrator permissions or an admin role to generate reports.", ephemeral=True)
+            await interaction.response.send_message(
+                "❌ **Access Denied - Admin Role Required**\n\n"
+                "You need administrator permissions or an admin role to generate reports.\n\n"
+                "**To get access:**\n"
+                "• Ask your server administrator to grant you admin role access\n"
+                "• They can use: `/add_admin_role @yourrole` to give your role admin access\n"
+                "• Or ask them to add you to an existing admin role\n\n"
+                "💡 Contact your server admin for help with role management.", 
+                ephemeral=True
+            )
             return
         
         await interaction.response.defer(ephemeral=True)
