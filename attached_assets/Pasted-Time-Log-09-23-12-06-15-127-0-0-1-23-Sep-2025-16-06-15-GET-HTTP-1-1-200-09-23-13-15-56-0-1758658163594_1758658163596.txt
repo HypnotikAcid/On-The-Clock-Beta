@@ -1,0 +1,84 @@
+Time
+Log
+09-23 12:06:15
+127.0.0.1 - - [23/Sep/2025 16:06:15] "GET / HTTP/1.1" 200 -
+09-23 13:15:56
+09-23 13:15:56
+The above exception was the direct cause of the following exception:
+09-23 13:15:56
+09-23 13:15:56
+Traceback (most recent call last):
+09-23 13:15:56
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/tree.py", line 1297, in _call
+09-23 13:15:56
+await command._invoke_with_namespace(interaction, namespace)
+09-23 13:15:56
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/commands.py", line 884, in _invoke_with_namespace
+09-23 13:15:56
+return await self._do_call(interaction, transformed_values)
+09-23 13:15:56
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+09-23 13:15:56
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/commands.py", line 877, in _do_call
+09-23 13:15:56
+raise CommandInvokeError(self, e) from e
+09-23 13:15:56
+discord.app_commands.errors.CommandInvokeError: Command 'setup_timeclock' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+09-23 14:15:47
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+09-23 14:15:47
+File "/home/runner/workspace/bot.py", line 2546, in setup_timeclock
+09-23 14:15:47
+await interaction.response.defer(ephemeral=True)
+09-23 14:15:47
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/interactions.py", line 858, in defer
+09-23 14:15:47
+response = await adapter.create_interaction_response(
+09-23 14:15:47
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+09-23 14:15:47
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/webhook/async_.py", line 226, in request
+09-23 14:15:47
+raise HTTPException(response, data)
+09-23 14:15:47
+discord.errors.HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+09-23 14:15:47
+09-23 14:15:47
+The above exception was the direct cause of the following exception:
+09-23 14:15:47
+09-23 14:15:47
+Traceback (most recent call last):
+09-23 14:15:47
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/tree.py", line 1297, in _call
+09-23 14:15:47
+await command._invoke_with_namespace(interaction, namespace)
+09-23 14:15:47
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/commands.py", line 884, in _invoke_with_namespace
+09-23 14:15:47
+return await self._do_call(interaction, transformed_values)
+09-23 14:15:47
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+09-23 14:15:47
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/commands.py", line 877, in _do_call
+09-23 14:15:47
+raise CommandInvokeError(self, e) from e
+09-23 14:15:47
+discord.app_commands.errors.CommandInvokeError: Command 'setup_timeclock' raised an exception: HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+09-23 14:16:41
+[2025-09-23 18:16:41] [ERROR ] discord.app_commands.tree: Ignoring exception in command 'upgrade'
+09-23 14:16:41
+Traceback (most recent call last):
+09-23 14:16:41
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/commands.py", line 859, in _do_call
+09-23 14:16:41
+return await self._callback(interaction, **params) # type: ignore
+09-23 14:16:41
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+09-23 14:16:41
+File "/home/runner/workspace/bot.py", line 3294, in upgrade_server
+09-23 14:16:41
+await interaction.response.defer(ephemeral=True)
+09-23 14:16:41
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/interactions.py", line 858, in defer
+09-23 14:16:41
+response = await adapter.create_interaction_response(
