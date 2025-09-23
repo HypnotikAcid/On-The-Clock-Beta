@@ -54,6 +54,26 @@ def owner_only(func):
         return await func(interaction, *args, **kwargs)
     return wrapper
 
+# --- Proper Interaction Response Helper ---
+async def send_reply(interaction: discord.Interaction, content: Optional[str] = None, ephemeral: bool = True, **kwargs) -> discord.WebhookMessage:
+    """
+    Proper helper function to handle Discord interaction responses.
+    Uses followup if interaction is already responded to, otherwise uses initial response.
+    
+    Args:
+        interaction: The Discord interaction to respond to
+        content: Optional text content for the response (can be None if using embed= or other kwargs)
+        ephemeral: Whether the response should be ephemeral (visible only to the user)
+        **kwargs: Additional parameters like embed, view, etc.
+    
+    Returns:
+        The sent message object
+    """
+    if interaction.response.is_done():
+        return await interaction.followup.send(content=content, ephemeral=ephemeral, **kwargs)
+    else:
+        return await interaction.response.send_message(content=content, ephemeral=ephemeral, **kwargs)
+
 # Get domain for Stripe redirects
 def get_domain():
     if os.getenv('REPLIT_DEPLOYMENT'):
@@ -2073,13 +2093,13 @@ class TimeClockView(discord.ui.View):
     async def show_help(self, interaction: discord.Interaction):
         """Show help commands instead of user time info"""
         if interaction.guild is None:
-            await interaction.response.send_message("Use this in a server.", ephemeral=True)
+            await send_reply(interaction, "Use this in a server.", ephemeral=True)
             return
         
         # Check clock access permissions
         server_tier = get_server_tier(interaction.guild.id)
         if not user_has_clock_access(interaction.user, server_tier):
-            await interaction.response.send_message(
+            await send_reply(interaction,
                 "🔒 **Access Restricted**\n"
                 "You need an employee role to use the timeclock.\n"
                 "Ask an administrator to add your role with `/add_employee_role @yourrole`",
@@ -2186,16 +2206,16 @@ class TimeClockView(discord.ui.View):
         
         embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | 20 total commands available | Contact admin for upgrades")
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_reply(interaction, embed=embed, ephemeral=True)
 
     async def generate_reports(self, interaction: discord.Interaction):
         if interaction.guild is None:
-            await interaction.response.send_message("Use this in a server.", ephemeral=True)
+            await send_reply(interaction, "Use this in a server.", ephemeral=True)
             return
         
         # Check if user has admin access (Discord admin OR custom admin role)
         if not user_has_admin_access(interaction.user):
-            await interaction.response.send_message(
+            await send_reply(interaction,
                 "❌ **Access Denied - Admin Role Required**\n\n"
                 "You need administrator permissions or an admin role to generate reports.\n\n"
                 "**To get access:**\n"
@@ -2337,7 +2357,7 @@ class TimeClockView(discord.ui.View):
         
         # Only show for free tier
         if server_tier != "free":
-            await interaction.response.send_message("This server already has a subscription!", ephemeral=True)
+            await send_reply(interaction, "This server already has a subscription!", ephemeral=True)
             return
         
         embed = discord.Embed(
@@ -2372,7 +2392,7 @@ class TimeClockView(discord.ui.View):
             inline=False
         )
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await send_reply(interaction, embed=embed, ephemeral=True)
 
 @bot.event
 async def on_ready():
@@ -2539,11 +2559,15 @@ async def on_guild_join(guild):
 async def setup_timeclock(interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None):
     ch = channel or interaction.channel
     if ch is None:
-        await interaction.response.send_message("No channel resolved.", ephemeral=True)
+        await send_reply(interaction, "No channel resolved.", ephemeral=True)
         return
     
-    # Defer the response early to avoid timeout issues
-    await interaction.response.defer(ephemeral=True)
+    # Defer immediately after parameter validation
+    try:
+        await interaction.response.defer(ephemeral=True)
+    except discord.errors.NotFound:
+        print(f"❌ Interaction expired in setup_timeclock for guild {interaction.guild_id}")
+        return
     
     # Use guild-specific lock to prevent race conditions
     guild_lock = get_guild_lock(interaction.guild_id)
@@ -2600,7 +2624,8 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         print(f"✅ Created new timeclock message (ID: {msg.id}) in {ch.name}")
         print(f"🔓 Released lock for guild {interaction.guild_id}")
         
-    await interaction.followup.send(f"✅ Posted timeclock in {ch.mention}.", ephemeral=True)
+    # Send final response using edit since we deferred
+    await interaction.edit_original_response(content=f"✅ Posted timeclock in {ch.mention}.")
 
 @tree.command(name="set_recipient", description="Set who receives private time entries (DMs)")
 @app_commands.describe(user="Manager/admin who should receive time entries via DM")
@@ -2608,14 +2633,14 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
 @app_commands.guild_only()
 async def set_recipient(interaction: discord.Interaction, user: discord.User):
     set_guild_setting(interaction.guild_id, "recipient_user_id", user.id)
-    await interaction.response.send_message(f"✅ Set recipient to {user.mention}.", ephemeral=True)
+    await send_reply(interaction, f"✅ Set recipient to {user.mention}.", ephemeral=True)
 
 @tree.command(name="set_timezone", description="Set display timezone (e.g., America/New_York)")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def set_timezone(interaction: discord.Interaction, tz: str):
     set_guild_setting(interaction.guild_id, "timezone", tz)
-    await interaction.response.send_message(f"✅ Timezone set to `{tz}` (display only).", ephemeral=True)
+    await send_reply(interaction, f"✅ Timezone set to `{tz}` (display only).", ephemeral=True)
 
 @tree.command(name="toggle_name_display", description="Toggle between username and nickname display")
 @app_commands.describe(mode="Choose 'username' (Discord username) or 'nickname' (server display name)")
@@ -2629,13 +2654,13 @@ async def toggle_name_display(interaction: discord.Interaction, mode: app_comman
     set_guild_setting(interaction.guild_id, "name_display_mode", mode.value)
     
     if mode.value == "username":
-        await interaction.response.send_message(
+        await send_reply(interaction,
             "✅ **Name Display Set to Username**\n"
             "The bot will now show Discord usernames (e.g., `john_doe`) in reports and messages.",
             ephemeral=True
         )
     else:
-        await interaction.response.send_message(
+        await send_reply(interaction,
             "✅ **Name Display Set to Nickname**\n"
             "The bot will now show server display names (e.g., `John D.`) in reports and messages.",
             ephemeral=True
@@ -2649,7 +2674,7 @@ async def toggle_name_display(interaction: discord.Interaction, mode: app_comman
 @app_commands.guild_only()
 async def add_admin_role(interaction: discord.Interaction, role: discord.Role):
     add_admin_role(interaction.guild_id, role.id)
-    await interaction.response.send_message(f"✅ Added {role.mention} to admin roles. They can now use Reports and Upgrade buttons.", ephemeral=True)
+    await send_reply(interaction, f"✅ Added {role.mention} to admin roles. They can now use Reports and Upgrade buttons.", ephemeral=True)
 
 @tree.command(name="remove_admin_role", description="Remove a role's admin access to Reports and Upgrade buttons")
 @app_commands.describe(role="Role to remove admin access from")
@@ -2657,7 +2682,7 @@ async def add_admin_role(interaction: discord.Interaction, role: discord.Role):
 @app_commands.guild_only()
 async def remove_admin_role_cmd(interaction: discord.Interaction, role: discord.Role):
     remove_admin_role(interaction.guild_id, role.id)
-    await interaction.response.send_message(f"✅ Removed {role.mention} from admin roles. They can no longer use Reports and Upgrade buttons.", ephemeral=True)
+    await send_reply(interaction, f"✅ Removed {role.mention} from admin roles. They can no longer use Reports and Upgrade buttons.", ephemeral=True)
 
 @tree.command(name="list_admin_roles", description="List all roles with admin access")
 @app_commands.default_permissions(administrator=True)
@@ -2666,7 +2691,7 @@ async def list_admin_roles(interaction: discord.Interaction):
     admin_role_ids = get_admin_roles(interaction.guild_id)
     
     if not admin_role_ids:
-        await interaction.response.send_message("No custom admin roles configured. Only Discord Administrators can use Reports/Upgrade buttons.", ephemeral=True)
+        await send_reply(interaction, "No custom admin roles configured. Only Discord Administrators can use Reports/Upgrade buttons.", ephemeral=True)
         return
     
     # Get role objects
@@ -2686,7 +2711,7 @@ async def list_admin_roles(interaction: discord.Interaction):
     embed.add_field(name="Custom Admin Roles", value="\n".join(admin_roles), inline=False)
     embed.add_field(name="Note", value="Discord Administrators always have admin access.", inline=False)
     
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await send_reply(interaction, embed=embed, ephemeral=True)
 
 @tree.command(name="set_main_role", description="Set the primary admin role (gets all admin functions)")
 @app_commands.describe(role="Role to designate as main admin (gets Reports, Upgrade, all admin access)")
@@ -2717,7 +2742,7 @@ async def set_main_role(interaction: discord.Interaction, role: discord.Role):
         inline=False
     )
     
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await send_reply(interaction, embed=embed, ephemeral=True)
 
 @tree.command(name="show_main_role", description="View the current main admin role")
 @app_commands.default_permissions(administrator=True)
@@ -2762,7 +2787,7 @@ async def show_main_role(interaction: discord.Interaction):
                 inline=False
             )
     
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await send_reply(interaction, embed=embed, ephemeral=True)
 
 @tree.command(name="clear_main_role", description="Remove the main admin role designation") 
 @app_commands.default_permissions(administrator=True)
@@ -2772,7 +2797,7 @@ async def clear_main_role(interaction: discord.Interaction):
     main_role_id = get_guild_setting(interaction.guild_id, "main_admin_role_id")
     
     if not main_role_id:
-        await interaction.response.send_message(
+        await send_reply(interaction,
             "No main admin role is currently set.",
             ephemeral=True
         )
@@ -2799,7 +2824,7 @@ async def clear_main_role(interaction: discord.Interaction):
         inline=False
     )
     
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await send_reply(interaction, embed=embed, ephemeral=True)
 
 @tree.command(name="add_employee_role", description="Add a role that can use timeclock functions")
 @app_commands.describe(role="Role to grant employee access (timeclock functions)")
@@ -2815,7 +2840,7 @@ async def add_employee_role_cmd(interaction: discord.Interaction, role: discord.
     else:
         message = f"✅ Added {role.mention} to employee roles. Members with this role can now use timeclock functions."
     
-    await interaction.response.send_message(message, ephemeral=True)
+    await send_reply(interaction, message, ephemeral=True)
 
 @tree.command(name="remove_employee_role", description="Remove a role's access to timeclock functions")
 @app_commands.describe(role="Role to remove employee access from")
@@ -2823,7 +2848,7 @@ async def add_employee_role_cmd(interaction: discord.Interaction, role: discord.
 @app_commands.guild_only()
 async def remove_employee_role_cmd(interaction: discord.Interaction, role: discord.Role):
     remove_employee_role(interaction.guild_id, role.id)
-    await interaction.response.send_message(f"✅ Removed {role.mention} from employee roles. They can no longer use timeclock functions (unless admin).", ephemeral=True)
+    await send_reply(interaction, f"✅ Removed {role.mention} from employee roles. They can no longer use timeclock functions (unless admin).", ephemeral=True)
 
 @tree.command(name="list_employee_roles", description="List all roles that can use timeclock functions")
 @app_commands.default_permissions(administrator=True)
@@ -2860,7 +2885,7 @@ async def list_employee_roles(interaction: discord.Interaction):
     
     embed.add_field(name="Note", value="Administrators always have timeclock access regardless of role configuration.", inline=False)
     
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await send_reply(interaction, embed=embed, ephemeral=True)
 
 
 @tree.command(name="help", description="List all available slash commands")
@@ -2965,7 +2990,7 @@ async def help_command(interaction: discord.Interaction):
     
     embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | 20 total commands available | Contact admin for upgrades")
     
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await send_reply(interaction, embed=embed, ephemeral=True)
 
 @tree.command(name="report", description="Generate CSV timesheet report for individual user")
 @app_commands.describe(
@@ -3182,7 +3207,7 @@ class PurgeConfirmationView(discord.ui.View):
     async def confirm_purge(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Handle purge confirmation"""
         if not user_has_admin_access(interaction.user):
-            await interaction.response.send_message("❌ Only administrators can use this command.", ephemeral=True)
+            await send_reply(interaction, "❌ Only administrators can use this command.", ephemeral=True)
             return
         
         await interaction.response.defer(ephemeral=True)
@@ -3246,7 +3271,7 @@ async def purge_data(interaction: discord.Interaction):
     """Allow admins to manually purge timeclock data only"""
     # Double-check admin status
     if not is_server_admin(interaction.user):
-        await interaction.response.send_message("❌ Only server administrators can use this command.", ephemeral=True)
+        await send_reply(interaction, "❌ Only server administrators can use this command.", ephemeral=True)
         return
     
     # Create warning embed
@@ -3278,7 +3303,7 @@ async def purge_data(interaction: discord.Interaction):
     # Create confirmation view
     view = PurgeConfirmationView(interaction.guild_id)
     
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    await send_reply(interaction, embed=embed, view=view, ephemeral=True)
 
 # --- Subscription Management Commands ---
 @tree.command(name="upgrade", description="Upgrade your server to Basic or Pro plan")
@@ -3533,7 +3558,7 @@ async def subscription_status(interaction: discord.Interaction):
 async def owner_grant_tier(interaction: discord.Interaction, tier: str):
     """Owner-only command to grant subscription tiers"""
     if interaction.user.id != BOT_OWNER_ID:
-        await interaction.response.send_message("❌ Access denied.", ephemeral=True)
+        await send_reply(interaction, "❌ Access denied.", ephemeral=True)
         return
         
     await interaction.response.defer(ephemeral=True)
@@ -3585,7 +3610,7 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
 async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: str, tier: str):
     """Owner-only command to grant subscriptions to any server by ID"""
     if interaction.user.id != BOT_OWNER_ID:
-        await interaction.response.send_message("❌ Access denied.", ephemeral=True)
+        await send_reply(interaction, "❌ Access denied.", ephemeral=True)
         return
         
     await interaction.response.defer(ephemeral=True)
