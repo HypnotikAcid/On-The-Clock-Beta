@@ -2369,6 +2369,10 @@ class TimeClockView(discord.ui.View):
 
 @bot.event
 async def on_ready():
+    # Register persistent TimeClockView to handle interactions from old button messages
+    # This prevents "interaction failed" errors after bot restarts
+    bot.add_view(TimeClockView())
+    
     # Note: Using dynamic views now, no need to add static view
     # Views are created with guild-specific conditional buttons in setup_timeclock
     
