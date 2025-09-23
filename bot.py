@@ -2475,52 +2475,6 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
     except Exception as e:
         await interaction.followup.send(f"❌ Error granting tier: {str(e)}", ephemeral=True)
 
-@tree.command(name="owner_remove", description="[OWNER] Remove subscription from current server")
-async def owner_remove_subscription(interaction: discord.Interaction):
-    """Owner-only command to remove subscriptions and purge data"""
-    if interaction.user.id != BOT_OWNER_ID:
-        await interaction.response.send_message("❌ Access denied.", ephemeral=True)
-        return
-        
-    await interaction.response.defer(ephemeral=True)
-    
-    try:
-        guild_id = interaction.guild_id
-        guild_name = interaction.guild.name if interaction.guild else "Unknown"
-        
-        # Check current tier
-        current_tier = get_server_tier(guild_id)
-        
-        if current_tier == "free":
-            await interaction.followup.send("ℹ️ Server is already on Free tier.", ephemeral=True)
-            return
-        
-        # Purge all data and reset to free tier
-        deleted_count = purge_guild_data_for_testing(guild_id)
-        
-        embed = discord.Embed(
-            title="🗑️ Subscription Removed",
-            description=f"Removed subscription and purged all data for **{guild_name}**",
-            color=discord.Color.red()
-        )
-        
-        embed.add_field(name="Server", value=guild_name, inline=True)
-        embed.add_field(name="Server ID", value=str(guild_id), inline=True)
-        embed.add_field(name="Previous Tier", value=current_tier.title(), inline=True)
-        embed.add_field(name="New Tier", value="Free", inline=True)
-        embed.add_field(name="Data Purged", value=f"{deleted_count} records", inline=True)
-        embed.add_field(name="Action By", value="Bot Owner", inline=True)
-        
-        embed.add_field(
-            name="⚠️ Data Removed",
-            value="• All timeclock sessions\n• Guild settings\n• Authorized roles\n• Subscription records",
-            inline=False
-        )
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
-        
-    except Exception as e:
-        await interaction.followup.send(f"❌ Error removing subscription: {str(e)}", ephemeral=True)
 
 @tree.command(name="owner_grant_server", description="[OWNER] Grant subscription to any server by ID")
 @app_commands.describe(
