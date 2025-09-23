@@ -23,6 +23,7 @@ HTTP_PORT = int(os.getenv("PORT", "5000"))     # Health check server port
 
 # --- Stripe Configuration ---
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 STRIPE_PRICE_IDS = {
     'basic': 'price_1SAHpL3Jrp0J9Adlfowh5qpr',   # $5/month
     'pro': 'price_1SAHqH3Jrp0J9AdlFSJpJ32A'      # $10/month  
@@ -35,6 +36,40 @@ def get_domain():
     else:
         domains = os.getenv('REPLIT_DOMAINS', '')
         return domains.split(',')[0] if domains else 'localhost:5000'
+
+def create_secure_checkout_session(guild_id: int, tier: str) -> str:
+    """Create a secure Stripe checkout session with proper validation"""
+    if not stripe.api_key:
+        raise ValueError("STRIPE_SECRET_KEY not configured")
+    
+    if tier not in STRIPE_PRICE_IDS:
+        raise ValueError(f"Invalid tier: {tier}")
+    
+    domain = get_domain()
+    
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            line_items=[{
+                'price': STRIPE_PRICE_IDS[tier],
+                'quantity': 1,
+            }],
+            mode='subscription',
+            success_url=f'https://{domain}/success?session_id={{CHECKOUT_SESSION_ID}}',
+            cancel_url=f'https://{domain}/cancel',
+            metadata={
+                'guild_id': str(guild_id),
+                'tier': tier
+            },
+            automatic_tax={'enabled': True},
+            billing_address_collection='required',
+        )
+        
+        return checkout_session.url
+        
+    except stripe.error.StripeError as e:
+        raise ValueError(f"Stripe error: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Checkout creation failed: {str(e)}")
 
 # --- Health Check HTTP Server ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -60,9 +95,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self.wfile.write(json.dumps(response).encode())
-        elif self.path.startswith("/checkout/"):
-            # Handle checkout session creation
-            self.handle_checkout()
+        # Remove insecure GET checkout endpoint - checkout now done via Discord commands only
         elif self.path in ["/success", "/cancel"]:
             # Handle payment result pages
             self.handle_payment_result()
@@ -78,48 +111,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
     
-    def handle_checkout(self):
-        """Create Stripe checkout session"""
-        try:
-            # Parse URL: /checkout/basic/123456789 or /checkout/pro/123456789
-            path_parts = self.path.strip('/').split('/')
-            if len(path_parts) != 3:
-                raise ValueError("Invalid checkout URL format")
-            
-            _, tier, guild_id = path_parts
-            
-            if tier not in STRIPE_PRICE_IDS:
-                raise ValueError(f"Invalid tier: {tier}")
-            
-            domain = get_domain()
-            
-            # Create Stripe checkout session
-            checkout_session = stripe.checkout.Session.create(
-                line_items=[{
-                    'price': STRIPE_PRICE_IDS[tier],
-                    'quantity': 1,
-                }],
-                mode='subscription',
-                success_url=f'https://{domain}/success?session_id={{CHECKOUT_SESSION_ID}}',
-                cancel_url=f'https://{domain}/cancel',
-                metadata={
-                    'guild_id': guild_id,
-                    'tier': tier
-                },
-                automatic_tax={'enabled': True},
-            )
-            
-            # Redirect to Stripe checkout
-            self.send_response(303)
-            self.send_header('Location', checkout_session.url)
-            self.end_headers()
-            
-        except Exception as e:
-            print(f"❌ Checkout error: {e}")
-            self.send_response(400)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write(f"<h1>Error</h1><p>Failed to create checkout session: {e}</p>".encode())
     
     def handle_payment_result(self):
         """Handle success/cancel pages"""
@@ -149,24 +140,80 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.wfile.write(html.encode())
     
     def handle_stripe_webhook(self):
-        """Handle Stripe webhook events"""
+        """Handle Stripe webhook events with proper signature verification"""
         try:
+            if not STRIPE_WEBHOOK_SECRET:
+                print("❌ STRIPE_WEBHOOK_SECRET not configured")
+                self.send_response(400)
+                self.end_headers()
+                return
+                
             content_length = int(self.headers['Content-Length'])
             payload = self.rfile.read(content_length)
+            sig_header = self.headers.get('stripe-signature')
             
-            # For now, just parse the event (webhook signature verification can be added later)
-            event = json.loads(payload.decode('utf-8'))
+            if not sig_header:
+                print("❌ Missing Stripe signature header")
+                self.send_response(400)
+                self.end_headers()
+                return
             
-            # Handle successful subscription creation
+            # Verify webhook signature
+            try:
+                event = stripe.Webhook.construct_event(
+                    payload, sig_header, STRIPE_WEBHOOK_SECRET
+                )
+            except stripe.error.SignatureVerificationError as e:
+                print(f"❌ Invalid webhook signature: {e}")
+                self.send_response(400)
+                self.end_headers()
+                return
+            
+            # Handle different event types
             if event['type'] == 'checkout.session.completed':
                 session = event['data']['object']
-                guild_id = session['metadata']['guild_id']
-                tier = session['metadata']['tier']
-                subscription_id = session.get('subscription')
                 
-                # Update database with new subscription
-                set_server_tier(int(guild_id), tier, subscription_id)
-                print(f"✅ Subscription activated: Guild {guild_id} -> {tier.title()}")
+                # Retrieve full session with line items to verify pricing
+                full_session = stripe.checkout.Session.retrieve(
+                    session['id'],
+                    expand=['line_items']
+                )
+                
+                # Verify the price ID matches our expected tiers
+                if full_session.line_items.data:
+                    price_id = full_session.line_items.data[0].price.id
+                    tier = None
+                    for t, pid in STRIPE_PRICE_IDS.items():
+                        if pid == price_id:
+                            tier = t
+                            break
+                    
+                    if not tier:
+                        print(f"❌ Unknown price ID in checkout: {price_id}")
+                        self.send_response(200)  # Still ack to Stripe
+                        self.end_headers()
+                        return
+                    
+                    guild_id = session.get('metadata', {}).get('guild_id')
+                    if guild_id:
+                        subscription_id = session.get('subscription')
+                        customer_id = session.get('customer')
+                        
+                        # Update database with verified subscription
+                        set_server_tier(int(guild_id), tier, subscription_id, customer_id)
+                        print(f"✅ Subscription activated: Guild {guild_id} -> {tier.title()}")
+                        
+            elif event['type'] == 'customer.subscription.updated':
+                subscription = event['data']['object']
+                self.handle_subscription_change(subscription)
+                
+            elif event['type'] == 'customer.subscription.deleted':
+                subscription = event['data']['object']
+                self.handle_subscription_cancellation(subscription)
+                
+            elif event['type'] == 'invoice.payment_failed':
+                invoice = event['data']['object']
+                self.handle_payment_failure(invoice)
             
             # Send success response
             self.send_response(200)
@@ -178,6 +225,81 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"❌ Webhook error: {e}")
             self.send_response(400)
             self.end_headers()
+    
+    def handle_subscription_change(self, subscription):
+        """Handle subscription status changes"""
+        try:
+            # Find guild by customer_id or subscription_id
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT guild_id FROM server_subscriptions 
+                    WHERE subscription_id = ? OR customer_id = ?
+                """, (subscription['id'], subscription['customer']))
+                result = cursor.fetchone()
+                
+                if result:
+                    guild_id = result[0]
+                    status = subscription['status']
+                    current_period_end = subscription['current_period_end']
+                    
+                    # Update subscription status
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET status = ?, expires_at = ?
+                        WHERE guild_id = ?
+                    """, (status, datetime.fromtimestamp(current_period_end, timezone.utc).isoformat(), guild_id))
+                    
+                    print(f"🔄 Subscription updated: Guild {guild_id} -> {status}")
+                    
+        except Exception as e:
+            print(f"❌ Error handling subscription change: {e}")
+    
+    def handle_subscription_cancellation(self, subscription):
+        """Handle subscription cancellations"""
+        try:
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT guild_id FROM server_subscriptions 
+                    WHERE subscription_id = ?
+                """, (subscription['id'],))
+                result = cursor.fetchone()
+                
+                if result:
+                    guild_id = result[0]
+                    
+                    # Downgrade to free tier
+                    set_server_tier(guild_id, 'free')
+                    print(f"⬇️ Subscription cancelled: Guild {guild_id} -> Free")
+                    
+        except Exception as e:
+            print(f"❌ Error handling subscription cancellation: {e}")
+    
+    def handle_payment_failure(self, invoice):
+        """Handle failed payments"""
+        try:
+            customer_id = invoice['customer']
+            
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT guild_id FROM server_subscriptions 
+                    WHERE customer_id = ?
+                """, (customer_id,))
+                result = cursor.fetchone()
+                
+                if result:
+                    guild_id = result[0]
+                    
+                    # Mark as past_due but don't downgrade immediately
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET status = 'past_due'
+                        WHERE guild_id = ?
+                    """, (guild_id,))
+                    
+                    print(f"⚠️ Payment failed: Guild {guild_id} marked as past_due")
+                    
+        except Exception as e:
+            print(f"❌ Error handling payment failure: {e}")
     
     def do_HEAD(self):
         if self.path == "/" or self.path == "/health":
@@ -530,6 +652,7 @@ def init_db():
             guild_id INTEGER PRIMARY KEY,
             tier TEXT NOT NULL DEFAULT 'free',
             subscription_id TEXT,
+            customer_id TEXT,
             expires_at TEXT,
             status TEXT DEFAULT 'active'
         )
@@ -546,14 +669,30 @@ def get_server_tier(guild_id: int) -> str:
         result = cursor.fetchone()
         return result[0] if result else "free"
 
-def set_server_tier(guild_id: int, tier: str, subscription_id: str = None):
+def set_server_tier(guild_id: int, tier: str, subscription_id: str = None, customer_id: str = None):
     """Set subscription tier for a server"""
     with db() as conn:
-        conn.execute("""
-            INSERT OR REPLACE INTO server_subscriptions 
-            (guild_id, tier, subscription_id, status) 
-            VALUES (?, ?, ?, 'active')
-        """, (guild_id, tier, subscription_id))
+        if subscription_id and customer_id:
+            # Full subscription with customer info
+            conn.execute("""
+                INSERT OR REPLACE INTO server_subscriptions 
+                (guild_id, tier, subscription_id, customer_id, status) 
+                VALUES (?, ?, ?, ?, 'active')
+            """, (guild_id, tier, subscription_id, customer_id))
+        elif subscription_id:
+            # Subscription without customer (legacy)
+            conn.execute("""
+                INSERT OR REPLACE INTO server_subscriptions 
+                (guild_id, tier, subscription_id, status) 
+                VALUES (?, ?, ?, 'active')
+            """, (guild_id, tier, subscription_id))
+        else:
+            # Free tier or manual assignment
+            conn.execute("""
+                INSERT OR REPLACE INTO server_subscriptions 
+                (guild_id, tier, status) 
+                VALUES (?, ?, 'active')
+            """, (guild_id, tier))
 
 def check_tier_access(guild_id: int, required_tier: str) -> bool:
     """Check if server has access to features requiring a specific tier"""
@@ -1573,8 +1712,16 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
             )
             return
         
-        domain = get_domain()
-        checkout_url = f"https://{domain}/checkout/{plan}/{interaction.guild_id}"
+        # Check Stripe configuration
+        if not stripe.api_key:
+            await interaction.followup.send(
+                "❌ Payment system is not configured. Please contact support.",
+                ephemeral=True
+            )
+            return
+        
+        # Create secure checkout session server-side
+        checkout_url = create_secure_checkout_session(interaction.guild_id, plan)
         
         plan_details = {
             'basic': "**Basic Plan - $5/month**\n• Full team access to timeclock\n• All admin commands\n• Role management\n• 1 week data retention",
@@ -1620,7 +1767,7 @@ async def subscription_status(interaction: discord.Interaction):
     try:
         with db() as conn:
             cursor = conn.execute("""
-                SELECT tier, subscription_id, expires_at, status
+                SELECT tier, subscription_id, customer_id, expires_at, status
                 FROM server_subscriptions 
                 WHERE guild_id = ?
             """, (interaction.guild_id,))
@@ -1629,10 +1776,11 @@ async def subscription_status(interaction: discord.Interaction):
             if not result:
                 tier = "free"
                 subscription_id = None
+                customer_id = None
                 expires_at = None
                 status = "active"
             else:
-                tier, subscription_id, expires_at, status = result
+                tier, subscription_id, customer_id, expires_at, status = result
         
         tier_colors = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
         tier_emojis = {"free": "🆓", "basic": "💼", "pro": "⭐"}
