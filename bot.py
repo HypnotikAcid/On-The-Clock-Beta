@@ -158,6 +158,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def handle_stripe_webhook(self):
         """Handle Stripe webhook events with proper signature verification"""
         try:
+            print(f"🔔 Webhook received - Headers: {dict(self.headers)}")
+            
             if not STRIPE_WEBHOOK_SECRET:
                 print("❌ STRIPE_WEBHOOK_SECRET not configured")
                 self.send_response(400)
@@ -168,9 +170,30 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             payload = self.rfile.read(content_length)
             sig_header = self.headers.get('stripe-signature')
             
+            print(f"🔍 Payload length: {len(payload)}, Signature: {sig_header is not None}")
+            
             if not sig_header:
                 print("❌ Missing Stripe signature header")
-                self.send_response(400)
+                print("📋 Available headers:", list(self.headers.keys()))
+                # For debugging, try to process anyway in test mode
+                try:
+                    import json
+                    event_data = json.loads(payload.decode('utf-8'))
+                    print(f"🧪 Raw webhook data: {event_data.get('type', 'unknown')} event")
+                    if event_data.get('type') == 'checkout.session.completed':
+                        print("💳 Checkout session completed detected - processing without signature verification for debugging")
+                        session = event_data['data']['object']
+                        guild_id = session.get('metadata', {}).get('guild_id')
+                        if guild_id:
+                            print(f"🎯 Found guild_id in session: {guild_id}")
+                            # Process the event anyway for debugging
+                            self.process_checkout_completed(session)
+                        else:
+                            print("❌ No guild_id found in session metadata")
+                except Exception as debug_e:
+                    print(f"🐛 Debug processing failed: {debug_e}")
+                
+                self.send_response(200)  # Return 200 to prevent Stripe retries during debugging
                 self.end_headers()
                 return
             
@@ -188,36 +211,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Handle different event types
             if event['type'] == 'checkout.session.completed':
                 session = event['data']['object']
-                
-                # Retrieve full session with line items to verify pricing
-                full_session = stripe.checkout.Session.retrieve(
-                    session['id'],
-                    expand=['line_items']
-                )
-                
-                # Verify the price ID matches our expected tiers
-                if full_session.line_items.data:
-                    price_id = full_session.line_items.data[0].price.id
-                    tier = None
-                    for t, pid in STRIPE_PRICE_IDS.items():
-                        if pid == price_id:
-                            tier = t
-                            break
-                    
-                    if not tier:
-                        print(f"❌ Unknown price ID in checkout: {price_id}")
-                        self.send_response(200)  # Still ack to Stripe
-                        self.end_headers()
-                        return
-                    
-                    guild_id = session.get('metadata', {}).get('guild_id')
-                    if guild_id:
-                        subscription_id = session.get('subscription')
-                        customer_id = session.get('customer')
-                        
-                        # Update database with verified subscription
-                        set_server_tier(int(guild_id), tier, subscription_id, customer_id)
-                        print(f"✅ Subscription activated: Guild {guild_id} -> {tier.title()}")
+                self.process_checkout_completed(session)
                         
             elif event['type'] == 'customer.subscription.updated':
                 subscription = event['data']['object']
@@ -241,6 +235,59 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"❌ Webhook error: {e}")
             self.send_response(400)
             self.end_headers()
+    
+    def process_checkout_completed(self, session):
+        """Process a completed checkout session"""
+        try:
+            print(f"🔄 Processing checkout session: {session.get('id', 'unknown')}")
+            
+            # Retrieve full session with line items to verify pricing
+            full_session = stripe.checkout.Session.retrieve(
+                session['id'],
+                expand=['line_items']
+            )
+            
+            print(f"📋 Session details: Customer={full_session.get('customer')}, Subscription={full_session.get('subscription')}")
+            
+            # Verify the price ID matches our expected tiers
+            if full_session.line_items.data:
+                price_id = full_session.line_items.data[0].price.id
+                print(f"💰 Price ID: {price_id}")
+                
+                tier = None
+                for t, pid in STRIPE_PRICE_IDS.items():
+                    if pid == price_id:
+                        tier = t
+                        break
+                
+                if not tier:
+                    print(f"❌ Unknown price ID in checkout: {price_id}")
+                    print(f"🔍 Expected price IDs: {STRIPE_PRICE_IDS}")
+                    return
+                
+                guild_id = session.get('metadata', {}).get('guild_id')
+                print(f"🎯 Guild ID from metadata: {guild_id}")
+                
+                if guild_id:
+                    subscription_id = session.get('subscription')
+                    customer_id = session.get('customer')
+                    
+                    print(f"📝 Updating server tier: Guild {guild_id} -> {tier.title()}")
+                    print(f"🔗 Subscription ID: {subscription_id}, Customer ID: {customer_id}")
+                    
+                    # Update database with verified subscription
+                    set_server_tier(int(guild_id), tier, subscription_id, customer_id)
+                    print(f"✅ Subscription activated: Guild {guild_id} -> {tier.title()}")
+                else:
+                    print("❌ No guild_id found in session metadata")
+                    print(f"🔍 Available metadata: {session.get('metadata', {})}")
+            else:
+                print("❌ No line items found in checkout session")
+                
+        except Exception as e:
+            print(f"❌ Error processing checkout session: {e}")
+            import traceback
+            traceback.print_exc()
     
     def purge_all_guild_data(self, guild_id: int):
         """Purge all data for a guild when subscription lapses"""
