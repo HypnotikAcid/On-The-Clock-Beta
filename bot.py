@@ -1610,8 +1610,7 @@ class TimeClockView(discord.ui.View):
                 except Exception:
                     pass
 
-    @discord.ui.button(label="Help", style=discord.ButtonStyle.primary, custom_id="timeclock:help", row=0)
-    async def show_help(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def show_help(self, interaction: discord.Interaction):
         """Show help commands instead of user time info"""
         embed = discord.Embed(
             title="🛠️ Timeclock Help Commands",
@@ -1659,8 +1658,7 @@ class TimeClockView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @discord.ui.button(label="Reports", style=discord.ButtonStyle.success, custom_id="timeclock:reports", row=1)
-    async def generate_reports(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def generate_reports(self, interaction: discord.Interaction):
         if interaction.guild is None:
             await interaction.response.send_message("Use this in a server.", ephemeral=True)
             return
@@ -1769,8 +1767,7 @@ class TimeClockView(discord.ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Upgrade", style=discord.ButtonStyle.secondary, custom_id="timeclock:upgrade", row=1, emoji="🚀")
-    async def show_upgrade(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def show_upgrade(self, interaction: discord.Interaction):
         """Show upgrade options for free tier servers"""
         guild_id = interaction.guild.id
         server_tier = get_server_tier(guild_id)
