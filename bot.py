@@ -1839,6 +1839,107 @@ async def manual_cleanup(interaction: discord.Interaction):
             ephemeral=True
         )
 
+class PurgeConfirmationView(discord.ui.View):
+    """Confirmation view for purge command"""
+    def __init__(self, guild_id: int):
+        super().__init__(timeout=60.0)  # 60 second timeout
+        self.guild_id = guild_id
+        self.confirmed = False
+    
+    @discord.ui.button(label="✅ Yes, Purge All Data", style=discord.ButtonStyle.danger, custom_id="purge_yes")
+    async def confirm_purge(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Handle purge confirmation"""
+        if not is_server_admin(interaction.user):
+            await interaction.response.send_message("❌ Only administrators can use this command.", ephemeral=True)
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            # Create temporary webhook handler instance to access purge function
+            temp_handler = StripeWebhookHandler()
+            temp_handler.purge_all_guild_data(self.guild_id)
+            
+            embed = discord.Embed(
+                title="🗑️ Data Purge Complete",
+                description="All server data has been permanently removed.",
+                color=discord.Color.red()
+            )
+            embed.add_field(
+                name="What was removed:",
+                value="• All time clock sessions\n• All server settings\n• All role permissions\n• Subscription reset to Free tier",
+                inline=False
+            )
+            embed.add_field(
+                name="⚠️ This action cannot be undone",
+                value="Your server is now on the Free tier with no retained data.",
+                inline=False
+            )
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            self.confirmed = True
+            
+            # Disable all buttons
+            for item in self.children:
+                item.disabled = True
+            
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error during purge: {str(e)}", ephemeral=True)
+    
+    @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.secondary, custom_id="purge_no")
+    async def cancel_purge(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Handle purge cancellation"""
+        embed = discord.Embed(
+            title="✅ Purge Cancelled",
+            description="No data was removed. Your server data remains intact.",
+            color=discord.Color.green()
+        )
+        
+        await interaction.response.edit_message(embed=embed, view=None)
+    
+    async def on_timeout(self):
+        """Handle timeout"""
+        # Disable all buttons when timeout occurs
+        for item in self.children:
+            item.disabled = True
+
+@tree.command(name="purge", description="Permanently delete ALL server data (Admin only)")
+@app_commands.default_permissions(administrator=True)  
+@app_commands.guild_only()
+async def purge_data(interaction: discord.Interaction):
+    """Allow admins to manually purge all server data"""
+    # Double-check admin status
+    if not is_server_admin(interaction.user):
+        await interaction.response.send_message("❌ Only server administrators can use this command.", ephemeral=True)
+        return
+    
+    # Create warning embed
+    embed = discord.Embed(
+        title="⚠️ DANGER: Data Purge Warning",
+        description="This will **permanently delete ALL** server data!",
+        color=discord.Color.red()
+    )
+    embed.add_field(
+        name="What will be deleted:",
+        value=(
+            "• **All time clock sessions** (all users)\n"
+            "• **All server settings** (recipients, timezone, etc.)\n"
+            "• **All role permissions** for Info button\n"
+            "• **Subscription reset** to Free tier"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="⚠️ THIS CANNOT BE UNDONE",
+        value="Make sure you really want to delete everything before confirming.",
+        inline=False
+    )
+    
+    # Create confirmation view
+    view = PurgeConfirmationView(interaction.guild_id)
+    
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
 # --- Subscription Management Commands ---
 @tree.command(name="upgrade", description="Upgrade your server to Basic or Pro plan")
 @app_commands.describe(plan="Choose Basic ($5/month) or Pro ($10/month)")
