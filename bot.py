@@ -1311,6 +1311,20 @@ def human_duration(seconds: int) -> str:
     if s or not parts: parts.append(f"{s}s")
     return " ".join(parts)
 
+def format_duration_hhmmss(seconds: int) -> str:
+    """Format seconds into HH:MM:SS format"""
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+def format_shift_duration(seconds: int) -> str:
+    """Format seconds into 'This Shift: HH:hrs::MM:Mins::SS:seconds' format"""
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    return f"This Shift: {h:02d}:hrs::{m:02d}:Mins::{s:02d}:seconds"
+
 # --- Discord bot ---
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
