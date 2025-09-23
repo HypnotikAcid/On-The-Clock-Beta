@@ -2241,136 +2241,95 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
             ephemeral=True
         )
 
-@tree.command(name="test_subscription_lapse", description="Test subscription cancellation (Admin only)")
+@tree.command(name="cancel_subscription", description="Learn how to cancel your subscription")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
-async def test_subscription_lapse(interaction: discord.Interaction):
-    """Test what happens when a subscription is cancelled/lapses"""
+async def cancel_subscription(interaction: discord.Interaction):
+    """Provide instructions for canceling subscription"""
     await interaction.response.defer(ephemeral=True)
     
     try:
-        # Check current subscription
-        with db() as conn:
-            cursor = conn.execute("""
-                SELECT tier, subscription_id, customer_id, status
-                FROM server_subscriptions 
-                WHERE guild_id = ?
-            """, (interaction.guild_id,))
-            result = cursor.fetchone()
-            
-            if not result or result[0] == 'free':
-                await interaction.followup.send("❌ This server is already on the Free tier. Upgrade first to test subscription lapse.", ephemeral=True)
-                return
-            
-            tier, sub_id, customer_id, status = result
-            
-        # Test the data purging process directly
-        purge_guild_data_for_testing(interaction.guild_id)
-        
-        embed = discord.Embed(
-            title="🧪 Subscription Lapse Test Complete",
-            description="Simulated subscription cancellation and data purging",
-            color=discord.Color.orange()
-        )
-        
-        embed.add_field(name="Previous Tier", value=tier.title(), inline=True)
-        embed.add_field(name="New Tier", value="Free", inline=True)
-        embed.add_field(name="Data Status", value="All data purged", inline=True)
-        
-        embed.add_field(
-            name="What was removed:",
-            value="• All timeclock sessions\n• Guild settings\n• Authorized roles\n• Subscription details",
-            inline=False
-        )
-        
-        embed.add_field(
-            name="Next Steps:",
-            value="Use `/subscription_status` to verify Free tier\nUpgrade again to test full flow",
-            inline=False
-        )
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
-        
-    except Exception as e:
-        await interaction.followup.send(
-            f"❌ Error during subscription lapse test: {str(e)}", 
-            ephemeral=True
-        )
-
-@tree.command(name="test_tier_access", description="Test access controls for different tiers (Admin only)")
-@app_commands.default_permissions(administrator=True)
-@app_commands.guild_only()
-@app_commands.describe(
-    test_tier="Which tier to test access for"
-)
-@app_commands.choices(test_tier=[
-    app_commands.Choice(name="Free", value="free"),
-    app_commands.Choice(name="Basic", value="basic"),
-    app_commands.Choice(name="Pro", value="pro")
-])
-async def test_tier_access(interaction: discord.Interaction, test_tier: str):
-    """Test what features are available for each tier"""
-    await interaction.response.defer(ephemeral=True)
-    
-    try:
-        # Get current tier for comparison
+        # Check current subscription status
         current_tier = get_server_tier(interaction.guild_id)
         
-        embed = discord.Embed(
-            title=f"🔍 Tier Access Test: {test_tier.title()}",
-            color=discord.Color.blue()
-        )
-        
-        embed.add_field(name="Current Tier", value=current_tier.title(), inline=True)
-        embed.add_field(name="Testing Tier", value=test_tier.title(), inline=True)
-        
-        # Test feature access
-        features = {
-            'Timeclock Setup': check_tier_access(interaction.guild_id, 'free'),
-            'Basic Commands': check_tier_access(interaction.guild_id, 'free'),
-            'Role Management': check_tier_access(interaction.guild_id, 'basic'),
-            'CSV Reports': check_tier_access(interaction.guild_id, 'pro'),
-            'Extended Retention': check_tier_access(interaction.guild_id, 'pro')
-        }
-        
-        # Test data retention
-        retention_days = get_retention_days(interaction.guild_id)
-        
-        access_text = ""
-        for feature, has_access in features.items():
-            status = "✅" if has_access else "❌"
-            access_text += f"{status} {feature}\n"
-        
-        embed.add_field(
-            name="Feature Access",
-            value=access_text,
-            inline=False
-        )
-        
-        embed.add_field(
-            name="Data Retention",
-            value=f"{retention_days} days",
-            inline=True
-        )
-        
-        # Add tier restrictions info
-        restrictions = {
-            'free': "• Admin-only testing\n• No data retention\n• Sample reports only",
-            'basic': "• Full team access\n• 7 days retention\n• All admin commands",
-            'pro': "• Everything in Basic\n• 30 days retention\n• Real CSV reports"
-        }
-        
-        embed.add_field(
-            name=f"{test_tier.title()} Tier Features",
-            value=restrictions.get(test_tier, "Unknown tier"),
-            inline=False
-        )
+        if current_tier == "free":
+            embed = discord.Embed(
+                title="📋 Subscription Information",
+                description="Your server is currently on the **Free** plan and has no active subscription to cancel.",
+                color=discord.Color.green()
+            )
+            
+            embed.add_field(
+                name="Current Status",
+                value="✅ No subscription - No action needed",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="Want to upgrade?",
+                value="Use `/upgrade basic` or `/upgrade pro` to start a subscription",
+                inline=False
+            )
+            
+        else:
+            embed = discord.Embed(
+                title="🚨 How to Cancel Your Subscription",
+                description=f"Your server is currently on the **{current_tier.title()}** plan. Here's how to cancel:",
+                color=discord.Color.red()
+            )
+            
+            embed.add_field(
+                name="Step 1: Access Stripe Customer Portal",
+                value="Visit [Stripe Customer Portal](https://billing.stripe.com/p/login) and log in with the email used for payment",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="Step 2: Find Your Subscription",
+                value="Look for your 'On the Clock Discord Bot' subscription in your billing dashboard",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="Step 3: Cancel Subscription",
+                value="Click 'Cancel subscription' and follow the prompts to confirm cancellation",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="⚠️ IMPORTANT: Data Deletion Warning",
+                value="**When you cancel your subscription, ALL DATA will be permanently deleted:**\n" +
+                      "• All timeclock sessions and history\n" +
+                      "• Guild settings and configurations\n" +
+                      "• Role permissions and authorizations\n" +
+                      "• CSV reports and exports\n" +
+                      "\n**This action cannot be undone!**",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="📅 When Does Deletion Happen?",
+                value="Data deletion occurs immediately upon subscription cancellation. Your server will be downgraded to Free tier.",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="💾 Want to Keep Your Data?",
+                value="Before canceling, use the **Reports** button to export and save your timeclock data as CSV files.",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🔄 Need Help?",
+                value="Contact our support if you need assistance with cancellation or have questions about data retention.",
+                inline=False
+            )
         
         await interaction.followup.send(embed=embed, ephemeral=True)
         
     except Exception as e:
         await interaction.followup.send(
-            f"❌ Error during tier access test: {str(e)}", 
+            f"❌ Error fetching cancellation information: {str(e)}", 
             ephemeral=True
         )
 
