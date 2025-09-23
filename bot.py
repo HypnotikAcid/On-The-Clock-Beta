@@ -1100,6 +1100,18 @@ class TimeClockView(discord.ui.View):
             return
         guild_id = interaction.guild.id
         user_id = interaction.user.id
+        
+        # Check free tier restrictions
+        server_tier = get_server_tier(guild_id)
+        if server_tier == "free" and not is_server_admin(interaction.user):
+            await interaction.response.send_message(
+                "🔒 **Free Tier Limitation**\n"
+                "Only server administrators can use the timeclock on the free plan.\n"
+                "Upgrade to Basic ($5/month) for full team access!",
+                ephemeral=True
+            )
+            return
+        
         if get_active_session(guild_id, user_id):
             await interaction.response.send_message("You're already clocked in.", ephemeral=True)
             return
@@ -1113,6 +1125,18 @@ class TimeClockView(discord.ui.View):
             return
         guild_id = interaction.guild.id
         user_id = interaction.user.id
+        
+        # Check free tier restrictions
+        server_tier = get_server_tier(guild_id)
+        if server_tier == "free" and not is_server_admin(interaction.user):
+            await interaction.response.send_message(
+                "🔒 **Free Tier Limitation**\n"
+                "Only server administrators can use the timeclock on the free plan.\n"
+                "Upgrade to Basic ($5/month) for full team access!",
+                ephemeral=True
+            )
+            return
+        
         active = get_active_session(guild_id, user_id)
         if not active:
             await interaction.response.send_message("You don't have an active session.", ephemeral=True)
@@ -1164,8 +1188,19 @@ class TimeClockView(discord.ui.View):
         guild_id = interaction.guild.id
         user_id = interaction.user.id
         
-        # Check if user has authorized role
-        if not user_has_authorized_role(guild_id, interaction.user.roles):
+        # Check free tier restrictions
+        server_tier = get_server_tier(guild_id)
+        if server_tier == "free" and not is_server_admin(interaction.user):
+            await interaction.response.send_message(
+                "🔒 **Free Tier Limitation**\n"
+                "Only server administrators can use the timeclock on the free plan.\n"
+                "Upgrade to Basic ($5/month) for full team access!",
+                ephemeral=True
+            )
+            return
+        
+        # Check if user has authorized role (skip for free tier admins)
+        if server_tier != "free" and not user_has_authorized_role(guild_id, interaction.user.roles):
             await interaction.response.send_message("❌ You don't have permission to view time info.", ephemeral=True)
             return
         
