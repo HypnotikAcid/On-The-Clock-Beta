@@ -321,6 +321,40 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
         except Exception as e:
             print(f"❌ Error purging guild data for {guild_id}: {e}")
+
+def purge_guild_data_for_testing(guild_id: int):
+    """Standalone function to purge guild data for testing purposes"""
+    try:
+        with db() as conn:
+            # Set timeout for database operations
+            conn.execute("PRAGMA busy_timeout = 5000")
+            
+            # Delete all sessions data
+            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
+            sessions_deleted = sessions_cursor.rowcount
+            
+            # Delete guild settings
+            settings_cursor = conn.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))
+            settings_deleted = settings_cursor.rowcount
+            
+            # Delete authorized roles
+            roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
+            roles_deleted = roles_cursor.rowcount
+            
+            # Reset subscription to free tier (don't delete subscription record)
+            conn.execute("""
+                UPDATE server_subscriptions 
+                SET tier = 'free', subscription_id = NULL, customer_id = NULL, 
+                    expires_at = NULL, status = 'cancelled'
+                WHERE guild_id = ?
+            """, (guild_id,))
+            
+            print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {roles_deleted} roles")
+            return sessions_deleted + settings_deleted + roles_deleted
+            
+    except Exception as e:
+        print(f"❌ Error purging guild data for {guild_id}: {e}")
+        raise
     
     def handle_subscription_change(self, subscription):
         """Handle subscription status changes"""
@@ -2220,11 +2254,8 @@ async def test_subscription_lapse(interaction: discord.Interaction):
             
             tier, sub_id, customer_id, status = result
             
-        # Create webhook handler instance to test purge function
-        temp_handler = HealthCheckHandler()
-        
-        # Test the data purging process
-        temp_handler.purge_all_guild_data(interaction.guild_id)
+        # Test the data purging process directly
+        purge_guild_data_for_testing(interaction.guild_id)
         
         embed = discord.Embed(
             title="🧪 Subscription Lapse Test Complete",
