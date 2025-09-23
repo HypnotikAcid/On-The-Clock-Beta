@@ -1744,6 +1744,23 @@ intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
+# Register persistent views at startup to handle interactions after bot restart
+async def setup_hook():
+    """Setup hook to register persistent views when bot starts"""
+    print("🔧 Registering persistent views...")
+    
+    # Register NEW TimeClockView for handling new message interactions
+    bot.add_view(TimeClockView())
+    print("✅ TimeClockView registered (new custom_ids)")
+    
+    # Register LEGACY TimeClockView for backward compatibility with existing messages
+    bot.add_view(LegacyTimeClockView())
+    print("✅ LegacyTimeClockView registered (old custom_ids)")
+    
+    print("✅ Both persistent views registered successfully - full backward compatibility enabled")
+
+bot.setup_hook = setup_hook
+
 class TimeClockView(discord.ui.View):
     def __init__(self, guild_id: int = None):
         super().__init__(timeout=None)  # persistent view
@@ -1761,7 +1778,7 @@ class TimeClockView(discord.ui.View):
         clock_in_btn = discord.ui.Button(
             label="Clock In", 
             style=discord.ButtonStyle.success, 
-            custom_id="timeclock:in", 
+            custom_id="timeclock:clock_in", 
             row=0
         )
         clock_in_btn.callback = self.clock_in
@@ -1770,7 +1787,7 @@ class TimeClockView(discord.ui.View):
         clock_out_btn = discord.ui.Button(
             label="Clock Out", 
             style=discord.ButtonStyle.danger, 
-            custom_id="timeclock:out", 
+            custom_id="timeclock:clock_out", 
             row=0
         )
         clock_out_btn.callback = self.clock_out
@@ -2001,212 +2018,274 @@ class TimeClockView(discord.ui.View):
             print(f"Error in on_the_clock: {e}")
 
     async def clock_in(self, interaction: discord.Interaction):
-        # Defer immediately to prevent timeout
-        await interaction.response.defer(ephemeral=True)
-        
-        if interaction.guild is None:
-            await interaction.followup.send("Use this in a server.", ephemeral=True)
-            return
-        guild_id = interaction.guild.id
-        user_id = interaction.user.id
-        
-        # Check clock access permissions
-        server_tier = get_server_tier(guild_id)
-        if not user_has_clock_access(interaction.user, server_tier):
-            await interaction.followup.send(
-                "🔒 **Access Restricted**\n"
-                "You need an employee role to use the timeclock.\n"
-                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
-                ephemeral=True
-            )
-            return
-        
-        if get_active_session(guild_id, user_id):
-            await interaction.followup.send("You're already clocked in.", ephemeral=True)
-            return
-        start_session(guild_id, user_id, now_utc().isoformat())
-        await interaction.followup.send("✅ Clocked in. Have a great shift!", ephemeral=True)
+        """Handle clock in button interaction with robust error handling"""
+        try:
+            # Defer immediately to prevent timeout
+            await interaction.response.defer(ephemeral=True)
+            
+            if interaction.guild is None:
+                await interaction.followup.send("Use this in a server.", ephemeral=True)
+                return
+                
+            guild_id = interaction.guild.id
+            user_id = interaction.user.id
+            
+            # Check clock access permissions
+            server_tier = get_server_tier(guild_id)
+            if not user_has_clock_access(interaction.user, server_tier):
+                await interaction.followup.send(
+                    "🔒 **Access Restricted**\n"
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                    ephemeral=True
+                )
+                return
+            
+            if get_active_session(guild_id, user_id):
+                await interaction.followup.send("You're already clocked in.", ephemeral=True)
+                return
+                
+            start_session(guild_id, user_id, now_utc().isoformat())
+            await interaction.followup.send("✅ Clocked in. Have a great shift!", ephemeral=True)
+            
+        except (discord.NotFound, discord.errors.NotFound):
+            # Interaction expired or was deleted - silently handle this
+            print(f"⚠️ Clock in interaction expired/not found for user {interaction.user.id}")
+        except discord.errors.InteractionResponded:
+            # Interaction was already responded to - try followup
+            try:
+                await interaction.followup.send("❌ Button interaction error. Please try again.", ephemeral=True)
+            except Exception as e:
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
+        except Exception as e:
+            # General error handling
+            print(f"❌ Error in clock_in callback: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
+                else:
+                    await interaction.followup.send("❌ An error occurred. Please try again.", ephemeral=True)
+            except Exception:
+                # If we can't even send an error message, just log it
+                print(f"❌ Failed to send error message for clock_in: {e}")
 
     async def clock_out(self, interaction: discord.Interaction):
-        # Defer immediately to prevent timeout
-        await interaction.response.defer(ephemeral=True)
-        
-        if interaction.guild is None:
-            await interaction.followup.send("Use this in a server.", ephemeral=True)
-            return
-        guild_id = interaction.guild.id
-        user_id = interaction.user.id
-        
-        # Check clock access permissions
-        server_tier = get_server_tier(guild_id)
-        if not user_has_clock_access(interaction.user, server_tier):
+        """Handle clock out button interaction with robust error handling"""
+        try:
+            # Defer immediately to prevent timeout
+            await interaction.response.defer(ephemeral=True)
+            
+            if interaction.guild is None:
+                await interaction.followup.send("Use this in a server.", ephemeral=True)
+                return
+                
+            guild_id = interaction.guild.id
+            user_id = interaction.user.id
+            
+            # Check clock access permissions
+            server_tier = get_server_tier(guild_id)
+            if not user_has_clock_access(interaction.user, server_tier):
+                await interaction.followup.send(
+                    "🔒 **Access Restricted**\n"
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                    ephemeral=True
+                )
+                return
+            
+            active = get_active_session(guild_id, user_id)
+            if not active:
+                await interaction.followup.send("You don't have an active session.", ephemeral=True)
+                return
+
+            session_id, clock_in_iso = active
+            start_dt = datetime.fromisoformat(clock_in_iso)
+            end_dt = now_utc()
+            elapsed = int((end_dt - start_dt).total_seconds())
+            close_session(session_id, end_dt.isoformat(), elapsed)
+
+            tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
             await interaction.followup.send(
-                "🔒 **Access Restricted**\n"
-                "You need an employee role to use the timeclock.\n"
-                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                f"🔚 Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}",
                 ephemeral=True
             )
-            return
-        
-        active = get_active_session(guild_id, user_id)
-        if not active:
-            await interaction.followup.send("You don't have an active session.", ephemeral=True)
-            return
 
-        session_id, clock_in_iso = active
-        start_dt = datetime.fromisoformat(clock_in_iso)
-        end_dt = now_utc()
-        elapsed = int((end_dt - start_dt).total_seconds())
-        close_session(session_id, end_dt.isoformat(), elapsed)
-
-        tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
-        await interaction.followup.send(
-            f"🔚 Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}",
-            ephemeral=True
-        )
-
-        # DM the designated manager
-        recipient_id = get_guild_setting(guild_id, "recipient_user_id")
-        if recipient_id:
-            try:
-                manager = await bot.fetch_user(recipient_id)
-                embed = discord.Embed(
-                    title="Timeclock Entry",
-                    description=f"**Employee:** {interaction.user.mention} (`{interaction.user.id}`)",
-                    color=discord.Color.blurple(),
-                    timestamp=end_dt
-                )
-                embed.add_field(name="Clock In", value=fmt(start_dt, tz_name), inline=True)
-                embed.add_field(name="Clock Out", value=fmt(end_dt, tz_name), inline=True)
-                embed.add_field(name="Total", value=human_duration(elapsed), inline=False)
-                embed.set_footer(text=f"Guild: {interaction.guild.name} • ID: {guild_id}")
-                await manager.send(embed=embed)
-            except discord.Forbidden:
+            # DM the designated manager
+            recipient_id = get_guild_setting(guild_id, "recipient_user_id")
+            if recipient_id:
                 try:
-                    await interaction.followup.send(
-                        "⚠️ Could not DM the designated manager (their DMs may be off).",
-                        ephemeral=True
+                    manager = await bot.fetch_user(recipient_id)
+                    embed = discord.Embed(
+                        title="Timeclock Entry",
+                        description=f"**Employee:** {interaction.user.mention} (`{interaction.user.id}`)",
+                        color=discord.Color.blurple(),
+                        timestamp=end_dt
                     )
-                except Exception:
-                    pass
+                    embed.add_field(name="Clock In", value=fmt(start_dt, tz_name), inline=True)
+                    embed.add_field(name="Clock Out", value=fmt(end_dt, tz_name), inline=True)
+                    embed.add_field(name="Total", value=human_duration(elapsed), inline=False)
+                    embed.set_footer(text=f"Guild: {interaction.guild.name} • ID: {guild_id}")
+                    await manager.send(embed=embed)
+                except discord.Forbidden:
+                    try:
+                        await interaction.followup.send(
+                            "⚠️ Could not DM the designated manager (their DMs may be off).",
+                            ephemeral=True
+                        )
+                    except Exception:
+                        pass
+                        
+        except (discord.NotFound, discord.errors.NotFound):
+            # Interaction expired or was deleted - silently handle this
+            print(f"⚠️ Clock out interaction expired/not found for user {interaction.user.id}")
+        except discord.errors.InteractionResponded:
+            # Interaction was already responded to - try followup
+            try:
+                await interaction.followup.send("❌ Button interaction error. Please try again.", ephemeral=True)
+            except Exception as e:
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
+        except Exception as e:
+            # General error handling
+            print(f"❌ Error in clock_out callback: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
+                else:
+                    await interaction.followup.send("❌ An error occurred. Please try again.", ephemeral=True)
+            except Exception:
+                # If we can't even send an error message, just log it
+                print(f"❌ Failed to send error message for clock_out: {e}")
 
     async def show_help(self, interaction: discord.Interaction):
-        """Show help commands instead of user time info"""
-        if interaction.guild is None:
-            await send_reply(interaction, "Use this in a server.", ephemeral=True)
-            return
-        
-        # Check clock access permissions
-        server_tier = get_server_tier(interaction.guild.id)
-        if not user_has_clock_access(interaction.user, server_tier):
-            await send_reply(interaction,
-                "🔒 **Access Restricted**\n"
-                "You need an employee role to use the timeclock.\n"
-                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
-                ephemeral=True
-            )
-            return
+        """Show help commands instead of user time info with robust error handling"""
+        try:
+            if interaction.guild is None:
+                await send_reply(interaction, "Use this in a server.", ephemeral=True)
+                return
             
-        # Get current server tier for comprehensive help display
-        server_tier = get_server_tier(interaction.guild.id)
-        tier_color = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
-        
-        embed = discord.Embed(
-            title="📋 Complete Command Reference",
-            description=f"**Current Plan:** {server_tier.title()}\n\n**All 20 available slash commands organized by function:**",
-            color=tier_color.get(server_tier, discord.Color.green())
-        )
-        
-        # Setup & Configuration Commands
-        embed.add_field(
-            name="⚙️ Setup & Configuration",
-            value=(
-                "`/setup_timeclock [channel]` - Post a persistent Clock In/Clock Out message\n"
-                "`/set_recipient <user>` - Set who receives private time entries (DMs)\n"
-                "`/set_timezone <timezone>` - Set display timezone (e.g., America/New_York)\n"
-                "`/toggle_name_display` - Toggle between username and nickname display\n"
-                "`/help` - List all available slash commands"
-            ),
-            inline=False
-        )
-        
-        # Admin Role Management Commands
-        embed.add_field(
-            name="👤 Admin Role Management",
-            value=(
-                "`/add_admin_role <role>` - Add a role that can access Reports and Upgrade buttons\n"
-                "`/remove_admin_role <role>` - Remove a role's admin access to Reports and Upgrade buttons\n"
-                "`/list_admin_roles` - List all roles with admin access\n"
-                "`/set_main_role <role>` - Set the primary admin role (gets all admin functions)\n"
-                "`/show_main_role` - View the current main admin role\n"
-                "`/clear_main_role` - Remove the main admin role designation"
-            ),
-            inline=False
-        )
-        
-        # Employee Role Management Commands
-        embed.add_field(
-            name="👥 Employee Role Management",
-            value=(
-                "`/add_employee_role <role>` - Add a role that can use timeclock functions\n"
-                "`/remove_employee_role <role>` - Remove a role's access to timeclock functions\n"
-                "`/list_employee_roles` - List all roles that can use timeclock functions"
-            ),
-            inline=False
-        )
-        
-        # Reports & Data Management Commands
-        embed.add_field(
-            name="📊 Reports & Data Management",
-            value=(
-                "`/report <user> <start_date> <end_date>` - Generate CSV timesheet report for individual user\n"
-                "`/data_cleanup` - Manually trigger data cleanup (Admin only)\n"
-                "`/purge` - Permanently delete timeclock data (preserves subscription)"
-            ),
-            inline=False
-        )
-        
-        # Subscription Management Commands
-        embed.add_field(
-            name="💳 Subscription Management",
-            value=(
-                "`/upgrade` - Upgrade your server to Basic or Pro plan\n"
-                "`/cancel_subscription` - Learn how to cancel your subscription\n"
-                "`/subscription_status` - View current subscription status"
-            ),
-            inline=False
-        )
-        
-        # Tier Information & Features
-        tier_info = "\n\n**Plan Features:**\n"
-        if server_tier == "free":
-            tier_info += (
-                "🆓 **Free Tier:** Admin-only testing • Sample reports • Employee roles configured but inactive\n"
-                "💡 **Upgrade Benefits:** Basic ($5/mo) unlocks full team access & real CSV reports"
+            # Check clock access permissions
+            server_tier = get_server_tier(interaction.guild.id)
+            if not user_has_clock_access(interaction.user, server_tier):
+                await send_reply(interaction,
+                    "🔒 **Access Restricted**\n"
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                    ephemeral=True
+                )
+                return
+            
+            # Get current server tier for comprehensive help display
+            server_tier = get_server_tier(interaction.guild.id)
+            tier_color = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
+            
+            embed = discord.Embed(
+                title="📋 Complete Command Reference",
+                description=f"**Current Plan:** {server_tier.title()}\n\n**All 20 available slash commands organized by function:**",
+                color=tier_color.get(server_tier, discord.Color.green())
             )
-        elif server_tier == "basic":
-            tier_info += (
-                "💙 **Basic Tier:** Full team access • Real CSV reports • 7-day data retention\n"
-                "💡 **Pro Benefits:** 30-day retention • Multiple manager notifications • Extended features"
+        
+            # Setup & Configuration Commands
+            embed.add_field(
+                name="⚙️ Setup & Configuration",
+                value=(
+                    "`/setup_timeclock [channel]` - Post a persistent Clock In/Clock Out message\n"
+                    "`/set_recipient <user>` - Set who receives private time entries (DMs)\n"
+                    "`/set_timezone <timezone>` - Set display timezone (e.g., America/New_York)\n"
+                    "`/toggle_name_display` - Toggle between username and nickname display\n"
+                    "`/help` - List all available slash commands"
+                ),
+                inline=False
             )
-        else:  # pro tier
-            tier_info += "💜 **Pro Tier:** All features unlocked • 30-day retention • Multiple managers • Priority support"
+            
+            # Admin Role Management Commands
+            embed.add_field(
+                name="👤 Admin Role Management",
+                value=(
+                    "`/add_admin_role <role>` - Add a role that can access Reports and Upgrade buttons\n"
+                    "`/remove_admin_role <role>` - Remove a role's admin access to Reports and Upgrade buttons\n"
+                    "`/list_admin_roles` - List all roles with admin access\n"
+                    "`/set_main_role <role>` - Set the primary admin role (gets all admin functions)\n"
+                    "`/show_main_role` - View the current main admin role\n"
+                    "`/clear_main_role` - Remove the main admin role designation"
+                ),
+                inline=False
+            )
+            
+            # Employee Role Management Commands
+            embed.add_field(
+                name="👥 Employee Role Management",
+                value=(
+                    "`/add_employee_role <role>` - Add a role that can use timeclock functions\n"
+                    "`/remove_employee_role <role>` - Remove a role's access to timeclock functions\n"
+                    "`/list_employee_roles` - List all roles that can use timeclock functions"
+                ),
+                inline=False
+            )
+            
+            # Reports & Data Management Commands
+            embed.add_field(
+                name="📊 Reports & Data Management",
+                value=(
+                    "`/report <user> <start_date> <end_date>` - Generate CSV timesheet report for individual user\n"
+                    "`/data_cleanup` - Manually trigger data cleanup (Admin only)\n"
+                    "`/purge` - Permanently delete timeclock data (preserves subscription)"
+                ),
+                inline=False
+            )
+            
+            # Subscription Management Commands
+            embed.add_field(
+                name="💳 Subscription Management",
+                value=(
+                    "`/upgrade` - Upgrade your server to Basic or Pro plan\n"
+                    "`/cancel_subscription` - Learn how to cancel your subscription\n"
+                    "`/subscription_status` - View current subscription status"
+                ),
+                inline=False
+            )
+            
+            # Tier Information & Features
+            tier_info = "\n\n**Plan Features:**\n"
+            if server_tier == "free":
+                tier_info += (
+                    "🆓 **Free Tier:** Admin-only testing • Sample reports • Employee roles configured but inactive\n"
+                    "💡 **Upgrade Benefits:** Basic ($5/mo) unlocks full team access & real CSV reports"
+                )
+            elif server_tier == "basic":
+                tier_info += (
+                    "💙 **Basic Tier:** Full team access • Real CSV reports • 7-day data retention\n"
+                    "💡 **Pro Benefits:** 30-day retention • Multiple manager notifications • Extended features"
+                )
+            else:  # pro tier
+                tier_info += "💜 **Pro Tier:** All features unlocked • 30-day retention • Multiple managers • Priority support"
+            
+            embed.add_field(
+                name="🔘 Interactive Timeclock Buttons",
+                value=(
+                    "🟢 **Clock In** - Start tracking your time\n"
+                    "🔴 **Clock Out** - Stop tracking and log your shift\n"
+                    "📊 **Reports** - Generate timesheet reports (admin access)\n"
+                    "⬆️ **Upgrade** - Upgrade to Basic/Pro plans\n" + 
+                    tier_info
+                ),
+                inline=False
+            )
         
-        embed.add_field(
-            name="🔘 Interactive Timeclock Buttons",
-            value=(
-                "🟢 **Clock In** - Start tracking your time\n"
-                "🔴 **Clock Out** - Stop tracking and log your shift\n"
-                "📊 **Reports** - Generate timesheet reports (admin access)\n"
-                "⬆️ **Upgrade** - Upgrade to Basic/Pro plans\n" + 
-                tier_info
-            ),
-            inline=False
-        )
-        
-        embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | 20 total commands available | Contact admin for upgrades")
-        
-        await send_reply(interaction, embed=embed, ephemeral=True)
+            embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | 20 total commands available | Contact admin for upgrades")
+            
+            await send_reply(interaction, embed=embed, ephemeral=True)
+            
+        except (discord.NotFound, discord.errors.NotFound):
+            # Interaction expired or was deleted - silently handle this
+            print(f"⚠️ Help interaction expired/not found for user {interaction.user.id}")
+        except Exception as e:
+            # General error handling
+            print(f"❌ Error in show_help callback: {e}")
+            try:
+                await send_reply(interaction, "❌ An error occurred while showing help. Please try again.", ephemeral=True)
+            except Exception:
+                # If we can't even send an error message, just log it
+                print(f"❌ Failed to send error message for show_help: {e}")
 
     async def generate_reports(self, interaction: discord.Interaction):
         if interaction.guild is None:
@@ -2394,14 +2473,108 @@ class TimeClockView(discord.ui.View):
         
         await send_reply(interaction, embed=embed, ephemeral=True)
 
+# Legacy TimeClockView for backward compatibility with old custom_ids
+class LegacyTimeClockView(discord.ui.View):
+    """
+    Backward compatibility view that handles old custom_ids from existing posted messages.
+    This prevents "This interaction failed" errors during the transition period.
+    
+    OLD custom_ids supported:
+    - timeclock:in (instead of timeclock:clock_in)
+    - timeclock:out (instead of timeclock:clock_out) 
+    - timeclock:report (instead of timeclock:reports)
+    - timeclock:upgrade (same as new)
+    - timeclock:help (same as new)
+    """
+    
+    def __init__(self):
+        super().__init__(timeout=None)  # persistent view for backward compatibility
+        
+        # Add legacy buttons with OLD custom_ids
+        # Clock In button (old: timeclock:in)
+        clock_in_btn = discord.ui.Button(
+            label="Clock In", 
+            style=discord.ButtonStyle.success, 
+            custom_id="timeclock:in", 
+            row=0
+        )
+        clock_in_btn.callback = self.clock_in
+        self.add_item(clock_in_btn)
+        
+        # Clock Out button (old: timeclock:out)
+        clock_out_btn = discord.ui.Button(
+            label="Clock Out", 
+            style=discord.ButtonStyle.danger, 
+            custom_id="timeclock:out", 
+            row=0
+        )
+        clock_out_btn.callback = self.clock_out
+        self.add_item(clock_out_btn)
+        
+        # Help button (old: timeclock:help - same as new)
+        help_btn = discord.ui.Button(
+            label="Help", 
+            style=discord.ButtonStyle.primary, 
+            custom_id="timeclock:help", 
+            row=0
+        )
+        help_btn.callback = self.show_help
+        self.add_item(help_btn)
+        
+        # Upgrade button (old: timeclock:upgrade - same as new)
+        upgrade_btn = discord.ui.Button(
+            label="Upgrade", 
+            style=discord.ButtonStyle.secondary, 
+            custom_id="timeclock:upgrade", 
+            emoji="🚀",
+            row=1
+        )
+        upgrade_btn.callback = self.show_upgrade
+        self.add_item(upgrade_btn)
+        
+        # Reports button (old: timeclock:report)
+        reports_btn = discord.ui.Button(
+            label="Reports", 
+            style=discord.ButtonStyle.success, 
+            custom_id="timeclock:report", 
+            row=1
+        )
+        reports_btn.callback = self.generate_reports
+        self.add_item(reports_btn)
+
+    # Route all callbacks to the same methods as TimeClockView
+    # This ensures consistent behavior between old and new messages
+    
+    async def clock_in(self, interaction: discord.Interaction):
+        """Route to TimeClockView.clock_in method"""
+        # Create a temporary TimeClockView instance to use its clock_in method
+        temp_view = TimeClockView()
+        await temp_view.clock_in(interaction)
+    
+    async def clock_out(self, interaction: discord.Interaction):
+        """Route to TimeClockView.clock_out method"""
+        temp_view = TimeClockView()
+        await temp_view.clock_out(interaction)
+    
+    async def show_help(self, interaction: discord.Interaction):
+        """Route to TimeClockView.show_help method"""
+        temp_view = TimeClockView()
+        await temp_view.show_help(interaction)
+    
+    async def show_upgrade(self, interaction: discord.Interaction):
+        """Route to TimeClockView.show_upgrade method"""
+        temp_view = TimeClockView()
+        await temp_view.show_upgrade(interaction)
+    
+    async def generate_reports(self, interaction: discord.Interaction):
+        """Route to TimeClockView.generate_reports method"""
+        temp_view = TimeClockView()
+        await temp_view.generate_reports(interaction)
+
 @bot.event
 async def on_ready():
-    # Register persistent TimeClockView to handle interactions from old button messages
-    # This prevents "interaction failed" errors after bot restarts
-    bot.add_view(TimeClockView())
-    
-    # Note: Using dynamic views now, no need to add static view
-    # Views are created with guild-specific conditional buttons in setup_timeclock
+    # Persistent views are now registered in setup_hook (both new and legacy views)
+    # This ensures backward compatibility with existing posted messages
     
     # Debug: Check what commands are in the tree
     commands = tree.get_commands()
@@ -2576,46 +2749,74 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         print(f"🔒 Acquired lock for guild {interaction.guild_id}")
         print(f"🔧 Setting up timeclock in {ch.name} (Guild: {interaction.guild_id})")
         
-        # Enhanced cleanup: Remove ALL existing timeclock messages using component detection
-        deleted_count = 0
-        try:
-            # Delete tracked message first
-            old_channel_id = get_guild_setting(interaction.guild_id, "button_channel_id")
-            old_message_id = get_guild_setting(interaction.guild_id, "button_message_id")
-            
-            if old_channel_id and old_message_id:
-                try:
-                    old_channel = bot.get_channel(old_channel_id)
-                    if old_channel:
-                        old_message = await old_channel.fetch_message(old_message_id)
-                        await old_message.delete()
-                        deleted_count += 1
-                        print(f"🧹 Deleted tracked timeclock message in {old_channel.name}")
-                except Exception as e:
-                    print(f"⚠️ Could not delete tracked message: {e}")
-            
-            # More robust cleanup: Find messages with timeclock custom_ids
-            async for message in ch.history(limit=100):
-                if (message.author == bot.user and 
-                    message.components and
-                    any(component.children for component in message.components
+        # Enhanced idempotent setup: Check if existing message is functional
+        should_create_new = True
+        old_channel_id = get_guild_setting(interaction.guild_id, "button_channel_id")
+        old_message_id = get_guild_setting(interaction.guild_id, "button_message_id")
+        
+        # First check if we have a working timeclock message in the target channel
+        if old_channel_id == ch.id and old_message_id:
+            try:
+                existing_message = await ch.fetch_message(old_message_id)
+                # Check if message has timeclock components
+                if (existing_message.components and
+                    any(component.children for component in existing_message.components
                         if any(button.custom_id and button.custom_id.startswith("timeclock:")
                                for button in component.children if hasattr(button, 'custom_id')))):
-                    try:
-                        await message.delete()
-                        deleted_count += 1
-                        print(f"🧹 Deleted timeclock message by custom_id (ID: {message.id})")
-                    except Exception as e:
-                        print(f"⚠️ Could not delete message {message.id}: {e}")
-            
-            print(f"🧹 Total messages cleaned up: {deleted_count}")
-            
-        except Exception as e:
-            print(f"⚠️ Error during cleanup: {e}")
+                    print(f"✅ Found functional timeclock message (ID: {old_message_id}) in target channel")
+                    should_create_new = False
+                    msg = existing_message
+                else:
+                    print(f"⚠️ Found message but no timeclock components, will replace")
+            except discord.NotFound:
+                print(f"⚠️ Tracked message {old_message_id} not found, will create new")
+            except Exception as e:
+                print(f"⚠️ Error checking existing message: {e}")
         
-        # Create new timeclock message with conditional buttons based on server tier
-        view = TimeClockView(guild_id=interaction.guild_id)
-        msg = await ch.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
+        if should_create_new:
+            # Clean up existing messages only when creating new one
+            deleted_count = 0
+            try:
+                # Delete any tracked message in different channel
+                if old_channel_id and old_channel_id != ch.id and old_message_id:
+                    try:
+                        old_channel = bot.get_channel(old_channel_id)
+                        if old_channel:
+                            old_message = await old_channel.fetch_message(old_message_id)
+                            await old_message.delete()
+                            deleted_count += 1
+                            print(f"🧹 Deleted tracked timeclock message in {old_channel.name}")
+                    except Exception as e:
+                        print(f"⚠️ Could not delete tracked message: {e}")
+                
+                # Clean up any timeclock messages in target channel
+                async for message in ch.history(limit=50):
+                    if (message.author == bot.user and 
+                        message.components and
+                        any(component.children for component in message.components
+                            if any(button.custom_id and button.custom_id.startswith("timeclock:")
+                                   for button in component.children if hasattr(button, 'custom_id')))):
+                        try:
+                            await message.delete()
+                            deleted_count += 1
+                            print(f"🧹 Deleted old timeclock message (ID: {message.id})")
+                        except Exception as e:
+                            print(f"⚠️ Could not delete message {message.id}: {e}")
+                
+                print(f"🧹 Cleaned up {deleted_count} old messages")
+                
+            except Exception as e:
+                print(f"⚠️ Error during cleanup: {e}")
+            
+            # Create new timeclock message with conditional buttons
+            try:
+                view = TimeClockView(guild_id=interaction.guild_id)
+                msg = await ch.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
+                print(f"✅ Created new timeclock message (ID: {msg.id})")
+            except Exception as e:
+                print(f"❌ Failed to create timeclock message: {e}")
+                await interaction.edit_original_response(content="❌ Failed to create timeclock message. Check bot permissions.")
+                return
         
         # Store the new message info
         set_guild_setting(interaction.guild_id, "button_channel_id", ch.id)
