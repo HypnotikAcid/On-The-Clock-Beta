@@ -1475,22 +1475,34 @@ class TimeClockView(discord.ui.View):
                 tz_name = "UTC"
             
             embed = discord.Embed(
-                title="⏰ On the Clock",
-                description=f"Currently clocked in users ({len(active_sessions)} total)",
-                color=discord.Color.gold()
+                title="🕒 Team Currently On the Clock",
+                description=f"📊 **{len(active_sessions)} active team member{'s' if len(active_sessions) != 1 else ''}**",
+                color=discord.Color.blurple()
             )
             
             now_utc = datetime.now(timezone.utc)
             
-            clock_in_list = []
-            for user_id, clock_in_iso in active_sessions:
+            # Sort users by clock in time for organized display
+            sorted_sessions = sorted(active_sessions, key=lambda x: x[1])
+            
+            user_details = []
+            for i, (user_id, clock_in_iso) in enumerate(sorted_sessions, 1):
                 try:
-                    # Get user nickname/username
+                    # Get user with proper Discord nickname
                     user = interaction.guild.get_member(user_id)
                     if user:
+                        # Always use Discord nickname (display_name) which includes server nick
                         display_name = user.display_name
+                        user_mention = user.mention
                     else:
-                        display_name = f"User {user_id}"
+                        # Fallback to trying to get user from cache
+                        try:
+                            user = await interaction.client.fetch_user(user_id)
+                            display_name = user.display_name if hasattr(user, 'display_name') else user.name
+                            user_mention = f"<@{user_id}>"
+                        except:
+                            display_name = f"Unknown User"
+                            user_mention = f"<@{user_id}>"
                     
                     # Parse clock in time
                     clock_in_utc = datetime.fromisoformat(clock_in_iso.replace('Z', '+00:00'))
@@ -1533,16 +1545,49 @@ class TimeClockView(discord.ui.View):
                     total_day_time = format_duration_hhmmss(total_day_seconds)
                     shift_time = format_shift_duration(shift_seconds)
                     
-                    clock_in_list.append(f"**{display_name}** - In: {clock_in_time} | {total_day_time} | {shift_time}")
+                    # Create fancy formatted entry
+                    user_entry = (
+                        f"**#{i}** {user_mention} • **{display_name}**\n"
+                        f"🟢 **Clocked In:** {clock_in_time}\n"
+                        f"📅 **Today's Total:** {total_day_time}\n"
+                        f"⏱️ **Current Shift:** {shift_time}\n"
+                        f"{'─' * 35}"
+                    )
+                    user_details.append(user_entry)
+                    
                 except Exception as e:
                     print(f"Error processing user {user_id}: {e}")
-                    clock_in_list.append(f"**User {user_id}** - Error displaying time")
+                    # Fallback with better formatting even for errors
+                    user_entry = (
+                        f"**#{i}** <@{user_id}> • **Unknown User**\n"
+                        f"❌ **Error loading time data**\n"
+                        f"{'─' * 35}"
+                    )
+                    user_details.append(user_entry)
             
-            embed.add_field(
-                name="Active Users",
-                value="\n".join(clock_in_list),
-                inline=False
-            )
+            # Add users to embed with nice organization
+            if len(user_details) <= 3:
+                # If 3 or fewer users, show them all in one field
+                embed.add_field(
+                    name="👥 Active Team Members",
+                    value="\n".join(user_details),
+                    inline=False
+                )
+            else:
+                # If more than 3 users, split into multiple fields for better organization
+                mid_point = len(user_details) // 2
+                
+                embed.add_field(
+                    name="👥 Active Team Members (Part 1)",
+                    value="\n".join(user_details[:mid_point]),
+                    inline=True
+                )
+                
+                embed.add_field(
+                    name="👥 Active Team Members (Part 2)", 
+                    value="\n".join(user_details[mid_point:]),
+                    inline=True
+                )
             
             embed.add_field(
                 name="Timezone",
