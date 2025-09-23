@@ -300,7 +300,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         <div class="features">
             <h3>🚀 Core Features</h3>
             <ul>
-                <li>Easy Clock In/Out with Discord buttons</li>
+                <li>Easy timeclock functions with Discord buttons</li>
                 <li>Automatic timezone support with EST default</li>
                 <li>CSV timesheet reports for payroll</li>
                 <li>Multi-tier subscription system (Free/Basic/Pro)</li>
@@ -336,7 +336,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             </div>
             <div class="pricing-tier">
                 <strong>Basic - $5/month</strong><br>
-                Full team access • Clock In/Out • CSV Reports • 1 week data retention
+                Full team access • Timeclock functions • CSV Reports • 1 week data retention
             </div>
             <div class="pricing-tier pro-tier">
                 <strong>Pro - $10/month</strong><br>
@@ -954,7 +954,7 @@ def purge_guild_data_for_testing(guild_id: int):
             <h3>🚀 Features</h3>
             <div class="feature-list">
                 <div class="feature-item">
-                    <strong>⏱️ Clock In/Out</strong><br>
+                    <strong>⏱️ Timeclock</strong><br>
                     Easy-to-use buttons for time tracking
                 </div>
                 <div class="feature-item">
@@ -1008,7 +1008,7 @@ def purge_guild_data_for_testing(guild_id: int):
             </div>
             <div class="pricing-tier">
                 <strong>Basic - $5/month</strong><br>
-                Full team access • Clock In/Out • CSV Reports • 1 week data retention
+                Full team access • Timeclock functions • CSV Reports • 1 week data retention
             </div>
             <div class="pricing-tier pro-tier">
                 <strong>Pro - $10/month</strong><br>
@@ -1375,23 +1375,7 @@ def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, e
             """, (guild_id, end_utc, start_utc))
         return cur.fetchall()
 
-def add_authorized_role(guild_id: int, role_id: int):
-    """Add a role as authorized for Info button access."""
-    with db() as conn:
-        conn.execute("INSERT OR IGNORE INTO authorized_roles (guild_id, role_id) VALUES (?, ?)", 
-                     (guild_id, role_id))
 
-def remove_authorized_role(guild_id: int, role_id: int):
-    """Remove a role from authorized Info button access."""
-    with db() as conn:
-        conn.execute("DELETE FROM authorized_roles WHERE guild_id=? AND role_id=?", 
-                     (guild_id, role_id))
-
-def get_authorized_roles(guild_id: int):
-    """Get all authorized role IDs for a guild."""
-    with db() as conn:
-        cur = conn.execute("SELECT role_id FROM authorized_roles WHERE guild_id=?", (guild_id,))
-        return [row[0] for row in cur.fetchall()]
 
 def add_admin_role(guild_id: int, role_id: int):
     """Add a role as admin for Reports/Upgrade button access."""
@@ -1428,14 +1412,14 @@ def user_has_admin_access(user: discord.Member):
     admin_roles = get_admin_roles(user.guild.id)
     return any(role_id in user_role_ids for role_id in admin_roles)
 
-def add_clock_role(guild_id: int, role_id: int):
-    """Add a role that can use clock in/out buttons."""
+def add_employee_role(guild_id: int, role_id: int):
+    """Add a role that can use timeclock functions."""
     with db() as conn:
         conn.execute("INSERT OR IGNORE INTO clock_roles (guild_id, role_id) VALUES (?, ?)", 
                      (guild_id, role_id))
 
-def remove_clock_role(guild_id: int, role_id: int):
-    """Remove a role from clock in/out button access."""
+def remove_employee_role(guild_id: int, role_id: int):
+    """Remove a role from timeclock functions access."""
     with db() as conn:
         conn.execute("DELETE FROM clock_roles WHERE guild_id=? AND role_id=?", 
                      (guild_id, role_id))
@@ -1467,11 +1451,6 @@ def user_has_clock_access(user: discord.Member, server_tier: str):
     # Allow access if user has clock role OR admin access
     return has_clock_role or user_has_admin_access(user)
 
-def user_has_authorized_role(guild_id: int, user_roles):
-    """Check if user has any authorized role."""
-    authorized_roles = get_authorized_roles(guild_id)
-    user_role_ids = [role.id for role in user_roles]
-    return any(role_id in authorized_roles for role_id in user_role_ids)
 
 def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "America/New_York"):
     """Get current session, daily, and weekly hours for a user."""
@@ -1846,8 +1825,8 @@ class TimeClockView(discord.ui.View):
             else:
                 await interaction.followup.send(
                     "🔒 **Access Restricted**\n"
-                    "You need an authorized role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_clock_role @yourrole`",
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
                     ephemeral=True
                 )
             return
@@ -2036,8 +2015,8 @@ class TimeClockView(discord.ui.View):
             else:
                 await interaction.followup.send(
                     "🔒 **Access Restricted**\n"
-                    "You need an authorized role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_clock_role @yourrole`",
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
                     ephemeral=True
                 )
             return
@@ -2071,8 +2050,8 @@ class TimeClockView(discord.ui.View):
             else:
                 await interaction.followup.send(
                     "🔒 **Access Restricted**\n"
-                    "You need an authorized role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_clock_role @yourrole`",
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
                     ephemeral=True
                 )
             return
@@ -2138,8 +2117,8 @@ class TimeClockView(discord.ui.View):
             else:
                 await interaction.response.send_message(
                     "🔒 **Access Restricted**\n"
-                    "You need an authorized role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_clock_role @yourrole`",
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
                     ephemeral=True
                 )
             return
@@ -2174,9 +2153,7 @@ class TimeClockView(discord.ui.View):
             name="⚙️ Settings Commands",
             value="`/set_timezone` - Set server timezone\n"
                   "`/set_recipient` - Set manager for notifications\n"
-                  "`/toggle_name_display` - Switch username/nickname\n"
-                  "`/add_info_role` - Authorize roles\n"
-                  "`/remove_info_role` - Remove role access",
+                  "`/toggle_name_display` - Switch username/nickname",
             inline=False
         )
         
@@ -2446,7 +2423,7 @@ async def on_guild_join(guild):
         name="🚀 Quick Setup",
         value=(
             "1️⃣ Run `/setup_timeclock` in your desired channel\n"
-            "2️⃣ Configure role access with `/add_clock_role @role`\n"
+            "2️⃣ Configure role access with `/add_employee_role @role`\n"
             "3️⃣ Set admin roles with `/add_admin_role @role` (optional)\n"
             "4️⃣ Your team can start tracking time immediately!"
         ),
@@ -2457,7 +2434,7 @@ async def on_guild_join(guild):
     embed.add_field(
         name="🔐 Access Control",
         value=(
-            "**Clock In/Out/Help/On the Clock buttons:**\n"
+            "**Timeclock functions:**\n"
             "• Free tier: Admins only\n"
             "• Basic/Pro tier: Any role you specify\n\n"
             "**Reports/Upgrade buttons:**\n"
@@ -2634,21 +2611,7 @@ async def toggle_name_display(interaction: discord.Interaction, mode: app_comman
             ephemeral=True
         )
 
-@tree.command(name="add_info_role", description="Add a role that can use the Info button")
-@app_commands.describe(role="Role to authorize for Info button access")
-@app_commands.default_permissions(administrator=True)
-@app_commands.guild_only()
-async def add_info_role(interaction: discord.Interaction, role: discord.Role):
-    add_authorized_role(interaction.guild_id, role.id)
-    await interaction.response.send_message(f"✅ Added {role.mention} to authorized roles for Info button access.", ephemeral=True)
 
-@tree.command(name="remove_info_role", description="Remove a role's access to the Info button")
-@app_commands.describe(role="Role to remove from Info button access")
-@app_commands.default_permissions(administrator=True)
-@app_commands.guild_only()
-async def remove_info_role(interaction: discord.Interaction, role: discord.Role):
-    remove_authorized_role(interaction.guild_id, role.id)
-    await interaction.response.send_message(f"✅ Removed {role.mention} from authorized roles for Info button access.", ephemeral=True)
 
 @tree.command(name="add_admin_role", description="Add a role that can access Reports and Upgrade buttons")
 @app_commands.describe(role="Role to grant admin access (Reports, Upgrade buttons)")
@@ -2808,92 +2771,67 @@ async def clear_main_role(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@tree.command(name="add_clock_role", description="Add a role that can use Clock In/Out buttons")
-@app_commands.describe(role="Role to grant clock access (Clock In/Out/Help/On the Clock buttons)")
+@tree.command(name="add_employee_role", description="Add a role that can use timeclock functions")
+@app_commands.describe(role="Role to grant employee access (timeclock functions)")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
-async def add_clock_role_cmd(interaction: discord.Interaction, role: discord.Role):
-    add_clock_role(interaction.guild_id, role.id)
+async def add_employee_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    add_employee_role(interaction.guild_id, role.id)
     server_tier = get_server_tier(interaction.guild_id)
     
     # Provide helpful context based on server tier
     if server_tier == "free":
-        message = f"✅ Added {role.mention} to clock roles.\n⚠️ **Note:** Your server is on the Free tier, so only admins can use clock buttons regardless of roles. Upgrade to Basic/Pro for full role-based access!"
+        message = f"✅ Added {role.mention} to employee roles.\n⚠️ **Note:** Your server is on the Free tier, so only admins can use timeclock functions regardless of roles. Upgrade to Basic/Pro for full role-based access!"
     else:
-        message = f"✅ Added {role.mention} to clock roles. Members with this role can now use Clock In/Out/Help/On the Clock buttons."
+        message = f"✅ Added {role.mention} to employee roles. Members with this role can now use timeclock functions."
     
     await interaction.response.send_message(message, ephemeral=True)
 
-@tree.command(name="remove_clock_role", description="Remove a role's access to Clock In/Out buttons")
-@app_commands.describe(role="Role to remove clock access from")
+@tree.command(name="remove_employee_role", description="Remove a role's access to timeclock functions")
+@app_commands.describe(role="Role to remove employee access from")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
-async def remove_clock_role_cmd(interaction: discord.Interaction, role: discord.Role):
-    remove_clock_role(interaction.guild_id, role.id)
-    await interaction.response.send_message(f"✅ Removed {role.mention} from clock roles. They can no longer use Clock In/Out buttons (unless admin).", ephemeral=True)
+async def remove_employee_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    remove_employee_role(interaction.guild_id, role.id)
+    await interaction.response.send_message(f"✅ Removed {role.mention} from employee roles. They can no longer use timeclock functions (unless admin).", ephemeral=True)
 
-@tree.command(name="list_clock_roles", description="List all roles that can use Clock In/Out buttons")
+@tree.command(name="list_employee_roles", description="List all roles that can use timeclock functions")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
-async def list_clock_roles(interaction: discord.Interaction):
+async def list_employee_roles(interaction: discord.Interaction):
     clock_role_ids = get_clock_roles(interaction.guild_id)
     server_tier = get_server_tier(interaction.guild_id)
     
     embed = discord.Embed(
-        title="🕐 Clock Access Roles",
-        description="Roles that can use Clock In/Out/Help/On the Clock buttons:",
+        title="👥 Employee Access Roles",
+        description="Roles that can use timeclock functions:",
         color=discord.Color.green()
     )
     
     if not clock_role_ids:
         if server_tier == "free":
-            embed.add_field(name="Access Control", value="**Free Tier:** Only administrators can use clock buttons.\nUpgrade to Basic/Pro and configure roles for team access!", inline=False)
+            embed.add_field(name="Access Control", value="**Free Tier:** Only administrators can use timeclock functions.\nUpgrade to Basic/Pro and configure roles for team access!", inline=False)
         else:
-            embed.add_field(name="Access Control", value="**No clock roles configured.** Only administrators can use clock buttons.\nUse `/add_clock_role @role` to grant access to your team!", inline=False)
+            embed.add_field(name="Access Control", value="**No employee roles configured.** Only administrators can use timeclock functions.\nUse `/add_employee_role @role` to grant access to your team!", inline=False)
     else:
         # Get role objects
-        clock_roles = []
+        employee_roles = []
         for role_id in clock_role_ids:
             role = interaction.guild.get_role(role_id)
             if role:
-                clock_roles.append(role.mention)
+                employee_roles.append(role.mention)
             else:
-                clock_roles.append(f"<Deleted Role: {role_id}>")
+                employee_roles.append(f"<Deleted Role: {role_id}>")
         
-        embed.add_field(name="Clock Roles", value="\n".join(clock_roles), inline=False)
+        embed.add_field(name="Employee Roles", value="\n".join(employee_roles), inline=False)
         
         if server_tier == "free":
-            embed.add_field(name="⚠️ Free Tier Limitation", value="These roles are configured but won't take effect until you upgrade to Basic/Pro. Currently only admins can use clock buttons.", inline=False)
+            embed.add_field(name="⚠️ Free Tier Limitation", value="These roles are configured but won't take effect until you upgrade to Basic/Pro. Currently only admins can use timeclock functions.", inline=False)
     
-    embed.add_field(name="Note", value="Administrators always have clock access regardless of role configuration.", inline=False)
+    embed.add_field(name="Note", value="Administrators always have timeclock access regardless of role configuration.", inline=False)
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@tree.command(name="list_info_roles", description="List all roles authorized for Info button access")
-@app_commands.default_permissions(administrator=True)
-@app_commands.guild_only()
-async def list_info_roles(interaction: discord.Interaction):
-    authorized_role_ids = get_authorized_roles(interaction.guild_id)
-    
-    if not authorized_role_ids:
-        await interaction.response.send_message("ℹ️ No roles are currently authorized for Info button access.", ephemeral=True)
-        return
-    
-    role_mentions = []
-    for role_id in authorized_role_ids:
-        role = interaction.guild.get_role(role_id)
-        if role:
-            role_mentions.append(role.mention)
-        else:
-            role_mentions.append(f"<Deleted Role ID: {role_id}>")
-    
-    embed = discord.Embed(
-        title="🔑 Authorized Roles for Info Button",
-        description="\n".join(role_mentions),
-        color=discord.Color.blue()
-    )
-    
-    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @tree.command(name="help", description="List all available slash commands")
 @app_commands.guild_only()
@@ -2945,9 +2883,6 @@ async def help_command(interaction: discord.Interaction):
                 "`/setup_timeclock [channel]` - Post the time clock buttons\n"
                 "`/set_recipient <user>` - Set who gets DM notifications\n"
                 "`/set_timezone <timezone>` - Set display timezone\n"
-                "`/add_info_role <role>` - Allow a role to use the Info button\n"
-                "`/remove_info_role <role>` - Remove Info button access\n"
-                "`/list_info_roles` - Show all roles with Info button access"
             ),
             inline=False
         )
@@ -2970,9 +2905,6 @@ async def help_command(interaction: discord.Interaction):
                 "`/setup_timeclock [channel]` - Post the time clock buttons\n"
                 "`/set_recipient <user>` - Set who gets DM notifications\n"
                 "`/set_timezone <timezone>` - Set display timezone\n"
-                "`/add_info_role <role>` - Allow a role to use the Info button\n"
-                "`/remove_info_role <role>` - Remove Info button access\n"
-                "`/list_info_roles` - Show all roles with Info button access\n"
                 "`/report <user> <start_date> <end_date>` - Generate real CSV reports"
             ),
             inline=False
@@ -2984,7 +2916,7 @@ async def help_command(interaction: discord.Interaction):
         value=(
             "🟢 **Clock In** - Start tracking your time\n"
             "🔴 **Clock Out** - Stop tracking and log your shift\n"
-            "🔵 **Info** - View your hours (requires authorized role)\n"
+            "🔵 **Info** - View your hours (requires employee role)\n"
             "🟢 **Reports** - Generate reports (tier restrictions apply)"
         ),
         inline=False

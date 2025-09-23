@@ -51,6 +51,10 @@ externalPort = 3001
 localPort = 40409
 externalPort = 3002
 
+[[ports]]
+localPort = 45733
+externalPort = 4200
+
 [agent]
 expertMode = true
 integrations = ["flask_stripe:1.0.0"]
