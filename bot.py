@@ -127,16 +127,21 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         """Handle success/cancel pages"""
         if self.path.startswith("/success"):
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             html = """
-            <html><body style="font-family: Arial; text-align: center; padding: 50px;">
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Payment Successful</title>
+            </head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
                 <h1>🎉 Payment Successful!</h1>
                 <p>Your Discord server subscription is now active!</p>
                 <p>Return to Discord to start using your premium features.</p>
             </body></html>
             """
-            self.wfile.write(html.encode())
+            self.wfile.write(html.encode('utf-8'))
         else:  # cancel
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
