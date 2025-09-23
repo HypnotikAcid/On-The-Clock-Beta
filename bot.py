@@ -660,6 +660,47 @@ def db():
     conn.execute("PRAGMA synchronous = NORMAL")  # Balance between safety and performance
     return conn
 
+def run_migrations():
+    """Run database migrations with exclusive locking before any other operations"""
+    import time
+    import random
+    
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            with db() as conn:
+                # Begin exclusive transaction
+                conn.execute("BEGIN IMMEDIATE")
+                
+                # Check if customer_id column exists
+                cursor = conn.execute("PRAGMA table_info(server_subscriptions)")
+                columns = {row[1] for row in cursor.fetchall()}
+                
+                if 'customer_id' not in columns:
+                    print("🔧 Adding missing customer_id column to server_subscriptions table...")
+                    conn.execute("ALTER TABLE server_subscriptions ADD COLUMN customer_id TEXT")
+                    print("✅ Migration completed: customer_id column added")
+                else:
+                    print("✅ Migration check: customer_id column already exists")
+                
+                conn.commit()
+                return True
+                
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower() and attempt < max_retries - 1:
+                wait_time = (2 ** attempt) + random.uniform(0, 1)
+                print(f"⏳ Database locked on migration attempt {attempt + 1}, retrying in {wait_time:.1f}s...")
+                time.sleep(wait_time)
+                continue
+            else:
+                print(f"❌ Migration failed after {attempt + 1} attempts: {e}")
+                raise
+        except Exception as e:
+            print(f"❌ Migration error: {e}")
+            raise
+    
+    return False
+
 def init_db():
     with db() as conn:
         conn.execute("""
@@ -716,11 +757,6 @@ def init_db():
         )
         """)
         
-        # Add customer_id column if it doesn't exist (for existing databases)
-        try:
-            conn.execute("ALTER TABLE server_subscriptions ADD COLUMN customer_id TEXT")
-        except:
-            pass  # Column already exists
 
 # --- Subscription/Tier Management ---
 def get_server_tier(guild_id: int) -> str:
@@ -1893,6 +1929,13 @@ def schedule_daily_cleanup():
                 
                 # Sleep for 24 hours
                 threading.Event().wait(86400)  # 24 hours in seconds
+            except sqlite3.OperationalError as e:
+                if "locked" in str(e).lower():
+                    print(f"⏳ Database locked during daily cleanup, skipping this cycle: {e}")
+                    threading.Event().wait(3600)  # Wait 1 hour before retrying
+                else:
+                    print(f"❌ Database error during daily cleanup: {e}")
+                    threading.Event().wait(3600)  # Wait 1 hour before retrying
             except Exception as e:
                 print(f"❌ Error during daily cleanup: {e}")
                 threading.Event().wait(3600)  # Wait 1 hour before retrying
@@ -2184,7 +2227,13 @@ async def subscription_status(interaction: discord.Interaction):
         )
 
 if __name__ == "__main__":
+    # Run database migrations first with exclusive locking
+    print("🔧 Running database migrations...")
+    run_migrations()
+    
+    # Initialize database tables
     init_db()
+    
     if not TOKEN:
         raise SystemExit("Set DISCORD_TOKEN in your environment.")
     
