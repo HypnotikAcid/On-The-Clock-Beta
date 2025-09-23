@@ -617,9 +617,16 @@ def init_db():
             recipient_user_id INTEGER,
             button_channel_id INTEGER,
             button_message_id INTEGER,
-            timezone TEXT DEFAULT 'America/New_York'
+            timezone TEXT DEFAULT 'America/New_York',
+            name_display_mode TEXT DEFAULT 'username'
         )
         """)
+        
+        # Add name_display_mode column if it doesn't exist (for existing databases)
+        try:
+            conn.execute("ALTER TABLE guild_settings ADD COLUMN name_display_mode TEXT DEFAULT 'username'")
+        except:
+            pass  # Column already exists
         conn.execute("""
         CREATE TABLE IF NOT EXISTS authorized_roles (
             guild_id INTEGER,
@@ -755,7 +762,8 @@ def get_guild_setting(guild_id: int, key: str, default=None):
         'recipient_user_id': "SELECT recipient_user_id FROM guild_settings WHERE guild_id=?",
         'button_channel_id': "SELECT button_channel_id FROM guild_settings WHERE guild_id=?",
         'button_message_id': "SELECT button_message_id FROM guild_settings WHERE guild_id=?",
-        'timezone': "SELECT timezone FROM guild_settings WHERE guild_id=?"
+        'timezone': "SELECT timezone FROM guild_settings WHERE guild_id=?",
+        'name_display_mode': "SELECT name_display_mode FROM guild_settings WHERE guild_id=?"
     }
     
     if key not in column_queries:
@@ -772,7 +780,8 @@ def set_guild_setting(guild_id: int, key: str, value):
         'recipient_user_id': "UPDATE guild_settings SET recipient_user_id=? WHERE guild_id=?",
         'button_channel_id': "UPDATE guild_settings SET button_channel_id=? WHERE guild_id=?",
         'button_message_id': "UPDATE guild_settings SET button_message_id=? WHERE guild_id=?",
-        'timezone': "UPDATE guild_settings SET timezone=? WHERE guild_id=?"
+        'timezone': "UPDATE guild_settings SET timezone=? WHERE guild_id=?",
+        'name_display_mode': "UPDATE guild_settings SET name_display_mode=? WHERE guild_id=?"
     }
     
     if key not in update_queries:
@@ -781,6 +790,15 @@ def set_guild_setting(guild_id: int, key: str, value):
     with db() as conn:
         conn.execute("INSERT OR IGNORE INTO guild_settings(guild_id) VALUES (?)", (guild_id,))
         conn.execute(update_queries[key], (value, guild_id))
+
+def get_user_display_name(user: discord.User, guild_id: int) -> str:
+    """Get user display name based on guild preference: 'username' or 'nickname'"""
+    display_mode = get_guild_setting(guild_id, "name_display_mode", "username")
+    
+    if display_mode == "nickname" and hasattr(user, 'display_name'):
+        return user.display_name
+    else:
+        return user.name
 
 def get_active_session(guild_id: int, user_id: int):
     with db() as conn:
@@ -1364,6 +1382,30 @@ async def set_recipient(interaction: discord.Interaction, user: discord.User):
 async def set_timezone(interaction: discord.Interaction, tz: str):
     set_guild_setting(interaction.guild_id, "timezone", tz)
     await interaction.response.send_message(f"✅ Timezone set to `{tz}` (display only).", ephemeral=True)
+
+@tree.command(name="toggle_name_display", description="Toggle between username and nickname display")
+@app_commands.describe(mode="Choose 'username' (Discord username) or 'nickname' (server display name)")
+@app_commands.choices(mode=[
+    app_commands.Choice(name="Username (Discord username)", value="username"),
+    app_commands.Choice(name="Nickname (Server display name)", value="nickname")
+])
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def toggle_name_display(interaction: discord.Interaction, mode: app_commands.Choice[str]):
+    set_guild_setting(interaction.guild_id, "name_display_mode", mode.value)
+    
+    if mode.value == "username":
+        await interaction.response.send_message(
+            "✅ **Name Display Set to Username**\n"
+            "The bot will now show Discord usernames (e.g., `john_doe`) in reports and messages.",
+            ephemeral=True
+        )
+    else:
+        await interaction.response.send_message(
+            "✅ **Name Display Set to Nickname**\n"
+            "The bot will now show server display names (e.g., `John D.`) in reports and messages.",
+            ephemeral=True
+        )
 
 @tree.command(name="add_info_role", description="Add a role that can use the Info button")
 @app_commands.describe(role="Role to authorize for Info button access")
