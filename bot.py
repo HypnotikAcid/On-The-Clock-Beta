@@ -27,8 +27,8 @@ HTTP_PORT = int(os.getenv("PORT", "5000"))     # Health check server port
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 STRIPE_PRICE_IDS = {
-    'basic': 'price_1SALFw3Jrp0J9AdlcSN8Hulc',   # $5/month TEST
-    'pro': 'price_1SALH13Jrp0J9AdlKVXl2od5'      # $10/month TEST
+    'basic': 'price_1SAHpL3Jrp0J9Adlfowh5qpr',   # $5/month LIVE
+    'pro': 'price_1SAHqH3Jrp0J9AdlFSJpJ32A'      # $10/month LIVE
 }
 
 # Guild-based locks to prevent race conditions in setup operations
