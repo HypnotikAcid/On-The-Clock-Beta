@@ -1434,11 +1434,7 @@ def user_has_clock_access(user: discord.Member, server_tier: str):
     """Check if user can access clock buttons based on server tier and roles."""
     guild_id = user.guild.id
     
-    # Free tier: only admins (current behavior)
-    if server_tier == "free":
-        return user_has_admin_access(user)
-    
-    # Basic/Pro tier: check clock roles OR admin access
+    # All tiers: check clock roles OR admin access
     # If no clock roles are configured, default to admin-only
     clock_roles = get_clock_roles(guild_id)
     if not clock_roles:
@@ -1815,20 +1811,12 @@ class TimeClockView(discord.ui.View):
         # Check clock access permissions
         server_tier = get_server_tier(guild_id)
         if not user_has_clock_access(interaction.user, server_tier):
-            if server_tier == "free":
-                await interaction.followup.send(
-                    "🔒 **Free Tier Limitation**\n"
-                    "Only server administrators can use the timeclock on the free plan.\n"
-                    "Upgrade to Basic ($5/month) for full team access!",
-                    ephemeral=True
-                )
-            else:
-                await interaction.followup.send(
-                    "🔒 **Access Restricted**\n"
-                    "You need an employee role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
-                    ephemeral=True
-                )
+            await interaction.followup.send(
+                "🔒 **Access Restricted**\n"
+                "You need an employee role to use the timeclock.\n"
+                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                ephemeral=True
+            )
             return
         
         try:
@@ -2005,20 +1993,12 @@ class TimeClockView(discord.ui.View):
         # Check clock access permissions
         server_tier = get_server_tier(guild_id)
         if not user_has_clock_access(interaction.user, server_tier):
-            if server_tier == "free":
-                await interaction.followup.send(
-                    "🔒 **Free Tier Limitation**\n"
-                    "Only server administrators can use the timeclock on the free plan.\n"
-                    "Upgrade to Basic ($5/month) for full team access!",
-                    ephemeral=True
-                )
-            else:
-                await interaction.followup.send(
-                    "🔒 **Access Restricted**\n"
-                    "You need an employee role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
-                    ephemeral=True
-                )
+            await interaction.followup.send(
+                "🔒 **Access Restricted**\n"
+                "You need an employee role to use the timeclock.\n"
+                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                ephemeral=True
+            )
             return
         
         if get_active_session(guild_id, user_id):
@@ -2040,20 +2020,12 @@ class TimeClockView(discord.ui.View):
         # Check clock access permissions
         server_tier = get_server_tier(guild_id)
         if not user_has_clock_access(interaction.user, server_tier):
-            if server_tier == "free":
-                await interaction.followup.send(
-                    "🔒 **Free Tier Limitation**\n"
-                    "Only server administrators can use the timeclock on the free plan.\n"
-                    "Upgrade to Basic ($5/month) for full team access!",
-                    ephemeral=True
-                )
-            else:
-                await interaction.followup.send(
-                    "🔒 **Access Restricted**\n"
-                    "You need an employee role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
-                    ephemeral=True
-                )
+            await interaction.followup.send(
+                "🔒 **Access Restricted**\n"
+                "You need an employee role to use the timeclock.\n"
+                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                ephemeral=True
+            )
             return
         
         active = get_active_session(guild_id, user_id)
@@ -2107,20 +2079,12 @@ class TimeClockView(discord.ui.View):
         # Check clock access permissions
         server_tier = get_server_tier(interaction.guild.id)
         if not user_has_clock_access(interaction.user, server_tier):
-            if server_tier == "free":
-                await interaction.response.send_message(
-                    "🔒 **Free Tier Limitation**\n"
-                    "Only server administrators can use the timeclock on the free plan.\n"
-                    "Upgrade to Basic ($5/month) for full team access!",
-                    ephemeral=True
-                )
-            else:
-                await interaction.response.send_message(
-                    "🔒 **Access Restricted**\n"
-                    "You need an employee role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
-                    ephemeral=True
-                )
+            await interaction.response.send_message(
+                "🔒 **Access Restricted**\n"
+                "You need an employee role to use the timeclock.\n"
+                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                ephemeral=True
+            )
             return
             
         embed = discord.Embed(
@@ -2781,7 +2745,7 @@ async def add_employee_role_cmd(interaction: discord.Interaction, role: discord.
     
     # Provide helpful context based on server tier
     if server_tier == "free":
-        message = f"✅ Added {role.mention} to employee roles.\n⚠️ **Note:** Your server is on the Free tier, so only admins can use timeclock functions regardless of roles. Upgrade to Basic/Pro for full role-based access!"
+        message = f"✅ Added {role.mention} to employee roles.\n🎉 **Employee roles work on free tier!** Only limitation is shorter data retention compared to paid plans."
     else:
         message = f"✅ Added {role.mention} to employee roles. Members with this role can now use timeclock functions."
     
