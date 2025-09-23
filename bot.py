@@ -181,7 +181,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             try:
                 # Verify webhook signature using Stripe
                 event = stripe.Webhook.construct_event(
-                    payload, sig_header, webhook_secret
+                    payload, sig_header, STRIPE_WEBHOOK_SECRET
                 )
                 print(f"✅ Webhook signature verified successfully")
                 print(f"🔔 Webhook event type: {event.get('type', 'unknown')}")
