@@ -23,6 +23,9 @@ GUILD_ID = os.getenv("GUILD_ID")              # optional but makes commands appe
 DEFAULT_TZ = "America/New_York"
 HTTP_PORT = int(os.getenv("PORT", "5000"))     # Health check server port
 
+# --- Bot Owner Configuration ---
+BOT_OWNER_ID = 107103438139056128  # Your Discord user ID for super admin access
+
 # --- Stripe Configuration ---
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
@@ -39,6 +42,16 @@ def get_guild_lock(guild_id: int) -> asyncio.Lock:
     if guild_id not in guild_setup_locks:
         guild_setup_locks[guild_id] = asyncio.Lock()
     return guild_setup_locks[guild_id]
+
+# --- Owner-Only Access Decorator ---
+def owner_only(func):
+    """Decorator to restrict commands to bot owner only"""
+    async def wrapper(interaction: discord.Interaction, *args, **kwargs):
+        if interaction.user.id != BOT_OWNER_ID:
+            # Silently ignore - command won't even be visible to non-owners
+            return
+        return await func(interaction, *args, **kwargs)
+    return wrapper
 
 # Get domain for Stripe redirects
 def get_domain():
@@ -2409,6 +2422,172 @@ async def subscription_status(interaction: discord.Interaction):
             f"❌ Error fetching subscription status: {str(e)}", 
             ephemeral=True
         )
+
+# =============================================================================
+# OWNER-ONLY SUPER ADMIN COMMANDS (Only visible to bot owner)
+# =============================================================================
+
+@tree.command(name="owner_grant", description="[OWNER] Grant subscription tier to current server")
+@app_commands.describe(tier="Subscription tier to grant")
+@app_commands.choices(tier=[
+    app_commands.Choice(name="Basic ($5/month)", value="basic"),
+    app_commands.Choice(name="Pro ($10/month)", value="pro")
+])
+async def owner_grant_tier(interaction: discord.Interaction, tier: str):
+    """Owner-only command to grant subscription tiers"""
+    if interaction.user.id != BOT_OWNER_ID:
+        await interaction.response.send_message("❌ Access denied.", ephemeral=True)
+        return
+        
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        guild_id = interaction.guild_id
+        guild_name = interaction.guild.name if interaction.guild else "Unknown"
+        
+        # Check current tier
+        current_tier = get_server_tier(guild_id)
+        
+        # Grant the new tier (no Stripe subscription - manual owner grant)
+        set_server_tier(guild_id, tier, subscription_id=f"owner_grant_{int(time.time())}", customer_id="owner_manual")
+        
+        embed = discord.Embed(
+            title="👑 Owner Grant Successful",
+            description=f"Manually granted **{tier.title()}** tier to this server",
+            color=discord.Color.gold()
+        )
+        
+        embed.add_field(name="Server", value=guild_name, inline=True)
+        embed.add_field(name="Server ID", value=str(guild_id), inline=True)
+        embed.add_field(name="Previous Tier", value=current_tier.title(), inline=True)
+        embed.add_field(name="New Tier", value=tier.title(), inline=True)
+        embed.add_field(name="Granted By", value="Bot Owner (Manual)", inline=True)
+        embed.add_field(name="Type", value="Owner Override", inline=True)
+        
+        embed.add_field(
+            name="Features Unlocked",
+            value="• Full team access\n• CSV Reports\n• Role management\n• Extended retention" if tier == "pro" else "• Full team access\n• CSV Reports\n• Role management\n• 7-day retention",
+            inline=False
+        )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error granting tier: {str(e)}", ephemeral=True)
+
+@tree.command(name="owner_remove", description="[OWNER] Remove subscription from current server")
+async def owner_remove_subscription(interaction: discord.Interaction):
+    """Owner-only command to remove subscriptions and purge data"""
+    if interaction.user.id != BOT_OWNER_ID:
+        await interaction.response.send_message("❌ Access denied.", ephemeral=True)
+        return
+        
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        guild_id = interaction.guild_id
+        guild_name = interaction.guild.name if interaction.guild else "Unknown"
+        
+        # Check current tier
+        current_tier = get_server_tier(guild_id)
+        
+        if current_tier == "free":
+            await interaction.followup.send("ℹ️ Server is already on Free tier.", ephemeral=True)
+            return
+        
+        # Purge all data and reset to free tier
+        deleted_count = purge_guild_data_for_testing(guild_id)
+        
+        embed = discord.Embed(
+            title="🗑️ Subscription Removed",
+            description=f"Removed subscription and purged all data for **{guild_name}**",
+            color=discord.Color.red()
+        )
+        
+        embed.add_field(name="Server", value=guild_name, inline=True)
+        embed.add_field(name="Server ID", value=str(guild_id), inline=True)
+        embed.add_field(name="Previous Tier", value=current_tier.title(), inline=True)
+        embed.add_field(name="New Tier", value="Free", inline=True)
+        embed.add_field(name="Data Purged", value=f"{deleted_count} records", inline=True)
+        embed.add_field(name="Action By", value="Bot Owner", inline=True)
+        
+        embed.add_field(
+            name="⚠️ Data Removed",
+            value="• All timeclock sessions\n• Guild settings\n• Authorized roles\n• Subscription records",
+            inline=False
+        )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error removing subscription: {str(e)}", ephemeral=True)
+
+@tree.command(name="owner_grant_server", description="[OWNER] Grant subscription to any server by ID")
+@app_commands.describe(
+    server_id="Discord server ID to grant subscription to",
+    tier="Subscription tier to grant"
+)
+@app_commands.choices(tier=[
+    app_commands.Choice(name="Basic ($5/month)", value="basic"),
+    app_commands.Choice(name="Pro ($10/month)", value="pro")
+])
+async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: str, tier: str):
+    """Owner-only command to grant subscriptions to any server by ID"""
+    if interaction.user.id != BOT_OWNER_ID:
+        await interaction.response.send_message("❌ Access denied.", ephemeral=True)
+        return
+        
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        # Validate server ID
+        try:
+            guild_id = int(server_id)
+        except ValueError:
+            await interaction.followup.send("❌ Invalid server ID format.", ephemeral=True)
+            return
+        
+        # Try to get guild info (if bot is in that server)
+        guild = bot.get_guild(guild_id)
+        guild_name = guild.name if guild else f"Server ID: {guild_id}"
+        
+        # Check if bot is in the server
+        if not guild:
+            await interaction.followup.send(f"⚠️ Bot is not in server {guild_id}. Grant will still be applied if server adds bot later.", ephemeral=True)
+        
+        # Check current tier
+        current_tier = get_server_tier(guild_id)
+        
+        # Grant the tier
+        set_server_tier(guild_id, tier, subscription_id=f"owner_remote_{int(time.time())}", customer_id="owner_remote")
+        
+        embed = discord.Embed(
+            title="🌐 Remote Server Grant Successful",
+            description=f"Granted **{tier.title()}** tier to remote server",
+            color=discord.Color.purple()
+        )
+        
+        embed.add_field(name="Target Server", value=guild_name, inline=True)
+        embed.add_field(name="Server ID", value=str(guild_id), inline=True)
+        embed.add_field(name="Bot Present", value="✅ Yes" if guild else "❌ No", inline=True)
+        embed.add_field(name="Previous Tier", value=current_tier.title(), inline=True)
+        embed.add_field(name="New Tier", value=tier.title(), inline=True)
+        embed.add_field(name="Grant Type", value="Remote Owner Override", inline=True)
+        
+        if guild:
+            embed.add_field(name="Member Count", value=str(guild.member_count), inline=True)
+            embed.add_field(name="Server Owner", value=str(guild.owner), inline=True)
+        
+        embed.add_field(
+            name="Status",
+            value="✅ Subscription active immediately" if guild else "⏳ Will activate when bot joins server",
+            inline=False
+        )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error granting remote server subscription: {str(e)}", ephemeral=True)
 
 if __name__ == "__main__":
     # Run database migrations first with exclusive locking
