@@ -51,8 +51,19 @@ Preferred communication style: Simple, everyday language.
   - Basic Monthly: `price_1SAHpL3Jrp0J9Adlfowh5qpr` ($5/month recurring)
   - Pro Monthly: `price_1SAHqH3Jrp0J9AdlFSJpJ32A` ($10/month recurring)
 
+## Data Management and Retention
+- **Automated Data Purging**: Daily cleanup removes old sessions based on tier retention policies
+- **Subscription Lapse Handling**: Automatic data purging when subscriptions are cancelled via Stripe webhooks
+- **Manual Data Purge**: Admin `/purge` command for complete server data removal with confirmation
+- **Data Retention Policies**: 
+  - Free tier: 0 days (immediate cleanup for testing)
+  - Basic tier: 7 days retention
+  - Pro tier: 30 days retention
+
 ## Security Considerations
 - Bot token authentication required for Discord API access
 - Sensitive parameter handling through secure decorators
 - Logging security to prevent credential exposure
 - Stripe API key management through Replit integrations
+- Stripe webhook signature verification for payment security
+- Automatic data purging on subscription cancellation for privacy compliance
