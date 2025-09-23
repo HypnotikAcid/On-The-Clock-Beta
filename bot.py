@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import threading
+import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -725,34 +726,54 @@ def get_retention_days(guild_id: int) -> int:
 def cleanup_old_sessions(guild_id: int = None) -> int:
     """Clean up old session data based on retention policy. Returns count of deleted records."""
     deleted_count = 0
-    with db() as conn:
-        if guild_id:
-            # Clean up specific guild - only delete COMPLETED sessions older than retention period
-            retention_days = get_retention_days(guild_id)
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
-            
-            cursor = conn.execute("""
-                DELETE FROM sessions 
-                WHERE guild_id = ? AND clock_out IS NOT NULL AND clock_out < ?
-            """, (guild_id, cutoff_date.isoformat()))
-            deleted_count = cursor.rowcount
-        else:
-            # Clean up all guilds based on their individual retention policies
-            guilds_cursor = conn.execute("SELECT DISTINCT guild_id FROM sessions")
-            for (guild_id,) in guilds_cursor.fetchall():
-                retention_days = get_retention_days(guild_id)
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    max_retries = 3
+    
+    for attempt in range(max_retries):
+        try:
+            with db() as conn:
+                # Set a reasonable timeout for database operations
+                conn.execute("PRAGMA busy_timeout = 5000")  # 5 second timeout
                 
-                cursor = conn.execute("""
-                    DELETE FROM sessions 
-                    WHERE guild_id = ? AND clock_out IS NOT NULL AND clock_out < ?
-                """, (guild_id, cutoff_date.isoformat()))
-                deleted_count += cursor.rowcount
-        
-        # Optimize database after cleanup
-        if deleted_count > 0:
-            conn.execute("PRAGMA wal_checkpoint")
-            conn.execute("VACUUM")
+                if guild_id:
+                    # Clean up specific guild - only delete COMPLETED sessions older than retention period
+                    retention_days = get_retention_days(guild_id)
+                    cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+                    
+                    cursor = conn.execute("""
+                        DELETE FROM sessions 
+                        WHERE guild_id = ? AND clock_out IS NOT NULL AND clock_out < ?
+                    """, (guild_id, cutoff_date.isoformat()))
+                    deleted_count = cursor.rowcount
+                else:
+                    # Clean up all guilds based on their individual retention policies
+                    guilds_cursor = conn.execute("SELECT DISTINCT guild_id FROM sessions")
+                    guild_ids = [row[0] for row in guilds_cursor.fetchall()]
+                    
+                    for guild_id in guild_ids:
+                        retention_days = get_retention_days(guild_id)
+                        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+                        
+                        cursor = conn.execute("""
+                            DELETE FROM sessions 
+                            WHERE guild_id = ? AND clock_out IS NOT NULL AND clock_out < ?
+                        """, (guild_id, cutoff_date.isoformat()))
+                        deleted_count += cursor.rowcount
+                
+                # Optimize database after cleanup (only if we deleted something)
+                if deleted_count > 0:
+                    conn.execute("PRAGMA wal_checkpoint")
+                    # Skip VACUUM in background cleanup to avoid long locks
+                    
+            # Success - exit retry loop
+            break
+            
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e) and attempt < max_retries - 1:
+                print(f"🔄 Database locked, retrying cleanup attempt {attempt + 1}/{max_retries}")
+                time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                continue
+            else:
+                raise
     
     return deleted_count
 
@@ -1733,9 +1754,12 @@ async def generate_report(
 def schedule_daily_cleanup():
     """Schedule daily cleanup task"""
     def daily_cleanup():
+        # Wait 60 seconds after startup before first cleanup attempt
+        threading.Event().wait(60)
+        
         while True:
             try:
-                # Run cleanup at 2 AM UTC daily
+                # Run cleanup
                 deleted_count = cleanup_old_sessions()
                 if deleted_count > 0:
                     print(f"🧹 Daily cleanup: Removed {deleted_count} old session records")
