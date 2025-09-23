@@ -1331,11 +1331,202 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
 class TimeClockView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, guild_id: int = None):
         super().__init__(timeout=None)  # persistent view
+        self.guild_id = guild_id
+        
+        # If guild_id is provided, build conditional view
+        if guild_id:
+            self._build_conditional_view(guild_id)
 
-    @discord.ui.button(label="Clock In", style=discord.ButtonStyle.success, custom_id="timeclock:in")
-    async def clock_in(self, interaction: discord.Interaction, button: discord.ui.Button):
+    def _build_conditional_view(self, guild_id: int):
+        """Build view with conditional buttons based on server tier"""
+        server_tier = get_server_tier(guild_id)
+        
+        # Add core buttons (row 0)
+        on_clock_btn = discord.ui.Button(
+            label="On the Clock", 
+            style=discord.ButtonStyle.secondary, 
+            custom_id="timeclock:onclock", 
+            row=0
+        )
+        on_clock_btn.callback = self.on_the_clock
+        self.add_item(on_clock_btn)
+        
+        clock_in_btn = discord.ui.Button(
+            label="Clock In", 
+            style=discord.ButtonStyle.success, 
+            custom_id="timeclock:in", 
+            row=0
+        )
+        clock_in_btn.callback = self.clock_in
+        self.add_item(clock_in_btn)
+        
+        clock_out_btn = discord.ui.Button(
+            label="Clock Out", 
+            style=discord.ButtonStyle.danger, 
+            custom_id="timeclock:out", 
+            row=0
+        )
+        clock_out_btn.callback = self.clock_out
+        self.add_item(clock_out_btn)
+        
+        help_btn = discord.ui.Button(
+            label="Help", 
+            style=discord.ButtonStyle.primary, 
+            custom_id="timeclock:help", 
+            row=0
+        )
+        help_btn.callback = self.show_help
+        self.add_item(help_btn)
+        
+        # Conditional second row buttons
+        if server_tier == "free":
+            # Add upgrade button for free servers
+            upgrade_btn = discord.ui.Button(
+                label="Upgrade", 
+                style=discord.ButtonStyle.secondary, 
+                custom_id="timeclock:upgrade", 
+                emoji="🚀",
+                row=1
+            )
+            upgrade_btn.callback = self.show_upgrade
+            self.add_item(upgrade_btn)
+        else:
+            # Add reports button for paid servers
+            reports_btn = discord.ui.Button(
+                label="Reports", 
+                style=discord.ButtonStyle.success, 
+                custom_id="timeclock:reports", 
+                row=1
+            )
+            reports_btn.callback = self.generate_reports
+            self.add_item(reports_btn)
+
+    async def on_the_clock(self, interaction: discord.Interaction):
+        """Show all currently clocked in users with their times"""
+        if interaction.guild is None:
+            await interaction.response.send_message("Use this in a server.", ephemeral=True)
+            return
+            
+        guild_id = interaction.guild.id
+        
+        try:
+            # Get all currently clocked in users
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT user_id, clock_in 
+                    FROM sessions 
+                    WHERE guild_id = ? AND clock_out IS NULL
+                    ORDER BY clock_in ASC
+                """, (guild_id,))
+                active_sessions = cursor.fetchall()
+            
+            if not active_sessions:
+                embed = discord.Embed(
+                    title="⏰ On the Clock",
+                    description="No one is currently clocked in.",
+                    color=discord.Color.gold()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+            
+            # Get timezone setting
+            tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
+            
+            try:
+                from zoneinfo import ZoneInfo
+                guild_tz = ZoneInfo(tz_name)
+            except Exception:
+                guild_tz = timezone.utc
+                tz_name = "UTC"
+            
+            embed = discord.Embed(
+                title="⏰ On the Clock",
+                description=f"Currently clocked in users ({len(active_sessions)} total)",
+                color=discord.Color.gold()
+            )
+            
+            now_utc = datetime.now(timezone.utc)
+            
+            clock_in_list = []
+            for user_id, clock_in_iso in active_sessions:
+                try:
+                    # Get user nickname/username
+                    user = interaction.guild.get_member(user_id)
+                    if user:
+                        display_name = user.display_name
+                    else:
+                        display_name = f"User {user_id}"
+                    
+                    # Parse clock in time
+                    clock_in_utc = datetime.fromisoformat(clock_in_iso.replace('Z', '+00:00'))
+                    clock_in_local = clock_in_utc.astimezone(guild_tz)
+                    
+                    # Calculate total time for today in this timezone
+                    local_date = clock_in_local.date()
+                    day_start = datetime.combine(local_date, datetime.min.time()).replace(tzinfo=guild_tz)
+                    day_end = datetime.combine(local_date, datetime.max.time()).replace(tzinfo=guild_tz)
+                    
+                    # Get all sessions for today
+                    day_start_utc = day_start.astimezone(timezone.utc).isoformat()
+                    day_end_utc = day_end.astimezone(timezone.utc).isoformat()
+                    
+                    with db() as conn:
+                        cursor = conn.execute("""
+                            SELECT clock_in, clock_out 
+                            FROM sessions 
+                            WHERE guild_id = ? AND user_id = ? 
+                            AND clock_in >= ? AND clock_in <= ?
+                        """, (guild_id, user_id, day_start_utc, day_end_utc))
+                        day_sessions = cursor.fetchall()
+                    
+                    # Calculate total day seconds
+                    total_day_seconds = 0
+                    for session_in, session_out in day_sessions:
+                        if session_out:  # Completed session
+                            start = datetime.fromisoformat(session_in.replace('Z', '+00:00'))
+                            end = datetime.fromisoformat(session_out.replace('Z', '+00:00'))
+                            total_day_seconds += (end - start).total_seconds()
+                        else:  # Current active session
+                            start = datetime.fromisoformat(session_in.replace('Z', '+00:00'))
+                            total_day_seconds += (now_utc - start).total_seconds()
+                    
+                    # Current shift time
+                    shift_seconds = (now_utc - clock_in_utc).total_seconds()
+                    
+                    # Format times
+                    clock_in_time = clock_in_local.strftime("%I:%M %p")
+                    total_day_time = format_duration_hhmmss(total_day_seconds)
+                    shift_time = format_shift_duration(shift_seconds)
+                    
+                    clock_in_list.append(f"**{display_name}** - In: {clock_in_time} | {total_day_time} | {shift_time}")
+                except Exception as e:
+                    print(f"Error processing user {user_id}: {e}")
+                    clock_in_list.append(f"**User {user_id}** - Error displaying time")
+            
+            embed.add_field(
+                name="Active Users",
+                value="\n".join(clock_in_list),
+                inline=False
+            )
+            
+            embed.add_field(
+                name="Timezone",
+                value=tz_name,
+                inline=True
+            )
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            await interaction.response.send_message(
+                "❌ Error retrieving active users. Please try again.", 
+                ephemeral=True
+            )
+            print(f"Error in on_the_clock: {e}")
+
+    async def clock_in(self, interaction: discord.Interaction):
         if interaction.guild is None:
             await interaction.response.send_message("Use this in a server.", ephemeral=True)
             return
@@ -1359,8 +1550,7 @@ class TimeClockView(discord.ui.View):
         start_session(guild_id, user_id, now_utc().isoformat())
         await interaction.response.send_message("✅ Clocked in. Have a great shift!", ephemeral=True)
 
-    @discord.ui.button(label="Clock Out", style=discord.ButtonStyle.danger, custom_id="timeclock:out")
-    async def clock_out(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def clock_out(self, interaction: discord.Interaction):
         if interaction.guild is None:
             await interaction.response.send_message("Use this in a server.", ephemeral=True)
             return
@@ -1420,66 +1610,56 @@ class TimeClockView(discord.ui.View):
                 except Exception:
                     pass
 
-    @discord.ui.button(label="Info", style=discord.ButtonStyle.primary, custom_id="timeclock:info")
-    async def show_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.guild is None:
-            await interaction.response.send_message("Use this in a server.", ephemeral=True)
-            return
-        
-        guild_id = interaction.guild.id
-        user_id = interaction.user.id
-        
-        # Check free tier restrictions
-        server_tier = get_server_tier(guild_id)
-        if server_tier == "free" and not is_server_admin(interaction.user):
-            await interaction.response.send_message(
-                "🔒 **Free Tier Limitation**\n"
-                "Only server administrators can use the timeclock on the free plan.\n"
-                "Upgrade to Basic ($5/month) for full team access!",
-                ephemeral=True
-            )
-            return
-        
-        # Check if user has authorized role (skip for free tier admins)
-        if server_tier != "free" and not user_has_authorized_role(guild_id, interaction.user.roles):
-            await interaction.response.send_message("❌ You don't have permission to view time info.", ephemeral=True)
-            return
-        
-        tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
-        current_session_seconds, daily_seconds, weekly_seconds = get_user_hours_info(guild_id, user_id, tz_name)
-        
+    @discord.ui.button(label="Help", style=discord.ButtonStyle.primary, custom_id="timeclock:help", row=0)
+    async def show_help(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show help commands instead of user time info"""
         embed = discord.Embed(
-            title="⏰ Your Time Information",
+            title="🛠️ Timeclock Help Commands",
+            description="Available slash commands for the timeclock bot:",
             color=discord.Color.blue()
         )
         
-        if current_session_seconds > 0:
-            embed.add_field(
-                name="Current Session", 
-                value=human_duration(current_session_seconds), 
-                inline=True
-            )
-        else:
-            embed.add_field(
-                name="Current Session", 
-                value="Not clocked in", 
-                inline=True
-            )
-        
+        # Basic commands
         embed.add_field(
-            name="Today's Total", 
-            value=human_duration(daily_seconds), 
-            inline=True
+            name="📊 General Commands",
+            value="`/help` - Show all commands\n"
+                  "`/subscription_status` - View subscription details\n"
+                  "`/cancel_subscription` - Learn how to cancel",
+            inline=False
         )
+        
+        # Admin commands
         embed.add_field(
-            name="This Week's Total", 
-            value=human_duration(weekly_seconds), 
-            inline=True
+            name="👑 Admin Commands",
+            value="`/setup_timeclock` - Create timeclock interface\n"
+                  "`/report @user start-date end-date` - Generate CSV reports\n"
+                  "`/data_cleanup` - Clean old data\n"
+                  "`/purge` - Delete ALL server data",
+            inline=False
+        )
+        
+        # Settings commands
+        embed.add_field(
+            name="⚙️ Settings Commands",
+            value="`/set_timezone` - Set server timezone\n"
+                  "`/set_recipient` - Set manager for notifications\n"
+                  "`/toggle_name_display` - Switch username/nickname\n"
+                  "`/add_info_role` - Authorize roles\n"
+                  "`/remove_info_role` - Remove role access",
+            inline=False
+        )
+        
+        # Subscription commands
+        embed.add_field(
+            name="💳 Subscription Commands",
+            value="`/upgrade basic` - Upgrade to Basic ($5/month)\n"
+                  "`/upgrade pro` - Upgrade to Pro ($10/month)",
+            inline=False
         )
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @discord.ui.button(label="Reports", style=discord.ButtonStyle.success, custom_id="timeclock:reports")
+    @discord.ui.button(label="Reports", style=discord.ButtonStyle.success, custom_id="timeclock:reports", row=1)
     async def generate_reports(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.guild is None:
             await interaction.response.send_message("Use this in a server.", ephemeral=True)
@@ -1589,9 +1769,55 @@ class TimeClockView(discord.ui.View):
             ephemeral=True
         )
 
+    @discord.ui.button(label="Upgrade", style=discord.ButtonStyle.secondary, custom_id="timeclock:upgrade", row=1, emoji="🚀")
+    async def show_upgrade(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show upgrade options for free tier servers"""
+        guild_id = interaction.guild.id
+        server_tier = get_server_tier(guild_id)
+        
+        # Only show for free tier
+        if server_tier != "free":
+            await interaction.response.send_message("This server already has a subscription!", ephemeral=True)
+            return
+        
+        embed = discord.Embed(
+            title="🚀 Upgrade Your Server",
+            description="Choose a plan that fits your team's needs:",
+            color=discord.Color.orange()
+        )
+        
+        embed.add_field(
+            name="💼 Basic Plan - $5/month",
+            value="• Full team access to timeclock\n"
+                  "• All admin commands\n"
+                  "• CSV Reports\n"
+                  "• Role management\n"
+                  "• 7 days data retention",
+            inline=True
+        )
+        
+        embed.add_field(
+            name="⭐ Pro Plan - $10/month",
+            value="• Everything in Basic\n"
+                  "• Extended CSV reports\n"
+                  "• Multiple manager notifications\n"
+                  "• 30 days data retention\n"
+                  "• Priority support",
+            inline=True
+        )
+        
+        embed.add_field(
+            name="🔗 How to Upgrade",
+            value="Use `/upgrade basic` or `/upgrade pro` commands to get started with secure Stripe checkout!",
+            inline=False
+        )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
 @bot.event
 async def on_ready():
-    bot.add_view(TimeClockView())  # keep buttons alive across restarts
+    # Note: Using dynamic views now, no need to add static view
+    # Views are created with guild-specific conditional buttons in setup_timeclock
     
     # Debug: Check what commands are in the tree
     commands = tree.get_commands()
@@ -1699,8 +1925,8 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         except Exception as e:
             print(f"⚠️ Error during cleanup: {e}")
         
-        # Create new timeclock message
-        view = TimeClockView()
+        # Create new timeclock message with conditional buttons based on server tier
+        view = TimeClockView(guild_id=interaction.guild_id)
         msg = await ch.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
         
         # Store the new message info
