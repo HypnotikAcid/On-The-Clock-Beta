@@ -1104,6 +1104,12 @@ def init_db():
             conn.execute("ALTER TABLE guild_settings ADD COLUMN name_display_mode TEXT DEFAULT 'username'")
         except:
             pass  # Column already exists
+        
+        # Add main_admin_role_id column if it doesn't exist (for main admin role feature)
+        try:
+            conn.execute("ALTER TABLE guild_settings ADD COLUMN main_admin_role_id INTEGER")
+        except:
+            pass  # Column already exists
         conn.execute("""
         CREATE TABLE IF NOT EXISTS authorized_roles (
             guild_id INTEGER,
@@ -1281,7 +1287,8 @@ def get_guild_setting(guild_id: int, key: str, default=None):
         'button_channel_id': "SELECT button_channel_id FROM guild_settings WHERE guild_id=?",
         'button_message_id': "SELECT button_message_id FROM guild_settings WHERE guild_id=?",
         'timezone': "SELECT timezone FROM guild_settings WHERE guild_id=?",
-        'name_display_mode': "SELECT name_display_mode FROM guild_settings WHERE guild_id=?"
+        'name_display_mode': "SELECT name_display_mode FROM guild_settings WHERE guild_id=?",
+        'main_admin_role_id': "SELECT main_admin_role_id FROM guild_settings WHERE guild_id=?"
     }
     
     if key not in column_queries:
@@ -1299,7 +1306,8 @@ def set_guild_setting(guild_id: int, key: str, value):
         'button_channel_id': "UPDATE guild_settings SET button_channel_id=? WHERE guild_id=?",
         'button_message_id': "UPDATE guild_settings SET button_message_id=? WHERE guild_id=?",
         'timezone': "UPDATE guild_settings SET timezone=? WHERE guild_id=?",
-        'name_display_mode': "UPDATE guild_settings SET name_display_mode=? WHERE guild_id=?"
+        'name_display_mode': "UPDATE guild_settings SET name_display_mode=? WHERE guild_id=?",
+        'main_admin_role_id': "UPDATE guild_settings SET main_admin_role_id=? WHERE guild_id=?"
     }
     
     if key not in update_queries:
@@ -1404,15 +1412,20 @@ def get_admin_roles(guild_id: int):
         return [row[0] for row in cur.fetchall()]
 
 def user_has_admin_access(user: discord.Member):
-    """Check if user has admin access (Discord admin OR custom admin role)."""
+    """Check if user has admin access (Discord admin OR custom admin role OR main admin role)."""
     # Check Discord administrator permission first
     if user.guild_permissions.administrator:
         return True
     
-    # Check custom admin roles
-    admin_roles = get_admin_roles(user.guild.id)
     user_role_ids = [role.id for role in user.roles]
     
+    # Check main admin role (primary designated admin role)
+    main_admin_role_id = get_guild_setting(user.guild.id, "main_admin_role_id")
+    if main_admin_role_id and main_admin_role_id in user_role_ids:
+        return True
+    
+    # Check custom admin roles (additional admin roles)
+    admin_roles = get_admin_roles(user.guild.id)
     return any(role_id in user_role_ids for role_id in admin_roles)
 
 def add_clock_role(guild_id: int, role_id: int):
@@ -2675,6 +2688,119 @@ async def list_admin_roles(interaction: discord.Interaction):
     )
     embed.add_field(name="Custom Admin Roles", value="\n".join(admin_roles), inline=False)
     embed.add_field(name="Note", value="Discord Administrators always have admin access.", inline=False)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@tree.command(name="set_main_role", description="Set the primary admin role (gets all admin functions)")
+@app_commands.describe(role="Role to designate as main admin (gets Reports, Upgrade, all admin access)")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def set_main_role(interaction: discord.Interaction, role: discord.Role):
+    """Set the primary admin role that gets all admin functions"""
+    set_guild_setting(interaction.guild_id, "main_admin_role_id", role.id)
+    
+    embed = discord.Embed(
+        title="🛡️ Main Admin Role Set",
+        description=f"**{role.mention}** is now the main admin role for this server.",
+        color=discord.Color.green()
+    )
+    embed.add_field(
+        name="What this means:",
+        value=(
+            "• This role gets **all admin functions** (Reports, Upgrade, etc.)\n"
+            "• Works in addition to Discord Administrators\n"
+            "• Perfect for designating manager roles\n"
+            "• Useful for Top.gg reviewers and testing"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="Management:",
+        value="Use `/show_main_role` to view or `/clear_main_role` to remove",
+        inline=False
+    )
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@tree.command(name="show_main_role", description="View the current main admin role")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def show_main_role(interaction: discord.Interaction):
+    """Show the current main admin role"""
+    main_role_id = get_guild_setting(interaction.guild_id, "main_admin_role_id")
+    
+    if not main_role_id:
+        embed = discord.Embed(
+            title="🛡️ Main Admin Role",
+            description="No main admin role is currently set.",
+            color=discord.Color.orange()
+        )
+        embed.add_field(
+            name="To set a main admin role:",
+            value="Use `/set_main_role @role` to designate a role with all admin functions",
+            inline=False
+        )
+    else:
+        role = interaction.guild.get_role(main_role_id)
+        if role:
+            embed = discord.Embed(
+                title="🛡️ Main Admin Role",
+                description=f"**{role.mention}** is the main admin role.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="Permissions:",
+                value="This role has access to all admin functions (Reports, Upgrade buttons, etc.)",
+                inline=False
+            )
+        else:
+            embed = discord.Embed(
+                title="🛡️ Main Admin Role",
+                description="Main admin role was set but the role has been deleted.",
+                color=discord.Color.red()
+            )
+            embed.add_field(
+                name="Fix this:",
+                value="Use `/clear_main_role` to clear the invalid role, then `/set_main_role` to set a new one",
+                inline=False
+            )
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@tree.command(name="clear_main_role", description="Remove the main admin role designation") 
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def clear_main_role(interaction: discord.Interaction):
+    """Clear the main admin role"""
+    main_role_id = get_guild_setting(interaction.guild_id, "main_admin_role_id")
+    
+    if not main_role_id:
+        await interaction.response.send_message(
+            "No main admin role is currently set.",
+            ephemeral=True
+        )
+        return
+    
+    # Get role name before clearing (if it exists)
+    role = interaction.guild.get_role(main_role_id)
+    role_name = role.mention if role else f"<Deleted Role: {main_role_id}>"
+    
+    # Clear the main admin role
+    set_guild_setting(interaction.guild_id, "main_admin_role_id", None)
+    
+    embed = discord.Embed(
+        title="🛡️ Main Admin Role Cleared",
+        description=f"**{role_name}** is no longer the main admin role.",
+        color=discord.Color.green()
+    )
+    embed.add_field(
+        name="Current Admin Access:",
+        value=(
+            "• Discord Administrators (always have access)\n"
+            "• Custom admin roles (if any set via `/add_admin_role`)"
+        ),
+        inline=False
+    )
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
