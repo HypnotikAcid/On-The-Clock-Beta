@@ -3774,9 +3774,11 @@ class PurgeConfirmationView(discord.ui.View):
 @app_commands.guild_only()
 async def purge_data(interaction: discord.Interaction):
     """Allow admins to manually purge timeclock data only"""
+    await interaction.response.defer(ephemeral=True)
+    
     # Double-check admin status
     if not is_server_admin(interaction.user):
-        await send_reply(interaction, "❌ Only server administrators can use this command.", ephemeral=True)
+        await interaction.followup.send("❌ Only server administrators can use this command.", ephemeral=True)
         return
     
     # Create warning embed
@@ -3808,7 +3810,7 @@ async def purge_data(interaction: discord.Interaction):
     # Create confirmation view
     view = PurgeConfirmationView(interaction.guild_id)
     
-    await send_reply(interaction, embed=embed, view=view, ephemeral=True)
+    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 # --- Subscription Management Commands ---
 @tree.command(name="upgrade", description="Upgrade your server to Basic or Pro plan")
