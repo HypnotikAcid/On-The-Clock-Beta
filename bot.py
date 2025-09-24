@@ -2151,10 +2151,13 @@ class TimeClockView(discord.ui.View):
 
     async def clock_in(self, interaction: discord.Interaction):
         """Handle clock in button interaction with robust error handling"""
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
+        
         try:
-            # Defer immediately to prevent timeout
-            await interaction.response.defer(ephemeral=True)
-            
             if interaction.guild is None:
                 await interaction.followup.send("Use this in a server.", ephemeral=True)
                 return
@@ -2211,10 +2214,13 @@ class TimeClockView(discord.ui.View):
 
     async def clock_out(self, interaction: discord.Interaction):
         """Handle clock out button interaction with robust error handling"""
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
+        
         try:
-            # Defer immediately to prevent timeout
-            await interaction.response.defer(ephemeral=True)
-            
             if interaction.guild is None:
                 await interaction.followup.send("Use this in a server.", ephemeral=True)
                 return
@@ -2444,9 +2450,13 @@ class TimeClockView(discord.ui.View):
                 print(f"❌ Failed to send error message for show_help: {e}")
 
     async def generate_reports(self, interaction: discord.Interaction):
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
+            
         try:
-            # Defer immediately to prevent timeout
-            await interaction.response.defer(ephemeral=True)
             
             if interaction.guild is None:
                 await interaction.followup.send("Use this in a server.", ephemeral=True)
@@ -2945,11 +2955,10 @@ async def on_guild_join(guild):
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def setup_timeclock(interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None, force_refresh: bool = False):
-    # Defer immediately at the start
-    try:
-        await interaction.response.defer(ephemeral=True)
-    except discord.errors.NotFound:
-        print(f"❌ Interaction expired in setup_timeclock for guild {interaction.guild_id}")
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
         return
     
     ch = channel or interaction.channel
@@ -3514,7 +3523,11 @@ async def generate_report(
     start_date: str,
     end_date: str
 ):
-    await interaction.response.defer(ephemeral=True)
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
     
     # Check tier access for reports
     guild_id = interaction.guild_id
@@ -3677,9 +3690,13 @@ def schedule_daily_cleanup():
 @app_commands.guild_only()
 async def manual_cleanup(interaction: discord.Interaction, user: Optional[discord.Member] = None):
     """Allow admins to manually trigger data cleanup - either for old sessions or for a specific user"""
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
+        
     try:
-        # Defer immediately to prevent timeout
-        await interaction.response.defer(ephemeral=True)
         
         if interaction.guild is None:
             await interaction.followup.send("Use this in a server.", ephemeral=True)
@@ -3873,7 +3890,11 @@ async def purge_data(interaction: discord.Interaction):
 @app_commands.guild_only()
 async def upgrade_server(interaction: discord.Interaction, plan: str):
     """Create Stripe checkout link for server upgrade"""
-    await interaction.response.defer(ephemeral=True)
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
     
     try:
         current_tier = get_server_tier(interaction.guild_id)
@@ -3938,7 +3959,11 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
 @app_commands.guild_only()
 async def cancel_subscription(interaction: discord.Interaction):
     """Provide instructions for canceling subscription"""
-    await interaction.response.defer(ephemeral=True)
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
     
     try:
         # Check current subscription status
@@ -4030,7 +4055,11 @@ async def cancel_subscription(interaction: discord.Interaction):
 @app_commands.guild_only()
 async def subscription_status(interaction: discord.Interaction):
     """Show current subscription tier and details"""
-    await interaction.response.defer(ephemeral=True)
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
     
     try:
         with db() as conn:
@@ -4118,7 +4147,11 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
         await send_reply(interaction, "❌ Access denied.", ephemeral=True)
         return
         
-    await interaction.response.defer(ephemeral=True)
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
     
     try:
         guild_id = interaction.guild_id
@@ -4170,7 +4203,11 @@ async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: 
         await send_reply(interaction, "❌ Access denied.", ephemeral=True)
         return
         
-    await interaction.response.defer(ephemeral=True)
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
     
     try:
         # Validate server ID
