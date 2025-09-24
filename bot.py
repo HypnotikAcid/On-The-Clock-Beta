@@ -2671,6 +2671,16 @@ class LegacyTimeClockView(discord.ui.View):
         upgrade_btn.callback = self.show_upgrade
         self.add_item(upgrade_btn)
         
+        # On the Clock button (old: timeclock:onclock - same as new)
+        on_clock_btn = discord.ui.Button(
+            label="On the Clock", 
+            style=discord.ButtonStyle.secondary, 
+            custom_id="timeclock:onclock", 
+            row=0
+        )
+        on_clock_btn.callback = self.on_the_clock
+        self.add_item(on_clock_btn)
+        
         # Reports button (old: timeclock:report)
         reports_btn = discord.ui.Button(
             label="Reports", 
