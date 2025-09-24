@@ -3592,10 +3592,10 @@ def schedule_daily_cleanup():
     print("⏰ Daily cleanup scheduler started")
 
 @tree.command(name="data_cleanup", description="Manually trigger data cleanup (Admin only)")
-@app_commands.describe(user="Optional: Delete all timeclock data for a specific user only")
+@app_commands.describe(user="Optional: Delete all timeclock data for a specific server member only")
 @app_commands.default_permissions(administrator=True)  
 @app_commands.guild_only()
-async def manual_cleanup(interaction: discord.Interaction, user: Optional[discord.User] = None):
+async def manual_cleanup(interaction: discord.Interaction, user: Optional[discord.Member] = None):
     """Allow admins to manually trigger data cleanup - either for old sessions or for a specific user"""
     await interaction.response.defer(ephemeral=True)
     
