@@ -19,13 +19,12 @@ args = "Discord Bot"
 name = "Discord Bot"
 author = "agent"
 
-[workflows.workflow.metadata]
-outputType = "webview"
-
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python bot.py"
-waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [deployment]
 deploymentTarget = "vm"
