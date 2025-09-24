@@ -3711,11 +3711,11 @@ class PurgeConfirmationView(discord.ui.View):
     @discord.ui.button(label="✅ Yes, Purge Timeclock Data", style=discord.ButtonStyle.danger, custom_id="purge_yes")
     async def confirm_purge(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Handle purge confirmation"""
-        if not user_has_admin_access(interaction.user):
-            await send_reply(interaction, "❌ Only administrators can use this command.", ephemeral=True)
-            return
-        
         await interaction.response.defer(ephemeral=True)
+        
+        if not user_has_admin_access(interaction.user):
+            await interaction.followup.send("❌ Only administrators can use this command.", ephemeral=True)
+            return
         
         try:
             # Use standalone purge function
