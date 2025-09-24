@@ -2413,156 +2413,179 @@ class TimeClockView(discord.ui.View):
                 print(f"❌ Failed to send error message for show_help: {e}")
 
     async def generate_reports(self, interaction: discord.Interaction):
-        if interaction.guild is None:
-            await send_reply(interaction, "Use this in a server.", ephemeral=True)
-            return
-        
-        # Check if user has admin access (Discord admin OR custom admin role)
-        # Type guard: ensure we have a Member for guild-specific functions
-        if not isinstance(interaction.user, discord.Member):
-            await send_reply(interaction,
-                "❌ Unable to verify admin permissions. Please try again.",
-                ephemeral=True
-            )
-            return
-        
-        if not user_has_admin_access(interaction.user):
-            await send_reply(interaction,
-                "❌ **Access Denied - Admin Role Required**\n\n"
-                "You need administrator permissions or an admin role to generate reports.\n\n"
-                "**To get access:**\n"
-                "• Ask your server administrator to grant you admin role access\n"
-                "• They can use: `/add_admin_role @yourrole` to give your role admin access\n"
-                "• Or ask them to add you to an existing admin role\n\n"
-                "💡 Contact your server admin for help with role management.", 
-                ephemeral=True
-            )
-            return
-        
-        await interaction.response.defer(ephemeral=True)
-        
-        guild_id = interaction.guild.id
-        server_tier = get_server_tier(guild_id)
-        
-        # Free tier: Admin only + fake data 
-        if server_tier == "free":
-            fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
-            filename = f"sample_report_last_30_days.csv"
-            
-            file = discord.File(
-                io.BytesIO(fake_csv.encode('utf-8')), 
-                filename=filename
-            )
-            
-            await interaction.followup.send(
-                f"📊 **Free Tier Sample Report**\n"
-                f"🎯 This is sample data. Upgrade to Basic ($5/month) or Pro ($10/month) for real reports!\n"
-                f"📅 Date Range: Last 30 days",
-                file=file,
-                ephemeral=True
-            )
-            return
-        
-        # Basic and Pro tier: Full reports access with retention limits
-        guild_tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
-        if guild_tz_name is None:
-            guild_tz_name = DEFAULT_TZ
-        
-        # Determine report range based on tier
-        if server_tier == "basic":
-            report_days = 7  # Basic tier: 7 days max
-        else:  # pro tier
-            report_days = 30  # Pro tier: 30 days max
-        
-        # Generate report for tier-appropriate days
-        from zoneinfo import ZoneInfo
-        from datetime import timedelta
         try:
-            guild_tz = ZoneInfo(guild_tz_name or DEFAULT_TZ)
-        except Exception:
-            guild_tz = timezone.utc
-            guild_tz_name = "UTC"
-        
-        # Calculate date range based on tier limits
-        end_date = datetime.now(guild_tz)
-        start_date = end_date - timedelta(days=report_days)
-        
-        start_boundary = datetime.combine(start_date.date(), datetime.min.time()).replace(tzinfo=guild_tz)
-        end_boundary = datetime.combine(end_date.date(), datetime.max.time()).replace(tzinfo=guild_tz)
-        
-        start_utc = start_boundary.astimezone(timezone.utc).isoformat()
-        end_utc = end_boundary.astimezone(timezone.utc).isoformat()
-        
-        # Get all user sessions
-        sessions_data = get_sessions_report(guild_id, None, start_utc, end_utc)
-        
-        if not sessions_data:
-            await interaction.followup.send(
-                f"📭 No completed timesheet entries found for the last {report_days} days",
-                ephemeral=True
-            )
-            return
-        
-        # Group sessions by user
-        user_sessions = {}
-        for user_id, clock_in_iso, clock_out_iso, duration_seconds in sessions_data:
-            if user_id not in user_sessions:
-                user_sessions[user_id] = []
-            user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
-        
-        # Generate CSV files for each user
-        total_users = len(user_sessions)
-        total_entries = len(sessions_data)
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-        tier_note = f"({server_tier.title()} tier - {report_days} days max)" if server_tier == "basic" else f"({server_tier.title()} tier)"
-        
-        if total_users == 1:
-            # Single user: Send CSV file directly (not zipped)
-            user_id, sessions = next(iter(user_sessions.items()))
-            csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name or DEFAULT_TZ)
+            # Defer immediately to prevent timeout
+            await interaction.response.defer(ephemeral=True)
             
-            safe_user_name = sanitize_filename(user_display_name)
-            filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
-            file = discord.File(
-                io.BytesIO(csv_content.encode('utf-8')), 
-                filename=filename
-            )
+            if interaction.guild is None:
+                await interaction.followup.send("Use this in a server.", ephemeral=True)
+                return
             
-            await interaction.followup.send(
-                f"📊 Generated timesheet report for **{user_display_name}** {tier_note}\n"
-                f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
-                f"📝 **Total Entries:** {total_entries} completed shifts\n"
-                f"🕐 **Timezone:** {guild_tz_name}",
-                file=file,
-                ephemeral=True
-            )
-        else:
-            # Multiple users: Create zip file containing all CSV files
-            zip_buffer = io.BytesIO()
+            # Check if user has admin access (Discord admin OR custom admin role)
+            # Type guard: ensure we have a Member for guild-specific functions
+            if not isinstance(interaction.user, discord.Member):
+                await interaction.followup.send(
+                    "❌ Unable to verify admin permissions. Please try again.",
+                    ephemeral=True
+                )
+                return
             
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_archive:
-                for user_id, sessions in user_sessions.items():
-                    csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name or DEFAULT_TZ)
-                    safe_user_name = sanitize_filename(user_display_name)
-                    csv_filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
-                    # Explicitly encode CSV content to UTF-8 bytes for zip
-                    zip_archive.writestr(csv_filename, csv_content.encode('utf-8'))
+            if not user_has_admin_access(interaction.user):
+                await interaction.followup.send(
+                    "❌ **Access Denied - Admin Role Required**\n\n"
+                    "You need administrator permissions or an admin role to generate reports.\n\n"
+                    "**To get access:**\n"
+                    "• Ask your server administrator to grant you admin role access\n"
+                    "• They can use: `/add_admin_role @yourrole` to give your role admin access\n"
+                    "• Or ask them to add you to an existing admin role\n\n"
+                    "💡 Contact your server admin for help with role management.", 
+                    ephemeral=True
+                )
+                return
             
-            zip_buffer.seek(0)
-            zip_filename = f"timesheet_reports_{start_date_str}_to_{end_date_str}_all_users.zip"
+            guild_id = interaction.guild.id
+            server_tier = get_server_tier(guild_id)
             
-            zip_discord_file = discord.File(zip_buffer, filename=zip_filename)
+            # Free tier: Admin only + fake data 
+            if server_tier == "free":
+                fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
+                filename = f"sample_report_last_30_days.csv"
+                
+                file = discord.File(
+                    io.BytesIO(fake_csv.encode('utf-8')), 
+                    filename=filename
+                )
             
-            await interaction.followup.send(
-                f"📊 Generated timesheet reports for **{total_users} users** {tier_note}\n"
-                f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
-                f"📝 **Total Entries:** {total_entries} completed shifts\n"
-                f"🕐 **Timezone:** {guild_tz_name}\n\n"
-                f"📁 **Delivery:** ZIP file containing individual CSV for each employee",
-                file=zip_discord_file,
-                ephemeral=True
-            )
+                await interaction.followup.send(
+                    f"📊 **Free Tier Sample Report**\n"
+                    f"🎯 This is sample data. Upgrade to Basic ($5/month) or Pro ($10/month) for real reports!\n"
+                    f"📅 Date Range: Last 30 days",
+                    file=file,
+                    ephemeral=True
+                )
+                return
+            
+            # Basic and Pro tier: Full reports access with retention limits
+            guild_tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
+            if guild_tz_name is None:
+                guild_tz_name = DEFAULT_TZ
+            
+            # Determine report range based on tier
+            if server_tier == "basic":
+                report_days = 7  # Basic tier: 7 days max
+            else:  # pro tier
+                report_days = 30  # Pro tier: 30 days max
+            
+            # Generate report for tier-appropriate days
+            from zoneinfo import ZoneInfo
+            from datetime import timedelta
+            try:
+                guild_tz = ZoneInfo(guild_tz_name or DEFAULT_TZ)
+            except Exception:
+                guild_tz = timezone.utc
+                guild_tz_name = "UTC"
+            
+            # Calculate date range based on tier limits
+            end_date = datetime.now(guild_tz)
+            start_date = end_date - timedelta(days=report_days)
+            
+            start_boundary = datetime.combine(start_date.date(), datetime.min.time()).replace(tzinfo=guild_tz)
+            end_boundary = datetime.combine(end_date.date(), datetime.max.time()).replace(tzinfo=guild_tz)
+            
+            start_utc = start_boundary.astimezone(timezone.utc).isoformat()
+            end_utc = end_boundary.astimezone(timezone.utc).isoformat()
+            
+            # Get all user sessions
+            sessions_data = get_sessions_report(guild_id, None, start_utc, end_utc)
+            
+            if not sessions_data:
+                await interaction.followup.send(
+                    f"📭 No completed timesheet entries found for the last {report_days} days",
+                    ephemeral=True
+                )
+                return
+            
+            # Group sessions by user
+            user_sessions = {}
+            for user_id, clock_in_iso, clock_out_iso, duration_seconds in sessions_data:
+                if user_id not in user_sessions:
+                    user_sessions[user_id] = []
+                user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
+            
+            # Generate CSV files for each user
+            total_users = len(user_sessions)
+            total_entries = len(sessions_data)
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+            tier_note = f"({server_tier.title()} tier - {report_days} days max)" if server_tier == "basic" else f"({server_tier.title()} tier)"
+            
+            if total_users == 1:
+                # Single user: Send CSV file directly (not zipped)
+                user_id, sessions = next(iter(user_sessions.items()))
+                csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name or DEFAULT_TZ)
+                
+                safe_user_name = sanitize_filename(user_display_name)
+                filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
+                file = discord.File(
+                    io.BytesIO(csv_content.encode('utf-8')), 
+                    filename=filename
+                )
+                
+                await interaction.followup.send(
+                    f"📊 Generated timesheet report for **{user_display_name}** {tier_note}\n"
+                    f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+                    f"📝 **Total Entries:** {total_entries} completed shifts\n"
+                    f"🕐 **Timezone:** {guild_tz_name}",
+                    file=file,
+                    ephemeral=True
+                )
+            else:
+                # Multiple users: Create zip file containing all CSV files
+                zip_buffer = io.BytesIO()
+                
+                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_archive:
+                    for user_id, sessions in user_sessions.items():
+                        csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name or DEFAULT_TZ)
+                        safe_user_name = sanitize_filename(user_display_name)
+                        csv_filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
+                        # Explicitly encode CSV content to UTF-8 bytes for zip
+                        zip_archive.writestr(csv_filename, csv_content.encode('utf-8'))
+                
+                zip_buffer.seek(0)
+                zip_filename = f"timesheet_reports_{start_date_str}_to_{end_date_str}_all_users.zip"
+                
+                zip_discord_file = discord.File(zip_buffer, filename=zip_filename)
+                
+                await interaction.followup.send(
+                    f"📊 Generated timesheet reports for **{total_users} users** {tier_note}\n"
+                    f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+                    f"📝 **Total Entries:** {total_entries} completed shifts\n"
+                    f"🕐 **Timezone:** {guild_tz_name}\n\n"
+                    f"📁 **Delivery:** ZIP file containing individual CSV for each employee",
+                    file=zip_discord_file,
+                    ephemeral=True
+                )
+            
+        except (discord.NotFound, discord.errors.NotFound):
+            # Interaction expired or was deleted - silently handle this
+            print(f"⚠️ Reports interaction expired/not found for user {interaction.user.id}")
+        except discord.errors.InteractionResponded:
+            # Interaction was already responded to - try followup
+            try:
+                await interaction.followup.send("❌ Reports interaction error. Please try again.", ephemeral=True)
+            except Exception as e:
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
+        except Exception as e:
+            # General error handling
+            print(f"❌ Error in generate_reports callback: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(f"❌ Error generating reports: {str(e)}", ephemeral=True)
+                else:
+                    await interaction.followup.send(f"❌ Error generating reports: {str(e)}", ephemeral=True)
+            except Exception:
+                # If we can't even send an error message, just log it
+                print(f"❌ Failed to send error message for generate_reports: {e}")
 
     async def show_upgrade(self, interaction: discord.Interaction):
         """Show upgrade options for free tier servers"""
@@ -2704,6 +2727,11 @@ class LegacyTimeClockView(discord.ui.View):
         """Route to TimeClockView.clock_out method"""
         temp_view = TimeClockView()
         await temp_view.clock_out(interaction)
+    
+    async def on_the_clock(self, interaction: discord.Interaction):
+        """Route to TimeClockView.on_the_clock method"""
+        temp_view = TimeClockView()
+        await temp_view.on_the_clock(interaction)
     
     async def show_help(self, interaction: discord.Interaction):
         """Route to TimeClockView.show_help method"""
