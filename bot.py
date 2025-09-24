@@ -3597,9 +3597,14 @@ def schedule_daily_cleanup():
 @app_commands.guild_only()
 async def manual_cleanup(interaction: discord.Interaction, user: Optional[discord.Member] = None):
     """Allow admins to manually trigger data cleanup - either for old sessions or for a specific user"""
-    await interaction.response.defer(ephemeral=True)
-    
     try:
+        # Defer immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+        
+        if interaction.guild is None:
+            await interaction.followup.send("Use this in a server.", ephemeral=True)
+            return
+            
         if user:
             # Delete all data for the specific user
             deleted_count = cleanup_user_sessions(interaction.guild_id, user.id)
@@ -3637,11 +3642,26 @@ async def manual_cleanup(interaction: discord.Interaction, user: Optional[discor
         
         await interaction.followup.send(embed=embed, ephemeral=True)
         
+    except (discord.NotFound, discord.errors.NotFound):
+        # Interaction expired or was deleted - silently handle this
+        print(f"⚠️ Data cleanup interaction expired/not found for user {interaction.user.id}")
+    except discord.errors.InteractionResponded:
+        # Interaction was already responded to - try followup
+        try:
+            await interaction.followup.send("❌ Cleanup interaction error. Please try again.", ephemeral=True)
+        except Exception as e:
+            print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
     except Exception as e:
-        await interaction.followup.send(
-            f"❌ Error during cleanup: {str(e)}", 
-            ephemeral=True
-        )
+        # General error handling
+        print(f"❌ Error in data_cleanup command: {e}")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ Error during cleanup: {str(e)}", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ Error during cleanup: {str(e)}", ephemeral=True)
+        except Exception:
+            # If we can't even send an error message, just log it
+            print(f"❌ Failed to send error message for data_cleanup: {e}")
 
 class PurgeConfirmationView(discord.ui.View):
     """Confirmation view for purge command"""
