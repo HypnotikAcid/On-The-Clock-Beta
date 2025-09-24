@@ -56,6 +56,34 @@ def owner_only(func):
     return wrapper
 
 # --- Proper Interaction Response Helper ---
+async def robust_defer(interaction: discord.Interaction, ephemeral: bool = True) -> bool:
+    """
+    Robust interaction defer with proper error handling.
+    
+    Args:
+        interaction: The Discord interaction to defer
+        ephemeral: Whether the response should be ephemeral
+    
+    Returns:
+        bool: True if defer was successful, False if interaction was already acknowledged
+    """
+    if interaction.response.is_done():
+        print(f"⚠️ Interaction already acknowledged for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
+        return False
+    
+    try:
+        await interaction.response.defer(ephemeral=ephemeral)
+        return True
+    except discord.errors.NotFound:
+        print(f"❌ Interaction expired for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
+        return False
+    except discord.errors.HTTPException as e:
+        if "already been acknowledged" in str(e):
+            print(f"⚠️ Interaction already acknowledged for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
+            return False
+        print(f"❌ HTTP error during defer: {e}")
+        return False
+
 async def send_reply(interaction: discord.Interaction, content: Optional[str] = None, ephemeral: bool = True, **kwargs):
     """
     Proper helper function to handle Discord interaction responses.
@@ -444,7 +472,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def handle_stripe_webhook(self):
         """Handle Stripe webhook events with proper signature verification"""
         try:
-            print(f"🔔 Webhook received - Headers: {dict(self.headers)}")
+            print(f"🔔 Webhook received - Content-Length: {self.headers.get('content-length', 'unknown')}")
             
             if not STRIPE_WEBHOOK_SECRET:
                 print("❌ STRIPE_WEBHOOK_SECRET not configured")
@@ -1923,8 +1951,11 @@ class TimeClockView(discord.ui.View):
 
     async def on_the_clock(self, interaction: discord.Interaction):
         """Show all currently clocked in users with their times"""
-        # Defer immediately to prevent timeout
-        await interaction.response.defer(ephemeral=True)
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
         
         if interaction.guild is None:
             await interaction.followup.send("Use this in a server.", ephemeral=True)
@@ -3722,7 +3753,11 @@ class PurgeConfirmationView(discord.ui.View):
     @discord.ui.button(label="✅ Yes, Purge Timeclock Data", style=discord.ButtonStyle.danger, custom_id="purge_yes")
     async def confirm_purge(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Handle purge confirmation"""
-        await interaction.response.defer(ephemeral=True)
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
         
         if not user_has_admin_access(interaction.user):
             await interaction.followup.send("❌ Only administrators can use this command.", ephemeral=True)
@@ -3785,7 +3820,11 @@ class PurgeConfirmationView(discord.ui.View):
 @app_commands.guild_only()
 async def purge_data(interaction: discord.Interaction):
     """Allow admins to manually purge timeclock data only"""
-    await interaction.response.defer(ephemeral=True)
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
     
     # Double-check admin status
     if not is_server_admin(interaction.user):
@@ -4190,7 +4229,15 @@ async def owner_refresh_all(interaction: discord.Interaction):
         await send_reply(interaction, "❌ Access denied.", ephemeral=True)
         return
     
-    await interaction.response.defer(ephemeral=True)
+    # Robust defer with error handling
+    try:
+        await interaction.response.defer(ephemeral=True)
+    except discord.errors.NotFound:
+        print(f"❌ Owner refresh: Interaction expired")
+        return
+    except discord.errors.HTTPException as e:
+        print(f"❌ Owner refresh: HTTP error during defer: {e}")
+        return
     
     try:
         total_guilds = len(bot.guilds)
