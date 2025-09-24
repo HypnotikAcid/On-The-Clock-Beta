@@ -3592,29 +3592,48 @@ def schedule_daily_cleanup():
     print("⏰ Daily cleanup scheduler started")
 
 @tree.command(name="data_cleanup", description="Manually trigger data cleanup (Admin only)")
+@app_commands.describe(user="Optional: Delete all timeclock data for a specific user only")
 @app_commands.default_permissions(administrator=True)  
 @app_commands.guild_only()
-async def manual_cleanup(interaction: discord.Interaction):
-    """Allow admins to manually trigger data cleanup"""
+async def manual_cleanup(interaction: discord.Interaction, user: Optional[discord.User] = None):
+    """Allow admins to manually trigger data cleanup - either for old sessions or for a specific user"""
     await interaction.response.defer(ephemeral=True)
     
     try:
-        deleted_count = cleanup_old_sessions(interaction.guild_id)
-        retention_days = get_retention_days(interaction.guild_id)
-        tier = get_server_tier(interaction.guild_id)
-        
-        embed = discord.Embed(
-            title="🧹 Data Cleanup Complete",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="Records Removed", value=f"{deleted_count} old sessions", inline=True)
-        embed.add_field(name="Current Tier", value=f"{tier.title()}", inline=True)
-        embed.add_field(name="Data Retention", value=f"{retention_days} days", inline=True)
-        embed.add_field(
-            name="Retention Policy",
-            value="**Free:** No retention (test only)\n**Basic:** 7 days (1 week)\n**Pro:** 30 days (1 month)",
-            inline=False
-        )
+        if user:
+            # Delete all data for the specific user
+            deleted_count = cleanup_user_sessions(interaction.guild_id, user.id)
+            
+            embed = discord.Embed(
+                title="🗑️ User Data Cleanup Complete",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Target User", value=f"{user.mention} ({user.name})", inline=True)
+            embed.add_field(name="Records Removed", value=f"{deleted_count} sessions", inline=True)
+            embed.add_field(
+                name="⚠️ Action Performed",
+                value=f"All timeclock data for **{user.name}** has been permanently deleted from this server.",
+                inline=False
+            )
+            
+        else:
+            # Clean up old sessions based on retention policy
+            deleted_count = cleanup_old_sessions(interaction.guild_id)
+            retention_days = get_retention_days(interaction.guild_id)
+            tier = get_server_tier(interaction.guild_id)
+            
+            embed = discord.Embed(
+                title="🧹 Data Cleanup Complete",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Records Removed", value=f"{deleted_count} old sessions", inline=True)
+            embed.add_field(name="Current Tier", value=f"{tier.title()}", inline=True)
+            embed.add_field(name="Data Retention", value=f"{retention_days} days", inline=True)
+            embed.add_field(
+                name="Retention Policy",
+                value="**Free:** No retention (test only)\n**Basic:** 7 days (1 week)\n**Pro:** 30 days (1 month)",
+                inline=False
+            )
         
         await interaction.followup.send(embed=embed, ephemeral=True)
         
