@@ -1352,6 +1352,41 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
     
     return deleted_count
 
+def cleanup_user_sessions(guild_id: int, user_id: int) -> int:
+    """Delete all timeclock sessions for a specific user in a guild. Returns count of deleted records."""
+    deleted_count = 0
+    max_retries = 3
+    
+    for attempt in range(max_retries):
+        try:
+            with db() as conn:
+                # Set timeout for database operations
+                conn.execute("PRAGMA busy_timeout = 5000")
+                
+                # Delete all sessions for the specific user in this guild
+                cursor = conn.execute("""
+                    DELETE FROM sessions 
+                    WHERE guild_id = ? AND user_id = ?
+                """, (guild_id, user_id))
+                deleted_count = cursor.rowcount
+                
+                # Optimize database after cleanup (only if we deleted something)
+                if deleted_count > 0:
+                    conn.execute("PRAGMA wal_checkpoint")
+                    
+            # Success - exit retry loop
+            break
+            
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e) and attempt < max_retries - 1:
+                print(f"🔄 Database locked, retrying user cleanup attempt {attempt + 1}/{max_retries}")
+                time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                continue
+            else:
+                raise
+    
+    return deleted_count
+
 def get_guild_setting(guild_id: int, key: str, default=None):
     # Map of allowed keys to their SQL column queries
     column_queries = {
