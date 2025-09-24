@@ -2910,16 +2910,16 @@ async def on_guild_join(guild):
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def setup_timeclock(interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None):
-    ch = channel or interaction.channel
-    if ch is None:
-        await send_reply(interaction, "No channel resolved.", ephemeral=True)
-        return
-    
-    # Defer immediately after parameter validation
+    # Defer immediately at the start
     try:
         await interaction.response.defer(ephemeral=True)
     except discord.errors.NotFound:
         print(f"❌ Interaction expired in setup_timeclock for guild {interaction.guild_id}")
+        return
+    
+    ch = channel or interaction.channel
+    if ch is None:
+        await interaction.followup.send("No channel resolved.", ephemeral=True)
         return
     
     # Use guild-specific lock to prevent race conditions
