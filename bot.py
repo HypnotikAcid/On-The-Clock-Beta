@@ -4229,14 +4229,10 @@ async def owner_refresh_all(interaction: discord.Interaction):
         await send_reply(interaction, "❌ Access denied.", ephemeral=True)
         return
     
-    # Robust defer with error handling
-    try:
-        await interaction.response.defer(ephemeral=True)
-    except discord.errors.NotFound:
-        print(f"❌ Owner refresh: Interaction expired")
-        return
-    except discord.errors.HTTPException as e:
-        print(f"❌ Owner refresh: HTTP error during defer: {e}")
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
         return
     
     try:
