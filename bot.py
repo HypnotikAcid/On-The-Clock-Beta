@@ -369,6 +369,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             </ul>
         </div>
         
+        <div class="features">
+            <h3>🔧 Getting Started & Troubleshooting</h3>
+            <ul>
+                <li><strong>Setup:</strong> Use <code>/setup_timeclock</code> to create your timeclock interface</li>
+                <li><strong>Permissions:</strong> Bot needs Send Messages permission in the timeclock channel</li>
+                <li><strong>Troubleshooting:</strong> If buttons stop working, use <code>/refresh</code> to fix errors</li>
+                <li><strong>Quick Fix:</strong> <code>/refresh</code> works in any channel where timeclock is setup</li>
+                <li><strong>Help:</strong> Use <code>/help</code> to see all 21 available commands</li>
+            </ul>
+        </div>
+        
         <a href="{invite_url}" class="add-bot-btn">
             🔗 Add Bot to Your Discord Server
         </a>
@@ -2342,7 +2353,7 @@ class TimeClockView(discord.ui.View):
             
             embed = discord.Embed(
                 title="📋 Complete Command Reference",
-                description=f"**Current Plan:** {server_tier.title()}\n\n**All 20 available slash commands organized by function:**",
+                description=f"**Current Plan:** {server_tier.title()}\n\n**All 21 available slash commands organized by function:**",
                 color=tier_color.get(server_tier, discord.Color.green())
             )
         
@@ -3071,7 +3082,13 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
                 print(f"✅ Created new timeclock message (ID: {msg.id})")
             except Exception as e:
                 print(f"❌ Failed to create timeclock message: {e}")
-                await interaction.edit_original_response(content="❌ Failed to create timeclock message. Check bot permissions.")
+                await interaction.edit_original_response(
+                    content="❌ **Failed to create timeclock message**\n\n"
+                           "**Common Solutions:**\n"
+                           "• Make sure the bot has **Send Messages** permission in the channel\n"
+                           "• Try using `/refresh` in a different channel with proper permissions\n"
+                           "• Check that the channel allows message sending"
+                )
                 return
         
         # Store the new message info
@@ -3088,9 +3105,119 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
     # Send final response using edit since we deferred
     channel_mention = getattr(ch, 'mention', f'<#{ch.id}>')
     if force_refresh:
-        await interaction.edit_original_response(content=f"🔄 Refreshed timeclock in {channel_mention}.")
+        await interaction.edit_original_response(
+            content=f"🔄 **Timeclock Refreshed Successfully!**\n\n"
+                   f"The timeclock has been refreshed in {channel_mention}.\n"
+                   f"💡 **Tip**: Use `/refresh` anytime you encounter errors with timeclock buttons."
+        )
     else:
-        await interaction.edit_original_response(content=f"✅ Posted timeclock in {channel_mention}.")
+        await interaction.edit_original_response(
+            content=f"✅ **Timeclock Setup Complete!**\n\n"
+                   f"Posted timeclock in {channel_mention}.\n\n"
+                   f"**🔧 Troubleshooting Tips:**\n"
+                   f"• If buttons stop working, use `/refresh` to fix errors\n"
+                   f"• Make sure the bot has **Send Messages** permission in the channel"
+        )
+
+@tree.command(name="refresh", description="Refresh the timeclock in the current channel")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def refresh_timeclock(interaction: discord.Interaction):
+    """Refresh the timeclock interface in the current channel. Use this if you encounter errors or issues with the timeclock buttons."""
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
+    
+    # Get current channel
+    current_channel = interaction.channel
+    if current_channel is None:
+        await interaction.edit_original_response(content="❌ Could not determine current channel.")
+        return
+    
+    # Check if channel supports sending messages
+    if not hasattr(current_channel, 'send'):
+        await interaction.edit_original_response(content="❌ This channel type does not support timeclock messages. Please use a text channel.")
+        return
+    
+    # Check bot permissions
+    permissions = current_channel.permissions_for(interaction.guild.me)
+    if not permissions.send_messages:
+        await interaction.edit_original_response(
+            content="❌ **Bot Missing Permissions**\n\n"
+                   "I need **Send Messages** permission in this channel to set up the timeclock.\n"
+                   "Please give me the required permission and try `/refresh` again."
+        )
+        return
+    
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.edit_original_response(content="❌ This command must be used in a server.")
+        return
+    
+    guild_lock = get_guild_lock(guild_id)
+    
+    async with guild_lock:
+        print(f"🔄 Refreshing timeclock in {getattr(current_channel, 'name', f'Channel ID {current_channel.id}')} (Guild: {guild_id})")
+        
+        # Clean up existing timeclock messages in this channel
+        deleted_count = 0
+        try:
+            if hasattr(current_channel, 'history'):
+                async for message in current_channel.history(limit=50):
+                    has_timeclock_components = False
+                    if (message.author == bot.user and message.components):
+                        for component in message.components:
+                            if hasattr(component, 'children') and component.children:
+                                for button in component.children:
+                                    if (hasattr(button, 'custom_id') and 
+                                        button.custom_id and 
+                                        button.custom_id.startswith("timeclock:")):
+                                        has_timeclock_components = True
+                                        break
+                                if has_timeclock_components:
+                                    break
+                    if has_timeclock_components:
+                        try:
+                            await message.delete()
+                            deleted_count += 1
+                            print(f"🧹 Deleted old timeclock message (ID: {message.id})")
+                        except Exception as e:
+                            print(f"⚠️ Could not delete message {message.id}: {e}")
+            
+            if deleted_count > 0:
+                print(f"🧹 Cleaned up {deleted_count} old timeclock messages")
+        except Exception as e:
+            print(f"⚠️ Error during cleanup: {e}")
+        
+        # Create new timeclock message
+        try:
+            view = TimeClockView(guild_id=guild_id)
+            msg = await current_channel.send("**Time Clock** — Click a button to record your time.\n(Only you see confirmations.)", view=view)
+            print(f"✅ Created refreshed timeclock message (ID: {msg.id})")
+            
+            # Store the new message info
+            set_guild_setting(guild_id, "button_channel_id", current_channel.id)
+            set_guild_setting(guild_id, "button_message_id", msg.id)
+            
+            channel_mention = getattr(current_channel, 'mention', f'<#{current_channel.id}>')
+            await interaction.edit_original_response(
+                content=f"🔄 **Timeclock Refreshed Successfully!**\n\n"
+                       f"The timeclock has been refreshed in {channel_mention}.\n"
+                       f"💡 **Tip**: Use `/refresh` anytime you encounter errors or issues with the timeclock buttons."
+            )
+            
+        except Exception as e:
+            print(f"❌ Failed to create refreshed timeclock message: {e}")
+            await interaction.edit_original_response(
+                content="❌ **Failed to refresh timeclock**\n\n"
+                       "This may be due to missing bot permissions. Please ensure the bot has:\n"
+                       "• **Send Messages** permission in this channel\n"
+                       "• **Embed Links** permission\n\n"
+                       "Then try `/refresh` again."
+            )
+            return
 
 @tree.command(name="set_recipient", description="Set who receives private time entries (DMs)")
 @app_commands.describe(user="Manager/admin who should receive time entries via DM")
@@ -3414,8 +3541,19 @@ async def help_command(interaction: discord.Interaction):
     
     embed = discord.Embed(
         title="📋 Complete Command Reference",
-        description=f"**Current Plan:** {server_tier.title()}\n\n**All 20 available slash commands organized by function:**",
+        description=f"**Current Plan:** {server_tier.title()}\n\n**All 21 available slash commands organized by function:**",
         color=tier_color.get(server_tier, discord.Color.green())
+    )
+    
+    # Quick Troubleshooting Guide (at the top)
+    embed.add_field(
+        name="🚨 Quick Troubleshooting",
+        value=(
+            "❓ **Timeclock buttons not working?** → Use `/refresh` in the timeclock channel\n"
+            "⚠️ **Setup commands failing?** → Ensure bot has **Send Messages** permission\n"
+            "💡 **Need help?** → Commands below are organized by function"
+        ),
+        inline=False
     )
     
     # Setup & Configuration Commands
@@ -3423,6 +3561,7 @@ async def help_command(interaction: discord.Interaction):
         name="⚙️ Setup & Configuration",
         value=(
             "`/setup_timeclock [channel]` - Post a persistent Clock In/Clock Out message\n"
+            "`/refresh` - Refresh the timeclock in current channel (fixes errors)\n"
             "`/set_recipient <user>` - Set who receives private time entries (DMs)\n"
             "`/set_timezone <timezone>` - Set display timezone (e.g., America/New_York)\n"
             "`/toggle_name_display` - Toggle between username and nickname display\n"
@@ -3505,7 +3644,18 @@ async def help_command(interaction: discord.Interaction):
         inline=False
     )
     
-    embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | 20 total commands available | Contact admin for upgrades")
+    # Troubleshooting & Tips
+    embed.add_field(
+        name="🔧 Troubleshooting & Tips",
+        value=(
+            "❓ **Timeclock buttons not working?** Use `/refresh` to fix errors\n"
+            "⚠️ **Setup failed?** Make sure the bot has **Send Messages** permission in the channel\n"
+            "💡 **Quick fix:** `/refresh` works in any channel where timeclock is setup"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | 21 total commands available | Use /refresh for timeclock issues")
     
     await send_reply(interaction, embed=embed, ephemeral=True)
 
