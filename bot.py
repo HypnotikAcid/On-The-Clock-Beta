@@ -3114,9 +3114,13 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         await interaction.edit_original_response(
             content=f"✅ **Timeclock Setup Complete!**\n\n"
                    f"Posted timeclock in {channel_mention}.\n\n"
+                   f"**📍 Current Status:**\n"
+                   f"• Version: **1.0.2 Beta**\n"
+                   f"• Next Update: We're redesigning the interaction flow to resolve Discord timeout issues\n\n"
                    f"**🔧 Troubleshooting Tips:**\n"
                    f"• If buttons stop working, use `/refresh` to fix errors\n"
-                   f"• Make sure the bot has **Send Messages** permission in the channel"
+                   f"• Make sure the bot has **Send Messages** permission in the channel\n\n"
+                   f"**🆘 Need Help?** Join our support server: https://discord.gg/KdTRTqdPcj"
         )
 
 @tree.command(name="refresh", description="Refresh the timeclock in the current channel")
