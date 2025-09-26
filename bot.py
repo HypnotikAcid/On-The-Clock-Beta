@@ -3086,8 +3086,8 @@ async def clock_interface(interaction: discord.Interaction):
         return
     
     # Check if user has permission to use timeclock functions
-    if not can_use_timeclock(interaction.user, guild_id):
-        server_tier = get_server_tier(guild_id)
+    server_tier = get_server_tier(guild_id)
+    if not user_has_clock_access(interaction.user, server_tier):
         if server_tier == "free":
             await send_reply(interaction,
                 "⚠️ **Free Tier Limitation**\n\n"
