@@ -662,7 +662,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     
                     # Purge data according to free tier policy (no retention)
                     print(f"🗑️ Purging data for cancelled subscription - Guild {guild_id}")
-                    self.purge_timeclock_data_only(guild_id)
+                    purge_timeclock_data_only(guild_id)
                     
                     print(f"✅ Subscription cancellation processed: Guild {guild_id} downgraded to free")
                 else:
@@ -713,21 +713,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"❌ Error purging guild data for {guild_id}: {e}")
 
-    def purge_timeclock_data_only(self, guild_id: int):
-        """Purge only timeclock sessions data, preserving subscription and core settings"""
-        try:
-            with db() as conn:
-                # Set timeout for database operations
-                conn.execute("PRAGMA busy_timeout = 5000")
-                
-                # Delete all sessions data only
-                sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
-                sessions_deleted = sessions_cursor.rowcount
-                
-                print(f"🗑️ Timeclock data purged for Guild {guild_id}: {sessions_deleted} sessions deleted (subscription preserved)")
-                
-        except Exception as e:
-            print(f"❌ Error purging timeclock data for {guild_id}: {e}")
 
 def purge_guild_data_for_testing(guild_id: int):
     """Standalone function to purge guild data for testing purposes"""
@@ -798,26 +783,6 @@ def purge_guild_data_for_testing(guild_id: int):
                     
         except Exception as e:
             print(f"❌ Error handling subscription change: {e}")
-    
-    def handle_subscription_cancellation(self, subscription):
-        """Handle subscription cancellations"""
-        try:
-            with db() as conn:
-                cursor = conn.execute("""
-                    SELECT guild_id FROM server_subscriptions 
-                    WHERE subscription_id = ?
-                """, (subscription['id'],))
-                result = cursor.fetchone()
-                
-                if result:
-                    guild_id = result[0]
-                    
-                    # Purge all guild data and revert to free tier
-                    self.purge_all_guild_data(guild_id)
-                    print(f"⬇️ Subscription cancelled: Guild {guild_id} -> Free with data purged")
-                    
-        except Exception as e:
-            print(f"❌ Error handling subscription cancellation: {e}")
     
     def handle_payment_failure(self, invoice):
         """Handle failed payments"""
