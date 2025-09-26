@@ -3971,6 +3971,98 @@ async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: 
     except Exception as e:
         await interaction.followup.send(f"❌ Error granting remote server subscription: {str(e)}", ephemeral=True)
 
+@tree.command(name="owner_server_listings", description="[OWNER] View all servers with employee/admin headcounts")
+async def owner_server_listings(interaction: discord.Interaction):
+    """Owner-only command to list all servers with employee/admin headcounts"""
+    if interaction.user.id != BOT_OWNER_ID:
+        await send_reply(interaction, "❌ Access denied.", ephemeral=True)
+        return
+        
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
+    
+    try:
+        embed = discord.Embed(
+            title="📊 Server Listings",
+            description=f"Bot is active in {len(bot.guilds)} servers",
+            color=discord.Color.blue()
+        )
+        
+        server_data = []
+        
+        for guild in bot.guilds:
+            # Get server tier
+            tier = get_server_tier(guild.id)
+            
+            # Note: Without member intents, we can't count individual users by permissions/roles
+            # We can only provide the total member count and role configuration info
+            admin_count = "N/A*"
+            employee_count = "N/A*"
+            
+            # Check if clock roles are configured (indicates employees beyond admins)
+            clock_roles = get_clock_roles(guild.id)
+            employee_setup = "Admin-only" if not clock_roles else f"{len(clock_roles)} employee roles"
+            
+            server_data.append({
+                'name': guild.name,
+                'id': guild.id,
+                'member_count': guild.member_count,
+                'admin_count': admin_count,
+                'employee_count': employee_count,
+                'employee_setup': employee_setup,
+                'tier': tier
+            })
+        
+        # Sort by member count (largest first)
+        server_data.sort(key=lambda x: x['member_count'], reverse=True)
+        
+        # Add server info to embed (limit to prevent message too long)
+        for i, server in enumerate(server_data[:15]):  # Show first 15 servers
+            tier_emoji = {"free": "🆓", "basic": "💼", "pro": "⭐"}.get(server['tier'], "❓")
+            
+            embed.add_field(
+                name=f"{tier_emoji} {server['name'][:30]}" + ("..." if len(server['name']) > 30 else ""),
+                value=f"**Members:** {server['member_count']}\n"
+                      f"**Access:** {server['employee_setup']}\n"
+                      f"**Tier:** {server['tier'].title()}",
+                inline=True
+            )
+        
+        if len(server_data) > 15:
+            embed.add_field(
+                name="...",
+                value=f"And {len(server_data) - 15} more servers",
+                inline=False
+            )
+        
+        # Add summary
+        total_members = sum(s['member_count'] for s in server_data)
+        admin_only_count = len([s for s in server_data if s['employee_setup'] == 'Admin-only'])
+        role_configured_count = len([s for s in server_data if s['employee_setup'] != 'Admin-only'])
+        
+        embed.add_field(
+            name="📈 Totals",
+            value=f"**Servers:** {len(server_data)}\n"
+                  f"**Total Members:** {total_members:,}\n"
+                  f"**Admin-Only Access:** {admin_only_count} servers\n"
+                  f"**Employee Roles Setup:** {role_configured_count} servers",
+            inline=False
+        )
+        
+        embed.add_field(
+            name="ℹ️ Note",
+            value="*Individual admin/employee counts require member intents to be enabled in Discord Developer Portal*",
+            inline=False
+        )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error fetching server listings: {str(e)}", ephemeral=True)
+
 
 if __name__ == "__main__":
     # Run database migrations first with exclusive locking
