@@ -1075,8 +1075,6 @@ def get_guild_setting(guild_id: int, key: str, default=None):
     # Map of allowed keys to their SQL column queries
     column_queries = {
         'recipient_user_id': "SELECT recipient_user_id FROM guild_settings WHERE guild_id=?",
-        'button_channel_id': "SELECT button_channel_id FROM guild_settings WHERE guild_id=?",
-        'button_message_id': "SELECT button_message_id FROM guild_settings WHERE guild_id=?",
         'timezone': "SELECT timezone FROM guild_settings WHERE guild_id=?",
         'name_display_mode': "SELECT name_display_mode FROM guild_settings WHERE guild_id=?",
         'main_admin_role_id': "SELECT main_admin_role_id FROM guild_settings WHERE guild_id=?"
@@ -1094,8 +1092,6 @@ def set_guild_setting(guild_id: int, key: str, value):
     # Map of allowed keys to their SQL update queries
     update_queries = {
         'recipient_user_id': "UPDATE guild_settings SET recipient_user_id=? WHERE guild_id=?",
-        'button_channel_id': "UPDATE guild_settings SET button_channel_id=? WHERE guild_id=?",
-        'button_message_id': "UPDATE guild_settings SET button_message_id=? WHERE guild_id=?",
         'timezone': "UPDATE guild_settings SET timezone=? WHERE guild_id=?",
         'name_display_mode': "UPDATE guild_settings SET name_display_mode=? WHERE guild_id=?",
         'main_admin_role_id': "UPDATE guild_settings SET main_admin_role_id=? WHERE guild_id=?"
