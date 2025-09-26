@@ -1516,15 +1516,12 @@ async def setup_hook():
     """Setup hook to register persistent views when bot starts"""
     print("🔧 Registering persistent views...")
     
-    # Register NEW TimeClockView for handling new message interactions
+    # Register ONLY empty TimeClockView for handling interactions
+    # This prevents old buttons from appearing in channels
     bot.add_view(TimeClockView())
-    print("✅ TimeClockView registered (new custom_ids)")
+    print("✅ TimeClockView registered")
     
-    # Register LEGACY TimeClockView for backward compatibility with existing messages
-    bot.add_view(LegacyTimeClockView())
-    print("✅ LegacyTimeClockView registered (old custom_ids)")
-    
-    print("✅ Both persistent views registered successfully - full backward compatibility enabled")
+    print("✅ Persistent view setup complete - ephemeral interface mode")
 
 bot.setup_hook = setup_hook
 
@@ -2328,87 +2325,6 @@ class TimeClockView(discord.ui.View):
         
         await send_reply(interaction, embed=embed, ephemeral=True)
 
-# Legacy TimeClockView for backward compatibility with old custom_ids
-class LegacyTimeClockView(TimeClockView):
-    """
-    Backward compatibility view that handles old custom_ids from existing posted messages.
-    This prevents "This interaction failed" errors during the transition period.
-    
-    OLD custom_ids supported:
-    - timeclock:in (instead of timeclock:clock_in)
-    - timeclock:out (instead of timeclock:clock_out) 
-    - timeclock:report (instead of timeclock:reports)
-    - timeclock:upgrade (same as new)
-    - timeclock:help (same as new)
-    """
-    
-    def __init__(self):
-        # Initialize parent class without building conditional view
-        discord.ui.View.__init__(self, timeout=None)
-        
-        # Add legacy buttons with OLD custom_ids
-        # Clock In button (old: timeclock:in)
-        clock_in_btn = discord.ui.Button(
-            label="Clock In", 
-            style=discord.ButtonStyle.success, 
-            custom_id="timeclock:in", 
-            row=0
-        )
-        clock_in_btn.callback = self.clock_in
-        self.add_item(clock_in_btn)
-        
-        # Clock Out button (old: timeclock:out)
-        clock_out_btn = discord.ui.Button(
-            label="Clock Out", 
-            style=discord.ButtonStyle.danger, 
-            custom_id="timeclock:out", 
-            row=0
-        )
-        clock_out_btn.callback = self.clock_out
-        self.add_item(clock_out_btn)
-        
-        # Help button (old: timeclock:help - same as new)
-        help_btn = discord.ui.Button(
-            label="Help", 
-            style=discord.ButtonStyle.primary, 
-            custom_id="timeclock:help", 
-            row=0
-        )
-        help_btn.callback = self.show_help
-        self.add_item(help_btn)
-        
-        # Upgrade button (old: timeclock:upgrade - same as new)
-        upgrade_btn = discord.ui.Button(
-            label="Upgrade", 
-            style=discord.ButtonStyle.secondary, 
-            custom_id="timeclock:upgrade", 
-            emoji="🚀",
-            row=1
-        )
-        upgrade_btn.callback = self.show_upgrade
-        self.add_item(upgrade_btn)
-        
-        # On the Clock button (old: timeclock:onclock - same as new)
-        on_clock_btn = discord.ui.Button(
-            label="On the Clock", 
-            style=discord.ButtonStyle.secondary, 
-            custom_id="timeclock:onclock", 
-            row=0
-        )
-        on_clock_btn.callback = self.on_the_clock
-        self.add_item(on_clock_btn)
-        
-        # Reports button (old: timeclock:report)
-        reports_btn = discord.ui.Button(
-            label="Reports", 
-            style=discord.ButtonStyle.success, 
-            custom_id="timeclock:report", 
-            row=1
-        )
-        reports_btn.callback = self.generate_reports
-        self.add_item(reports_btn)
-
-    # All callback methods are inherited from TimeClockView - no temp instances needed!
 
 @bot.event
 async def on_ready():
