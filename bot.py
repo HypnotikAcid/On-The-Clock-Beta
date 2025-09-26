@@ -484,8 +484,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def handle_stripe_webhook(self):
         """Handle Stripe webhook events with proper signature verification"""
         try:
-            print(f"🔔 Webhook received - Content-Length: {self.headers.get('content-length', 'unknown')}")
-            
             if not STRIPE_WEBHOOK_SECRET:
                 print("❌ STRIPE_WEBHOOK_SECRET not configured")
                 self.send_response(400)
@@ -496,36 +494,35 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             payload = self.rfile.read(content_length)
             sig_header = self.headers.get('stripe-signature')
             
-            print(f"🔍 Payload length: {len(payload)}, Signature: {sig_header is not None}")
-            
             if not sig_header:
                 print("❌ Missing Stripe signature header")
-                print("📋 Available headers:", list(self.headers.keys()))
+                self.send_response(400)
+                self.end_headers()
+                return
                 
-            # Production webhook signature verification (ENABLED for live mode)
-            print("🔐 Verifying webhook signature for production...")
             try:
                 # Verify webhook signature using Stripe
                 event = stripe.Webhook.construct_event(
                     payload, sig_header, STRIPE_WEBHOOK_SECRET
                 )
-                print(f"✅ Webhook signature verified successfully")
-                print(f"🔔 Webhook event type: {event.get('type', 'unknown')}")
                 
-                if event.get('type') == 'checkout.session.completed':
-                    print("💳 Processing checkout.session.completed event")
+                event_type = event.get('type')
+                print(f"🔔 Processing Stripe webhook: {event_type}")
+                
+                if event_type == 'checkout.session.completed':
                     session = event['data']['object']
                     self.process_checkout_completed(session)
-                elif event.get('type') == 'customer.subscription.updated':
-                    print("🔄 Processing customer.subscription.updated event")
+                elif event_type == 'customer.subscription.updated':
                     subscription = event['data']['object']
-                    # Handle subscription updates if needed
-                elif event.get('type') == 'customer.subscription.deleted':
-                    print("❌ Processing customer.subscription.deleted event")
+                    self.handle_subscription_change(subscription)
+                elif event_type == 'customer.subscription.deleted':
                     subscription = event['data']['object']
                     self.handle_subscription_cancellation(subscription)
+                elif event_type == 'invoice.payment_failed':
+                    invoice = event['data']['object']
+                    self.handle_payment_failure(invoice)
                 else:
-                    print(f"ℹ️ Unhandled event type: {event.get('type')}")
+                    print(f"ℹ️ Unhandled Stripe event type: {event_type}")
                     
             except ValueError as e:
                 print(f"❌ Invalid webhook payload: {e}")
@@ -535,37 +532,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 print(f"❌ Invalid webhook signature: {e}")
                 self.send_response(400)
                 return
-            except Exception as debug_e:
-                print(f"🐛 Error processing webhook: {debug_e}")
+            except Exception as e:
+                print(f"❌ Error processing webhook: {e}")
                 import traceback
                 traceback.print_exc()
                 self.send_response(500)
                 return
             
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(b'{"received": true}')
-            return
-            
-            # Handle different event types
-            if event['type'] == 'checkout.session.completed':
-                session = event['data']['object']
-                self.process_checkout_completed(session)
-                        
-            elif event['type'] == 'customer.subscription.updated':
-                subscription = event['data']['object']
-                self.handle_subscription_change(subscription)
-                
-            elif event['type'] == 'customer.subscription.deleted':
-                subscription = event['data']['object']
-                self.handle_subscription_cancellation(subscription)
-                
-            elif event['type'] == 'invoice.payment_failed':
-                invoice = event['data']['object']
-                self.handle_payment_failure(invoice)
-            
-            # Send success response
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -579,20 +552,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def process_checkout_completed(self, session):
         """Process a completed checkout session"""
         try:
-            print(f"🔄 Processing checkout session: {session.get('id', 'unknown')}")
-            
             # Retrieve full session with line items to verify pricing
             full_session = stripe.checkout.Session.retrieve(
                 session['id'],
                 expand=['line_items']
             )
             
-            print(f"📋 Session details: Customer={full_session.get('customer')}, Subscription={full_session.get('subscription')}")
-            
             # Verify the price ID matches our expected tiers
             if full_session.line_items and full_session.line_items.data and full_session.line_items.data[0].price:
                 price_id = full_session.line_items.data[0].price.id
-                print(f"💰 Price ID: {price_id}")
                 
                 tier = None
                 for t, pid in STRIPE_PRICE_IDS.items():
@@ -602,25 +570,19 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
                 if not tier:
                     print(f"❌ Unknown price ID in checkout: {price_id}")
-                    print(f"🔍 Expected price IDs: {STRIPE_PRICE_IDS}")
                     return
                 
                 guild_id = session.get('metadata', {}).get('guild_id')
-                print(f"🎯 Guild ID from metadata: {guild_id}")
                 
                 if guild_id:
                     subscription_id = session.get('subscription')
                     customer_id = session.get('customer')
-                    
-                    print(f"📝 Updating server tier: Guild {guild_id} -> {tier.title()}")
-                    print(f"🔗 Subscription ID: {subscription_id}, Customer ID: {customer_id}")
                     
                     # Update database with verified subscription
                     set_server_tier(int(guild_id), tier, subscription_id, customer_id)
                     print(f"✅ Subscription activated: Guild {guild_id} -> {tier.title()}")
                 else:
                     print("❌ No guild_id found in session metadata")
-                    print(f"🔍 Available metadata: {session.get('metadata', {})}")
             else:
                 print("❌ No line items found in checkout session")
                 
@@ -632,8 +594,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def handle_subscription_cancellation(self, subscription):
         """Handle subscription cancellation events"""
         try:
-            print(f"🔄 Processing subscription cancellation: {subscription.get('id', 'unknown')}")
-            
             # Find guild by subscription_id or customer_id
             subscription_id = subscription.get('id')
             customer_id = subscription.get('customer')
@@ -651,7 +611,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
                 if result:
                     guild_id = result[0]
-                    print(f"🎯 Found guild {guild_id} for cancelled subscription")
                     
                     # Update subscription status to cancelled and downgrade to free
                     conn.execute("""
@@ -661,10 +620,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     """, (guild_id,))
                     
                     # Purge data according to free tier policy (no retention)
-                    print(f"🗑️ Purging data for cancelled subscription - Guild {guild_id}")
                     purge_timeclock_data_only(guild_id)
                     
-                    print(f"✅ Subscription cancellation processed: Guild {guild_id} downgraded to free")
+                    print(f"✅ Subscription cancelled: Guild {guild_id} downgraded to free")
                 else:
                     print(f"❌ No guild found for subscription {subscription_id}")
                     
