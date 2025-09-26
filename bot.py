@@ -3118,7 +3118,7 @@ async def clock_interface(interaction: discord.Interaction):
         
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.execute(
-                "SELECT clock_in_time FROM clock_sessions WHERE user_id = ? AND guild_id = ? AND clock_out_time IS NULL",
+                "SELECT clock_in FROM sessions WHERE user_id = ? AND guild_id = ? AND clock_out IS NULL",
                 (user_id, guild_id)
             )
             active_session = cursor.fetchone()
