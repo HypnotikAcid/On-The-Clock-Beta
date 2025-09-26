@@ -2333,7 +2333,7 @@ class TimeClockView(discord.ui.View):
         await send_reply(interaction, embed=embed, ephemeral=True)
 
 # Legacy TimeClockView for backward compatibility with old custom_ids
-class LegacyTimeClockView(discord.ui.View):
+class LegacyTimeClockView(TimeClockView):
     """
     Backward compatibility view that handles old custom_ids from existing posted messages.
     This prevents "This interaction failed" errors during the transition period.
@@ -2347,7 +2347,8 @@ class LegacyTimeClockView(discord.ui.View):
     """
     
     def __init__(self):
-        super().__init__(timeout=None)  # persistent view for backward compatibility
+        # Initialize parent class without building conditional view
+        discord.ui.View.__init__(self, timeout=None)
         
         # Add legacy buttons with OLD custom_ids
         # Clock In button (old: timeclock:in)
@@ -2411,39 +2412,7 @@ class LegacyTimeClockView(discord.ui.View):
         reports_btn.callback = self.generate_reports
         self.add_item(reports_btn)
 
-    # Route all callbacks to the same methods as TimeClockView
-    # This ensures consistent behavior between old and new messages
-    
-    async def clock_in(self, interaction: discord.Interaction):
-        """Route to TimeClockView.clock_in method"""
-        # Create a temporary TimeClockView instance to use its clock_in method
-        temp_view = TimeClockView()
-        await temp_view.clock_in(interaction)
-    
-    async def clock_out(self, interaction: discord.Interaction):
-        """Route to TimeClockView.clock_out method"""
-        temp_view = TimeClockView()
-        await temp_view.clock_out(interaction)
-    
-    async def on_the_clock(self, interaction: discord.Interaction):
-        """Route to TimeClockView.on_the_clock method"""
-        temp_view = TimeClockView()
-        await temp_view.on_the_clock(interaction)
-    
-    async def show_help(self, interaction: discord.Interaction):
-        """Route to TimeClockView.show_help method"""
-        temp_view = TimeClockView()
-        await temp_view.show_help(interaction)
-    
-    async def show_upgrade(self, interaction: discord.Interaction):
-        """Route to TimeClockView.show_upgrade method"""
-        temp_view = TimeClockView()
-        await temp_view.show_upgrade(interaction)
-    
-    async def generate_reports(self, interaction: discord.Interaction):
-        """Route to TimeClockView.generate_reports method"""
-        temp_view = TimeClockView()
-        await temp_view.generate_reports(interaction)
+    # All callback methods are inherited from TimeClockView - no temp instances needed!
 
 @bot.event
 async def on_ready():
