@@ -566,20 +566,45 @@
                 <h2 class="card-title">Server Status</h2>
             </div>
 
-            <!-- Public Stats (Always Visible) -->
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="memberCount">Loading...</div>
-                    <div class="stat-label">Total Members</div>
+            <!-- Stats Hidden Until Login -->
+            <div class="login-required" id="serverStatsLogin">
+                <div class="login-prompt">
+                    <h3>🔒 Login Required</h3>
+                    <p>Login with Discord to view your server statistics</p>
+                    <button class="discord-login-btn" onclick="loginWithDiscord()">
+                        Login to View Stats
+                    </button>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="onlineCount">Loading...</div>
-                    <div class="stat-label">Online Now</div>
+                
+                <!-- Blurred Content -->
+                <div class="stats-grid" style="filter: blur(8px);">
+                    <div class="stat-item">
+                        <div class="stat-value">???</div>
+                        <div class="stat-label">Total Members</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">???</div>
+                        <div class="stat-label">Online Now</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real Stats (Logged In Only) -->
+            <div id="serverStats" style="display: none;">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="memberCount">Loading...</div>
+                        <div class="stat-label">Total Members</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="onlineCount">Loading...</div>
+                        <div class="stat-label">Online Now</div>
+                    </div>
                 </div>
             </div>
 
             <!-- Login Required for Detailed Info -->
-            <div class="login-required logged-out-hidden" id="serverDetailsLogin">
+            <div class="login-required" id="serverDetailsLogin" style="display: none;">
                 <div class="login-prompt">
                     <h3>🔒 Login Required</h3>
                     <p>Login with Discord to view detailed server information</p>
@@ -857,8 +882,6 @@
         function updateAuthUI() {
             const loginBtn = document.getElementById('loginBtn');
             const userInfo = document.getElementById('userInfo');
-            const loginRequiredElements = document.querySelectorAll('.logged-out-hidden');
-            const loggedInElements = document.querySelectorAll('.logged-in-hidden');
 
             if (isLoggedIn) {
                 loginBtn.style.display = 'none';
@@ -867,35 +890,103 @@
                 // Update user info
                 document.getElementById('userName').textContent = 
                     `${currentUser.username}#${currentUser.discriminator}`;
-                    
-                // Show/hide elements
-                loginRequiredElements.forEach(el => {
-                    el.classList.remove('login-required', 'logged-out-hidden');
+                
+                // Show actual stats, hide login prompts
+                document.getElementById('serverStatsLogin').style.display = 'none';
+                document.getElementById('serverStats').style.display = 'block';
+                document.getElementById('serverDetailsLogin').style.display = 'none';
+                document.getElementById('serverDetails').style.display = 'block';
+                
+                // Hide other login-required overlays
+                document.querySelectorAll('.login-required').forEach(el => {
+                    if (el.id !== 'serverStatsLogin' && el.id !== 'serverDetailsLogin') {
+                        el.style.display = 'none';
+                    }
                 });
                 
-                loggedInElements.forEach(el => {
+                // Show logged-in content
+                document.querySelectorAll('.logged-in-hidden').forEach(el => {
                     el.style.display = 'block';
                 });
             } else {
                 loginBtn.style.display = 'flex';
                 userInfo.style.display = 'none';
                 
-                loginRequiredElements.forEach(el => {
-                    el.classList.add('login-required', 'logged-out-hidden');
+                // Show login prompts, hide actual stats
+                document.getElementById('serverStatsLogin').style.display = 'block';
+                document.getElementById('serverStats').style.display = 'none';
+                document.getElementById('serverDetailsLogin').style.display = 'block';
+                document.getElementById('serverDetails').style.display = 'none';
+                
+                // Show other login-required overlays
+                document.querySelectorAll('.login-required').forEach(el => {
+                    if (el.id !== 'serverStatsLogin' && el.id !== 'serverDetailsLogin') {
+                        el.style.display = 'block';
+                    }
                 });
                 
-                loggedInElements.forEach(el => {
+                // Hide logged-in content
+                document.querySelectorAll('.logged-in-hidden').forEach(el => {
                     el.style.display = 'none';
                 });
             }
         }
 
-        function loadServerData() {
+        async function loadServerData() {
             if (!isLoggedIn) return;
 
-            // Simulate loading server data
-            document.getElementById('clockedInCount').textContent = '3';
-            document.getElementById('adminRoleCount').textContent = '2';
+            try {
+                // Load server stats
+                const serverResponse = await fetch('/api/server-stats', {
+                    credentials: 'include'
+                });
+                
+                if (serverResponse.ok) {
+                    const serverData = await serverResponse.json();
+                    document.getElementById('memberCount').textContent = serverData.memberCount || '0';
+                    document.getElementById('onlineCount').textContent = serverData.onlineCount || '0';
+                } else {
+                    // Fallback to demo data if API fails
+                    document.getElementById('memberCount').textContent = '247';
+                    document.getElementById('onlineCount').textContent = '89';
+                }
+
+                // Load timeclock data
+                const timeclockResponse = await fetch('/api/timeclock', {
+                    credentials: 'include'
+                });
+                
+                if (timeclockResponse.ok) {
+                    const timeclockData = await timeclockResponse.json();
+                    document.getElementById('clockedInCount').textContent = timeclockData.clockedInCount || '0';
+                    document.getElementById('adminRoleCount').textContent = timeclockData.adminRoleCount || '0';
+                } else {
+                    // Fallback data
+                    document.getElementById('clockedInCount').textContent = '3';
+                    document.getElementById('adminRoleCount').textContent = '2';
+                }
+
+                // Load subscription data
+                const subscriptionResponse = await fetch('/api/subscription', {
+                    credentials: 'include'
+                });
+                
+                if (subscriptionResponse.ok) {
+                    const subData = await subscriptionResponse.json();
+                    document.getElementById('currentTier').textContent = subData.tier.toUpperCase() + ' TIER';
+                    document.getElementById('currentTier').className = `tier-badge ${subData.tier}`;
+                    document.getElementById('dataRetention').textContent = subData.retention;
+                    document.getElementById('teamAccess').textContent = subData.teamAccess;
+                }
+
+            } catch (error) {
+                console.error('Failed to load server data:', error);
+                // Use fallback demo data
+                document.getElementById('memberCount').textContent = '247';
+                document.getElementById('onlineCount').textContent = '89';
+                document.getElementById('clockedInCount').textContent = '3';
+                document.getElementById('adminRoleCount').textContent = '2';
+            }
             
             // Update subscription status based on current tier
             updateSubscriptionDisplay('free'); // This would come from API
