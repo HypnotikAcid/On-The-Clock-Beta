@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On the Clock - Workforce Management Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e6ed;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background Gears */
+        .gear-bg {
+            position: fixed;
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .gear-1 {
+            top: 10%;
+            right: 15%;
+            width: 120px;
+            height: 120px;
+            animation: rotate-clockwise 20s linear infinite;
+        }
+
+        .gear-2 {
+            bottom: 20%;
+            left: 10%;
+            width: 80px;
+            height: 80px;
+            animation: rotate-counter 15s linear infinite;
+        }
+
+        .gear-3 {
+            top: 60%;
+            right: 5%;
+            width: 60px;
+            height: 60px;
+            animation: rotate-clockwise 25s linear infinite;
+        }
+
+        @keyframes rotate-clockwise {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes rotate-counter {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        /* Header */
+        .header {
+            background: rgba(30, 30, 40, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid #5865F2;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(88, 101, 242, 0.3);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-gear {
+            width: 30px;
+            height: 30px;
+            fill: white;
+            animation: rotate-clockwise 8s linear infinite;
+        }
+
+        .logo-text {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #5865F2, #00D4FF);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(88, 101, 242, 0.2);
+            padding: 8px 16px;
+            border-radius: 25px;
+            border: 1px solid #5865F2;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Navigation */
+        .nav-tabs {
+            display: flex;
+            gap: 20px;
+            background: rgba(40, 40, 50, 0.8);
+            padding: 0.5rem 2rem;
+            border-bottom: 1px solid #404040;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #b0b0b0;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .nav-tab:hover {
+            background: rgba(88, 101, 242, 0.2);
+            color: white;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 2rem;
+        }
+
+        /* Dashboard Cards */
+        .dashboard-card {
+            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
+            border: 1px solid #404050;
+            border-radius: 20px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(88, 101, 242, 0.2);
+            border-color: #5865F2;
+        }
+
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #5865F2, #00D4FF, #FF6B6B);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        /* Slanted Buttons */
+        .slanted-btn {
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            transform: skew(-10deg);
+            margin: 10px 5px;
+        }
+
+        .slanted-btn span {
+            display: block;
+            transform: skew(10deg);
+        }
+
+        .slanted-btn:hover {
+            background: linear-gradient(45deg, #7289DA, #5865F2);
+            transform: skew(-10deg) translateY(-2px);
+            box-shadow: 0 10px 20px rgba(88, 101, 242, 0.4);
+        }
+
+        .slanted-btn.secondary {
+            background: linear-gradient(45deg, #40444b, #36393f);
+        }
+
+        .slanted-btn.danger {
+            background: linear-gradient(45deg, #FF6B6B, #FF5252);
+        }
+
+        .slanted-btn.success {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .stat-item {
+            background: rgba(88, 101, 242, 0.1);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(88, 101, 242, 0.2);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #00D4FF;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+
+        /* Live Activity Feed */
+        .activity-feed {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(40, 40, 50, 0.5);
+            border-radius: 8px;
+            border-left: 3px solid #00ff88;
+        }
+
+        .activity-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .activity-text {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .activity-time {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        /* Report Builder */
+        .report-builder {
+            grid-column: span 2;
+        }
+
+        .builder-section {
+            margin: 1.5rem 0;
+        }
+
+        .builder-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+        }
+
+        .drag-drop-area {
+            min-height: 120px;
+            border: 2px dashed #5865F2;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(88, 101, 242, 0.05);
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .drag-drop-area:hover {
+            background: rgba(88, 101, 242, 0.1);
+            border-color: #7289DA;
+        }
+
+        .metric-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 1rem 0;
+        }
+
+        .metric-pill {
+            background: linear-gradient(45deg, #40444b, #36393f);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: grab;
+            transition: all 0.3s ease;
+        }
+
+        .metric-pill:hover {
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            transform: translateY(-2px);
+        }
+
+        /* Chart Preview */
+        .chart-preview {
+            background: rgba(40, 40, 50, 0.5);
+            height: 200px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 1rem 0;
+            border: 1px solid #404050;
+        }
+
+        /* Live Clock */
+        .live-clock {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .clock-face {
+            width: 120px;
+            height: 120px;
+            border: 4px solid #5865F2;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            position: relative;
+            background: radial-gradient(circle, #1a1a2e, #0a0a0a);
+        }
+
+        .clock-hand {
+            position: absolute;
+            background: #00D4FF;
+            transform-origin: bottom center;
+            left: 50%;
+            bottom: 50%;
+        }
+
+        .hour-hand {
+            width: 3px;
+            height: 30px;
+            margin-left: -1.5px;
+            animation: hour-rotation 43200s linear infinite;
+        }
+
+        .minute-hand {
+            width: 2px;
+            height: 40px;
+            margin-left: -1px;
+            animation: minute-rotation 3600s linear infinite;
+        }
+
+        .clock-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: #FF6B6B;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Email Setup */
+        .email-setup {
+            grid-column: span 3;
+        }
+
+        .email-preview {
+            background: rgba(40, 40, 50, 0.5);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            border: 1px solid #404050;
+        }
+
+        .email-header {
+            background: #5865F2;
+            color: white;
+            padding: 1rem;
+            border-radius: 8px 8px 0 0;
+            margin: -1.5rem -1.5rem 1rem;
+        }
+
+        /* Role Management */
+        .role-matrix {
+            display: grid;
+            grid-template-columns: 2fr repeat(4, 1fr);
+            gap: 1px;
+            background: #404050;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .role-cell {
+            background: #2a2a3a;
+            padding: 12px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .role-header {
+            background: #5865F2;
+            color: white;
+            font-weight: 600;
+        }
+
+        .permission-toggle {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: #40444b;
+            margin: 0 auto;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .permission-toggle.enabled {
+            background: #00ff88;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .dashboard-card {
+                padding: 1.5rem;
+            }
+
+            .header-content {
+                padding: 0 1rem;
+            }
+
+            .nav-tabs {
+                padding: 0.5rem 1rem;
+                overflow-x: auto;
+                flex-wrap: nowrap;
+            }
+
+            .logo-text {
+                font-size: 1.4rem;
+            }
+
+            .report-builder,
+            .email-setup {
+                grid-column: span 1;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.8s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #5865F2;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7289DA;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background Gears -->
+    <svg class="gear-bg gear-1" viewBox="0 0 100 100">
+        <path d="M50,10 L60,20 L70,15 L75,25 L85,30 L80,40 L90,50 L80,60 L85,70 L75,75 L70,85 L60,80 L50,90 L40,80 L30,85 L25,75 L15,70 L20,60 L10,50 L20,40 L15,30 L25,25 L30,15 L40,20 Z" fill="currentColor"/>
+    </svg>
+    <svg class="gear-bg gear-2" viewBox="0 0 100 100">
+        <path d="M50,15 L58,22 L66,20 L70,28 L78,32 L75,40 L82,48 L75,56 L78,64 L70,68 L66,76 L58,74 L50,81 L42,74 L34,76 L30,68 L22,64 L25,56 L18,48 L25,40 L22,32 L30,28 L34,20 L42,22 Z" fill="currentColor"/>
+    </svg>
+    <svg class="gear-bg gear-3" viewBox="0 0 100 100">
+        <path d="M50,20 L56,25 L62,23 L65,29 L71,32 L69,38 L74,44 L69,50 L74,56 L69,62 L71,68 L65,71 L62,77 L56,75 L50,80 L44,75 L38,77 L35,71 L29,68 L31,62 L26,56 L31,50 L26,44 L31,38 L29,32 L35,29 L38,23 L44,25 Z" fill="currentColor"/>
+    </svg>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg class="logo-gear" viewBox="0 0 24 24">
+                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                    </svg>
+                </div>
+                <div class="logo-text">On the Clock</div>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Bot Online • 127 Servers</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="showTab('dashboard')">Dashboard</button>
+        <button class="nav-tab" onclick="showTab('reports')">Reports</button>
+        <button class="nav-tab" onclick="showTab('settings')">Settings</button>
+        <button class="nav-tab" onclick="showTab('analytics')">Analytics</button>
+        <button class="nav-tab" onclick="showTab('users')">Users</button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Live Activity Dashboard -->
+        <div class="dashboard-card fade-in">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Live Activity Monitor</h2>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">47</div>
+                    <div class="stat-label">Currently Clocked In</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">8.2h</div>
+                    <div class="stat-label">Avg Hours Today</div>
+                </div>
+            </div>
+
+            <div class="activity-feed">
+                <div class="activity-item">
+                    <div class="activity-avatar">J</div>
+                    <div class="activity-text">John clocked in for Project Alpha</div>
+                    <div class="activity-time">2m ago</div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-avatar">S</div>
+                    <div class="activity-text">Sarah completed 8.5 hours shift</div>
+                    <div class="activity-time">5m ago</div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-avatar">M</div>
+                    <div class="activity-text">Mike requested overtime approval</div>
+                    <div class="activity-time">12m ago</div>
+                </div>
+            </div>
+
+            <button class="slanted-btn success">
+                <span>View All Activity</span>
+            </button>
+        </div>
+
+        <!-- Live Clock & Time Zone -->
+        <div class="dashboard-card fade-in">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.9L16.2,16.2Z"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Server Time Zone</h2>
+            </div>
+
+            <div class="live-clock">
+                <div class="clock-face">
+                    <div class="clock-hand hour-hand"></div>
+                    <div class="clock-hand minute-hand"></div>
+                    <div class="clock-center"></div>
+                </div>
+                <div style="font-size: 1.5rem; font-weight: 600; color: #00D4FF; margin-bottom: 0.5rem;" id="live-time">2:34 PM</div>
+                <div style="color: #b0b0b0;">Eastern Standard Time</div>
+            </div>
+
+            <button class="slanted-btn secondary">
+                <span>Change Timezone</span>
+            </button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="dashboard-card fade-in">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Quick Actions</h2>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <button class="slanted-btn">
+                    <span>📊 Generate Report</span>
+                </button>
+                <button class="slanted-btn secondary">
+                    <span>✉️ Schedule Email</span>
+                </button>
+                <button class="slanted-btn success">
+                    <span>👥 Manage Users</span>
+                </button>
+                <button class="slanted-btn danger">
+                    <span>🗂️ Export Data</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Interactive Report Builder -->
+        <div class="dashboard-card report-builder fade-in">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M3,3H21A2,2 0 0,1 23,5V19A2,2 0 0,1 21,21H3A2,2 0 0,1 1,19V5A2,2 0 0,1 3,3M5,7V9H19V7H5M5,11V13H19V11H5M5,15V17H19V15H5Z"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Visual Report Builder</h2>
+            </div>
+
+            <div class="builder-section">
+                <div class="builder-label">📈 Available Metrics</div>
+                <div class="metric-pills">
+                    <div class="metric-pill">Hours Worked</div>
+                    <div class="metric-pill">Overtime</div>
+                    <div class="metric-pill">Project Time</div>
+                    <div class="metric-pill">Productivity</div>
+                    <div class="metric-pill">Billable Hours</div>
+                    <div class="metric-pill">Break Time</div>
+                </div>
+            </div>
+
+            <div class="builder-section">
+                <div class="builder-label">🎯 Drag Metrics Here</div>
+                <div class="drag-drop-area">
+                    <div style="text-align: center; color: #888;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style="margin-bottom: 1rem;">
+                            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                        </svg>
+                        <div>Drop metrics here to build your custom report</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="builder-section">
+                <div class="builder-label">📊 Chart Preview</div>
+                <div class="chart-preview">
+                    <div style="text-align: center; color: #888;">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor" style="margin-bottom: 1rem;">
+                            <path d="M5,12L2,9L10,1L18,9L22,5V11H16L14,13L10,9L8,11L13,16L14,15H22V21H2V12H5Z"/>
+                        </svg>
+                        <div>Chart will appear here</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="slanted-btn secondary">
+                    <span>Preview</span>
+                </button>
+                <button class="slanted-btn">
+                    <span>Generate Report</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Email Automation Setup -->
+        <div class="dashboard-card email-setup fade-in">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M20,8L12,13L4,8V6L12,11L20,6M20,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6C22,4.89 21.1,4 20,4Z"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Automated Email Reports</h2>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div>
+                    <div class="builder-section">
+                        <div class="builder-label">📅 Schedule</div>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="radio" name="schedule" checked> Daily at 9:00 AM
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="radio" name="schedule"> Weekly on Monday
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="radio" name="schedule"> Monthly report
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="builder-section">
+                        <div class="builder-label">👥 Recipients</div>
+                        <div style="background: rgba(40, 40, 50, 0.5); padding: 1rem; border-radius: 8px;">
+                            <div>manager@company.com</div>
+                            <div>hr@company.com</div>
+                            <div>payroll@company.com</div>
+                        </div>
+                        <button class="slanted-btn secondary" style="margin-top: 0.5rem;">
+                            <span>Add Recipient</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="builder-label">📧 Email Preview</div>
+                    <div class="email-preview">
+                        <div class="email-header">
+                            <strong>Daily Timesheet Report - March 15, 2025</strong>
+                        </div>
+                        <div>
+                            <p>Good morning,</p>
+                            <p>Here's your daily workforce summary:</p>
+                            <ul style="margin: 1rem 0; padding-left: 1.5rem;">
+                                <li>47 employees clocked in today</li>
+                                <li>Average hours: 8.2 hours</li>
+                                <li>Total overtime: 12.5 hours</li>
+                                <li>Projects on track: 15/18</li>
+                            </ul>
+                            <p>Detailed report attached as PDF.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+                <button class="slanted-btn secondary">
+                    <span>Test Email</span>
+                </button>
+                <button class="slanted-btn success">
+                    <span>Save & Activate</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Role & Permissions Matrix -->
+        <div class="dashboard-card fade-in">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M16,4C16.88,4 17.67,4.5 18,5.26L21,12L18,18.74C17.67,19.5 16.88,20 16,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4H16M8.5,8.5A1.5,1.5 0 0,0 7,10A1.5,1.5 0 0,0 8.5,11.5A1.5,1.5 0 0,0 10,10A1.5,1.5 0 0,0 8.5,8.5M12.5,12.5A1.5,1.5 0 0,0 11,14A1.5,1.5 0 0,0 12.5,15.5A1.5,1.5 0 0,0 14,14A1.5,1.5 0 0,0 12.5,12.5Z"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Role Permissions</h2>
+            </div>
+
+            <div class="role-matrix">
+                <div class="role-cell role-header">Role</div>
+                <div class="role-cell role-header">View</div>
+                <div class="role-cell role-header">Edit</div>
+                <div class="role-cell role-header">Reports</div>
+                <div class="role-cell role-header">Admin</div>
+                
+                <div class="role-cell">Employee</div>
+                <div class="role-cell"><div class="permission-toggle enabled"></div></div>
+                <div class="role-cell"><div class="permission-toggle"></div></div>
+                <div class="role-cell"><div class="permission-toggle"></div></div>
+                <div class="role-cell"><div class="permission-toggle"></div></div>
+                
+                <div class="role-cell">Manager</div>
+                <div class="role-cell"><div class="permission-toggle enabled"></div></div>
+                <div class="role-cell"><div class="permission-toggle enabled"></div></div>
+                <div class="role-cell"><div class="permission-toggle enabled"></div></div>
+                <div class="role-cell"><div class="permission-toggle"></div></div>
+                
+                <div class="role-cell">HR</div>
+                <div class="role-cell"><div class="permission-toggle enabled"></div></div>
+                <div class="role-cell"><div class="permission-toggle enabled"></div></div>
+                <div class="role-cell"><div class="permission-toggle enabled"></div></div>
+                <div class="role-cell"><div class="permission-toggle enabled"></div></div>
+            </div>
+
+            <button class="slanted-btn">
+                <span>Save Permissions</span>
+            </button>
+        </div>
+
+        <!-- Predictive Analytics -->
+        <div class="dashboard-card fade-in">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">AI Insights</h2>
+            </div>
+
+            <div style="space-y: 1rem;">
+                <div style="background: rgba(255, 193, 7, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #FFC107; margin-bottom: 1rem;">
+                    <strong>⚠️ Overtime Alert</strong>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">Team Alpha is trending 15% over budget this week</div>
+                </div>
+
+                <div style="background: rgba(0, 255, 136, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #00ff88; margin-bottom: 1rem;">
+                    <strong>✅ Productivity Boost</strong>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">Marketing team efficiency up 23% this month</div>
+                </div>
+
+                <div style="background: rgba(88, 101, 242, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #5865F2;">
+                    <strong>📈 Forecast</strong>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">Project delivery expected 3 days early</div>
+                </div>
+            </div>
+
+            <button class="slanted-btn">
+                <span>View Full Analysis</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Update live clock
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            document.getElementById('live-time').textContent = timeString;
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Tab switching with content management
+        function showTab(tabName) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Hide all content sections
+            document.querySelectorAll('.main-content > .dashboard-card').forEach(card => {
+                card.style.display = 'block'; // Show all for demo purposes
+                card.style.opacity = tabName === 'dashboard' ? '1' : '0.3';
+            });
+            
+            // Update page title
+            document.title = `On the Clock - ${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+            
+            console.log('Switched to tab:', tabName);
+        }
+
+        // Permission toggle functionality
+        document.querySelectorAll('.permission-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                this.classList.toggle('enabled');
+            });
+        });
+
+        // Add shimmer effect to loading elements
+        document.querySelectorAll('.stat-value').forEach(element => {
+            element.classList.add('shimmer');
+        });
+
+        // Initialize dashboard on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Start with dashboard tab active
+            document.querySelector('.nav-tab.active')?.click();
+            
+            // Add smooth scrolling to all internal links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            });
+
+            // Add loading animation to cards
+            document.querySelectorAll('.dashboard-card').forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+            });
+        });
+
+        // Drag and drop functionality (basic)
+        document.querySelectorAll('.metric-pill').forEach(pill => {
+            pill.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', this.textContent);
+            });
+            pill.draggable = true;
+        });
+
+        document.querySelector('.drag-drop-area').addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.background = 'rgba(88, 101, 242, 0.2)';
+        });
+
+        document.querySelector('.drag-drop-area').addEventListener('dragleave', function(e) {
+            this.style.background = 'rgba(88, 101, 242, 0.05)';
+        });
+
+        document.querySelector('.drag-drop-area').addEventListener('drop', function(e) {
+            e.preventDefault();
+            const data = e.dataTransfer.getData('text/plain');
+            this.innerHTML = `<div style="color: #00ff88;">✅ ${data} added to report</div>`;
+            this.style.background = 'rgba(0, 255, 136, 0.1)';
+        });
+
+        // Add click animations to buttons
+        document.querySelectorAll('.slanted-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                // Create ripple effect
+                const ripple = document.createElement('span');
+                ripple.classList.add('ripple');
+                this.appendChild(ripple);
+
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+                ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+
+        // Simulate real-time data updates
+        function updateLiveData() {
+            // Update activity feed with new entries occasionally
+            if (Math.random() < 0.1) { // 10% chance every update
+                const names = ['Alex', 'Jordan', 'Casey', 'Riley', 'Morgan'];
+                const actions = ['clocked in', 'completed shift', 'requested break', 'updated timesheet'];
+                const projects = ['Project Alpha', 'Beta Testing', 'Client Work', 'Training'];
+                
+                const name = names[Math.floor(Math.random() * names.length)];
+                const action = actions[Math.floor(Math.random() * actions.length)];
+                const project = projects[Math.floor(Math.random() * projects.length)];
+                
+                const activityFeed = document.querySelector('.activity-feed');
+                if (activityFeed && activityFeed.children.length > 5) {
+                    // Remove oldest entry
+                    activityFeed.removeChild(activityFeed.lastElementChild);
+                }
+                
+                // Add new entry at top
+                const newActivity = document.createElement('div');
+                newActivity.className = 'activity-item';
+                newActivity.innerHTML = `
+                    <div class="activity-avatar">${name[0]}</div>
+                    <div class="activity-text">${name} ${action} for ${project}</div>
+                    <div class="activity-time">just now</div>
+                `;
+                activityFeed?.insertBefore(newActivity, activityFeed.firstChild);
+            }
+
+            // Update stats with minor variations
+            const statValues = document.querySelectorAll('.stat-value');
+            statValues.forEach((stat, index) => {
+                if (index === 0) { // Currently clocked in
+                    const current = parseInt(stat.textContent) || 47;
+                    const variation = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+                    stat.textContent = Math.max(0, current + variation);
+                }
+            });
+        }
+
+        // Update live data every 10 seconds
+        setInterval(updateLiveData, 10000);
+
+        // Add CSS for button ripple effect
+        const rippleStyle = document.createElement('style');
+        rippleStyle.textContent = `
+            .ripple {
+                position: absolute;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.3);
+                pointer-events: none;
+                transform: scale(0);
+                animation: ripple-animation 0.6s linear;
+            }
+            @keyframes ripple-animation {
+                to {
+                    transform: scale(2);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(rippleStyle);
+    </script>
+</body>
+</html>
