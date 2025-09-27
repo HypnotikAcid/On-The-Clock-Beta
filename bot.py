@@ -134,8 +134,14 @@ def get_domain() -> str:
 # --- OAuth Helper Functions ---
 def get_discord_oauth_url(state: str) -> str:
     """Generate Discord OAuth authorization URL"""
-    # Use actual domain for OAuth
-    domain = get_domain()
+    # Use published domain for production OAuth
+    if os.getenv('REPLIT_DEPLOYMENT'):
+        # In published/production mode - use the published domain
+        domain = "on-the-clock.replit.app"
+    else:
+        # In development mode - use the dev domain
+        domain = get_domain()
+    
     global DISCORD_REDIRECT_URI
     DISCORD_REDIRECT_URI = f"https://{domain}/oauth/callback"
     
@@ -3258,8 +3264,11 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         else:
             access_info = "**Team Access:** All configured employee roles can use the timeclock"
         
-        # Use actual domain for dashboard
-        dashboard_url = f"https://{get_domain()}/oauth/login"
+        # Use published domain for dashboard in production, dev domain in development
+        if os.getenv('REPLIT_DEPLOYMENT'):
+            dashboard_url = "https://on-the-clock.replit.app/oauth/login"
+        else:
+            dashboard_url = f"https://{get_domain()}/oauth/login"
         
         instruction_message = (
             f"⏰ **Timeclock Instructions**\n\n"
