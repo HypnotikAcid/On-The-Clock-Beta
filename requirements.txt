@@ -2,3 +2,5 @@ discord.py>=2.3
 tzdata
 discord.py
 stripe
+requests
+urllib3

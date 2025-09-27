@@ -7,10 +7,13 @@ import json
 import threading
 import time
 import asyncio
+import secrets
+import base64
+import requests
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlparse, parse_qsl
 import stripe
 from stripe import StripeError, SignatureVerificationError
 
@@ -35,6 +38,16 @@ STRIPE_PRICE_IDS = {
     'basic': 'price_1SAHpL3Jrp0J9Adlfowh5qpr',   # $5/month LIVE
     'pro': 'price_1SAHqH3Jrp0J9AdlFSJpJ32A'      # $10/month LIVE
 }
+
+# --- Discord OAuth Configuration ---
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")  # Your bot's client ID
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")  # Required for OAuth
+DISCORD_REDIRECT_URI = None  # Will be set dynamically based on domain
+DISCORD_OAUTH_SCOPES = "identify guilds"
+
+# Session storage - in production, use Redis or database
+oauth_sessions = {}
+user_sessions = {}
 
 # Guild-based locks to prevent race conditions in setup operations
 guild_setup_locks: Dict[int, asyncio.Lock] = {}
@@ -117,6 +130,82 @@ def get_domain() -> str:
     else:
         domains = os.getenv('REPLIT_DOMAINS', '')
         return domains.split(',')[0] if domains else 'localhost:5000'
+
+# --- OAuth Helper Functions ---
+def get_discord_oauth_url(state: str) -> str:
+    """Generate Discord OAuth authorization URL"""
+    domain = get_domain()
+    global DISCORD_REDIRECT_URI
+    DISCORD_REDIRECT_URI = f"https://{domain}/oauth/callback"
+    
+    base_url = "https://discord.com/api/oauth2/authorize"
+    params = {
+        "client_id": DISCORD_CLIENT_ID,
+        "redirect_uri": DISCORD_REDIRECT_URI,
+        "response_type": "code",
+        "scope": DISCORD_OAUTH_SCOPES,
+        "state": state
+    }
+    
+    query_string = "&".join([f"{k}={requests.utils.quote(str(v))}" for k, v in params.items()])
+    return f"{base_url}?{query_string}"
+
+def exchange_oauth_code(code: str) -> Optional[Dict]:
+    """Exchange OAuth code for access token"""
+    if not DISCORD_CLIENT_SECRET:
+        print("❌ DISCORD_CLIENT_SECRET not set")
+        return None
+        
+    data = {
+        "client_id": DISCORD_CLIENT_ID,
+        "client_secret": DISCORD_CLIENT_SECRET,
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": DISCORD_REDIRECT_URI
+    }
+    
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    
+    try:
+        response = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"❌ OAuth token exchange failed: {response.status_code} {response.text}")
+            return None
+    except Exception as e:
+        print(f"❌ OAuth token exchange error: {e}")
+        return None
+
+def get_discord_user(access_token: str) -> Optional[Dict]:
+    """Get Discord user info from access token"""
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    try:
+        response = requests.get("https://discord.com/api/users/@me", headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"❌ Failed to get Discord user: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"❌ Discord user fetch error: {e}")
+        return None
+
+def get_discord_user_guilds(access_token: str) -> Optional[list]:
+    """Get Discord user's guilds from access token"""
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    try:
+        response = requests.get("https://discord.com/api/users/@me/guilds", headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"❌ Failed to get Discord guilds: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"❌ Discord guilds fetch error: {e}")
+        return None
 
 def create_secure_checkout_session(guild_id: int, tier: str) -> str:
     """Create a secure Stripe checkout session with proper validation"""
@@ -450,6 +539,19 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
             self.wfile.write(json.dumps(response).encode())
+        
+        elif self.path == "/oauth/login":
+            # Discord OAuth login endpoint
+            self.handle_oauth_login()
+        
+        elif self.path.startswith("/oauth/callback"):
+            # Discord OAuth callback endpoint
+            self.handle_oauth_callback()
+        
+        elif self.path.startswith("/api/"):
+            # API endpoints for dashboard data
+            self.handle_api_request()
+        
         # Remove insecure GET checkout endpoint - checkout now done via Discord commands only
         elif self.path.startswith("/success") or self.path.startswith("/cancel"):
             # Handle payment result pages (with or without query parameters)
@@ -888,6 +990,310 @@ def purge_guild_data_for_testing(guild_id: int):
         else:
             self.send_response(404)
             self.end_headers()
+
+    def handle_oauth_login(self):
+        """Handle OAuth login initiation"""
+        try:
+            # Generate state parameter for security
+            state = secrets.token_urlsafe(32)
+            oauth_sessions[state] = {
+                'created_at': datetime.now(timezone.utc),
+                'ip': self.client_address[0]
+            }
+            
+            # Generate Discord OAuth URL
+            oauth_url = get_discord_oauth_url(state)
+            
+            # Redirect to Discord OAuth
+            self.send_response(302)
+            self.send_header('Location', oauth_url)
+            self.end_headers()
+            
+            print(f"🔗 OAuth login initiated from {self.client_address[0]}")
+            
+        except Exception as e:
+            print(f"❌ OAuth login error: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to initiate login</p>")
+
+    def handle_oauth_callback(self):
+        """Handle OAuth callback from Discord"""
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = dict(parse_qsl(parsed_url.query))
+            
+            code = query_params.get('code')
+            state = query_params.get('state')
+            error = query_params.get('error')
+            
+            if error:
+                print(f"❌ OAuth error: {error}")
+                self.send_oauth_error("OAuth authorization was denied")
+                return
+                
+            if not code or not state:
+                print("❌ Missing OAuth parameters")
+                self.send_oauth_error("Missing authentication parameters")
+                return
+                
+            # Verify state parameter
+            if state not in oauth_sessions:
+                print("❌ Invalid OAuth state")
+                self.send_oauth_error("Invalid authentication state")
+                return
+                
+            # Clean up state
+            del oauth_sessions[state]
+            
+            # Exchange code for access token
+            token_data = exchange_oauth_code(code)
+            if not token_data:
+                self.send_oauth_error("Failed to exchange authorization code")
+                return
+                
+            access_token = token_data.get('access_token')
+            if not access_token:
+                self.send_oauth_error("No access token received")
+                return
+                
+            # Get user information
+            user_data = get_discord_user(access_token)
+            if not user_data:
+                self.send_oauth_error("Failed to get user information")
+                return
+                
+            # Get user's guilds
+            guilds_data = get_discord_user_guilds(access_token)
+            if not guilds_data:
+                guilds_data = []
+                
+            # Create session
+            session_id = secrets.token_urlsafe(32)
+            user_sessions[session_id] = {
+                'user_id': user_data['id'],
+                'username': user_data['username'],
+                'discriminator': user_data.get('discriminator', '0'),
+                'avatar': user_data.get('avatar'),
+                'guilds': guilds_data,
+                'access_token': access_token,
+                'created_at': datetime.now(timezone.utc),
+                'ip': self.client_address[0]
+            }
+            
+            print(f"✅ OAuth success for {user_data['username']}#{user_data.get('discriminator', '0')}")
+            
+            # Redirect back to dashboard with session
+            self.send_response(302)
+            self.send_header('Location', f"/?session={session_id}")
+            self.send_header('Set-Cookie', f'session={session_id}; Path=/; HttpOnly; Secure; SameSite=Lax')
+            self.end_headers()
+            
+        except Exception as e:
+            print(f"❌ OAuth callback error: {e}")
+            import traceback
+            traceback.print_exc()
+            self.send_oauth_error("Authentication failed")
+
+    def send_oauth_error(self, message: str):
+        """Send OAuth error page"""
+        self.send_response(400)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Authentication Error</title>
+            <style>
+                body {{ font-family: Arial; text-align: center; padding: 50px; background: #1a1a2e; color: white; }}
+                .error {{ background: rgba(255,107,107,0.1); padding: 20px; border-radius: 10px; border: 1px solid #ff6b6b; }}
+            </style>
+        </head>
+        <body>
+            <div class="error">
+                <h1>🔒 Authentication Error</h1>
+                <p>{message}</p>
+                <p><a href="/" style="color: #5865F2;">Return to Dashboard</a></p>
+            </div>
+        </body>
+        </html>
+        """
+        self.wfile.write(html.encode('utf-8'))
+
+    def handle_api_request(self):
+        """Handle API requests for dashboard data"""
+        try:
+            # Check session
+            session_id = self.get_session_id()
+            if not session_id or session_id not in user_sessions:
+                self.send_json_response({"error": "Not authenticated"}, 401)
+                return
+                
+            session = user_sessions[session_id]
+            
+            # Route API endpoints
+            if self.path == "/api/user":
+                self.handle_api_user(session)
+            elif self.path.startswith("/api/guild/"):
+                guild_id = self.path.split("/")[-1]
+                self.handle_api_guild(session, guild_id)
+            else:
+                self.send_json_response({"error": "Endpoint not found"}, 404)
+                
+        except Exception as e:
+            print(f"❌ API request error: {e}")
+            self.send_json_response({"error": "Internal server error"}, 500)
+
+    def handle_api_user(self, session: Dict):
+        """Handle /api/user endpoint"""
+        user_data = {
+            "id": session['user_id'],
+            "username": session['username'],
+            "discriminator": session['discriminator'],
+            "avatar": session['avatar'],
+            "guilds": []
+        }
+        
+        # Filter guilds to only include ones where the bot is present
+        bot_instance = getattr(type(self), 'bot', None)
+        if bot_instance and bot_instance.is_ready():
+            bot_guilds = {guild.id: guild for guild in bot_instance.guilds}
+            
+            for user_guild in session.get('guilds', []):
+                guild_id = int(user_guild['id'])
+                if guild_id in bot_guilds:
+                    bot_guild = bot_guilds[guild_id]
+                    user_data['guilds'].append({
+                        "id": str(guild_id),
+                        "name": user_guild['name'],
+                        "icon": user_guild.get('icon'),
+                        "owner": user_guild.get('owner', False),
+                        "permissions": user_guild.get('permissions', '0'),
+                        "member_count": bot_guild.member_count,
+                        "tier": get_server_tier(guild_id)
+                    })
+        
+        self.send_json_response(user_data)
+
+    def handle_api_guild(self, session: Dict, guild_id_str: str):
+        """Handle /api/guild/{id} endpoint"""
+        try:
+            guild_id = int(guild_id_str)
+            
+            # Check if user has access to this guild
+            user_guilds = session.get('guilds', [])
+            user_guild = None
+            for ug in user_guilds:
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild:
+                self.send_json_response({"error": "Access denied"}, 403)
+                return
+                
+            # Get bot guild data
+            bot_instance = getattr(type(self), 'bot', None)
+            if not bot_instance or not bot_instance.is_ready():
+                self.send_json_response({"error": "Bot not ready"}, 503)
+                return
+                
+            bot_guild = bot_instance.get_guild(guild_id)
+            if not bot_guild:
+                self.send_json_response({"error": "Guild not found"}, 404)
+                return
+                
+            # Get server data
+            tier = get_server_tier(guild_id)
+            retention_days = get_retention_days(guild_id)
+            
+            # Count currently clocked in users
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT COUNT(*) FROM sessions 
+                    WHERE guild_id = ? AND clock_out IS NULL
+                """, (guild_id,))
+                clocked_in_count = cursor.fetchone()[0]
+                
+            # Get admin and employee roles
+            admin_roles = []
+            employee_roles = []
+            
+            with db() as conn:
+                # Get admin roles
+                cursor = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id = ?", (guild_id,))
+                admin_role_ids = [row[0] for row in cursor.fetchall()]
+                
+                # Get employee roles  
+                cursor = conn.execute("SELECT role_id FROM clock_roles WHERE guild_id = ?", (guild_id,))
+                employee_role_ids = [row[0] for row in cursor.fetchall()]
+                
+            # Get role names from Discord
+            for role_id in admin_role_ids:
+                role = bot_guild.get_role(role_id)
+                if role:
+                    admin_roles.append({"id": str(role_id), "name": role.name})
+                    
+            for role_id in employee_role_ids:
+                role = bot_guild.get_role(role_id)
+                if role:
+                    employee_roles.append({"id": str(role_id), "name": role.name})
+            
+            guild_data = {
+                "id": str(guild_id),
+                "name": bot_guild.name,
+                "icon": str(bot_guild.icon) if bot_guild.icon else None,
+                "member_count": bot_guild.member_count,
+                "online_count": sum(1 for member in bot_guild.members if member.status != discord.Status.offline),
+                "tier": tier,
+                "retention_days": retention_days,
+                "clocked_in_count": clocked_in_count,
+                "admin_roles": admin_roles,
+                "employee_roles": employee_roles
+            }
+            
+            self.send_json_response(guild_data)
+            
+        except ValueError:
+            self.send_json_response({"error": "Invalid guild ID"}, 400)
+        except Exception as e:
+            print(f"❌ Guild API error: {e}")
+            self.send_json_response({"error": "Server error"}, 500)
+
+    def get_session_id(self) -> Optional[str]:
+        """Extract session ID from cookie or query parameter"""
+        # Check query parameter first
+        if '?' in self.path:
+            parsed_url = urlparse(self.path)
+            query_params = dict(parse_qsl(parsed_url.query))
+            if 'session' in query_params:
+                return query_params['session']
+        
+        # Check cookies
+        cookie_header = self.headers.get('Cookie', '')
+        for cookie in cookie_header.split(';'):
+            if '=' in cookie:
+                name, value = cookie.strip().split('=', 1)
+                if name == 'session':
+                    return value
+                    
+        return None
+
+    def send_json_response(self, data: dict, status_code: int = 200):
+        """Send JSON response"""
+        self.send_response(status_code)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.end_headers()
+        
+        json_data = json.dumps(data, indent=2)
+        self.wfile.write(json_data.encode('utf-8'))
     
     def log_message(self, format, *args):
         # Suppress default HTTP server logs to avoid cluttering Discord bot logs
