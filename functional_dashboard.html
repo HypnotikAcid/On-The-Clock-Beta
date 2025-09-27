@@ -936,47 +936,85 @@
             if (!isLoggedIn) return;
 
             try {
-                // Load server stats
-                const serverResponse = await fetch('/api/server-stats', {
+                // First get user data and their guilds
+                const userResponse = await fetch('/api/user', {
                     credentials: 'include'
                 });
                 
-                if (serverResponse.ok) {
-                    const serverData = await serverResponse.json();
-                    document.getElementById('memberCount').textContent = serverData.memberCount || '0';
-                    document.getElementById('onlineCount').textContent = serverData.onlineCount || '0';
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    console.log('User data loaded:', userData);
+                    
+                    // Update user avatar if available
+                    if (userData.avatar) {
+                        document.getElementById('userAvatar').src = `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`;
+                    }
+                    
+                    // If user has guilds, load data for the first one
+                    if (userData.guilds && userData.guilds.length > 0) {
+                        const firstGuild = userData.guilds[0];
+                        
+                        // Basic stats from user endpoint
+                        document.getElementById('memberCount').textContent = firstGuild.member_count || '0';
+                        
+                        // Load detailed guild data
+                        const guildResponse = await fetch(`/api/guild/${firstGuild.id}`, {
+                            credentials: 'include'
+                        });
+                        
+                        if (guildResponse.ok) {
+                            const guildData = await guildResponse.json();
+                            console.log('Guild data loaded:', guildData);
+                            
+                            // Update all stats with real data
+                            document.getElementById('memberCount').textContent = guildData.member_count || '0';
+                            document.getElementById('onlineCount').textContent = guildData.online_count || '0';
+                            document.getElementById('clockedInCount').textContent = guildData.clocked_in_count || '0';
+                            document.getElementById('adminRoleCount').textContent = guildData.admin_roles?.length || '0';
+                            
+                            // Update subscription info
+                            const tier = guildData.tier || 'free';
+                            document.getElementById('currentTier').textContent = tier.toUpperCase() + ' TIER';
+                            document.getElementById('currentTier').className = `tier-badge ${tier}`;
+                            
+                            // Update retention and access info
+                            const retentionDays = guildData.retention_days || 0;
+                            document.getElementById('dataRetention').textContent = `${retentionDays} days`;
+                            
+                            if (tier === 'free') {
+                                document.getElementById('teamAccess').textContent = 'Admin only';
+                            } else {
+                                document.getElementById('teamAccess').textContent = 'Full team access';
+                            }
+                            
+                        } else {
+                            console.log('Failed to load guild data, using fallback');
+                            // Use basic data from user endpoint
+                            document.getElementById('onlineCount').textContent = Math.floor(firstGuild.member_count * 0.3) || '0';
+                            document.getElementById('clockedInCount').textContent = '0';
+                            document.getElementById('adminRoleCount').textContent = '1';
+                        }
+                        
+                        // Update tier info from guild data in user response
+                        const tier = firstGuild.tier || 'free';
+                        document.getElementById('currentTier').textContent = tier.toUpperCase() + ' TIER';
+                        document.getElementById('currentTier').className = `tier-badge ${tier}`;
+                        
+                    } else {
+                        // No guilds with bot present
+                        document.getElementById('memberCount').textContent = '0';
+                        document.getElementById('onlineCount').textContent = '0';
+                        document.getElementById('clockedInCount').textContent = '0';
+                        document.getElementById('adminRoleCount').textContent = '0';
+                    }
+                    
                 } else {
-                    // Fallback to demo data if API fails
+                    console.log('Failed to load user data, using fallback');
+                    // Use fallback demo data
                     document.getElementById('memberCount').textContent = '247';
                     document.getElementById('onlineCount').textContent = '89';
-                }
-
-                // Load timeclock data
-                const timeclockResponse = await fetch('/api/timeclock', {
-                    credentials: 'include'
-                });
-                
-                if (timeclockResponse.ok) {
-                    const timeclockData = await timeclockResponse.json();
-                    document.getElementById('clockedInCount').textContent = timeclockData.clockedInCount || '0';
-                    document.getElementById('adminRoleCount').textContent = timeclockData.adminRoleCount || '0';
-                } else {
-                    // Fallback data
                     document.getElementById('clockedInCount').textContent = '3';
                     document.getElementById('adminRoleCount').textContent = '2';
-                }
-
-                // Load subscription data
-                const subscriptionResponse = await fetch('/api/subscription', {
-                    credentials: 'include'
-                });
-                
-                if (subscriptionResponse.ok) {
-                    const subData = await subscriptionResponse.json();
-                    document.getElementById('currentTier').textContent = subData.tier.toUpperCase() + ' TIER';
-                    document.getElementById('currentTier').className = `tier-badge ${subData.tier}`;
-                    document.getElementById('dataRetention').textContent = subData.retention;
-                    document.getElementById('teamAccess').textContent = subData.teamAccess;
                 }
 
             } catch (error) {
