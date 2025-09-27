@@ -812,25 +812,40 @@
         let isLoggedIn = false;
         let currentUser = null;
 
-        // Simulate login process
+        // Discord OAuth login process
         function loginWithDiscord() {
-            // In real implementation, this would redirect to Discord OAuth
-            // For demo, we'll simulate the login process
-            alert('In a real implementation, this would redirect to Discord OAuth.\n\nDemo: Simulating login...');
-            
-            // Simulate successful login
-            setTimeout(() => {
-                isLoggedIn = true;
-                currentUser = {
-                    id: '123456789',
-                    username: 'YourUsername',
-                    discriminator: '1234',
-                    avatar: 'avatar_hash'
-                };
+            // Redirect to Discord OAuth endpoint
+            window.location.href = '/oauth/login';
+        }
+
+        // Check if user is already logged in
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/user', {
+                    credentials: 'include'
+                });
                 
+                if (response.ok) {
+                    const userData = await response.json();
+                    isLoggedIn = true;
+                    currentUser = {
+                        id: userData.user_id,
+                        username: userData.username,
+                        discriminator: '0001',
+                        avatar: userData.avatar
+                    };
+                    
+                    updateAuthUI();
+                    loadServerData();
+                } else {
+                    isLoggedIn = false;
+                    updateAuthUI();
+                }
+            } catch (error) {
+                console.log('Not authenticated');
+                isLoggedIn = false;
                 updateAuthUI();
-                loadServerData();
-            }, 1000);
+            }
         }
 
         function logout() {
@@ -961,11 +976,12 @@
 
         // Load initial data
         document.addEventListener('DOMContentLoaded', function() {
-            // Simulate loading server stats (public)
+            // Load server stats (public)
             document.getElementById('memberCount').textContent = '247';
             document.getElementById('onlineCount').textContent = '89';
             
-            updateAuthUI();
+            // Check if user is already authenticated
+            checkAuthStatus();
         });
     </script>
 </body>

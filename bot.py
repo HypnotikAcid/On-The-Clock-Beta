@@ -880,6 +880,197 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
         except Exception as e:
             print(f"❌ Error purging guild data for {guild_id}: {e}")
+            
+    def handle_oauth_login(self):
+        """Handle OAuth login initiation"""
+        try:
+            # Generate state parameter for security
+            state = secrets.token_urlsafe(32)
+            oauth_sessions[state] = {
+                'created_at': datetime.now(timezone.utc),
+                'ip': self.client_address[0]
+            }
+            
+            # Generate Discord OAuth URL
+            oauth_url = get_discord_oauth_url(state)
+            
+            # Redirect to Discord OAuth
+            self.send_response(302)
+            self.send_header('Location', oauth_url)
+            self.end_headers()
+            
+            print(f"🔗 OAuth login initiated from {self.client_address[0]}")
+            
+        except Exception as e:
+            print(f"❌ OAuth login error: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to initiate login</p>")
+
+    def handle_oauth_callback(self):
+        """Handle OAuth callback from Discord"""
+        try:
+            # Parse query parameters
+            parsed_url = urlparse(self.path)
+            query_params = dict(parse_qsl(parsed_url.query))
+            
+            code = query_params.get('code')
+            state = query_params.get('state')
+            error = query_params.get('error')
+            
+            if error:
+                print(f"❌ OAuth error: {error}")
+                self.send_oauth_error("OAuth authorization was denied")
+                return
+                
+            if not code or not state:
+                print("❌ Missing OAuth parameters")
+                self.send_oauth_error("Missing authentication parameters")
+                return
+                
+            # Verify state parameter
+            if state not in oauth_sessions:
+                print("❌ Invalid OAuth state")
+                self.send_oauth_error("Invalid authentication state")
+                return
+                
+            # Clean up state
+            del oauth_sessions[state]
+            
+            # Exchange code for access token
+            token_data = exchange_oauth_code(code)
+            if not token_data:
+                self.send_oauth_error("Failed to exchange authorization code")
+                return
+                
+            access_token = token_data.get('access_token')
+            if not access_token:
+                self.send_oauth_error("No access token received")
+                return
+                
+            # Get user information
+            user_data = get_discord_user(access_token)
+            if not user_data:
+                self.send_oauth_error("Failed to get user information")
+                return
+                
+            # Get user's guilds
+            guilds_data = get_discord_user_guilds(access_token)
+            if guilds_data is None:
+                self.send_oauth_error("Failed to get user's servers")
+                return
+                
+            # Create user session
+            session_id = secrets.token_urlsafe(32)
+            user_sessions[session_id] = {
+                'user_id': user_data['id'],
+                'username': user_data['username'],
+                'avatar': user_data.get('avatar'),
+                'access_token': access_token,
+                'guilds': guilds_data,
+                'created_at': datetime.now(timezone.utc)
+            }
+            
+            # Set session cookie and redirect to dashboard
+            self.send_response(302)
+            self.send_header('Location', '/')
+            self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly')
+            self.end_headers()
+            
+            print(f"✅ OAuth success: {user_data['username']} logged in")
+            
+        except Exception as e:
+            print(f"❌ OAuth callback error: {e}")
+            self.send_oauth_error("Authentication failed")
+
+    def send_oauth_error(self, message: str):
+        """Send OAuth error page"""
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Authentication Error</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 50px; }}
+                .error {{ color: red; }}
+            </style>
+        </head>
+        <body>
+            <h1>Authentication Error</h1>
+            <p class="error">{message}</p>
+            <p><a href="/">Return to Dashboard</a></p>
+        </body>
+        </html>
+        """
+        self.wfile.write(html.encode('utf-8'))
+
+    def handle_api_request(self):
+        """Handle API requests for dashboard data"""
+        try:
+            # Check session
+            session_id = self.get_session_id()
+            if not session_id or session_id not in user_sessions:
+                self.send_json_response({'error': 'Not authenticated'}, 401)
+                return
+                
+            user_session = user_sessions[session_id]
+            
+            if self.path == '/api/user':
+                # Return user info
+                self.send_json_response({
+                    'username': user_session['username'],
+                    'avatar': user_session['avatar'],
+                    'user_id': user_session['user_id']
+                })
+                
+            elif self.path == '/api/guilds':
+                # Return user's guilds with bot presence info
+                guilds_with_bot = []
+                bot_guild_ids = set()
+                
+                if hasattr(HealthCheckHandler, 'bot') and HealthCheckHandler.bot:
+                    bot_guild_ids = {g.id for g in HealthCheckHandler.bot.guilds}
+                
+                for guild in user_session['guilds']:
+                    guild_data = {
+                        'id': guild['id'],
+                        'name': guild['name'],
+                        'icon': guild.get('icon'),
+                        'permissions': guild.get('permissions'),
+                        'bot_present': int(guild['id']) in bot_guild_ids
+                    }
+                    guilds_with_bot.append(guild_data)
+                
+                self.send_json_response({'guilds': guilds_with_bot})
+                
+            else:
+                self.send_json_response({'error': 'API endpoint not found'}, 404)
+                
+        except Exception as e:
+            print(f"❌ API request error: {e}")
+            self.send_json_response({'error': 'Internal server error'}, 500)
+
+    def get_session_id(self):
+        """Extract session ID from cookies"""
+        cookie_header = self.headers.get('Cookie', '')
+        if 'session_id=' in cookie_header:
+            for cookie in cookie_header.split(';'):
+                cookie = cookie.strip()
+                if cookie.startswith('session_id='):
+                    return cookie.split('=', 1)[1]
+        return None
+
+    def send_json_response(self, data, status=200):
+        """Send JSON response"""
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode('utf-8'))
 
 
 def purge_guild_data_for_testing(guild_id: int):
