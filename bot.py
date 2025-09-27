@@ -173,9 +173,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             bot_id = bot_instance.user.id if bot_instance and bot_instance.is_ready() and bot_instance.user else "1418446753379913809"
             invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=2048&scope=bot%20applications.commands"
             
-            # Read the dashboard mockup file
+            # Read the functional dashboard file
             try:
-                with open('dashboard_mockup.html', 'r', encoding='utf-8') as f:
+                with open('functional_dashboard.html', 'r', encoding='utf-8') as f:
                     dashboard_content = f.read()
                 
                 # Update the status in the dashboard
