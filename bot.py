@@ -26,7 +26,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")            # required
 DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
 GUILD_ID = os.getenv("GUILD_ID")              # optional but makes commands appear instantly (guild sync)
 DEFAULT_TZ = "America/New_York"
-HTTP_PORT = int(os.getenv("PORT", "5000"))     # Health check server port
+HTTP_PORT = int(os.getenv("PORT", "5000"))     # Dashboard and health check server port
 
 # --- Bot Owner Configuration ---
 BOT_OWNER_ID = 107103438139056128  # Your Discord user ID for super admin access
@@ -924,6 +924,18 @@ def purge_guild_data_for_testing(guild_id: int):
         print(f"❌ Error purging guild data for {guild_id}: {e}")
         raise
     
+    def do_HEAD(self):
+        if self.path == "/" or self.path == "/health":
+            self.send_response(200)
+            if self.path == "/":
+                self.send_header('Content-type', 'text/html')
+            else:
+                self.send_header('Content-type', 'application/json')
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
     def handle_subscription_change(self, subscription):
         """Handle subscription status changes"""
         try:
@@ -978,18 +990,6 @@ def purge_guild_data_for_testing(guild_id: int):
                     
         except Exception as e:
             print(f"❌ Error handling payment failure: {e}")
-    
-    def do_HEAD(self):
-        if self.path == "/" or self.path == "/health":
-            self.send_response(200)
-            if self.path == "/":
-                self.send_header('Content-type', 'text/html')
-            else:
-                self.send_header('Content-type', 'application/json')
-            self.end_headers()
-        else:
-            self.send_response(404)
-            self.end_headers()
 
     def handle_oauth_login(self):
         """Handle OAuth login initiation"""
