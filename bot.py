@@ -612,10 +612,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if result:
                     guild_id = result[0]
                     
-                    # Update subscription status to cancelled and downgrade to free
+                    # Update subscription status to canceled and downgrade to free
                     conn.execute("""
                         UPDATE server_subscriptions 
-                        SET tier = 'free', status = 'cancelled'
+                        SET tier = 'free', status = 'canceled'
                         WHERE guild_id = ?
                     """, (guild_id,))
                     
@@ -628,6 +628,96 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     
         except Exception as e:
             print(f"❌ Error processing subscription cancellation: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def handle_subscription_change(self, subscription):
+        """Handle subscription change events (updates, renewals, etc.)"""
+        try:
+            subscription_id = subscription.get('id')
+            customer_id = subscription.get('customer')
+            status = subscription.get('status')
+            
+            if not subscription_id:
+                print("❌ No subscription ID in subscription change event")
+                return
+                
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT guild_id FROM server_subscriptions 
+                    WHERE subscription_id = ? OR customer_id = ?
+                """, (subscription_id, customer_id))
+                result = cursor.fetchone()
+                
+                if result:
+                    guild_id = result[0]
+                    
+                    # Update subscription status  
+                    if status in ['active', 'trialing', 'past_due', 'canceled', 'incomplete', 'incomplete_expired', 'unpaid']:
+                        conn.execute("""
+                            UPDATE server_subscriptions 
+                            SET status = ?
+                            WHERE guild_id = ?
+                        """, (status, guild_id))
+                        
+                        # Only downgrade and purge for truly inactive subscriptions
+                        if status in ['canceled', 'incomplete_expired', 'unpaid']:
+                            conn.execute("""
+                                UPDATE server_subscriptions 
+                                SET tier = 'free'
+                                WHERE guild_id = ?
+                            """, (guild_id,))
+                            # Purge data according to free tier policy
+                            purge_timeclock_data_only(guild_id)
+                        
+                        print(f"✅ Subscription updated: Guild {guild_id} status -> {status}")
+                    else:
+                        print(f"⚠️ Unknown subscription status: {status}")
+                else:
+                    print(f"❌ No guild found for subscription {subscription_id}")
+                    
+        except Exception as e:
+            print(f"❌ Error processing subscription change: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def handle_payment_failure(self, invoice):
+        """Handle payment failure events"""
+        try:
+            customer_id = invoice.get('customer')
+            subscription_id = invoice.get('subscription')
+            
+            if not customer_id and not subscription_id:
+                print("❌ No customer or subscription ID in payment failure event")
+                return
+                
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT guild_id FROM server_subscriptions 
+                    WHERE subscription_id = ? OR customer_id = ?
+                """, (subscription_id, customer_id))
+                result = cursor.fetchone()
+                
+                if result:
+                    guild_id = result[0]
+                    
+                    # Update subscription status to past_due
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET status = 'past_due'
+                        WHERE guild_id = ?
+                    """, (guild_id,))
+                    
+                    print(f"⚠️ Payment failed: Guild {guild_id} marked as past_due")
+                    
+                    # Note: We don't immediately downgrade on payment failure
+                    # Stripe usually allows a grace period before cancellation
+                    
+                else:
+                    print(f"❌ No guild found for customer {customer_id} or subscription {subscription_id}")
+                    
+        except Exception as e:
+            print(f"❌ Error processing payment failure: {e}")
             import traceback
             traceback.print_exc()
     
@@ -932,8 +1022,8 @@ def get_server_tier(guild_id: int) -> str:
             return "free"
         
         tier, status = result
-        # If subscription is cancelled, treat as free tier
-        if status == "cancelled":
+        # If subscription is canceled, treat as free tier
+        if status == "canceled":
             return "free"
         
         return tier
