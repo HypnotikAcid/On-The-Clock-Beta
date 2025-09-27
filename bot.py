@@ -3266,9 +3266,9 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         
         # Use published domain for dashboard in production, dev domain in development
         if os.getenv('REPLIT_DEPLOYMENT'):
-            dashboard_url = "https://on-the-clock.replit.app/oauth/login"
+            dashboard_url = "https://on-the-clock.replit.app"
         else:
-            dashboard_url = f"https://{get_domain()}/oauth/login"
+            dashboard_url = f"https://{get_domain()}"
         
         instruction_message = (
             f"⏰ **Timeclock Instructions**\n\n"
