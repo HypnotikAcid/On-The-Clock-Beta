@@ -1009,6 +1009,8 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
                     guild_ids = [row[0] for row in guilds_cursor.fetchall()]
                     
                     for guild_id in guild_ids:
+                        if guild_id is None:
+                            continue  # Skip invalid guild IDs
                         retention_days = get_retention_days(guild_id)
                         cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
                         
@@ -1104,7 +1106,7 @@ def set_guild_setting(guild_id: int, key: str, value):
         conn.execute("INSERT OR IGNORE INTO guild_settings(guild_id) VALUES (?)", (guild_id,))
         conn.execute(update_queries[key], (value, guild_id))
 
-def get_user_display_name(user: discord.User, guild_id: int) -> str:
+def get_user_display_name(user: discord.Member, guild_id: int) -> str:
     """Get user display name based on guild preference: 'username' or 'nickname'"""
     display_mode = get_guild_setting(guild_id, "name_display_mode", "username")
     
@@ -2612,6 +2614,15 @@ async def clock_interface(interaction: discord.Interaction):
     
     # Check if user has permission to use timeclock functions
     server_tier = get_server_tier(guild_id)
+    
+    # Type guard: ensure we have a Member for guild-specific functions
+    if not isinstance(interaction.user, discord.Member):
+        await send_reply(interaction,
+            "❌ Unable to verify access permissions. Please try again.",
+            ephemeral=True
+        )
+        return
+    
     if not user_has_clock_access(interaction.user, server_tier):
         if server_tier == "free":
             await send_reply(interaction,
@@ -3158,8 +3169,20 @@ async def generate_report(
         return
     
     # Check tier access for reports
-    guild_id = interaction.guild_id
+    if interaction.guild is None:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+        
+    guild_id = interaction.guild.id
     server_tier = get_server_tier(guild_id)
+    
+    # Type guard: ensure we have a Member for guild-specific functions
+    if not isinstance(interaction.user, discord.Member):
+        await interaction.followup.send(
+            "❌ Unable to verify admin permissions. Please try again.",
+            ephemeral=True
+        )
+        return
     
     # Free tier: Admin only + fake data
     if server_tier == "free":
@@ -3174,15 +3197,13 @@ async def generate_report(
         
         # Return fake CSV for free tier
         fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
-        user_display_name = get_user_display_name(user, interaction.guild_id)
+        user_display_name = get_user_display_name(user, guild_id)
         filename = f"{user_display_name}_sample_report_{start_date}_to_{end_date}.csv"
         
         file = discord.File(
             io.BytesIO(fake_csv.encode('utf-8')), 
             filename=filename
         )
-        
-        user_display_name = get_user_display_name(user, interaction.guild_id)
         await interaction.followup.send(
             f"📊 **Free Tier Sample Report** for **{user_display_name}**\n"
             f"🎯 This is sample data. Upgrade to Basic ($5/month) or Pro ($10/month) for real reports!\n"
@@ -3228,7 +3249,7 @@ async def generate_report(
         return
     
     # Get guild timezone (guild_id already checked above)
-    guild_tz_name = get_guild_setting(interaction.guild_id, "timezone", DEFAULT_TZ)
+    guild_tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
     
     # Convert date range to UTC boundaries for proper filtering
     try:
@@ -3247,10 +3268,10 @@ async def generate_report(
     
     # Generate report for specific user (guild_id already checked above)
     user_id = user.id
-    sessions_data = get_sessions_report(interaction.guild_id, user_id, start_utc, end_utc)
+    sessions_data = get_sessions_report(guild_id, user_id, start_utc, end_utc)
     
     if not sessions_data:
-        user_display_name = get_user_display_name(user, interaction.guild_id)
+        user_display_name = get_user_display_name(user, guild_id)
         await interaction.followup.send(
             f"📭 No completed timesheet entries found for **{user_display_name}** between {start_date} and {end_date}",
             ephemeral=True
@@ -3258,10 +3279,10 @@ async def generate_report(
         return
     
     # Generate single CSV
-    csv_content = await generate_csv_report(bot, sessions_data, interaction.guild_id, guild_tz_name)
+    csv_content = await generate_csv_report(bot, sessions_data, guild_id, guild_tz_name)
     
     # Create file using display name preference at the beginning
-    user_display_name = get_user_display_name(user, interaction.guild_id)
+    user_display_name = get_user_display_name(user, guild_id)
     filename = f"{user_display_name}_timesheet_report_{start_date}_to_{end_date}.csv"
     
     file = discord.File(
@@ -3330,9 +3351,11 @@ async def manual_cleanup(interaction: discord.Interaction, user: Optional[discor
             await interaction.followup.send("Use this in a server.", ephemeral=True)
             return
             
+        guild_id = interaction.guild.id
+        
         if user:
             # Delete all data for the specific user
-            deleted_count = cleanup_user_sessions(interaction.guild_id, user.id)
+            deleted_count = cleanup_user_sessions(guild_id, user.id)
             
             embed = discord.Embed(
                 title="🗑️ User Data Cleanup Complete",
@@ -3348,9 +3371,9 @@ async def manual_cleanup(interaction: discord.Interaction, user: Optional[discor
             
         else:
             # Clean up old sessions based on retention policy
-            deleted_count = cleanup_old_sessions(interaction.guild_id)
-            retention_days = get_retention_days(interaction.guild_id)
-            tier = get_server_tier(interaction.guild_id)
+            deleted_count = cleanup_old_sessions(guild_id)
+            retention_days = get_retention_days(guild_id)
+            tier = get_server_tier(guild_id)
             
             embed = discord.Embed(
                 title="🧹 Data Cleanup Complete",
@@ -3471,6 +3494,20 @@ async def purge_data(interaction: discord.Interaction):
         # If defer failed and interaction isn't done, we can't proceed
         return
     
+    if interaction.guild is None:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+        
+    guild_id = interaction.guild.id
+    
+    # Type guard: ensure we have a Member for guild-specific functions
+    if not isinstance(interaction.user, discord.Member):
+        await interaction.followup.send(
+            "❌ Unable to verify admin permissions. Please try again.",
+            ephemeral=True
+        )
+        return
+    
     # Double-check admin status
     if not is_server_admin(interaction.user):
         await interaction.followup.send("❌ Only server administrators can use this command.", ephemeral=True)
@@ -3503,7 +3540,7 @@ async def purge_data(interaction: discord.Interaction):
     )
     
     # Create confirmation view
-    view = PurgeConfirmationView(interaction.guild_id)
+    view = PurgeConfirmationView(guild_id)
     
     await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
@@ -3524,8 +3561,14 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
         # If defer failed and interaction isn't done, we can't proceed
         return
     
+    if interaction.guild is None:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+        
+    guild_id = interaction.guild.id
+    
     try:
-        current_tier = get_server_tier(interaction.guild_id)
+        current_tier = get_server_tier(guild_id)
         
         # Check if already on this tier or higher
         tier_hierarchy = {'free': 0, 'basic': 1, 'pro': 2}
@@ -3546,7 +3589,7 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
             return
         
         # Create secure checkout session server-side
-        checkout_url = create_secure_checkout_session(interaction.guild_id, plan)
+        checkout_url = create_secure_checkout_session(guild_id, plan)
         
         plan_details = {
             'basic': "**Basic Plan - $5/month**\n• Full team access to timeclock\n• All admin commands\n• CSV Reports\n• Role management\n• 1 week data retention",
@@ -3593,9 +3636,15 @@ async def cancel_subscription(interaction: discord.Interaction):
         # If defer failed and interaction isn't done, we can't proceed
         return
     
+    if interaction.guild is None:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+        
+    guild_id = interaction.guild.id
+    
     try:
         # Check current subscription status
-        current_tier = get_server_tier(interaction.guild_id)
+        current_tier = get_server_tier(guild_id)
         
         if current_tier == "free":
             embed = discord.Embed(
@@ -3689,13 +3738,19 @@ async def subscription_status(interaction: discord.Interaction):
         # If defer failed and interaction isn't done, we can't proceed
         return
     
+    if interaction.guild is None:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+        
+    guild_id = interaction.guild.id
+    
     try:
         with db() as conn:
             cursor = conn.execute("""
                 SELECT tier, subscription_id, customer_id, expires_at, status
                 FROM server_subscriptions 
                 WHERE guild_id = ?
-            """, (interaction.guild_id,))
+            """, (guild_id,))
             result = cursor.fetchone()
             
             if not result:
@@ -3781,10 +3836,14 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
         # If defer failed and interaction isn't done, we can't proceed
         return
     
-    try:
-        guild_id = interaction.guild_id
-        guild_name = interaction.guild.name if interaction.guild else "Unknown"
+    if interaction.guild is None:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
         
+    guild_id = interaction.guild.id
+    guild_name = interaction.guild.name
+    
+    try:
         # Check current tier
         current_tier = get_server_tier(guild_id)
         
