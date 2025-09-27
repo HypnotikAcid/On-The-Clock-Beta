@@ -150,7 +150,7 @@ def get_discord_oauth_url(state: str) -> str:
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": DISCORD_REDIRECT_URI,
         "response_type": "code",
-        "scope": DISCORD_OAUTH_SCOPES.replace(" ", "%20"),  # URL encode spaces in scope
+        "scope": DISCORD_OAUTH_SCOPES,  # Let requests.utils.quote handle encoding
         "state": state
     }
     
