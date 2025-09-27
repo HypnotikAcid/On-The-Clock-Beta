@@ -3257,8 +3257,8 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         else:
             access_info = "**Team Access:** All configured employee roles can use the timeclock"
         
-        # Get dashboard URL dynamically with OAuth login endpoint
-        dashboard_url = f"https://{get_domain()}/oauth/login"
+        # Use custom domain for dashboard
+        dashboard_url = "https://on-the-clock.replit.com/oauth/login"
         
         instruction_message = (
             f"⏰ **Timeclock Instructions**\n\n"
