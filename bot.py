@@ -134,9 +134,10 @@ def get_domain() -> str:
 # --- OAuth Helper Functions ---
 def get_discord_oauth_url(state: str) -> str:
     """Generate Discord OAuth authorization URL"""
-    domain = get_domain()
+    # Use custom domain for OAuth consistency with dashboard
+    custom_domain = "on-the-clock.replit.com"
     global DISCORD_REDIRECT_URI
-    DISCORD_REDIRECT_URI = f"https://{domain}/oauth/callback"
+    DISCORD_REDIRECT_URI = f"https://{custom_domain}/oauth/callback"
     
     base_url = "https://discord.com/api/oauth2/authorize"
     params = {
