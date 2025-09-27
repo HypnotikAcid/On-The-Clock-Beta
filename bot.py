@@ -173,6 +173,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             bot_id = bot_instance.user.id if bot_instance and bot_instance.is_ready() and bot_instance.user else "1418446753379913809"
             invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=2048&scope=bot%20applications.commands"
             
+            # Read the dashboard mockup file
+            try:
+                with open('dashboard_mockup.html', 'r', encoding='utf-8') as f:
+                    dashboard_content = f.read()
+                
+                # Update the status in the dashboard
+                dashboard_content = dashboard_content.replace(
+                    'Bot Online • 127 Servers',
+                    f'Bot {bot_status} • {guild_count} Servers'
+                )
+                
+                self.wfile.write(dashboard_content.encode('utf-8'))
+                return
+                
+            except FileNotFoundError:
+                # Fallback to simple HTML if dashboard file not found
+                pass
+            
             html_content = f"""
 <!DOCTYPE html>
 <html lang="en">
