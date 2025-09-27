@@ -3066,6 +3066,9 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         else:
             access_info = "**Team Access:** All configured employee roles can use the timeclock"
         
+        # Get dashboard URL dynamically with OAuth login endpoint
+        dashboard_url = f"https://{get_domain()}/oauth/login"
+        
         instruction_message = (
             f"⏰ **Timeclock Instructions**\n\n"
             f"**How to Use:**\n"
@@ -3074,6 +3077,10 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
             f"• All responses are private (only you see them)\n\n"
             f"**Access Level:**\n"
             f"{access_info}\n\n"
+            f"**📊 Web Dashboard:**\n"
+            f"• Visit **{dashboard_url}** for advanced management\n"
+            f"• Login with Discord to view reports and settings\n"
+            f"• Access real-time server statistics and admin tools\n\n"
             f"**Available Commands:**\n"
             f"• `/clock` - Access your timeclock interface\n"
             f"• `/help` - View all available commands\n"
