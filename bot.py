@@ -924,6 +924,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def handle_oauth_callback(self):
         """Handle OAuth callback from Discord"""
         try:
+            print(f"🔗 OAuth callback received: {self.path}")
+            
             # Parse query parameters
             parsed_url = urlparse(self.path)
             query_params = dict(parse_qsl(parsed_url.query))
@@ -931,6 +933,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             code = query_params.get('code')
             state = query_params.get('state')
             error = query_params.get('error')
+            
+            print(f"📋 OAuth params - code: {'✓' if code else '✗'}, state: {'✓' if state else '✗'}, error: {error or 'None'}")
             
             if error:
                 print(f"❌ OAuth error: {error}")
@@ -944,7 +948,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
             # Verify state parameter
             if state not in oauth_sessions:
-                print("❌ Invalid OAuth state")
+                print(f"❌ Invalid OAuth state: {state} not in {list(oauth_sessions.keys())}")
                 self.send_oauth_error("Invalid authentication state")
                 return
                 
@@ -952,49 +956,63 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             del oauth_sessions[state]
             
             # Exchange code for access token
+            print("🔄 Exchanging code for token...")
             token_data = exchange_oauth_code(code)
             if not token_data:
+                print("❌ Token exchange failed")
                 self.send_oauth_error("Failed to exchange authorization code")
                 return
                 
             access_token = token_data.get('access_token')
             if not access_token:
+                print("❌ No access token in response")
                 self.send_oauth_error("No access token received")
                 return
                 
+            print("✅ Token received, getting user data...")
+            
             # Get user information
             user_data = get_discord_user(access_token)
             if not user_data:
+                print("❌ Failed to get user data")
                 self.send_oauth_error("Failed to get user information")
                 return
                 
+            print(f"✅ User data: {user_data.get('username', 'Unknown')}")
+            
             # Get user's guilds
             guilds_data = get_discord_user_guilds(access_token)
-            if guilds_data is None:
-                self.send_oauth_error("Failed to get user's servers")
-                return
+            if not guilds_data:
+                guilds_data = []
+                
+            print(f"✅ User guilds: {len(guilds_data)} guilds found")
                 
             # Create user session
             session_id = secrets.token_urlsafe(32)
             user_sessions[session_id] = {
                 'user_id': user_data['id'],
                 'username': user_data['username'],
+                'discriminator': user_data.get('discriminator', '0'),
                 'avatar': user_data.get('avatar'),
-                'access_token': access_token,
                 'guilds': guilds_data,
+                'access_token': access_token,
                 'created_at': datetime.now(timezone.utc)
             }
+            
+            print(f"✅ Session created: {session_id[:8]}...")
             
             # Set session cookie and redirect to dashboard
             self.send_response(302)
             self.send_header('Location', '/')
-            self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly')
+            self.send_header('Set-Cookie', f'session={session_id}; Path=/; HttpOnly')
             self.end_headers()
             
-            print(f"✅ OAuth success: {user_data['username']} logged in")
+            print(f"✅ OAuth success: {user_data['username']} logged in with {len(guilds_data)} guilds")
             
         except Exception as e:
             print(f"❌ OAuth callback error: {e}")
+            import traceback
+            traceback.print_exc()
             self.send_oauth_error("Authentication failed")
 
     def send_oauth_error(self, message: str):
@@ -1068,14 +1086,22 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"❌ API request error: {e}")
             self.send_json_response({'error': 'Internal server error'}, 500)
 
-    def get_session_id(self):
-        """Extract session ID from cookies"""
+    def get_session_id(self) -> Optional[str]:
+        """Extract session ID from cookie or query parameter"""
+        # Check query parameter first
+        if '?' in self.path:
+            parsed_url = urlparse(self.path)
+            query_params = dict(parse_qsl(parsed_url.query))
+            if 'session' in query_params:
+                return query_params['session']
+        
+        # Check cookies
         cookie_header = self.headers.get('Cookie', '')
-        if 'session_id=' in cookie_header:
-            for cookie in cookie_header.split(';'):
-                cookie = cookie.strip()
-                if cookie.startswith('session_id='):
-                    return cookie.split('=', 1)[1]
+        for cookie in cookie_header.split(';'):
+            if '=' in cookie:
+                name, value = cookie.strip().split('=', 1)
+                if name == 'session':
+                    return value
         return None
 
     def send_json_response(self, data, status=200):
@@ -1525,84 +1551,6 @@ def purge_guild_data_for_testing(guild_id: int):
             self.end_headers()
             self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to initiate login</p>")
 
-    def handle_oauth_callback(self):
-        """Handle OAuth callback from Discord"""
-        try:
-            # Parse query parameters
-            parsed_url = urlparse(self.path)
-            query_params = dict(parse_qsl(parsed_url.query))
-            
-            code = query_params.get('code')
-            state = query_params.get('state')
-            error = query_params.get('error')
-            
-            if error:
-                print(f"❌ OAuth error: {error}")
-                self.send_oauth_error("OAuth authorization was denied")
-                return
-                
-            if not code or not state:
-                print("❌ Missing OAuth parameters")
-                self.send_oauth_error("Missing authentication parameters")
-                return
-                
-            # Verify state parameter
-            if state not in oauth_sessions:
-                print("❌ Invalid OAuth state")
-                self.send_oauth_error("Invalid authentication state")
-                return
-                
-            # Clean up state
-            del oauth_sessions[state]
-            
-            # Exchange code for access token
-            token_data = exchange_oauth_code(code)
-            if not token_data:
-                self.send_oauth_error("Failed to exchange authorization code")
-                return
-                
-            access_token = token_data.get('access_token')
-            if not access_token:
-                self.send_oauth_error("No access token received")
-                return
-                
-            # Get user information
-            user_data = get_discord_user(access_token)
-            if not user_data:
-                self.send_oauth_error("Failed to get user information")
-                return
-                
-            # Get user's guilds
-            guilds_data = get_discord_user_guilds(access_token)
-            if not guilds_data:
-                guilds_data = []
-                
-            # Create session
-            session_id = secrets.token_urlsafe(32)
-            user_sessions[session_id] = {
-                'user_id': user_data['id'],
-                'username': user_data['username'],
-                'discriminator': user_data.get('discriminator', '0'),
-                'avatar': user_data.get('avatar'),
-                'guilds': guilds_data,
-                'access_token': access_token,
-                'created_at': datetime.now(timezone.utc),
-                'ip': self.client_address[0]
-            }
-            
-            print(f"✅ OAuth success for {user_data['username']}#{user_data.get('discriminator', '0')}")
-            
-            # Redirect back to dashboard with session
-            self.send_response(302)
-            self.send_header('Location', f"/?session={session_id}")
-            self.send_header('Set-Cookie', f'session={session_id}; Path=/; HttpOnly; Secure; SameSite=Lax')
-            self.end_headers()
-            
-        except Exception as e:
-            print(f"❌ OAuth callback error: {e}")
-            import traceback
-            traceback.print_exc()
-            self.send_oauth_error("Authentication failed")
 
     def send_oauth_error(self, message: str):
         """Send OAuth error page"""
