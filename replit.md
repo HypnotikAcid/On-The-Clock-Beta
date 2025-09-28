@@ -72,6 +72,28 @@ Preferred communication style: Simple, everyday language.
 
 # Stable Build Status
 
+## 🎉 **ON THE CLOCK 1.4** - September 28, 2025 - Complete Admin Dashboard with Server-Specific Management
+
+### **Admin Dashboard Implementation (Sept 28, 2025)**
+- **OAuth Integration**: Complete Discord OAuth authentication with guild access
+- **Server Selection**: Dynamic server cards showing only manageable servers (where user has admin access + bot is present)
+- **Role Management System**: Real-time Discord role fetching with add/remove functionality for admin and employee roles
+- **Settings Dashboard**: Comprehensive server-specific settings (timezone, name display, subscription status)
+- **Permission Validation**: Server-side checks ensure only authorized users can access guild settings
+- **API Complete**: Full REST API with GET/POST endpoints for all dashboard functionality
+  - `/api/user` - User data with filtered guild list
+  - `/api/guild/{id}` - Guild stats, roles, tier information
+  - `/api/guild/{id}/roles` - Available Discord roles
+  - `/api/guild/{id}/admin-roles` - Add/remove admin role management
+  - `/api/guild/{id}/employee-roles` - Add/remove employee role management
+  - `/api/guild/{id}/settings` - Save guild preferences
+
+### **User Experience Enhancements**
+- **Intuitive Navigation**: Server selection → Settings dashboard → Role management flow
+- **Real-time Updates**: Immediate feedback when roles are added/removed
+- **Visual Design**: Professional interface with server icons, tier badges, and clear statistics
+- **Error Handling**: Comprehensive error messages and user feedback throughout
+
 ## 🎉 **ON THE CLOCK 1.3** - September 28, 2025 - Simplified Setup Command & Domain Fix
 
 ### **Setup Command Simplification (Sept 28, 2025)**
