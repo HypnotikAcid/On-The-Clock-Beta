@@ -124,23 +124,20 @@ async def send_reply(interaction: discord.Interaction, content: Optional[str] = 
 
 # Get domain for Stripe redirects
 def get_domain() -> str:
-    if os.getenv('REPLIT_DEPLOYMENT'):
-        domain = os.getenv('REPLIT_DEV_DOMAIN')
-        return domain if domain else 'localhost:5000'
+    # Check if we're in production mode
+    if os.getenv('REPLIT_ENVIRONMENT') == 'production':
+        # In production, use the published domain
+        return 'on-the-clock.replit.app'
     else:
+        # In development, use the dev domain
         domains = os.getenv('REPLIT_DOMAINS', '')
         return domains.split(',')[0] if domains else 'localhost:5000'
 
 # --- OAuth Helper Functions ---
 def get_discord_oauth_url(state: str) -> str:
     """Generate Discord OAuth authorization URL"""
-    # Use published domain for production OAuth
-    if os.getenv('REPLIT_DEPLOYMENT'):
-        # In published/production mode - use the published domain
-        domain = "on-the-clock.replit.app"
-    else:
-        # In development mode - use the dev domain
-        domain = get_domain()
+    # Use the same domain detection as get_domain()
+    domain = get_domain()
     
     global DISCORD_REDIRECT_URI
     DISCORD_REDIRECT_URI = f"https://{domain}/oauth/callback"
@@ -3264,11 +3261,8 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         else:
             access_info = "**Team Access:** All configured employee roles can use the timeclock"
         
-        # Use published domain for dashboard in production, dev domain in development
-        if os.getenv('REPLIT_DEPLOYMENT'):
-            dashboard_url = "https://on-the-clock.replit.app"
-        else:
-            dashboard_url = f"https://{get_domain()}"
+        # Use the same domain detection as other functions
+        dashboard_url = f"https://{get_domain()}"
         
         instruction_message = (
             f"⏰ **Timeclock Instructions**\n\n"
