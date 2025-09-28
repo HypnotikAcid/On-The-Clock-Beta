@@ -11,7 +11,7 @@ import secrets
 import base64
 import requests
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse, parse_qsl
 import stripe
@@ -45,9 +45,7 @@ DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")  # Required for OAuth
 DISCORD_REDIRECT_URI = None  # Will be set dynamically based on domain
 DISCORD_OAUTH_SCOPES = "identify guilds"
 
-# Session storage - in production, use Redis or database
-oauth_sessions = {}
-user_sessions = {}
+# Session storage - now using database for persistence instead of in-memory dictionaries
 
 # Guild-based locks to prevent race conditions in setup operations
 guild_setup_locks: Dict[int, asyncio.Lock] = {}
@@ -899,10 +897,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             # Generate state parameter for security
             state = secrets.token_urlsafe(32)
-            oauth_sessions[state] = {
-                'created_at': datetime.now(timezone.utc),
-                'ip': self.client_address[0]
-            }
+            
+            # Store state in database instead of memory
+            if not create_oauth_session(state, self.client_address[0], expiry_minutes=15):
+                self.send_response(500)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to create session</p>")
+                return
             
             # Generate Discord OAuth URL
             oauth_url = get_discord_oauth_url(state)
@@ -912,7 +914,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.send_header('Location', oauth_url)
             self.end_headers()
             
-            print(f"🔗 OAuth login initiated from {self.client_address[0]}")
+            print(f"🔗 OAuth login initiated from {self.client_address[0]} with state: {state[:8]}...")
             
         except Exception as e:
             print(f"❌ OAuth login error: {e}")
@@ -946,14 +948,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.send_oauth_error("Missing authentication parameters")
                 return
                 
-            # Verify state parameter
-            if state not in oauth_sessions:
-                print(f"❌ Invalid OAuth state: {state} not in {list(oauth_sessions.keys())}")
+            # Verify state parameter using database
+            oauth_session = get_oauth_session(state)
+            if not oauth_session:
+                print(f"❌ Invalid or expired OAuth state: {state}")
                 self.send_oauth_error("Invalid authentication state")
                 return
                 
             # Clean up state
-            del oauth_sessions[state]
+            delete_oauth_session(state)
             
             # Exchange code for access token
             print("🔄 Exchanging code for token...")
@@ -987,17 +990,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
             print(f"✅ User guilds: {len(guilds_data)} guilds found")
                 
-            # Create user session
+            # Create user session in database
             session_id = secrets.token_urlsafe(32)
-            user_sessions[session_id] = {
-                'user_id': user_data['id'],
-                'username': user_data['username'],
-                'discriminator': user_data.get('discriminator', '0'),
-                'avatar': user_data.get('avatar'),
-                'guilds': guilds_data,
-                'access_token': access_token,
-                'created_at': datetime.now(timezone.utc)
-            }
+            if not create_user_session(session_id, user_data, guilds_data, access_token, self.client_address[0]):
+                print("❌ Failed to create user session")
+                self.send_oauth_error("Failed to create session")
+                return
             
             print(f"✅ Session created: {session_id[:8]}...")
             
@@ -1045,11 +1043,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             # Check session
             session_id = self.get_session_id()
-            if not session_id or session_id not in user_sessions:
+            if not session_id:
                 self.send_json_response({'error': 'Not authenticated'}, 401)
                 return
                 
-            user_session = user_sessions[session_id]
+            user_session = get_user_session(session_id)
+            if not user_session:
+                self.send_json_response({'error': 'Session expired'}, 401)
+                return
             
             if self.path == '/api/user':
                 # Return user info
@@ -1141,11 +1142,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             # Check session
             session_id = self.get_session_id()
-            if not session_id or session_id not in user_sessions:
+            if not session_id:
                 self.send_json_response({'error': 'Not authenticated'}, 401)
                 return
                 
-            session = user_sessions[session_id]
+            session = get_user_session(session_id)
+            if not session:
+                self.send_json_response({'error': 'Session expired'}, 401)
+                return
             
             # Extract guild ID from path
             path_parts = self.path.split('/')
@@ -1225,11 +1229,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             # Check session
             session_id = self.get_session_id()
-            if not session_id or session_id not in user_sessions:
+            if not session_id:
                 self.send_json_response({'error': 'Not authenticated'}, 401)
                 return
                 
-            session = user_sessions[session_id]
+            session = get_user_session(session_id)
+            if not session:
+                self.send_json_response({'error': 'Session expired'}, 401)
+                return
             
             # Extract guild ID from path
             path_parts = self.path.split('/')
@@ -1296,11 +1303,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             # Check session
             session_id = self.get_session_id()
-            if not session_id or session_id not in user_sessions:
+            if not session_id:
                 self.send_json_response({'error': 'Not authenticated'}, 401)
                 return
                 
-            session = user_sessions[session_id]
+            session = get_user_session(session_id)
+            if not session:
+                self.send_json_response({'error': 'Session expired'}, 401)
+                return
             
             # Extract guild ID from path
             path_parts = self.path.split('/')
@@ -1529,10 +1539,14 @@ def purge_guild_data_for_testing(guild_id: int):
         try:
             # Generate state parameter for security
             state = secrets.token_urlsafe(32)
-            oauth_sessions[state] = {
-                'created_at': datetime.now(timezone.utc),
-                'ip': self.client_address[0]
-            }
+            
+            # Store state in database instead of memory
+            if not create_oauth_session(state, self.client_address[0], expiry_minutes=15):
+                self.send_response(500)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to create session</p>")
+                return
             
             # Generate Discord OAuth URL
             oauth_url = get_discord_oauth_url(state)
@@ -1542,7 +1556,7 @@ def purge_guild_data_for_testing(guild_id: int):
             self.send_header('Location', oauth_url)
             self.end_headers()
             
-            print(f"🔗 OAuth login initiated from {self.client_address[0]}")
+            print(f"🔗 OAuth login initiated from {self.client_address[0]} with state: {state[:8]}...")
             
         except Exception as e:
             print(f"❌ OAuth login error: {e}")
@@ -1584,11 +1598,14 @@ def purge_guild_data_for_testing(guild_id: int):
         try:
             # Check session
             session_id = self.get_session_id()
-            if not session_id or session_id not in user_sessions:
+            if not session_id:
                 self.send_json_response({"error": "Not authenticated"}, 401)
                 return
                 
-            session = user_sessions[session_id]
+            session = get_user_session(session_id)
+            if not session:
+                self.send_json_response({"error": "Session expired"}, 401)
+                return
             
             # Route API endpoints
             if self.path == "/api/user":
@@ -1911,6 +1928,173 @@ def init_db():
         )
         """)
         
+        # OAuth and User Session Tables for persistent session management
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS oauth_sessions (
+            state TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            ip_address TEXT NOT NULL,
+            expires_at TEXT NOT NULL
+        )
+        """)
+        
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            session_id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            username TEXT NOT NULL,
+            discriminator TEXT,
+            avatar TEXT,
+            guilds_data TEXT NOT NULL,  -- JSON encoded guild data
+            access_token TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            ip_address TEXT NOT NULL
+        )
+        """)
+        
+        # Add indexes for session cleanup
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_oauth_sessions_expires 
+        ON oauth_sessions(expires_at)
+        """)
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_user_sessions_expires 
+        ON user_sessions(expires_at)
+        """)
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id 
+        ON user_sessions(user_id)
+        """)
+
+
+# --- OAuth Session Management Functions (Database-backed) ---
+def create_oauth_session(state: str, ip_address: str, expiry_minutes: int = 10) -> bool:
+    """Create OAuth session state in database"""
+    try:
+        with db() as conn:
+            expires_at = (datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)).isoformat()
+            conn.execute("""
+                INSERT INTO oauth_sessions (state, created_at, ip_address, expires_at)
+                VALUES (?, ?, ?, ?)
+            """, (state, datetime.now(timezone.utc).isoformat(), ip_address, expires_at))
+            return True
+    except Exception as e:
+        print(f"❌ Error creating OAuth session: {e}")
+        return False
+
+def get_oauth_session(state: str) -> Optional[Dict]:
+    """Get OAuth session from database"""
+    try:
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT state, created_at, ip_address, expires_at 
+                FROM oauth_sessions 
+                WHERE state = ? AND expires_at > ?
+            """, (state, datetime.now(timezone.utc).isoformat()))
+            result = cursor.fetchone()
+            if result:
+                return {
+                    'state': result[0],
+                    'created_at': datetime.fromisoformat(result[1]),
+                    'ip_address': result[2],
+                    'expires_at': datetime.fromisoformat(result[3])
+                }
+    except Exception as e:
+        print(f"❌ Error getting OAuth session: {e}")
+    return None
+
+def delete_oauth_session(state: str) -> bool:
+    """Delete OAuth session from database"""
+    try:
+        with db() as conn:
+            conn.execute("DELETE FROM oauth_sessions WHERE state = ?", (state,))
+            return True
+    except Exception as e:
+        print(f"❌ Error deleting OAuth session: {e}")
+        return False
+
+def create_user_session(session_id: str, user_data: Dict, guilds_data: List, access_token: str, ip_address: str, expiry_hours: int = 24) -> bool:
+    """Create user session in database"""
+    try:
+        with db() as conn:
+            expires_at = (datetime.now(timezone.utc) + timedelta(hours=expiry_hours)).isoformat()
+            conn.execute("""
+                INSERT INTO user_sessions 
+                (session_id, user_id, username, discriminator, avatar, guilds_data, access_token, created_at, expires_at, ip_address)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                session_id,
+                user_data['id'],
+                user_data['username'],
+                user_data.get('discriminator', '0'),
+                user_data.get('avatar'),
+                json.dumps(guilds_data),
+                access_token,
+                datetime.now(timezone.utc).isoformat(),
+                expires_at,
+                ip_address
+            ))
+            return True
+    except Exception as e:
+        print(f"❌ Error creating user session: {e}")
+        return False
+
+def get_user_session(session_id: str) -> Optional[Dict]:
+    """Get user session from database"""
+    try:
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT session_id, user_id, username, discriminator, avatar, guilds_data, access_token, created_at, expires_at, ip_address
+                FROM user_sessions 
+                WHERE session_id = ? AND expires_at > ?
+            """, (session_id, datetime.now(timezone.utc).isoformat()))
+            result = cursor.fetchone()
+            if result:
+                return {
+                    'session_id': result[0],
+                    'user_id': result[1],
+                    'username': result[2],
+                    'discriminator': result[3] or '0',
+                    'avatar': result[4],
+                    'guilds': json.loads(result[5]) if result[5] else [],
+                    'access_token': result[6],
+                    'created_at': datetime.fromisoformat(result[7]),
+                    'expires_at': datetime.fromisoformat(result[8]),
+                    'ip_address': result[9]
+                }
+    except Exception as e:
+        print(f"❌ Error getting user session: {e}")
+    return None
+
+def delete_user_session(session_id: str) -> bool:
+    """Delete user session from database"""
+    try:
+        with db() as conn:
+            conn.execute("DELETE FROM user_sessions WHERE session_id = ?", (session_id,))
+            return True
+    except Exception as e:
+        print(f"❌ Error deleting user session: {e}")
+        return False
+
+def cleanup_expired_sessions():
+    """Clean up expired OAuth and user sessions"""
+    try:
+        with db() as conn:
+            now = datetime.now(timezone.utc).isoformat()
+            # Clean up expired OAuth sessions
+            cursor = conn.execute("DELETE FROM oauth_sessions WHERE expires_at <= ?", (now,))
+            oauth_deleted = cursor.rowcount
+            
+            # Clean up expired user sessions
+            cursor = conn.execute("DELETE FROM user_sessions WHERE expires_at <= ?", (now,))
+            user_deleted = cursor.rowcount
+            
+            if oauth_deleted > 0 or user_deleted > 0:
+                print(f"🧹 Cleaned up {oauth_deleted} OAuth sessions and {user_deleted} user sessions")
+    except Exception as e:
+        print(f"❌ Error cleaning up sessions: {e}")
+
 
 # --- Subscription/Tier Management ---
 def get_server_tier(guild_id: int) -> str:
