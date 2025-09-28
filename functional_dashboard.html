@@ -1456,6 +1456,78 @@
                     </button>
                 </div>
             </div>
+            
+            <!-- Role Management Section -->
+            <div class="settings-section">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M12,5.5A3.5,3.5 0 0,1 15.5,9A3.5,3.5 0 0,1 12,12.5A3.5,3.5 0 0,1 8.5,9A3.5,3.5 0 0,1 12,5.5M5,8C5.56,8 6.08,8.15 6.53,8.42C6.38,9.85 6.8,11.27 7.66,12.38C7.16,13.34 6.16,14 5,14A3,3 0 0,1 2,11A3,3 0 0,1 5,8M19,8A3,3 0 0,1 22,11A3,3 0 0,1 19,14C17.84,14 16.84,13.34 16.34,12.38C17.2,11.27 17.62,9.85 17.47,8.42C17.92,8.15 18.44,8 19,8M5.5,18.25C5.5,16.18 8.41,14.5 12,14.5C15.59,14.5 18.5,16.18 18.5,18.25V20H5.5V18.25M0,20V18.5C0,17.11 1.89,15.94 4.45,15.6C3.86,16.28 3.5,17.22 3.5,18.25V20H0M24,20H20.5V18.25C20.5,17.22 20.14,16.28 19.55,15.6C22.11,15.94 24,17.11 24,18.5V20Z"/>
+                    </svg>
+                    Role Management
+                </h3>
+                
+                <p style="color: #b0b0b0; font-size: 0.9rem; margin-bottom: 1.5rem;">
+                    Configure which Discord roles can access admin functions and timeclock features.
+                </p>
+                
+                <!-- Current Admin Roles -->
+                <div style="margin-bottom: 2rem;">
+                    <h4 style="color: #5865F2; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9,12L11,14L15,10M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2Z"/>
+                        </svg>
+                        Admin Roles (Reports & Upgrade Access)
+                    </h4>
+                    <div id="adminRolesList" class="role-list">
+                        <div style="text-align: center; color: #b0b0b0; font-style: italic; padding: 1rem;">
+                            Loading admin roles...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Current Employee Roles -->
+                <div style="margin-bottom: 2rem;">
+                    <h4 style="color: #00D4FF; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,6V9L16,5L12,1V4A8,8 0 0,0 4,12C4,13.57 4.46,15.03 5.24,16.26L6.7,14.8C6.25,13.97 6,13 6,12A6,6 0 0,1 12,6M18.76,7.74L17.3,9.2C17.74,10.04 18,11 18,12A6,6 0 0,1 12,18V15L8,19L12,23V20A8,8 0 0,0 20,12C20,10.43 19.54,8.97 18.76,7.74Z"/>
+                        </svg>
+                        Employee Roles (Timeclock Access)
+                    </h4>
+                    <div id="employeeRolesList" class="role-list">
+                        <div style="text-align: center; color: #b0b0b0; font-style: italic; padding: 1rem;">
+                            Loading employee roles...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Available Server Roles -->
+                <div>
+                    <h4 style="color: #ffffff; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,4C16.88,4 17.67,4.84 17.67,5.84C17.67,6.84 16.88,7.68 16,7.68C15.12,7.68 14.33,6.84 14.33,5.84C14.33,4.84 15.12,4 16,4M16,10.5C18.5,10.5 21.5,11.43 21.5,13V15H10.5V13C10.5,11.43 13.5,10.5 16,10.5M8,4C8.88,4 9.67,4.84 9.67,5.84C9.67,6.84 8.88,7.68 8,7.68C7.12,7.68 6.33,6.84 6.33,5.84C6.33,4.84 7.12,4 8,4M8,10.5C10.5,10.5 13.5,11.43 13.5,13V15H2.5V13C2.5,11.43 5.5,10.5 8,10.5Z"/>
+                        </svg>
+                        Available Server Roles
+                    </h4>
+                    
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <select id="availableAdminRoles" style="flex: 1; background: #2c2f36; border: 1px solid #40444b; color: #dcddde; padding: 0.5rem; border-radius: 8px;">
+                            <option value="">Select a role to add as Admin...</option>
+                        </select>
+                        <button class="slanted-btn" onclick="addAdminRole()" style="margin: 0;">
+                            <span>Add Admin Role</span>
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <select id="availableEmployeeRoles" style="flex: 1; background: #2c2f36; border: 1px solid #40444b; color: #dcddde; padding: 0.5rem; border-radius: 8px;">
+                            <option value="">Select a role to add as Employee...</option>
+                        </select>
+                        <button class="slanted-btn secondary" onclick="addEmployeeRole()" style="margin: 0;">
+                            <span>Add Employee Role</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Success/Error Messages -->
