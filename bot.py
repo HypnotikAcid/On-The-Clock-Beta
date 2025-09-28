@@ -1646,8 +1646,25 @@ def purge_guild_data_for_testing(guild_id: int):
             if self.path == "/api/user":
                 self.handle_api_user(session)
             elif self.path.startswith("/api/guild/"):
-                guild_id = self.path.split("/")[-1]
-                self.handle_api_guild(session, guild_id)
+                # Parse guild-specific endpoints
+                path_parts = self.path.split("/")
+                if len(path_parts) >= 4:
+                    guild_id = path_parts[3]
+                    
+                    if len(path_parts) == 4:
+                        # /api/guild/{id}
+                        self.handle_api_guild(session, guild_id)
+                    elif len(path_parts) == 5:
+                        endpoint = path_parts[4]
+                        if endpoint == "roles":
+                            # /api/guild/{id}/roles
+                            self.handle_api_guild_roles(session, guild_id)
+                        else:
+                            self.send_json_response({"error": "Endpoint not found"}, 404)
+                    else:
+                        self.send_json_response({"error": "Invalid API path"}, 400)
+                else:
+                    self.send_json_response({"error": "Invalid API path"}, 400)
             else:
                 self.send_json_response({"error": "Endpoint not found"}, 404)
                 

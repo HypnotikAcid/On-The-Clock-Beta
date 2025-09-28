@@ -1485,12 +1485,13 @@
                     currentUser = {
                         id: userData.user_id,
                         username: userData.username,
-                        discriminator: '0001',
-                        avatar: userData.avatar
+                        discriminator: userData.discriminator || '0001',
+                        avatar: userData.avatar,
+                        guilds: userData.guilds || []
                     };
                     
                     updateAuthUI();
-                    loadServerData();
+                    showServerSelection();
                 } else {
                     isLoggedIn = false;
                     updateAuthUI();
@@ -1730,6 +1731,411 @@
         function inviteBot() {
             const inviteUrl = 'https://discord.com/api/oauth2/authorize?client_id=1418446753379913809&permissions=2048&scope=bot%20applications.commands';
             window.open(inviteUrl, '_blank');
+        }
+
+        // Global variables for settings dashboard
+        let currentSelectedServer = null;
+        let availableRoles = [];
+
+        // Show server selection screen
+        function showServerSelection() {
+            if (!isLoggedIn || !currentUser) return;
+            
+            // Hide main dashboard and show server selection
+            document.querySelector('.main-content').style.display = 'none';
+            document.querySelector('.nav-tabs').style.display = 'none';
+            document.getElementById('serverSelection').style.display = 'block';
+            document.getElementById('settingsDashboard').style.display = 'none';
+            
+            // Load and display servers
+            loadUserServers();
+        }
+
+        // Load user's manageable servers
+        async function loadUserServers() {
+            const serverGrid = document.getElementById('serverGrid');
+            const noServersMessage = document.getElementById('noServersMessage');
+            
+            try {
+                serverGrid.innerHTML = '<div style="text-align: center; color: #b0b0b0;">Loading your servers...</div>';
+                
+                if (currentUser.guilds && currentUser.guilds.length > 0) {
+                    serverGrid.innerHTML = '';
+                    
+                    currentUser.guilds.forEach(guild => {
+                        const serverCard = createServerCard(guild);
+                        serverGrid.appendChild(serverCard);
+                    });
+                    
+                    noServersMessage.style.display = 'none';
+                } else {
+                    serverGrid.innerHTML = '';
+                    noServersMessage.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading servers:', error);
+                serverGrid.innerHTML = '<div style="text-align: center; color: #ff6b6b;">Error loading servers. Please refresh the page.</div>';
+            }
+        }
+
+        // Create server card HTML element
+        function createServerCard(guild) {
+            const card = document.createElement('div');
+            card.className = 'server-card';
+            
+            const iconUrl = guild.icon 
+                ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
+                : null;
+                
+            const tierClass = guild.tier === 'pro' ? 'pro' : guild.tier === 'basic' ? 'basic' : 'free';
+            
+            card.innerHTML = `
+                <div class="server-header">
+                    <div class="server-icon">
+                        ${iconUrl ? `<img src="${iconUrl}" alt="${guild.name}" onerror="this.style.display='none'">` : ''}
+                        ${!iconUrl ? guild.name.charAt(0).toUpperCase() : ''}
+                    </div>
+                    <div class="server-info">
+                        <h3>${guild.name}</h3>
+                        <span class="server-tier ${tierClass}">${guild.tier}</span>
+                    </div>
+                </div>
+                
+                <div class="server-stats">
+                    <div class="server-stat">
+                        <div class="server-stat-value">${guild.member_count || 'N/A'}</div>
+                        <div class="server-stat-label">Members</div>
+                    </div>
+                    <div class="server-stat">
+                        <div class="server-stat-value">---</div>
+                        <div class="server-stat-label">Clocked In</div>
+                    </div>
+                </div>
+                
+                <button class="manage-server-btn" onclick="openServerSettings('${guild.id}')">
+                    ⚙️ Manage Settings
+                </button>
+            `;
+            
+            return card;
+        }
+
+        // Open server settings dashboard
+        async function openServerSettings(serverId) {
+            try {
+                // Find the server in current user's guilds
+                const server = currentUser.guilds.find(g => g.id === serverId);
+                if (!server) {
+                    alert('Server not found!');
+                    return;
+                }
+                
+                currentSelectedServer = server;
+                
+                // Hide server selection, show settings dashboard
+                document.getElementById('serverSelection').style.display = 'none';
+                document.getElementById('settingsDashboard').style.display = 'block';
+                
+                // Load server settings data
+                await loadServerSettingsData(serverId);
+                
+            } catch (error) {
+                console.error('Error opening server settings:', error);
+                alert('Failed to load server settings. Please try again.');
+            }
+        }
+
+        // Load server settings data from API
+        async function loadServerSettingsData(serverId) {
+            try {
+                // Update header
+                updateSettingsHeader();
+                
+                // Load guild data
+                const response = await fetch(`/api/guild/${serverId}`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const guildData = await response.json();
+                    
+                    // Update server overview stats
+                    document.getElementById('settingsMemberCount').textContent = guildData.member_count || '---';
+                    document.getElementById('settingsOnlineCount').textContent = guildData.online_count || '---';
+                    document.getElementById('settingsClockedInCount').textContent = guildData.clocked_in_count || '0';
+                    document.getElementById('settingsRetentionDays').textContent = `${guildData.retention_days || 0} days`;
+                    
+                    // Update tier info
+                    const tierBadge = document.getElementById('settingsCurrentTier');
+                    const tierClass = guildData.tier === 'pro' ? 'pro' : guildData.tier === 'basic' ? 'basic' : 'free';
+                    tierBadge.textContent = guildData.tier.toUpperCase() + ' TIER';
+                    tierBadge.className = `tier-badge ${tierClass}`;
+                    
+                    // Update tier benefits
+                    updateTierBenefits(guildData.tier);
+                    
+                    // Load roles
+                    await loadServerRoles(serverId, guildData.admin_roles || [], guildData.employee_roles || []);
+                    
+                } else {
+                    throw new Error('Failed to load guild data');
+                }
+                
+            } catch (error) {
+                console.error('Error loading server settings data:', error);
+                showSettingsMessage('Failed to load server data. Please try again.', 'error');
+            }
+        }
+
+        // Update settings header with server info
+        function updateSettingsHeader() {
+            if (!currentSelectedServer) return;
+            
+            const serverIcon = document.getElementById('settingsServerIcon');
+            const serverName = document.getElementById('settingsServerName');
+            const serverTier = document.getElementById('settingsServerTier');
+            
+            const iconUrl = currentSelectedServer.icon 
+                ? `https://cdn.discordapp.com/icons/${currentSelectedServer.id}/${currentSelectedServer.icon}.png?size=64`
+                : null;
+            
+            if (iconUrl) {
+                serverIcon.innerHTML = `<img src="${iconUrl}" alt="${currentSelectedServer.name}" onerror="this.innerHTML='${currentSelectedServer.name.charAt(0).toUpperCase()}'">`;
+            } else {
+                serverIcon.innerHTML = currentSelectedServer.name.charAt(0).toUpperCase();
+            }
+            
+            serverName.textContent = currentSelectedServer.name;
+            serverTier.textContent = currentSelectedServer.tier;
+            serverTier.className = `server-tier ${currentSelectedServer.tier}`;
+        }
+
+        // Load server roles from API
+        async function loadServerRoles(serverId, adminRoles, employeeRoles) {
+            try {
+                // Load available roles
+                const rolesResponse = await fetch(`/api/guild/${serverId}/roles`, {
+                    credentials: 'include'
+                });
+                
+                if (rolesResponse.ok) {
+                    availableRoles = await rolesResponse.json().then(data => data.roles);
+                    populateRoleSelectors();
+                } else {
+                    availableRoles = [];
+                }
+                
+                // Populate current roles
+                populateCurrentRoles(adminRoles, employeeRoles);
+                
+            } catch (error) {
+                console.error('Error loading server roles:', error);
+                showSettingsMessage('Failed to load server roles.', 'error');
+            }
+        }
+
+        // Populate role selector dropdowns
+        function populateRoleSelectors() {
+            const adminSelect = document.getElementById('availableAdminRoles');
+            const employeeSelect = document.getElementById('availableEmployeeRoles');
+            
+            // Clear existing options except the first one
+            adminSelect.innerHTML = '<option value="">Select a role to add...</option>';
+            employeeSelect.innerHTML = '<option value="">Select a role to add...</option>';
+            
+            availableRoles.forEach(role => {
+                if (!role.managed) { // Don't include managed roles (bots, integrations)
+                    const adminOption = document.createElement('option');
+                    adminOption.value = role.id;
+                    adminOption.textContent = `@${role.name}`;
+                    adminSelect.appendChild(adminOption);
+                    
+                    const employeeOption = document.createElement('option');
+                    employeeOption.value = role.id;
+                    employeeOption.textContent = `@${role.name}`;
+                    employeeSelect.appendChild(employeeOption);
+                }
+            });
+        }
+
+        // Populate current roles in the lists
+        function populateCurrentRoles(adminRoles, employeeRoles) {
+            const adminList = document.getElementById('adminRolesList');
+            const employeeList = document.getElementById('employeeRolesList');
+            
+            // Clear existing roles
+            adminList.innerHTML = '';
+            employeeList.innerHTML = '';
+            
+            // Add admin roles
+            if (adminRoles.length === 0) {
+                adminList.innerHTML = '<div style="color: #b0b0b0; text-align: center; padding: 1rem;">No admin roles configured</div>';
+            } else {
+                adminRoles.forEach(role => {
+                    const roleItem = createRoleItem(role, 'admin');
+                    adminList.appendChild(roleItem);
+                });
+            }
+            
+            // Add employee roles  
+            if (employeeRoles.length === 0) {
+                employeeList.innerHTML = '<div style="color: #b0b0b0; text-align: center; padding: 1rem;">No employee roles configured</div>';
+            } else {
+                employeeRoles.forEach(role => {
+                    const roleItem = createRoleItem(role, 'employee');
+                    employeeList.appendChild(roleItem);
+                });
+            }
+        }
+
+        // Create role item HTML element
+        function createRoleItem(role, type) {
+            const item = document.createElement('div');
+            item.className = 'role-item';
+            item.innerHTML = `
+                <span class="role-name">@${role.name}</span>
+                <button class="remove-role-btn" onclick="removeRole('${role.id}', '${type}')">Remove</button>
+            `;
+            return item;
+        }
+
+        // Add admin role
+        async function addAdminRole() {
+            const select = document.getElementById('availableAdminRoles');
+            const roleId = select.value;
+            
+            if (!roleId) {
+                alert('Please select a role to add.');
+                return;
+            }
+            
+            await updateRole(roleId, 'admin', 'add');
+            select.value = '';
+        }
+
+        // Add employee role
+        async function addEmployeeRole() {
+            const select = document.getElementById('availableEmployeeRoles');
+            const roleId = select.value;
+            
+            if (!roleId) {
+                alert('Please select a role to add.');
+                return;
+            }
+            
+            await updateRole(roleId, 'employee', 'add');
+            select.value = '';
+        }
+
+        // Remove role
+        async function removeRole(roleId, type) {
+            if (confirm('Are you sure you want to remove this role?')) {
+                await updateRole(roleId, type, 'remove');
+            }
+        }
+
+        // Update role via API
+        async function updateRole(roleId, type, action) {
+            try {
+                const endpoint = type === 'admin' ? 'admin-roles' : 'employee-roles';
+                const response = await fetch(`/api/guild/${currentSelectedServer.id}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        action: action,
+                        role_id: roleId
+                    })
+                });
+                
+                if (response.ok) {
+                    // Reload server settings to refresh the role lists
+                    await loadServerSettingsData(currentSelectedServer.id);
+                    showSettingsMessage(`Role ${action}ed successfully!`, 'success');
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to update role');
+                }
+                
+            } catch (error) {
+                console.error('Error updating role:', error);
+                showSettingsMessage(`Failed to ${action} role: ${error.message}`, 'error');
+            }
+        }
+
+        // Save general settings
+        async function saveGeneralSettings() {
+            try {
+                const timezone = document.getElementById('timezoneSelect').value;
+                const nameDisplayMode = document.getElementById('nameDisplayMode').value;
+                
+                const response = await fetch(`/api/guild/${currentSelectedServer.id}/settings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        timezone: timezone,
+                        name_display_mode: nameDisplayMode
+                    })
+                });
+                
+                if (response.ok) {
+                    showSettingsMessage('Settings saved successfully!', 'success');
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save settings');
+                }
+                
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                showSettingsMessage(`Failed to save settings: ${error.message}`, 'error');
+            }
+        }
+
+        // Back to server selection
+        function backToServerSelection() {
+            document.getElementById('settingsDashboard').style.display = 'none';
+            document.getElementById('serverSelection').style.display = 'block';
+            currentSelectedServer = null;
+        }
+
+        // Show settings message
+        function showSettingsMessage(message, type) {
+            const messageDiv = document.getElementById('settingsMessage');
+            messageDiv.textContent = message;
+            messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+            messageDiv.style.display = 'block';
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update tier benefits display
+        function updateTierBenefits(tier) {
+            const benefit1 = document.getElementById('tierBenefit1');
+            const benefit2 = document.getElementById('tierBenefit2');
+            
+            if (tier === 'free') {
+                benefit1.textContent = 'Admin-only timeclock access';
+                benefit2.textContent = 'Testing mode (0 day retention)';
+            } else if (tier === 'basic') {
+                benefit1.textContent = 'Full team timeclock access';
+                benefit2.textContent = '7 days data retention';
+            } else if (tier === 'pro') {
+                benefit1.textContent = 'Full team timeclock access';
+                benefit2.textContent = '30 days data retention + advanced features';
+            }
+        }
+
+        // Upgrade from settings
+        function upgradeFromSettings() {
+            alert('This would redirect to /upgrade command or Stripe checkout for the current server.');
         }
 
         // Load initial data
