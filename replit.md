@@ -72,6 +72,21 @@ Preferred communication style: Simple, everyday language.
 
 # Stable Build Status
 
+## 🎉 **ON THE CLOCK 1.3** - September 28, 2025 - Simplified Setup Command & Domain Fix
+
+### **Setup Command Simplification (Sept 28, 2025)**
+- **Command Renamed**: `/setup_timeclock` → `/setup` for simplicity
+- **Channel Requirement Removed**: No longer requires channel parameter since `/clock` works universally
+- **Simplified Workflow**: Now just displays setup information as ephemeral response
+- **Documentation Updated**: All references updated to reflect universal `/clock` command approach
+- **Domain Configuration Fixed**: Corrected production domain detection to use `on-the-clock.replit.app` instead of dev domains
+
+### **Technical Improvements**
+- **Domain Detection**: Fixed `REPLIT_ENVIRONMENT=production` check for proper published domain usage
+- **OAuth Integration**: Resolved OAuth redirect URI mismatches by using consistent domain detection
+- **Database Cleanup**: Removed problematic `instruction_channel_id` column references
+- **User Experience**: Streamlined setup process with clear, actionable instructions
+
 ## 🎉 **ON THE CLOCK 1.2** - September 27, 2025 - Complete Codebase Cleanup & Stability Enhancement
 ✅ **Status**: **PRODUCTION READY** - Zero LSP errors, enterprise-grade code quality
 

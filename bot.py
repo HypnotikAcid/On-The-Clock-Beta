@@ -3195,25 +3195,17 @@ async def on_guild_join(guild):
     except Exception as e:
         print(f"❌ Error sending welcome message for {guild.name}: {e}")
 
-@tree.command(name="setup_timeclock", description="Setup timeclock instructions in a channel")
-@app_commands.describe(
-    channel="Channel to post timeclock instructions (defaults to current channel)"
-)
+@tree.command(name="setup", description="View timeclock setup information and instructions")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
-async def setup_timeclock(interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None):
+async def setup(interaction: discord.Interaction):
     """
-    Posts timeclock instructions in a channel for the new /clock command approach.
-    No more persistent buttons that timeout - users now use /clock for fresh interfaces!
+    Display timeclock setup information and instructions.
+    Shows how to use the universal /clock command system.
     """
     # Robust defer with proper fallback
     defer_success = await robust_defer(interaction, ephemeral=True)
     if not defer_success and not interaction.response.is_done():
-        return
-    
-    ch = channel or interaction.channel
-    if ch is None:
-        await interaction.followup.send("No channel resolved.", ephemeral=True)
         return
     
     guild_id = interaction.guild_id
@@ -3221,39 +3213,8 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         await interaction.edit_original_response(content="❌ This command must be used in a server.")
         return
     
-    # Check channel permissions
-    if not hasattr(ch, 'send'):
-        await interaction.edit_original_response(content="❌ This channel type does not support messages.")
-        return
-    
-    permissions = ch.permissions_for(interaction.guild.me)
-    if not permissions.send_messages:
-        await interaction.edit_original_response(
-            content="❌ **Bot Missing Permissions**\n\n"
-                   f"I need **Send Messages** permission in {ch.mention} to post timeclock instructions.\n"
-                   "Please grant the permission and try again."
-        )
-        return
-    
     try:
-        # Clean up any old timeclock instruction messages first
-        deleted_count = 0
-        if hasattr(ch, 'history'):
-            async for message in ch.history(limit=20):
-                if (message.author == bot.user and 
-                    ("🕐 **Company Timeclock**" in message.content or 
-                     "⏰ **Timeclock Instructions**" in message.content)):
-                    try:
-                        await message.delete()
-                        deleted_count += 1
-                        print(f"🧹 Deleted old timeclock instruction message (ID: {message.id})")
-                    except Exception as e:
-                        print(f"⚠️ Could not delete old message {message.id}: {e}")
-        
-        if deleted_count > 0:
-            print(f"🧹 Cleaned up {deleted_count} old instruction messages")
-        
-        # Create the new instruction message
+        # Get server information
         server_tier = get_server_tier(guild_id)
         
         if server_tier == "free":
@@ -3264,13 +3225,14 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
         # Use the same domain detection as other functions
         dashboard_url = f"https://{get_domain()}"
         
-        instruction_message = (
-            f"⏰ **Timeclock Instructions**\n\n"
+        setup_message = (
+            f"⏰ **Timeclock Setup Complete!**\n\n"
             f"**How to Use:**\n"
-            f"• Type `/clock` to access your personal timeclock interface\n"
-            f"• Fresh buttons every time - no more timeout issues!\n"
+            f"• Type `/clock` anywhere in the server to access timeclock\n"
+            f"• No channel setup needed - works from any channel!\n"
+            f"• Fresh interface every time - no timeout issues\n"
             f"• All responses are private (only you see them)\n\n"
-            f"**Access Level:**\n"
+            f"**Current Access Level:**\n"
             f"{access_info}\n\n"
             f"**📊 Web Dashboard:**\n"
             f"• Visit **{dashboard_url}** for advanced management\n"
@@ -3280,38 +3242,23 @@ async def setup_timeclock(interaction: discord.Interaction, channel: Optional[di
             f"• `/clock` - Access your timeclock interface\n"
             f"• `/help` - View all available commands\n"
             f"• `/upgrade` - Upgrade your server plan\n\n"
-            f"**Need Help?** Join support: https://discord.gg/KdTRTqdPcj"
+            f"**🎉 Setup Benefits:**\n"
+            f"• **Universal Access:** Works from any channel\n"
+            f"• **No Maintenance:** No buttons to refresh or manage\n"
+            f"• **Always Reliable:** Zero interaction failures\n"
+            f"• **Professional Experience:** Clean, private workflow\n\n"
+            f"**🆘 Need Help?** Join support: https://discord.gg/KdTRTqdPcj"
         )
         
-        msg = await ch.send(instruction_message)
-        print(f"✅ Posted new timeclock instructions (ID: {msg.id}) in {getattr(ch, 'name', ch.id)}")
-        
-        # Store the instruction message info (for future cleanup)
-        set_guild_setting(guild_id, "instruction_channel_id", ch.id)
-        set_guild_setting(guild_id, "instruction_message_id", msg.id)
-        
-        # Success response
-        channel_mention = getattr(ch, 'mention', f'<#{ch.id}>')
-        await interaction.edit_original_response(
-            content=f"✅ **Timeclock Instructions Posted!**\n\n"
-                   f"Posted new `/clock` instructions in {channel_mention}.\n\n"
-                   f"**📍 Version 1.1 Upgrade Complete:**\n"
-                   f"• **No More Timeouts:** Users now use `/clock` for fresh interfaces\n"
-                   f"• **Always Works:** Fresh buttons every time, zero maintenance\n"
-                   f"• **Professional Experience:** Private responses, clean workflow\n\n"
-                   f"**🎉 Benefits:**\n"
-                   f"• No more `/refresh` commands needed\n"
-                   f"• No more \"This interaction failed\" errors\n"
-                   f"• Users get instant, reliable timeclock access\n\n"
-                   f"**🆘 Need Help?** Join our support server: https://discord.gg/KdTRTqdPcj"
-        )
+        await interaction.edit_original_response(content=setup_message)
+        print(f"✅ Displayed setup information for guild {guild_id}")
         
     except Exception as e:
-        print(f"❌ Failed to post timeclock instructions: {e}")
+        print(f"❌ Failed to display setup information: {e}")
         await interaction.edit_original_response(
-            content="❌ **Failed to Post Instructions**\n\n"
-                   "Could not post timeclock instructions in the channel.\n"
-                   "Please ensure the bot has proper permissions and try again."
+            content="❌ **Setup Information Error**\n\n"
+                   "Could not retrieve setup information.\n"
+                   "Please try again or contact support if the issue persists."
         )
 
 
@@ -3755,7 +3702,7 @@ async def help_command(interaction: discord.Interaction):
         name="⏰ Timeclock Commands",
         value=(
             "`/clock` - Access your personal timeclock interface (fresh buttons, never times out!)\n"
-            "`/setup_timeclock [channel]` - Post timeclock instructions in a channel"
+            "`/setup` - View timeclock setup information and instructions"
         ),
         inline=False
     )
