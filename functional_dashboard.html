@@ -456,6 +456,41 @@
                 padding: 0.5rem 1rem;
                 overflow-x: auto;
                 flex-wrap: nowrap;
+                gap: 8px;
+                /* Enable smooth scrolling */
+                scroll-behavior: smooth;
+                -webkit-overflow-scrolling: touch;
+                /* Hide scrollbar on mobile */
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+
+            .nav-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            /* Make tabs more compact on mobile */
+            .nav-tab {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+                white-space: nowrap;
+                min-width: auto;
+                flex-shrink: 0;
+            }
+
+            /* Use shorter text for mobile navigation */
+            .nav-tab[onclick="showTab('overview')"]::after { content: "Overview"; }
+            .nav-tab[onclick="showTab('timeclock')"]::after { content: "Time"; }
+            .nav-tab[onclick="showTab('reports')"]::after { content: "Reports"; }
+            .nav-tab[onclick="showTab('settings')"]::after { content: "Settings"; }
+            .nav-tab[onclick="showTab('subscription')"]::after { content: "Premium"; }
+            
+            .nav-tab {
+                font-size: 0;
+            }
+            
+            .nav-tab::after {
+                font-size: 0.9rem;
             }
 
             .logo-text {
@@ -465,6 +500,30 @@
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .header {
+                padding: 1rem;
+            }
+            
+            .nav-tabs {
+                padding: 0.5rem;
+                gap: 6px;
+            }
+            
+            .nav-tab {
+                padding: 8px 12px;
+                font-size: 0;
+            }
+            
+            .nav-tab::after {
+                font-size: 0.85rem;
+            }
+            
+            /* Even shorter text for very small screens */
+            .nav-tab[onclick="showTab('subscription')"]::after { content: "Pro"; }
         }
 
         /* Animations */
