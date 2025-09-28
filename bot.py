@@ -1053,12 +1053,37 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 return
             
             if self.path == '/api/user':
-                # Return user info
-                self.send_json_response({
-                    'username': user_session['username'],
-                    'avatar': user_session['avatar'],
-                    'user_id': user_session['user_id']
-                })
+                # Return user info WITH guilds (frontend expects both)
+                user_data = {
+                    "id": user_session['user_id'],
+                    "username": user_session['username'],
+                    "discriminator": user_session['discriminator'],
+                    "avatar": user_session['avatar'],
+                    "guilds": []
+                }
+                
+                # Add filtered guilds where bot is present AND user has admin access
+                bot_instance = getattr(type(self), 'bot', None)
+                if bot_instance and bot_instance.is_ready():
+                    bot_guilds = {guild.id: guild for guild in bot_instance.guilds}
+                    
+                    for user_guild in user_session.get('guilds', []):
+                        guild_id = int(user_guild['id'])
+                        if guild_id in bot_guilds:
+                            # Only include guilds where user has admin access
+                            if self.user_has_dashboard_admin_access(user_session['user_id'], guild_id, user_guild):
+                                bot_guild = bot_guilds[guild_id]
+                                user_data['guilds'].append({
+                                    "id": str(guild_id),
+                                    "name": user_guild['name'],
+                                    "icon": user_guild.get('icon'),
+                                    "owner": user_guild.get('owner', False),
+                                    "permissions": user_guild.get('permissions', '0'),
+                                    "member_count": bot_guild.member_count,
+                                    "tier": get_server_tier(guild_id)
+                                })
+                
+                self.send_json_response(user_data)
                 
             elif self.path == '/api/guilds':
                 # Return user's guilds with bot presence info
