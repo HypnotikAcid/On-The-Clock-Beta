@@ -568,6 +568,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         if self.path == "/webhook":
             # Handle Stripe webhooks
             self.handle_stripe_webhook()
+        elif self.path.startswith('/api/guild/') and '/settings' in self.path:
+            # Handle guild settings updates
+            self.handle_api_settings_update()
+        elif self.path.startswith('/api/guild/') and '/admin-roles' in self.path:
+            # Handle admin role updates
+            self.handle_api_admin_roles_update()
+        elif self.path.startswith('/api/guild/') and '/employee-roles' in self.path:
+            # Handle employee role updates
+            self.handle_api_employee_roles_update()
         else:
             self.send_response(404)
             self.end_headers()
@@ -1034,23 +1043,23 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
             elif self.path == '/api/guilds':
                 # Return user's guilds with bot presence info
-                guilds_with_bot = []
-                bot_guild_ids = set()
+                self.handle_api_user(user_session)
                 
-                if hasattr(HealthCheckHandler, 'bot') and HealthCheckHandler.bot:
-                    bot_guild_ids = {g.id for g in HealthCheckHandler.bot.guilds}
-                
-                for guild in user_session['guilds']:
-                    guild_data = {
-                        'id': guild['id'],
-                        'name': guild['name'],
-                        'icon': guild.get('icon'),
-                        'permissions': guild.get('permissions'),
-                        'bot_present': int(guild['id']) in bot_guild_ids
-                    }
-                    guilds_with_bot.append(guild_data)
-                
-                self.send_json_response({'guilds': guilds_with_bot})
+            elif self.path.startswith('/api/guild/'):
+                # Handle guild-specific requests
+                path_parts = self.path.split('/')
+                if len(path_parts) >= 4:
+                    guild_id_str = path_parts[3]
+                    if len(path_parts) == 4:
+                        # /api/guild/{id} - Get guild info
+                        self.handle_api_guild(user_session, guild_id_str)
+                    elif len(path_parts) == 5 and path_parts[4] == 'roles':
+                        # /api/guild/{id}/roles - Get available roles
+                        self.handle_api_guild_roles(user_session, guild_id_str)
+                    else:
+                        self.send_json_response({'error': 'API endpoint not found'}, 404)
+                else:
+                    self.send_json_response({'error': 'Invalid guild API path'}, 400)
                 
             else:
                 self.send_json_response({'error': 'API endpoint not found'}, 404)
@@ -1075,6 +1084,309 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
+        
+    def user_has_dashboard_admin_access(self, user_id: str, guild_id: int, user_guild: Dict) -> bool:
+        """Check if an OAuth user has admin access to manage a guild's settings"""
+        # Check Discord permissions from OAuth data
+        permissions = int(user_guild.get('permissions', '0'))
+        
+        # Check if user has Discord administrator permission
+        # Administrator permission = 0x8 (bit 3)
+        if permissions & 0x8:
+            return True
+            
+        # Check if user is guild owner
+        if user_guild.get('owner', False):
+            return True
+            
+        # If bot is available, check custom admin roles
+        bot_instance = getattr(type(self), 'bot', None)
+        if bot_instance and bot_instance.is_ready():
+            bot_guild = bot_instance.get_guild(guild_id)
+            if bot_guild:
+                bot_member = bot_guild.get_member(int(user_id))
+                if bot_member:
+                    return user_has_admin_access(bot_member)
+                    
+        return False
+
+    def handle_api_settings_update(self):
+        """Handle POST /api/guild/{id}/settings - Update general guild settings"""
+        try:
+            # Check session
+            session_id = self.get_session_id()
+            if not session_id or session_id not in user_sessions:
+                self.send_json_response({'error': 'Not authenticated'}, 401)
+                return
+                
+            session = user_sessions[session_id]
+            
+            # Extract guild ID from path
+            path_parts = self.path.split('/')
+            guild_id_str = None
+            for i, part in enumerate(path_parts):
+                if part == 'guild' and i + 1 < len(path_parts):
+                    guild_id_str = path_parts[i + 1]
+                    break
+                    
+            if not guild_id_str:
+                self.send_json_response({'error': 'Invalid URL'}, 400)
+                return
+                
+            guild_id = int(guild_id_str)
+            
+            # Check admin access
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild or not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({'error': 'Admin access required'}, 403)
+                return
+                
+            # Parse request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length > 10000:  # 10KB limit
+                self.send_json_response({'error': 'Request too large'}, 400)
+                return
+                
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+            except json.JSONDecodeError:
+                self.send_json_response({'error': 'Invalid JSON'}, 400)
+                return
+                
+            # Update settings
+            updated_settings = {}
+            
+            if 'timezone' in data:
+                timezone = data['timezone'].strip()
+                if timezone:
+                    set_guild_setting(guild_id, 'timezone', timezone)
+                    updated_settings['timezone'] = timezone
+                    
+            if 'name_display_mode' in data:
+                mode = data['name_display_mode']
+                if mode in ['username', 'nickname']:
+                    set_guild_setting(guild_id, 'name_display_mode', mode)
+                    updated_settings['name_display_mode'] = mode
+                    
+            if 'recipient_user_id' in data:
+                recipient_id = data['recipient_user_id']
+                if recipient_id is None or (isinstance(recipient_id, str) and recipient_id.isdigit()):
+                    set_guild_setting(guild_id, 'recipient_user_id', int(recipient_id) if recipient_id else None)
+                    updated_settings['recipient_user_id'] = recipient_id
+                    
+            if 'main_admin_role_id' in data:
+                role_id = data['main_admin_role_id']
+                if role_id is None or (isinstance(role_id, str) and role_id.isdigit()):
+                    set_guild_setting(guild_id, 'main_admin_role_id', int(role_id) if role_id else None)
+                    updated_settings['main_admin_role_id'] = role_id
+                    
+            self.send_json_response({'success': True, 'updated': updated_settings})
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Settings update error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
+
+    def handle_api_admin_roles_update(self):
+        """Handle POST /api/guild/{id}/admin-roles - Add/remove admin roles"""
+        try:
+            # Check session
+            session_id = self.get_session_id()
+            if not session_id or session_id not in user_sessions:
+                self.send_json_response({'error': 'Not authenticated'}, 401)
+                return
+                
+            session = user_sessions[session_id]
+            
+            # Extract guild ID from path
+            path_parts = self.path.split('/')
+            guild_id_str = None
+            for i, part in enumerate(path_parts):
+                if part == 'guild' and i + 1 < len(path_parts):
+                    guild_id_str = path_parts[i + 1]
+                    break
+                    
+            if not guild_id_str:
+                self.send_json_response({'error': 'Invalid URL'}, 400)
+                return
+                
+            guild_id = int(guild_id_str)
+            
+            # Check admin access
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild or not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({'error': 'Admin access required'}, 403)
+                return
+                
+            # Parse request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+            except json.JSONDecodeError:
+                self.send_json_response({'error': 'Invalid JSON'}, 400)
+                return
+                
+            action = data.get('action')  # 'add' or 'remove'
+            role_id = data.get('role_id')
+            
+            if not action or not role_id or action not in ['add', 'remove']:
+                self.send_json_response({'error': 'Invalid request'}, 400)
+                return
+                
+            try:
+                role_id = int(role_id)
+            except ValueError:
+                self.send_json_response({'error': 'Invalid role ID'}, 400)
+                return
+                
+            if action == 'add':
+                add_admin_role(guild_id, role_id)
+            else:
+                remove_admin_role(guild_id, role_id)
+                
+            self.send_json_response({'success': True, 'action': action, 'role_id': str(role_id)})
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Admin roles update error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
+
+    def handle_api_employee_roles_update(self):
+        """Handle POST /api/guild/{id}/employee-roles - Add/remove employee roles"""
+        try:
+            # Check session
+            session_id = self.get_session_id()
+            if not session_id or session_id not in user_sessions:
+                self.send_json_response({'error': 'Not authenticated'}, 401)
+                return
+                
+            session = user_sessions[session_id]
+            
+            # Extract guild ID from path
+            path_parts = self.path.split('/')
+            guild_id_str = None
+            for i, part in enumerate(path_parts):
+                if part == 'guild' and i + 1 < len(path_parts):
+                    guild_id_str = path_parts[i + 1]
+                    break
+                    
+            if not guild_id_str:
+                self.send_json_response({'error': 'Invalid URL'}, 400)
+                return
+                
+            guild_id = int(guild_id_str)
+            
+            # Check admin access
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild or not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({'error': 'Admin access required'}, 403)
+                return
+                
+            # Parse request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+            except json.JSONDecodeError:
+                self.send_json_response({'error': 'Invalid JSON'}, 400)
+                return
+                
+            action = data.get('action')  # 'add' or 'remove'
+            role_id = data.get('role_id')
+            
+            if not action or not role_id or action not in ['add', 'remove']:
+                self.send_json_response({'error': 'Invalid request'}, 400)
+                return
+                
+            try:
+                role_id = int(role_id)
+            except ValueError:
+                self.send_json_response({'error': 'Invalid role ID'}, 400)
+                return
+                
+            if action == 'add':
+                add_employee_role(guild_id, role_id)
+            else:
+                remove_employee_role(guild_id, role_id)
+                
+            self.send_json_response({'success': True, 'action': action, 'role_id': str(role_id)})
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Employee roles update error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
+
+    def handle_api_guild_roles(self, session: Dict, guild_id_str: str):
+        """Handle GET /api/guild/{id}/roles - Get available Discord roles for the guild"""
+        try:
+            guild_id = int(guild_id_str)
+            
+            # Check if user has access to this guild
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild or not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({"error": "Admin access required"}, 403)
+                return
+                
+            # Get bot guild data
+            bot_instance = getattr(type(self), 'bot', None)
+            if not bot_instance or not bot_instance.is_ready():
+                self.send_json_response({"error": "Bot not ready"}, 503)
+                return
+                
+            bot_guild = bot_instance.get_guild(guild_id)
+            if not bot_guild:
+                self.send_json_response({"error": "Guild not found"}, 404)
+                return
+                
+            # Get all roles (excluding @everyone)
+            roles = []
+            for role in bot_guild.roles:
+                if role.name != "@everyone":
+                    roles.append({
+                        "id": str(role.id),
+                        "name": role.name,
+                        "color": role.color.value,
+                        "position": role.position,
+                        "mentionable": role.mentionable,
+                        "hoist": role.hoist,
+                        "managed": role.managed
+                    })
+                    
+            # Sort by position (higher position = higher in hierarchy)
+            roles.sort(key=lambda r: r["position"], reverse=True)
+            
+            self.send_json_response({"roles": roles})
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Guild roles API error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
 
 
 def purge_guild_data_for_testing(guild_id: int):
@@ -1353,7 +1665,7 @@ def purge_guild_data_for_testing(guild_id: int):
             "guilds": []
         }
         
-        # Filter guilds to only include ones where the bot is present
+        # Filter guilds to only include ones where the bot is present AND user has admin access
         bot_instance = getattr(type(self), 'bot', None)
         if bot_instance and bot_instance.is_ready():
             bot_guilds = {guild.id: guild for guild in bot_instance.guilds}
@@ -1361,16 +1673,18 @@ def purge_guild_data_for_testing(guild_id: int):
             for user_guild in session.get('guilds', []):
                 guild_id = int(user_guild['id'])
                 if guild_id in bot_guilds:
-                    bot_guild = bot_guilds[guild_id]
-                    user_data['guilds'].append({
-                        "id": str(guild_id),
-                        "name": user_guild['name'],
-                        "icon": user_guild.get('icon'),
-                        "owner": user_guild.get('owner', False),
-                        "permissions": user_guild.get('permissions', '0'),
-                        "member_count": bot_guild.member_count,
-                        "tier": get_server_tier(guild_id)
-                    })
+                    # Only include guilds where user has admin access
+                    if self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                        bot_guild = bot_guilds[guild_id]
+                        user_data['guilds'].append({
+                            "id": str(guild_id),
+                            "name": user_guild['name'],
+                            "icon": user_guild.get('icon'),
+                            "owner": user_guild.get('owner', False),
+                            "permissions": user_guild.get('permissions', '0'),
+                            "member_count": bot_guild.member_count,
+                            "tier": get_server_tier(guild_id)
+                        })
         
         self.send_json_response(user_data)
 
@@ -1389,6 +1703,11 @@ def purge_guild_data_for_testing(guild_id: int):
                     
             if not user_guild:
                 self.send_json_response({"error": "Access denied"}, 403)
+                return
+                
+            # Check if user has admin permissions in this guild
+            if not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({"error": "Admin access required"}, 403)
                 return
                 
             # Get bot guild data

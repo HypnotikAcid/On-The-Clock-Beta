@@ -544,6 +544,395 @@
         .logged-in-hidden {
             display: block;
         }
+
+        /* Server Selection Styles */
+        .server-selection {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+
+        .server-selection h2 {
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            background: linear-gradient(45deg, #5865F2, #00D4FF);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .server-card {
+            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
+            border: 1px solid #404050;
+            border-radius: 16px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(88, 101, 242, 0.3);
+            border-color: #5865F2;
+        }
+
+        .server-card.selected {
+            border-color: #00ff88;
+            background: linear-gradient(145deg, #1a2e1a, #2a3e2a);
+        }
+
+        .server-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .server-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .server-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            object-fit: cover;
+        }
+
+        .server-info h3 {
+            color: #ffffff;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .server-stats {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .server-stat {
+            background: rgba(88, 101, 242, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .server-stat-value {
+            font-weight: bold;
+            color: #00D4FF;
+            font-size: 1.1rem;
+        }
+
+        .server-stat-label {
+            font-size: 0.8rem;
+            color: #b0b0b0;
+            margin-top: 0.2rem;
+        }
+
+        .server-tier {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .server-tier.free {
+            background: linear-gradient(45deg, #40444b, #36393f);
+            color: #ffffff;
+        }
+
+        .server-tier.basic {
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            color: #ffffff;
+        }
+
+        .server-tier.pro {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #ffffff;
+        }
+
+        .manage-server-btn {
+            width: 100%;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .manage-server-btn:hover {
+            background: linear-gradient(45deg, #7289DA, #5865F2);
+            transform: translateY(-2px);
+        }
+
+        .no-servers-message {
+            text-align: center;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .no-servers-message h3 {
+            color: #ff6b6b;
+            margin-bottom: 1rem;
+        }
+
+        .no-servers-message p {
+            color: #e0e6ed;
+            margin-bottom: 1rem;
+        }
+
+        .invite-bot-btn {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .invite-bot-btn:hover {
+            background: linear-gradient(45deg, #00cc6a, #00ff88);
+            transform: translateY(-2px);
+        }
+
+        /* Server Settings Dashboard */
+        .settings-dashboard {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+
+        .back-btn {
+            background: rgba(88, 101, 242, 0.2);
+            border: 1px solid #5865F2;
+            color: #5865F2;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(88, 101, 242, 0.3);
+            color: #ffffff;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #404050;
+        }
+
+        .settings-header .server-icon {
+            width: 60px;
+            height: 60px;
+        }
+
+        .settings-header h1 {
+            color: #ffffff;
+            font-size: 1.8rem;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+        }
+
+        .settings-section {
+            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
+            border: 1px solid #404050;
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .settings-section h3 {
+            color: #ffffff;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin: 1rem 0;
+        }
+
+        .form-group label {
+            display: block;
+            color: #b0b0b0;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            background: rgba(40, 40, 50, 0.8);
+            border: 1px solid #404050;
+            border-radius: 8px;
+            padding: 12px;
+            color: #ffffff;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #5865F2;
+            box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+        }
+
+        .role-manager {
+            margin: 1rem 0;
+        }
+
+        .role-section {
+            margin: 1.5rem 0;
+        }
+
+        .role-section h4 {
+            color: #ffffff;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .role-list {
+            background: rgba(40, 40, 50, 0.5);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            min-height: 60px;
+        }
+
+        .role-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(88, 101, 242, 0.1);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin: 4px 0;
+        }
+
+        .role-name {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .remove-role-btn {
+            background: #ff6b6b;
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .add-role-section {
+            display: flex;
+            gap: 8px;
+            align-items: end;
+        }
+
+        .add-role-section select {
+            flex: 1;
+        }
+
+        .add-role-btn {
+            background: #00ff88;
+            border: none;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .save-settings-btn {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .save-settings-btn:hover {
+            background: linear-gradient(45deg, #00cc6a, #00ff88);
+            transform: translateY(-2px);
+        }
+
+        .save-settings-btn:disabled {
+            background: #404050;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .success-message,
+        .error-message {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .success-message {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+        }
+
+        .error-message {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+        }
     </style>
 </head>
 <body>
@@ -890,6 +1279,187 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Server Selection Screen -->
+    <div class="server-selection" id="serverSelection" style="display: none;">
+        <h2>🏢 Select a Server to Manage</h2>
+        <p style="text-align: center; color: #b0b0b0; margin-bottom: 2rem;">
+            Choose a server where you have admin permissions to configure bot settings.
+        </p>
+        
+        <div class="server-grid" id="serverGrid">
+            <!-- Server cards will be dynamically populated here -->
+        </div>
+        
+        <!-- No servers message -->
+        <div class="no-servers-message" id="noServersMessage" style="display: none;">
+            <h3>🤖 No Manageable Servers Found</h3>
+            <p>You don't have admin permissions in any servers where the bot is installed.</p>
+            <p>To manage server settings, you need administrator permissions or be assigned an admin role.</p>
+            <button class="invite-bot-btn" onclick="inviteBot()">
+                🔗 Invite Bot to Your Server
+            </button>
+        </div>
+    </div>
+
+    <!-- Server Settings Dashboard -->
+    <div class="settings-dashboard" id="settingsDashboard" style="display: none;">
+        <button class="back-btn" onclick="backToServerSelection()">
+            ← Back to Server Selection
+        </button>
+        
+        <div class="settings-header">
+            <div class="server-icon" id="settingsServerIcon">
+                <!-- Icon will be populated dynamically -->
+            </div>
+            <div>
+                <h1 id="settingsServerName">Server Name</h1>
+                <span class="server-tier" id="settingsServerTier">free</span>
+            </div>
+        </div>
+        
+        <div class="settings-grid">
+            <!-- Role Management Section -->
+            <div class="settings-section">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M16,4C16.88,4 17.67,4.5 18,5.26L21,12L18,18.74C17.67,19.5 16.88,20 16,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4H16M8.5,8.5A1.5,1.5 0 0,0 7,10A1.5,1.5 0 0,0 8.5,11.5A1.5,1.5 0 0,0 10,10A1.5,1.5 0 0,0 8.5,8.5M12.5,12.5A1.5,1.5 0 0,0 11,14A1.5,1.5 0 0,0 12.5,15.5A1.5,1.5 0 0,0 14,14A1.5,1.5 0 0,0 12.5,12.5Z"/>
+                    </svg>
+                    Role Management
+                </h3>
+                
+                <div class="role-manager">
+                    <!-- Admin Roles -->
+                    <div class="role-section">
+                        <h4>
+                            🛡️ Admin Roles
+                            <small style="color: #b0b0b0; font-weight: normal;">(Can access Reports & Upgrade)</small>
+                        </h4>
+                        <div class="role-list" id="adminRolesList">
+                            <!-- Admin roles will be populated here -->
+                        </div>
+                        <div class="add-role-section">
+                            <div class="form-group" style="margin: 0; flex: 1;">
+                                <select id="availableAdminRoles">
+                                    <option value="">Select a role to add...</option>
+                                </select>
+                            </div>
+                            <button class="add-role-btn" onclick="addAdminRole()">Add</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Employee Roles -->
+                    <div class="role-section">
+                        <h4>
+                            👥 Employee Roles
+                            <small style="color: #b0b0b0; font-weight: normal;">(Can use timeclock functions)</small>
+                        </h4>
+                        <div class="role-list" id="employeeRolesList">
+                            <!-- Employee roles will be populated here -->
+                        </div>
+                        <div class="add-role-section">
+                            <div class="form-group" style="margin: 0; flex: 1;">
+                                <select id="availableEmployeeRoles">
+                                    <option value="">Select a role to add...</option>
+                                </select>
+                            </div>
+                            <button class="add-role-btn" onclick="addEmployeeRole()">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- General Settings Section -->
+            <div class="settings-section">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                    </svg>
+                    General Settings
+                </h3>
+                
+                <div class="form-group">
+                    <label for="timezoneSelect">Display Timezone</label>
+                    <select id="timezoneSelect">
+                        <option value="America/New_York">Eastern Time (America/New_York)</option>
+                        <option value="America/Chicago">Central Time (America/Chicago)</option>
+                        <option value="America/Denver">Mountain Time (America/Denver)</option>
+                        <option value="America/Los_Angeles">Pacific Time (America/Los_Angeles)</option>
+                        <option value="UTC">UTC</option>
+                        <option value="Europe/London">London Time (Europe/London)</option>
+                        <option value="Europe/Paris">Paris Time (Europe/Paris)</option>
+                        <option value="Asia/Tokyo">Tokyo Time (Asia/Tokyo)</option>
+                        <option value="Australia/Sydney">Sydney Time (Australia/Sydney)</option>
+                    </select>
+                    <small style="color: #b0b0b0; font-size: 0.8rem; margin-top: 0.5rem; display: block;">
+                        This affects how times are displayed in reports and messages.
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="nameDisplayMode">Name Display Mode</label>
+                    <select id="nameDisplayMode">
+                        <option value="username">Username (Discord username)</option>
+                        <option value="nickname">Nickname (Server display name)</option>
+                    </select>
+                    <small style="color: #b0b0b0; font-size: 0.8rem; margin-top: 0.5rem; display: block;">
+                        Choose how user names appear in reports and messages.
+                    </small>
+                </div>
+                
+                <button class="save-settings-btn" onclick="saveGeneralSettings()">
+                    💾 Save Settings
+                </button>
+            </div>
+            
+            <!-- Server Overview Section -->
+            <div class="settings-section">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M7.07,18.28C7.5,17.38 10.12,16.5 12,16.5C13.88,16.5 16.5,17.38 16.93,18.28C15.57,19.36 13.86,20 12,20C10.14,20 8.43,19.36 7.07,18.28M18.36,16.83C16.93,15.09 13.46,14.5 12,14.5C10.54,14.5 7.07,15.09 5.64,16.83C4.62,15.5 4,13.82 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,13.82 19.38,15.5 18.36,16.83M12,6C10.06,6 8.5,7.56 8.5,9.5C8.5,11.44 10.06,13 12,13C13.94,13 15.5,11.44 15.5,9.5C15.5,7.56 13.94,6 12,6M12,11A1.5,1.5 0 0,1 10.5,9.5A1.5,1.5 0 0,1 12,8A1.5,1.5 0 0,1 13.5,9.5A1.5,1.5 0 0,1 12,11Z"/>
+                    </svg>
+                    Server Overview
+                </h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="settingsMemberCount">---</div>
+                        <div class="stat-label">Total Members</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="settingsOnlineCount">---</div>
+                        <div class="stat-label">Online Now</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="settingsClockedInCount">---</div>
+                        <div class="stat-label">Clocked In</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="settingsRetentionDays">---</div>
+                        <div class="stat-label">Data Retention</div>
+                    </div>
+                </div>
+                
+                <div class="subscription-info" style="margin-top: 1rem;">
+                    <div class="tier-badge" id="settingsCurrentTier">FREE TIER</div>
+                    <div style="margin-top: 1rem;">
+                        <strong>Subscription Benefits:</strong>
+                        <ul style="margin: 0.5rem 0; padding-left: 1.5rem; color: #b0b0b0;">
+                            <li id="tierBenefit1">Admin-only timeclock access</li>
+                            <li id="tierBenefit2">Testing mode (0 day retention)</li>
+                        </ul>
+                    </div>
+                    
+                    <button class="slanted-btn success" onclick="upgradeFromSettings()" style="margin-top: 1rem; width: 100%;">
+                        <span>🚀 Upgrade Server</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Success/Error Messages -->
+        <div id="settingsMessage" style="display: none;"></div>
     </div>
 
     <script>
