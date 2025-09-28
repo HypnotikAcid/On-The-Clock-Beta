@@ -1100,6 +1100,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     elif len(path_parts) == 5 and path_parts[4] == 'roles':
                         # /api/guild/{id}/roles - Get available roles
                         self.handle_api_guild_roles(user_session, guild_id_str)
+                    elif len(path_parts) == 5 and path_parts[4] == 'admin-roles':
+                        # /api/guild/{id}/admin-roles - Get current admin roles
+                        self.handle_api_get_admin_roles(user_session, guild_id_str)
+                    elif len(path_parts) == 5 and path_parts[4] == 'employee-roles':
+                        # /api/guild/{id}/employee-roles - Get current employee roles  
+                        self.handle_api_get_employee_roles(user_session, guild_id_str)
                     else:
                         self.send_json_response({'error': 'API endpoint not found'}, 404)
                 else:
@@ -1447,6 +1453,140 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.send_json_response({'error': 'Invalid guild ID'}, 400)
         except Exception as e:
             print(f"❌ Guild roles API error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
+
+    def handle_api_get_admin_roles(self, session, guild_id_str):
+        """Handle GET /api/guild/{id}/admin-roles - Get current admin roles"""
+        try:
+            guild_id = int(guild_id_str)
+            
+            # Check if user has access to this guild
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild or not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({"error": "Admin access required"}, 403)
+                return
+                
+            # Get bot guild data
+            bot_instance = getattr(type(self), 'bot', None)
+            if not bot_instance or not bot_instance.is_ready():
+                self.send_json_response({"error": "Bot not ready"}, 503)
+                return
+                
+            bot_guild = bot_instance.get_guild(guild_id)
+            if not bot_guild:
+                self.send_json_response({"error": "Guild not found"}, 404)
+                return
+                
+            # Get configured admin roles
+            admin_role_ids = get_admin_roles(guild_id)
+            admin_roles = []
+            
+            for role_id in admin_role_ids:
+                role = bot_guild.get_role(role_id)
+                if role:
+                    admin_roles.append({
+                        "id": str(role.id),
+                        "name": role.name,
+                        "color": role.color.value,
+                        "position": role.position,
+                        "mentionable": role.mentionable,
+                        "hoist": role.hoist,
+                        "managed": role.managed
+                    })
+                else:
+                    # Role was deleted, keep the ID for cleanup reference
+                    admin_roles.append({
+                        "id": str(role_id),
+                        "name": f"<Deleted Role: {role_id}>",
+                        "color": 0,
+                        "position": 0,
+                        "mentionable": False,
+                        "hoist": False,
+                        "managed": False,
+                        "deleted": True
+                    })
+                    
+            # Sort by position (higher position = higher in hierarchy)
+            admin_roles.sort(key=lambda r: r["position"], reverse=True)
+            
+            self.send_json_response({"admin_roles": admin_roles})
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Get admin roles API error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
+
+    def handle_api_get_employee_roles(self, session, guild_id_str):
+        """Handle GET /api/guild/{id}/employee-roles - Get current employee roles"""
+        try:
+            guild_id = int(guild_id_str)
+            
+            # Check if user has access to this guild
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild or not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({"error": "Admin access required"}, 403)
+                return
+                
+            # Get bot guild data
+            bot_instance = getattr(type(self), 'bot', None)
+            if not bot_instance or not bot_instance.is_ready():
+                self.send_json_response({"error": "Bot not ready"}, 503)
+                return
+                
+            bot_guild = bot_instance.get_guild(guild_id)
+            if not bot_guild:
+                self.send_json_response({"error": "Guild not found"}, 404)
+                return
+                
+            # Get configured employee roles
+            employee_role_ids = get_clock_roles(guild_id)
+            employee_roles = []
+            
+            for role_id in employee_role_ids:
+                role = bot_guild.get_role(role_id)
+                if role:
+                    employee_roles.append({
+                        "id": str(role.id),
+                        "name": role.name,
+                        "color": role.color.value,
+                        "position": role.position,
+                        "mentionable": role.mentionable,
+                        "hoist": role.hoist,
+                        "managed": role.managed
+                    })
+                else:
+                    # Role was deleted, keep the ID for cleanup reference
+                    employee_roles.append({
+                        "id": str(role_id),
+                        "name": f"<Deleted Role: {role_id}>",
+                        "color": 0,
+                        "position": 0,
+                        "mentionable": False,
+                        "hoist": False,
+                        "managed": False,
+                        "deleted": True
+                    })
+                    
+            # Sort by position (higher position = higher in hierarchy)
+            employee_roles.sort(key=lambda r: r["position"], reverse=True)
+            
+            self.send_json_response({"employee_roles": employee_roles})
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Get employee roles API error: {e}")
             self.send_json_response({'error': 'Server error'}, 500)
 
 
