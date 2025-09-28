@@ -43,7 +43,7 @@ STRIPE_PRICE_IDS = {
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")  # Your bot's client ID
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")  # Required for OAuth
 DISCORD_REDIRECT_URI = None  # Will be set dynamically based on domain
-DISCORD_OAUTH_SCOPES = "identify guilds"
+DISCORD_OAUTH_SCOPES = "identify guilds guilds.members.read email"
 
 # Session storage - now using database for persistence instead of in-memory dictionaries
 
