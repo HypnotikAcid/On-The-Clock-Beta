@@ -1,17 +1,6 @@
 discord.py>=2.3
 tzdata
-discord.py
 stripe
 requests
 urllib3
 aiohttp
-discord.py
-requests
-stripe
-tzdata
-urllib3
-flask
-requests-oauthlib
-werkzeug
-Flask-Session
-Flask-Session

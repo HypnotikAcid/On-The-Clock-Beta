@@ -13,19 +13,18 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Dashboard & Bot"
+args = "Discord Bot Only"
 
 [[workflows.workflow]]
-name = "Dashboard & Bot"
+name = "Discord Bot Only"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python start.py"
-waitForPort = 5000
 
 [workflows.workflow.metadata]
-outputType = "webview"
+outputType = "console"
 
 [deployment]
 deploymentTarget = "vm"
