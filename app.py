@@ -28,7 +28,8 @@ def get_base_url():
             return f"https://{domains[0].strip()}"
         return "http://localhost:5000"  # Local fallback
 
-app.config["DISCORD_REDIRECT_URI"] = f"{get_base_url()}/callback"
+# Set redirect URI dynamically - override if needed
+app.config["DISCORD_REDIRECT_URI"] = os.environ.get("DISCORD_REDIRECT_URI") or f"{get_base_url()}/callback"
 app.config["DISCORD_BOT_TOKEN"] = os.environ.get("DISCORD_TOKEN")
 
 # Initialize Discord OAuth session
