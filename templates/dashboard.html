@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On the Clock - Discord Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e6ed;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Matrix Background Canvas */
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.08;
+            pointer-events: none;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(30, 30, 40, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid #5865F2;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(88, 101, 242, 0.3);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-text {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #5865F2, #00D4FF);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .auth-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .discord-login-btn {
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .discord-login-btn:hover {
+            background: linear-gradient(45deg, #7289DA, #5865F2);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(88, 101, 242, 0.4);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(88, 101, 242, 0.1);
+            padding: 8px 16px;
+            border-radius: 25px;
+            border: 1px solid #5865F2;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        /* Navigation */
+        .nav-tabs {
+            display: flex;
+            gap: 20px;
+            background: rgba(40, 40, 50, 0.8);
+            padding: 0.5rem 2rem;
+            border-bottom: 1px solid #404040;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #b0b0b0;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .nav-tab:hover {
+            background: rgba(88, 101, 242, 0.2);
+            color: white;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Welcome Section */
+        .welcome-section {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .welcome-title {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #5865F2, #00D4FF);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-subtitle {
+            font-size: 1.2rem;
+            color: #b0b0b0;
+            margin-bottom: 2rem;
+        }
+
+        /* Server Selection */
+        .server-selection {
+            margin: 2rem 0;
+        }
+
+        .server-selection h2 {
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .server-card {
+            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
+            border: 1px solid #404050;
+            border-radius: 16px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(88, 101, 242, 0.3);
+            border-color: #5865F2;
+        }
+
+        .server-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .server-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .server-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            object-fit: cover;
+        }
+
+        .server-info h3 {
+            color: #ffffff;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .server-stats {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .server-stat {
+            background: rgba(88, 101, 242, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .server-stat-value {
+            font-weight: bold;
+            color: #00D4FF;
+            font-size: 1.1rem;
+        }
+
+        .server-stat-label {
+            font-size: 0.8rem;
+            color: #b0b0b0;
+            margin-top: 0.2rem;
+        }
+
+        .manage-server-btn {
+            width: 100%;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .manage-server-btn:hover {
+            background: linear-gradient(45deg, #7289DA, #5865F2);
+            transform: translateY(-2px);
+        }
+
+        /* Dashboard Sections */
+        .dashboard-section {
+            display: none;
+        }
+
+        .dashboard-section.active {
+            display: block;
+        }
+
+        .dashboard-card {
+            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
+            border: 1px solid #404050;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(88, 101, 242, 0.2);
+            border-color: #5865F2;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #e0e6ed;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(64, 64, 80, 0.5);
+            border: 1px solid #404050;
+            border-radius: 8px;
+            color: #e0e6ed;
+            font-size: 1rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #5865F2;
+            box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: linear-gradient(45deg, #7289DA, #5865F2);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(88, 101, 242, 0.4);
+        }
+
+        .btn.success {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+        }
+
+        /* Loading states */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #404050;
+            border-top: 3px solid #5865F2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-tabs {
+                padding: 0.5rem 1rem;
+                overflow-x: auto;
+            }
+
+            .server-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .welcome-title {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Matrix background effect -->
+    <canvas id="matrixCanvas"></canvas>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">⚙️</div>
+                <div class="logo-text">On the Clock</div>
+            </div>
+            
+            <div class="auth-section">
+                {% if authenticated %}
+                    <div class="user-info">
+                        {% if user.avatar_url %}
+                            <img src="{{ user.avatar_url }}" alt="Avatar" class="user-avatar">
+                        {% endif %}
+                        <span>{{ user.name }}</span>
+                        <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+                    </div>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="discord-login-btn">
+                        <span>🔗</span>
+                        Login with Discord
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation (only show when authenticated) -->
+    {% if authenticated %}
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="showTab('servers')">Servers</button>
+        <button class="nav-tab" onclick="showTab('settings')">Settings</button>
+        <button class="nav-tab" onclick="showTab('reports')">Reports</button>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        {% if not authenticated %}
+            <!-- Welcome Section for Non-Authenticated Users -->
+            <div class="welcome-section">
+                <h1 class="welcome-title">On the Clock</h1>
+                <p class="welcome-subtitle">Professional Discord Timeclock Management Dashboard</p>
+                <a href="{{ url_for('login') }}" class="discord-login-btn">
+                    <span>🔗</span>
+                    Get Started with Discord
+                </a>
+            </div>
+        {% else %}
+            <!-- Server Selection (Authenticated Users) -->
+            <div id="servers" class="dashboard-section active">
+                <div class="server-selection">
+                    <h2>Select a Server to Manage</h2>
+                    <div id="serverGrid" class="server-grid">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Loading your Discord servers...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settings" class="dashboard-section">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-icon">⚙️</div>
+                        <div class="card-title">Server Settings</div>
+                    </div>
+                    <div id="settingsContent">
+                        <p>Select a server first to configure settings.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div id="reports" class="dashboard-section">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-icon">📊</div>
+                        <div class="card-title">Reports & Analytics</div>
+                    </div>
+                    <div id="reportsContent">
+                        <p>Select a server first to view reports.</p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        let currentGuildId = null;
+        let userData = null;
+
+        // Matrix background effect
+        function initMatrixEffect() {
+            const canvas = document.getElementById('matrixCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const matrix = "01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン";
+            const matrixArray = matrix.split("");
+            
+            const fontSize = 10;
+            const columns = canvas.width / fontSize;
+            
+            const drops = [];
+            for(let x = 0; x < columns; x++) {
+                drops[x] = 1;
+            }
+            
+            function draw() {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#0F3';
+                ctx.font = fontSize + 'px monospace';
+                
+                for(let i = 0; i < drops.length; i++) {
+                    const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                    
+                    if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+            
+            setInterval(draw, 35);
+        }
+
+        // Navigation
+        function showTab(tabName) {
+            // Update nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show corresponding content
+            document.querySelectorAll('.dashboard-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Load user data and servers
+        async function loadUserData() {
+            try {
+                const response = await fetch('/api/user');
+                if (response.ok) {
+                    userData = await response.json();
+                    displayServers(userData.guilds);
+                } else {
+                    console.error('Failed to load user data');
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        }
+
+        // Display servers
+        function displayServers(guilds) {
+            const serverGrid = document.getElementById('serverGrid');
+            
+            if (!guilds || guilds.length === 0) {
+                serverGrid.innerHTML = `
+                    <div class="no-servers-message">
+                        <h3>No Manageable Servers Found</h3>
+                        <p>You need administrator permissions in a Discord server to manage timeclock settings.</p>
+                        <p>Either invite the bot to your server or get admin permissions in an existing server.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            serverGrid.innerHTML = guilds.map(guild => `
+                <div class="server-card" onclick="selectServer('${guild.id}')">
+                    <div class="server-header">
+                        <div class="server-icon">
+                            ${guild.icon ? `<img src="${guild.icon}" alt="${guild.name}">` : guild.name.charAt(0)}
+                        </div>
+                        <div class="server-info">
+                            <h3>${guild.name}</h3>
+                            <span class="server-tier free">Free Tier</span>
+                        </div>
+                    </div>
+                    <div class="server-stats">
+                        <div class="server-stat">
+                            <div class="server-stat-value">-</div>
+                            <div class="server-stat-label">Sessions</div>
+                        </div>
+                        <div class="server-stat">
+                            <div class="server-stat-value">-</div>
+                            <div class="server-stat-label">Users</div>
+                        </div>
+                    </div>
+                    <button class="manage-server-btn">Manage Server</button>
+                </div>
+            `).join('');
+        }
+
+        // Select server
+        async function selectServer(guildId) {
+            currentGuildId = guildId;
+            
+            // Load detailed server info
+            try {
+                const response = await fetch(`/api/guild/${guildId}`);
+                if (response.ok) {
+                    const guildData = await response.json();
+                    updateServerStats(guildData);
+                }
+            } catch (error) {
+                console.error('Error loading server data:', error);
+            }
+            
+            // Switch to settings tab
+            showTab('settings');
+            loadServerSettings();
+        }
+
+        // Update server stats in the card
+        function updateServerStats(guildData) {
+            const serverCard = document.querySelector(`[onclick="selectServer('${guildData.id}')"]`);
+            if (serverCard) {
+                const stats = serverCard.querySelectorAll('.server-stat-value');
+                stats[0].textContent = guildData.total_sessions || '0';
+                stats[1].textContent = guildData.active_users || '0';
+                
+                const tierBadge = serverCard.querySelector('.server-tier');
+                tierBadge.textContent = (guildData.tier || 'free').toUpperCase() + ' Tier';
+                tierBadge.className = `server-tier ${guildData.tier || 'free'}`;
+            }
+        }
+
+        // Load server settings
+        async function loadServerSettings() {
+            if (!currentGuildId) return;
+            
+            const settingsContent = document.getElementById('settingsContent');
+            settingsContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading settings...</p></div>';
+            
+            try {
+                // Load current settings and available roles/members
+                const [settingsResponse, rolesResponse, membersResponse] = await Promise.all([
+                    fetch(`/api/guild/${currentGuildId}/settings`),
+                    fetch(`/api/guild/${currentGuildId}/roles`),
+                    fetch(`/api/guild/${currentGuildId}/members`)
+                ]);
+                
+                if (settingsResponse.ok && rolesResponse.ok && membersResponse.ok) {
+                    const settings = await settingsResponse.json();
+                    const rolesData = await rolesResponse.json();
+                    const membersData = await membersResponse.json();
+                    
+                    displaySettingsForm(settings, rolesData.roles, membersData.members);
+                } else {
+                    settingsContent.innerHTML = '<p>Error loading settings. Please try again.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                settingsContent.innerHTML = '<p>Error loading settings. Please check your connection.</p>';
+            }
+        }
+
+        // Display settings form
+        function displaySettingsForm(settings, roles, members) {
+            const settingsContent = document.getElementById('settingsContent');
+            
+            settingsContent.innerHTML = `
+                <form id="settingsForm">
+                    <div class="form-group">
+                        <label for="timezone">Timezone</label>
+                        <select id="timezone" class="form-input">
+                            <option value="UTC" ${settings.timezone === 'UTC' ? 'selected' : ''}>UTC</option>
+                            <option value="America/New_York" ${settings.timezone === 'America/New_York' ? 'selected' : ''}>Eastern Time</option>
+                            <option value="America/Chicago" ${settings.timezone === 'America/Chicago' ? 'selected' : ''}>Central Time</option>
+                            <option value="America/Denver" ${settings.timezone === 'America/Denver' ? 'selected' : ''}>Mountain Time</option>
+                            <option value="America/Los_Angeles" ${settings.timezone === 'America/Los_Angeles' ? 'selected' : ''}>Pacific Time</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="nameDisplay">Name Display</label>
+                        <select id="nameDisplay" class="form-input">
+                            <option value="username" ${settings.name_display === 'username' ? 'selected' : ''}>Username</option>
+                            <option value="nickname" ${settings.name_display === 'nickname' ? 'selected' : ''}>Nickname</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Admin Roles (${settings.admin_roles.length} selected)</label>
+                        <div id="adminRoles">
+                            ${roles.map(role => `
+                                <label style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+                                    <input type="checkbox" 
+                                           value="${role.id}" 
+                                           ${settings.admin_roles.includes(role.id) ? 'checked' : ''}>
+                                    <span style="color: ${role.color ? `#${role.color.toString(16).padStart(6, '0')}` : '#e0e6ed'}">${role.name}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Employee Roles (${settings.employee_roles.length} selected)</label>
+                        <div id="employeeRoles">
+                            ${roles.map(role => `
+                                <label style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+                                    <input type="checkbox" 
+                                           value="${role.id}" 
+                                           ${settings.employee_roles.includes(role.id) ? 'checked' : ''}>
+                                    <span style="color: ${role.color ? `#${role.color.toString(16).padStart(6, '0')}` : '#e0e6ed'}">${role.name}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Report Recipients</label>
+                        <div id="recipients">
+                            ${settings.recipients.map((recipient, index) => `
+                                <div class="recipient-item" style="display: flex; gap: 1rem; margin: 1rem 0; padding: 1rem; background: rgba(64, 64, 80, 0.3); border-radius: 8px;">
+                                    <select class="form-input" style="flex: 1;" onchange="updateRecipientType(${index}, this.value)">
+                                        <option value="discord" ${recipient.type === 'discord' ? 'selected' : ''}>Discord DM</option>
+                                        <option value="email" ${recipient.type === 'email' ? 'selected' : ''}>Email</option>
+                                    </select>
+                                    <select class="form-input recipient-user" style="flex: 2; ${recipient.type === 'email' ? 'display: none;' : ''}" data-index="${index}">
+                                        <option value="">Select user...</option>
+                                        ${members.map(member => `
+                                            <option value="${member.id}" ${recipient.discord_user_id === member.id ? 'selected' : ''}>
+                                                ${member.display_name}
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                    <input type="email" class="form-input recipient-email" style="flex: 2; ${recipient.type === 'discord' ? 'display: none;' : ''}" 
+                                           placeholder="email@example.com" value="${recipient.email || ''}" data-index="${index}">
+                                    <button type="button" class="btn" style="background: #dc3545;" onclick="removeRecipient(${index})">Remove</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button type="button" class="btn" onclick="addRecipient()">Add Recipient</button>
+                    </div>
+                    
+                    <div style="margin-top: 2rem;">
+                        <button type="submit" class="btn success">Save Settings</button>
+                    </div>
+                </form>
+            `;
+            
+            // Store current data for form handling
+            window.currentSettings = settings;
+            window.currentRoles = roles;
+            window.currentMembers = members;
+            
+            // Add form submit handler
+            document.getElementById('settingsForm').addEventListener('submit', saveSettings);
+        }
+
+        // Save settings
+        async function saveSettings(event) {
+            event.preventDefault();
+            
+            if (!currentGuildId) return;
+            
+            // Collect form data
+            const formData = {
+                timezone: document.getElementById('timezone').value,
+                name_display: document.getElementById('nameDisplay').value,
+                admin_roles: Array.from(document.querySelectorAll('#adminRoles input:checked')).map(cb => cb.value),
+                employee_roles: Array.from(document.querySelectorAll('#employeeRoles input:checked')).map(cb => cb.value),
+                recipients: []
+            };
+            
+            // Collect recipients
+            document.querySelectorAll('.recipient-item').forEach((item, index) => {
+                const type = item.querySelector('select').value;
+                const recipient = { type };
+                
+                if (type === 'discord') {
+                    const userSelect = item.querySelector('.recipient-user');
+                    if (userSelect.value) {
+                        recipient.discord_user_id = userSelect.value;
+                    }
+                } else if (type === 'email') {
+                    const emailInput = item.querySelector('.recipient-email');
+                    if (emailInput.value) {
+                        recipient.email = emailInput.value;
+                    }
+                }
+                
+                if (recipient.discord_user_id || recipient.email) {
+                    formData.recipients.push(recipient);
+                }
+            });
+            
+            try {
+                const response = await fetch(`/api/guild/${currentGuildId}/settings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    alert('Settings saved successfully!');
+                } else {
+                    alert('Error saving settings. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings. Please check your connection.');
+            }
+        }
+
+        // Recipient management functions
+        function updateRecipientType(index, type) {
+            const item = document.querySelectorAll('.recipient-item')[index];
+            const userSelect = item.querySelector('.recipient-user');
+            const emailInput = item.querySelector('.recipient-email');
+            
+            if (type === 'discord') {
+                userSelect.style.display = 'block';
+                emailInput.style.display = 'none';
+                emailInput.value = '';
+            } else {
+                userSelect.style.display = 'none';
+                emailInput.style.display = 'block';
+                userSelect.value = '';
+            }
+        }
+
+        function addRecipient() {
+            const recipientsDiv = document.getElementById('recipients');
+            const index = recipientsDiv.children.length - 1; // -1 for the "Add Recipient" button
+            
+            const newRecipient = document.createElement('div');
+            newRecipient.className = 'recipient-item';
+            newRecipient.style.cssText = 'display: flex; gap: 1rem; margin: 1rem 0; padding: 1rem; background: rgba(64, 64, 80, 0.3); border-radius: 8px;';
+            newRecipient.innerHTML = `
+                <select class="form-input" style="flex: 1;" onchange="updateRecipientType(${index}, this.value)">
+                    <option value="discord">Discord DM</option>
+                    <option value="email">Email</option>
+                </select>
+                <select class="form-input recipient-user" style="flex: 2;" data-index="${index}">
+                    <option value="">Select user...</option>
+                    ${window.currentMembers.map(member => `
+                        <option value="${member.id}">${member.display_name}</option>
+                    `).join('')}
+                </select>
+                <input type="email" class="form-input recipient-email" style="flex: 2; display: none;" 
+                       placeholder="email@example.com" data-index="${index}">
+                <button type="button" class="btn" style="background: #dc3545;" onclick="removeRecipient(${index})">Remove</button>
+            `;
+            
+            recipientsDiv.insertBefore(newRecipient, recipientsDiv.lastElementChild);
+        }
+
+        function removeRecipient(index) {
+            const recipients = document.querySelectorAll('.recipient-item');
+            if (recipients[index]) {
+                recipients[index].remove();
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initMatrixEffect();
+            
+            {% if authenticated %}
+                loadUserData();
+            {% endif %}
+        });
+
+        // Handle window resize for matrix effect
+        window.addEventListener('resize', function() {
+            const canvas = document.getElementById('matrixCanvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
