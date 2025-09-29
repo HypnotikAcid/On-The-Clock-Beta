@@ -639,6 +639,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         elif self.path.startswith('/api/guild/') and '/employee-roles' in self.path:
             # Handle employee role updates
             self.handle_api_employee_roles_update()
+        elif self.path.startswith('/api/guild/') and '/recipients' in self.path:
+            # Handle recipients updates
+            self.handle_api_recipients_update()
         else:
             self.send_response(404)
             self.end_headers()
@@ -1732,6 +1735,196 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"❌ Get employee roles API error: {e}")
             self.send_json_response({'error': 'Server error'}, 500)
 
+    def handle_api_get_recipients(self, session, guild_id_str):
+        """Handle GET /api/guild/{id}/recipients - Get current report recipients"""
+        try:
+            guild_id = int(guild_id_str)
+            
+            # Check if user has access to this guild
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild:
+                self.send_json_response({'error': 'Guild not found'}, 404)
+                return
+            
+            # Check admin permissions
+            if not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({'error': 'Admin access required'}, 403)
+                return
+            
+            # Get all recipients
+            recipients = get_report_recipients(guild_id)
+            
+            # Format recipients for frontend
+            discord_recipients = []
+            email_recipients = []
+            
+            for recipient_row in recipients:
+                recipient_id, recipient_type, discord_user_id, email_address, created_at = recipient_row
+                
+                if recipient_type == 'discord' and discord_user_id:
+                    try:
+                        # Try to get user info - fallback to ID if not found
+                        bot_instance = getattr(type(self), 'bot', None)
+                        if bot_instance:
+                            user = bot_instance.get_user(int(discord_user_id))
+                            if user:
+                                discord_recipients.append({
+                                    'id': recipient_id,
+                                    'user_id': discord_user_id,
+                                    'username': user.name,
+                                    'display_name': user.display_name or user.name,
+                                    'avatar': user.avatar.url if user.avatar else None
+                                })
+                                continue
+                        
+                        # Fallback for unknown users
+                        discord_recipients.append({
+                            'id': recipient_id,
+                            'user_id': discord_user_id,
+                            'username': f'Unknown User ({discord_user_id})',
+                            'display_name': f'Unknown User ({discord_user_id})',
+                            'avatar': None
+                        })
+                    except Exception:
+                        discord_recipients.append({
+                            'id': recipient_id,
+                            'user_id': discord_user_id,
+                            'username': f'Unknown User ({discord_user_id})',
+                            'display_name': f'Unknown User ({discord_user_id})',
+                            'avatar': None
+                        })
+                
+                elif recipient_type == 'email' and email_address:
+                    email_recipients.append({
+                        'id': recipient_id,
+                        'email': email_address
+                    })
+            
+            self.send_json_response({
+                'discord_recipients': discord_recipients,
+                'email_recipients': email_recipients
+            })
+            
+        except Exception as e:
+            print(f"❌ Error in handle_api_get_recipients: {e}")
+            self.send_json_response({"error": "Server error"}, 500)
+
+    def handle_api_recipients_update(self):
+        """Handle POST /api/guild/{id}/recipients - Add/remove recipients"""
+        try:
+            # Check session
+            session_id = self.get_session_id()
+            if not session_id:
+                self.send_json_response({'error': 'Not authenticated'}, 401)
+                return
+                
+            session = get_user_session(session_id)
+            if not session:
+                self.send_json_response({'error': 'Session expired'}, 401)
+                return
+            
+            # Parse guild ID from path
+            path_parts = self.path.split('/')
+            if len(path_parts) < 4:
+                self.send_json_response({'error': 'Invalid path'}, 400)
+                return
+                
+            guild_id_str = path_parts[3]
+            try:
+                guild_id = int(guild_id_str)
+            except ValueError:
+                self.send_json_response({'error': 'Invalid guild ID'}, 400)
+                return
+            
+            # Check if user has access to this guild
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild:
+                self.send_json_response({'error': 'Guild not found'}, 404)
+                return
+            
+            # Check admin permissions
+            if not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({'error': 'Admin access required'}, 403)
+                return
+            
+            # Parse request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_json_response({'error': 'Empty request body'}, 400)
+                return
+                
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(post_data)
+            
+            action = data.get('action')  # 'add' or 'remove'
+            recipient_type = data.get('recipient_type')  # 'discord' or 'email'
+            
+            if action not in ['add', 'remove']:
+                self.send_json_response({'error': 'Invalid action'}, 400)
+                return
+                
+            if recipient_type not in ['discord', 'email']:
+                self.send_json_response({'error': 'Invalid recipient type'}, 400)
+                return
+            
+            if action == 'add':
+                if recipient_type == 'discord':
+                    user_id = data.get('user_id')
+                    if not user_id:
+                        self.send_json_response({'error': 'user_id required for discord recipients'}, 400)
+                        return
+                    
+                    success = add_report_recipient(guild_id, 'discord', user_id, None)
+                    if success:
+                        self.send_json_response({'message': 'Discord recipient added successfully'})
+                    else:
+                        self.send_json_response({'error': 'Recipient already exists'}, 409)
+                        
+                elif recipient_type == 'email':
+                    email = data.get('email')
+                    if not email:
+                        self.send_json_response({'error': 'email required for email recipients'}, 400)
+                        return
+                    
+                    success = add_report_recipient(guild_id, 'email', None, email)
+                    if success:
+                        self.send_json_response({'message': 'Email recipient added successfully'})
+                    else:
+                        self.send_json_response({'error': 'Recipient already exists'}, 409)
+            
+            elif action == 'remove':
+                if recipient_type == 'discord':
+                    user_id = data.get('user_id')
+                    if not user_id:
+                        self.send_json_response({'error': 'user_id required'}, 400)
+                        return
+                    remove_report_recipient(guild_id, 'discord', user_id, None)
+                    
+                elif recipient_type == 'email':
+                    email = data.get('email')
+                    if not email:
+                        self.send_json_response({'error': 'email required'}, 400)
+                        return
+                    remove_report_recipient(guild_id, 'email', None, email)
+                
+                self.send_json_response({'message': 'Recipient removed successfully'})
+                
+        except json.JSONDecodeError:
+            self.send_json_response({'error': 'Invalid JSON'}, 400)
+        except Exception as e:
+            print(f"❌ Error in handle_api_recipients_update: {e}")
+            self.send_json_response({"error": "Server error"}, 500)
+
     def handle_api_request(self):
         """Handle API requests for dashboard data"""
         try:
@@ -1768,6 +1961,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         elif endpoint == "member":
                             # /api/guild/{id}/member
                             self.handle_api_guild_member(session, guild_id)
+                        elif endpoint == "recipients":
+                            # /api/guild/{id}/recipients
+                            self.handle_api_get_recipients(session, guild_id)
                         else:
                             self.send_json_response({"error": "Endpoint not found"}, 404)
                     else:
@@ -2263,6 +2459,27 @@ def init_db():
         )
         """)
         
+        # Recipients table for multiple report recipients per guild
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS report_recipients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id INTEGER NOT NULL,
+            recipient_type TEXT NOT NULL CHECK(recipient_type IN ('discord', 'email')),
+            recipient_id TEXT,  -- Discord user ID for 'discord' type
+            email_address TEXT, -- Email address for 'email' type
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (guild_id) REFERENCES guild_settings (guild_id),
+            UNIQUE(guild_id, recipient_type, recipient_id),
+            UNIQUE(guild_id, recipient_type, email_address)
+        )
+        """)
+        
+        # Index for performance
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_report_recipients_guild 
+        ON report_recipients(guild_id)
+        """)
+        
         # OAuth and User Session Tables for persistent session management
         conn.execute("""
         CREATE TABLE IF NOT EXISTS oauth_sessions (
@@ -2601,6 +2818,139 @@ def get_guild_setting(guild_id: int, key: str, default=None):
         cur = conn.execute(column_queries[key], (guild_id,))
         row = cur.fetchone()
         return row[0] if row and row[0] is not None else default
+
+# --- Report Recipients Management ---
+
+def add_report_recipient(guild_id: int, recipient_type: str, recipient_id: Optional[str] = None, email_address: Optional[str] = None):
+    """Add a report recipient for a guild"""
+    if recipient_type not in ['discord', 'email']:
+        raise ValueError("recipient_type must be 'discord' or 'email'")
+    
+    if recipient_type == 'discord' and not recipient_id:
+        raise ValueError("recipient_id is required for discord type")
+    
+    if recipient_type == 'email' and not email_address:
+        raise ValueError("email_address is required for email type")
+    
+    try:
+        with db() as conn:
+            conn.execute("""
+                INSERT INTO report_recipients (guild_id, recipient_type, recipient_id, email_address)
+                VALUES (?, ?, ?, ?)
+            """, (guild_id, recipient_type, recipient_id, email_address))
+            return True
+    except sqlite3.IntegrityError:
+        # Recipient already exists
+        return False
+
+def remove_report_recipient(guild_id: int, recipient_type: str, recipient_id: Optional[str] = None, email_address: Optional[str] = None):
+    """Remove a report recipient for a guild"""
+    with db() as conn:
+        if recipient_type == 'discord':
+            conn.execute("""
+                DELETE FROM report_recipients 
+                WHERE guild_id = ? AND recipient_type = ? AND recipient_id = ?
+            """, (guild_id, recipient_type, recipient_id))
+        else:  # email
+            conn.execute("""
+                DELETE FROM report_recipients 
+                WHERE guild_id = ? AND recipient_type = ? AND email_address = ?
+            """, (guild_id, recipient_type, email_address))
+
+def get_report_recipients(guild_id: int, recipient_type: Optional[str] = None):
+    """Get all report recipients for a guild, optionally filtered by type"""
+    with db() as conn:
+        if recipient_type:
+            cursor = conn.execute("""
+                SELECT id, recipient_type, recipient_id, email_address, created_at
+                FROM report_recipients 
+                WHERE guild_id = ? AND recipient_type = ?
+                ORDER BY created_at ASC
+            """, (guild_id, recipient_type))
+        else:
+            cursor = conn.execute("""
+                SELECT id, recipient_type, recipient_id, email_address, created_at
+                FROM report_recipients 
+                WHERE guild_id = ?
+                ORDER BY recipient_type, created_at ASC
+            """, (guild_id,))
+        
+        return cursor.fetchall()
+
+async def send_timeclock_notifications(guild_id: int, interaction: discord.Interaction, start_dt: datetime, end_dt: datetime, elapsed: int, tz_name: str):
+    """Send timeclock notifications to all configured recipients"""
+    # Get all recipients for this guild
+    all_recipients = get_report_recipients(guild_id)
+    
+    # Also check for legacy single recipient
+    legacy_recipient_id = get_guild_setting(guild_id, "recipient_user_id")
+    
+    # Prepare the notification embed
+    embed = discord.Embed(
+        title="Timeclock Entry",
+        description=f"**Employee:** {interaction.user.mention} (`{interaction.user.id}`)",
+        color=discord.Color.blurple(),
+        timestamp=end_dt
+    )
+    embed.add_field(name="Clock In", value=fmt(start_dt, tz_name), inline=True)
+    embed.add_field(name="Clock Out", value=fmt(end_dt, tz_name), inline=True)
+    embed.add_field(name="Total", value=human_duration(elapsed), inline=False)
+    guild_name = interaction.guild.name if interaction.guild else "Unknown Server"
+    embed.set_footer(text=f"Guild: {guild_name} • ID: {guild_id}")
+    
+    notification_sent = False
+    errors = []
+    
+    # Send to new recipients system
+    for recipient_row in all_recipients:
+        recipient_id, recipient_type, discord_user_id, email_address, created_at = recipient_row
+        
+        if recipient_type == 'discord' and discord_user_id:
+            try:
+                user = await bot.fetch_user(int(discord_user_id))
+                await user.send(embed=embed)
+                notification_sent = True
+            except discord.Forbidden:
+                errors.append(f"Discord user {discord_user_id} has DMs disabled")
+            except discord.NotFound:
+                errors.append(f"Discord user {discord_user_id} not found")
+            except Exception as e:
+                errors.append(f"Failed to notify Discord user {discord_user_id}: {str(e)}")
+        
+        elif recipient_type == 'email' and email_address:
+            # TODO: Implement email notifications when email integration is ready
+            errors.append(f"Email notifications to {email_address} not yet implemented")
+    
+    # Fallback to legacy recipient if no new recipients configured
+    if not all_recipients and legacy_recipient_id:
+        try:
+            manager = await bot.fetch_user(legacy_recipient_id)
+            await manager.send(embed=embed)
+            notification_sent = True
+        except discord.Forbidden:
+            errors.append("Legacy recipient has DMs disabled")
+        except discord.NotFound:
+            errors.append("Legacy recipient not found")
+        except Exception as e:
+            errors.append(f"Failed to notify legacy recipient: {str(e)}")
+    
+    # Report any errors to the user
+    if errors and not notification_sent:
+        try:
+            await interaction.followup.send(
+                "⚠️ Could not send notifications to any recipients:\n" + "\n".join(f"• {error}" for error in errors[:3]),
+                ephemeral=True
+            )
+        except Exception:
+            pass
+    elif errors:
+        try:
+            await interaction.followup.send(
+                f"⚠️ Some notifications failed:\n" + "\n".join(f"• {error}" for error in errors[:3]),
+                ephemeral=True
+            )
+        except Exception:
+            pass
 
 def set_guild_setting(guild_id: int, key: str, value):
     # Map of allowed keys to their SQL update queries
@@ -3421,36 +3771,14 @@ class TimeClockView(discord.ui.View):
             elapsed = int((end_dt - start_dt).total_seconds())
             close_session(session_id, end_dt.isoformat(), elapsed)
 
-            tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
+            tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ) or DEFAULT_TZ
             await interaction.followup.send(
                 f"🔚 Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}",
                 ephemeral=True
             )
 
-            # DM the designated manager
-            recipient_id = get_guild_setting(guild_id, "recipient_user_id")
-            if recipient_id:
-                try:
-                    manager = await bot.fetch_user(recipient_id)
-                    embed = discord.Embed(
-                        title="Timeclock Entry",
-                        description=f"**Employee:** {interaction.user.mention} (`{interaction.user.id}`)",
-                        color=discord.Color.blurple(),
-                        timestamp=end_dt
-                    )
-                    embed.add_field(name="Clock In", value=fmt(start_dt, tz_name), inline=True)
-                    embed.add_field(name="Clock Out", value=fmt(end_dt, tz_name), inline=True)
-                    embed.add_field(name="Total", value=human_duration(elapsed), inline=False)
-                    embed.set_footer(text=f"Guild: {interaction.guild.name} • ID: {guild_id}")
-                    await manager.send(embed=embed)
-                except discord.Forbidden:
-                    try:
-                        await interaction.followup.send(
-                            "⚠️ Could not DM the designated manager (their DMs may be off).",
-                            ephemeral=True
-                        )
-                    except Exception:
-                        pass
+            # Send notifications to all configured recipients
+            await send_timeclock_notifications(guild_id, interaction, start_dt, end_dt, elapsed, tz_name)
                         
         except (discord.NotFound, discord.errors.NotFound):
             # Interaction expired or was deleted - silently handle this
