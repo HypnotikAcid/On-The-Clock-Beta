@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On the Clock - Discord Timeclock Bot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e0e6ed;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 1rem;
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-gear {
+            width: 36px;
+            height: 36px;
+            fill: white;
+            animation: rotate 8s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .logo-text {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #5865F2, #00D4FF);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #b0b0b0;
+            margin-bottom: 2rem;
+        }
+
+        /* Beta Warning */
+        .beta-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 2px solid #FFC107;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 2rem auto;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .beta-warning h3 {
+            color: #FFC107;
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .beta-warning p {
+            color: #e0e6ed;
+        }
+
+        /* Features Section */
+        .features {
+            margin: 3rem 0;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 2rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
+            border: 1px solid #404050;
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(88, 101, 242, 0.2);
+            border-color: #5865F2;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .feature-description {
+            color: #b0b0b0;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn:hover {
+            background: linear-gradient(45deg, #7289DA, #5865F2);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(88, 101, 242, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #40444b, #36393f);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(45deg, #36393f, #40444b);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(45deg, #00cc6a, #00ff88);
+        }
+
+        /* Action Section */
+        .action-section {
+            text-align: center;
+            margin: 3rem 0;
+            padding: 3rem 2rem;
+            background: rgba(88, 101, 242, 0.1);
+            border-radius: 20px;
+            border: 1px solid rgba(88, 101, 242, 0.3);
+        }
+
+        .action-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .action-subtitle {
+            color: #b0b0b0;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        /* Upgrade Section */
+        .upgrade-section {
+            margin: 3rem 0;
+        }
+
+        .tiers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .tier-card {
+            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
+            border: 1px solid #404050;
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tier-card.featured {
+            border-color: #00ff88;
+            transform: scale(1.05);
+        }
+
+        .tier-card.featured::before {
+            content: 'POPULAR';
+            position: absolute;
+            top: 15px;
+            right: -30px;
+            background: #00ff88;
+            color: white;
+            padding: 5px 40px;
+            transform: rotate(45deg);
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .tier-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        .tier-price {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #00D4FF;
+            margin-bottom: 1rem;
+        }
+
+        .tier-features {
+            list-style: none;
+            margin: 1.5rem 0;
+        }
+
+        .tier-features li {
+            color: #b0b0b0;
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .tier-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin: 3rem 0 1rem;
+            padding: 2rem;
+            border-top: 1px solid #404050;
+            color: #b0b0b0;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo-text {
+                font-size: 2rem;
+            }
+            
+            .features-grid,
+            .tiers-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tier-card.featured {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg class="logo-gear" viewBox="0 0 24 24">
+                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                    </svg>
+                </div>
+                <div class="logo-text">On the Clock</div>
+            </div>
+            <div class="subtitle">Professional Discord Timeclock Management for Your Team</div>
+        </div>
+
+        <!-- Beta Warning -->
+        <div class="beta-warning">
+            <h3>⚠️ Beta Version</h3>
+            <p>This bot is currently in beta testing. Some features may be unstable or change frequently. Report any issues to our support team.</p>
+        </div>
+
+        <!-- Features Section -->
+        <div class="features">
+            <h2 class="section-title">🚀 Powerful Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⏰</div>
+                    <div class="feature-title">Smart Timeclock</div>
+                    <div class="feature-description">Clock in and out with simple slash commands. Track work hours, breaks, and project time with precision.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Detailed Reports</div>
+                    <div class="feature-description">Generate comprehensive CSV reports with timesheet data, overtime calculations, and productivity insights.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-title">Role Management</div>
+                    <div class="feature-description">Configure admin and employee roles. Control who can access reports, manage settings, and upgrade subscriptions.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌍</div>
+                    <div class="feature-title">Timezone Support</div>
+                    <div class="feature-description">Automatically handle multiple timezones. Perfect for remote teams working across different regions.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📧</div>
+                    <div class="feature-title">Email Integration</div>
+                    <div class="feature-description">Receive timesheet reports directly in your inbox. Automated delivery with professional formatting.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💳</div>
+                    <div class="feature-title">Subscription Tiers</div>
+                    <div class="feature-description">Flexible pricing plans from free to pro. Scale features based on your team's needs and size.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="action-section">
+            <h2 class="action-title">Ready to Get Started?</h2>
+            <p class="action-subtitle">Add On the Clock to your Discord server and start tracking time in minutes!</p>
+            <a href="/invite" class="btn btn-success">🤖 Add to Discord</a>
+            <a href="#upgrades" class="btn btn-secondary">💎 View Pricing</a>
+        </div>
+
+        <!-- Upgrade Section -->
+        <div class="upgrade-section" id="upgrades">
+            <h2 class="section-title">💎 Subscription Plans</h2>
+            <div class="tiers-grid">
+                <div class="tier-card">
+                    <div class="tier-name">Free</div>
+                    <div class="tier-price">$0<span style="font-size: 1rem; color: #b0b0b0;">/month</span></div>
+                    <ul class="tier-features">
+                        <li>Basic timeclock functionality</li>
+                        <li>Clock in/out commands</li>
+                        <li>Current session status</li>
+                        <li>Limited data retention</li>
+                        <li>Community support</li>
+                    </ul>
+                    <a href="/invite" class="btn">Get Started Free</a>
+                </div>
+                
+                <div class="tier-card featured">
+                    <div class="tier-name">Basic</div>
+                    <div class="tier-price">$5<span style="font-size: 1rem; color: #b0b0b0;">/month</span></div>
+                    <ul class="tier-features">
+                        <li>All Free features</li>
+                        <li>CSV report generation</li>
+                        <li>Email report delivery</li>
+                        <li>7-day data retention</li>
+                        <li>Role management</li>
+                        <li>Priority support</li>
+                    </ul>
+                    <a href="/invite" class="btn btn-success">Upgrade to Basic</a>
+                </div>
+                
+                <div class="tier-card">
+                    <div class="tier-name">Pro</div>
+                    <div class="tier-price">$10<span style="font-size: 1rem; color: #b0b0b0;">/month</span></div>
+                    <ul class="tier-features">
+                        <li>All Basic features</li>
+                        <li>Advanced analytics</li>
+                        <li>30-day data retention</li>
+                        <li>Custom time zones</li>
+                        <li>Project tracking</li>
+                        <li>Dedicated support</li>
+                    </ul>
+                    <a href="/invite" class="btn">Upgrade to Pro</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>&copy; 2025 On the Clock Discord Bot. Made with ❤️ for productivity teams.</p>
+            <p>Need help? Join our <a href="https://discord.gg/yoursupport" style="color: #5865F2;">support Discord</a> or email support@ontheclock.bot</p>
+        </div>
+    </div>
+</body>
+</html>
