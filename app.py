@@ -9,7 +9,8 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 import requests
-from flask import Flask, render_template, redirect, request, session, jsonify
+from flask import Flask, render_template, redirect, request, session, jsonify, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
@@ -17,12 +18,23 @@ app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# Fix for Replit reverse proxy - ensures correct scheme/host detection
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
-DISCORD_REDIRECT_URI = os.environ.get('DISCORD_REDIRECT_URI', 'http://localhost:5000/auth/callback')
 DISCORD_API_BASE = 'https://discord.com/api/v10'
 DISCORD_OAUTH_SCOPES = 'identify guilds'
+
+def get_redirect_uri():
+    """Get redirect URI dynamically based on current request or environment"""
+    # Use environment variable if set, otherwise compute from current request
+    env_uri = os.environ.get('DISCORD_REDIRECT_URI')
+    if env_uri:
+        return env_uri
+    # Fallback: compute from current request (forces HTTPS for production)
+    return url_for('auth_callback', _external=True, _scheme='https')
 
 # Database connection
 def get_db():
@@ -57,14 +69,14 @@ def verify_oauth_state(state):
             return True
     return False
 
-def exchange_code_for_token(code):
+def exchange_code_for_token(code, redirect_uri):
     """Exchange authorization code for access token"""
     data = {
         'client_id': DISCORD_CLIENT_ID,
         'client_secret': DISCORD_CLIENT_SECRET,
         'grant_type': 'authorization_code',
         'code': code,
-        'redirect_uri': DISCORD_REDIRECT_URI
+        'redirect_uri': redirect_uri
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     
@@ -164,16 +176,18 @@ def index():
 def auth_login():
     """Redirect user to Discord OAuth"""
     state = create_oauth_state()
+    redirect_uri = get_redirect_uri()
     
     params = {
         'client_id': DISCORD_CLIENT_ID,
-        'redirect_uri': DISCORD_REDIRECT_URI,
+        'redirect_uri': redirect_uri,
         'response_type': 'code',
         'scope': DISCORD_OAUTH_SCOPES,
         'state': state
     }
     
     auth_url = f'https://discord.com/oauth2/authorize?{urlencode(params)}'
+    print(f"🔗 OAuth login - Redirect URI: {redirect_uri}")
     return redirect(auth_url)
 
 @app.route("/auth/callback")
@@ -193,8 +207,9 @@ def auth_callback():
         return "<h1>Authentication Error</h1><p>Invalid state - possible CSRF attack</p><a href='/'>Return Home</a>", 400
     
     try:
-        # Exchange code for token
-        token_data = exchange_code_for_token(code)
+        # Exchange code for token (use same redirect_uri as in authorization)
+        redirect_uri = get_redirect_uri()
+        token_data = exchange_code_for_token(code, redirect_uri)
         access_token = token_data['access_token']
         refresh_token = token_data.get('refresh_token')
         
