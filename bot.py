@@ -6144,10 +6144,10 @@ if __name__ == "__main__":
     if not TOKEN:
         raise SystemExit("Set DISCORD_TOKEN in your environment.")
     
-    # Start health check server in a separate thread
-    health_thread = threading.Thread(target=start_health_server, daemon=True)
-    health_thread.start()
-    print(f"✅ Health check server thread started")
+    # Health check server disabled - Flask app handles web server
+    # health_thread = threading.Thread(target=start_health_server, daemon=True)
+    # health_thread.start()
+    print(f"✅ Health check server disabled (Flask app handles web server)")
     
     # Start daily cleanup scheduler
     schedule_daily_cleanup()
