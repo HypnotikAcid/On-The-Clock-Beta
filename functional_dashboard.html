@@ -1281,16 +1281,16 @@
 
     <!-- Main Content -->
     <div class="main-content">
-        <!-- Beta Disclaimer -->
-        <div class="dashboard-card fade-in" style="grid-column: 1 / -1;">
+        <!-- Tile 1: Beta Disclaimer -->
+        <div class="dashboard-card fade-in" data-tile="1" data-visibility="always" style="grid-column: 1 / -1;">
             <div class="beta-disclaimer">
                 <h3>🚧 Beta Version</h3>
                 <p>This is a beta version of On the Clock. For support or questions, join our <a href="https://discord.gg/yourinvitelink" target="_blank" style="color: #5865F2;">support server</a>.</p>
             </div>
         </div>
 
-        <!-- Server Overview -->
-        <div class="dashboard-card fade-in">
+        <!-- Tile 2: Server Status -->
+        <div class="dashboard-card fade-in" data-tile="2" data-visibility="auth-required" data-roles="admin,employee" data-tiers="free,basic,pro">
             <div class="card-header">
                 <div class="card-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
@@ -1375,8 +1375,8 @@
             </div>
         </div>
 
-        <!-- Current Subscription -->
-        <div class="dashboard-card fade-in">
+        <!-- Tile 3: Subscription Status -->
+        <div class="dashboard-card fade-in" data-tile="3" data-visibility="always" data-roles="admin,employee" data-tiers="free,basic,pro">
             <div class="card-header">
                 <div class="card-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
@@ -1407,8 +1407,8 @@
             </button>
         </div>
 
-        <!-- Role Management (Login Required) -->
-        <div class="dashboard-card fade-in login-required logged-out-hidden">
+        <!-- Tile 4a: Role Management (Login Required) -->
+        <div class="dashboard-card fade-in login-required logged-out-hidden" data-tile="4a" data-visibility="guest-only">
             <div class="login-prompt">
                 <h3>🔒 Login Required</h3>
                 <p>Login to manage server roles and permissions</p>
@@ -1440,8 +1440,8 @@
             </div>
         </div>
 
-        <!-- Role Management (Logged In) -->
-        <div class="dashboard-card fade-in logged-in-hidden" id="roleManagement" style="display: none;">
+        <!-- Tile 4b: Role Management (Authenticated) -->
+        <div class="dashboard-card fade-in logged-in-hidden" id="roleManagement" data-tile="4b" data-visibility="auth-required" data-roles="admin" data-tiers="free,basic,pro" style="display: none;">
             <div class="card-header">
                 <div class="card-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
@@ -1502,8 +1502,8 @@
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="dashboard-card fade-in">
+        <!-- Tile 5: Quick Actions -->
+        <div class="dashboard-card fade-in" data-tile="5" data-visibility="always" data-roles="admin,employee" data-tiers="free,basic,pro">
             <div class="card-header">
                 <div class="card-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
@@ -1526,8 +1526,8 @@
             </div>
         </div>
 
-        <!-- Current Features (Always Visible) -->
-        <div class="dashboard-card fade-in" style="grid-column: 1 / -1;">
+        <!-- Tile 6: Available Features -->
+        <div class="dashboard-card fade-in" data-tile="6" data-visibility="always" style="grid-column: 1 / -1;">
             <div class="card-header">
                 <div class="card-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
@@ -1617,8 +1617,8 @@
         </div>
         
         <div class="settings-grid">
-            <!-- User Role Status Section (Enhanced) -->
-            <div class="settings-section" style="border: 2px solid rgba(88, 101, 242, 0.3); background: linear-gradient(135deg, rgba(88, 101, 242, 0.05), rgba(59, 130, 246, 0.05));">
+            <!-- Tile 7: User Role Status Section -->
+            <div class="settings-section" data-tile="7" data-visibility="auth-required" data-roles="admin,employee" data-tiers="free,basic,pro" style="border: 2px solid rgba(88, 101, 242, 0.3); background: linear-gradient(135deg, rgba(88, 101, 242, 0.05), rgba(59, 130, 246, 0.05));">
                 <h3 style="color: #5865F2; display: flex; align-items: center; justify-content: space-between;">
                     <span style="display: flex; align-items: center; gap: 0.5rem;">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -1647,8 +1647,8 @@
                 </div>
             </div>
 
-            <!-- General Settings Section -->
-            <div class="settings-section">
+            <!-- Tile 8: General Settings Section -->
+            <div class="settings-section" data-tile="8" data-visibility="auth-required" data-roles="admin" data-tiers="free,basic,pro">
                 <h3>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                         <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
@@ -1690,8 +1690,8 @@
                 </button>
             </div>
             
-            <!-- Role Management Section -->
-            <div class="settings-section">
+            <!-- Tile 9: Role Management Section -->
+            <div class="settings-section" data-tile="9" data-visibility="auth-required" data-roles="admin" data-tiers="free,basic,pro">
                 <h3>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                         <path d="M12,5.5A3.5,3.5 0 0,1 15.5,9A3.5,3.5 0 0,1 12,12.5A3.5,3.5 0 0,1 8.5,9A3.5,3.5 0 0,1 12,5.5M5,8C5.56,8 6.08,8.15 6.53,8.42C6.38,9.85 6.8,11.27 7.66,12.38C7.16,13.34 6.16,14 5,14A3,3 0 0,1 2,11A3,3 0 0,1 5,8M19,8A3,3 0 0,1 22,11A3,3 0 0,1 19,14C17.84,14 16.84,13.34 16.34,12.38C17.2,11.27 17.62,9.85 17.47,8.42C17.92,8.15 18.44,8 19,8M5.5,18.25C5.5,16.18 8.41,14.5 12,14.5C15.59,14.5 18.5,16.18 18.5,18.25V20H5.5V18.25M0,20V18.5C0,17.11 1.89,15.94 4.45,15.6C3.86,16.28 3.5,17.22 3.5,18.25V20H0M24,20H20.5V18.25C20.5,17.22 20.14,16.28 19.55,15.6C22.11,15.94 24,17.11 24,18.5V20Z"/>
@@ -1768,8 +1768,8 @@
                 </div>
             </div>
             
-            <!-- Report Recipients Section -->
-            <div class="settings-section" style="opacity: 0.7;">
+            <!-- Tile 10: Report Recipients Section -->
+            <div class="settings-section" data-tile="10" data-visibility="auth-required" data-roles="admin" data-tiers="basic,pro" style="opacity: 0.7;">
                 <h3>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                         <path d="M20,8L12,13L4,8V6L12,11L20,6M20,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6C22,4.89 21.1,4 20,4Z"/>
@@ -1866,8 +1866,8 @@
                 </div>
             </div>
             
-            <!-- Server Overview Section -->
-            <div class="settings-section">
+            <!-- Tile 11: Server Overview Section -->
+            <div class="settings-section" data-tile="11" data-visibility="auth-required" data-roles="admin,employee" data-tiers="free,basic,pro">
                 <h3>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                         <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M7.07,18.28C7.5,17.38 10.12,16.5 12,16.5C13.88,16.5 16.5,17.38 16.93,18.28C15.57,19.36 13.86,20 12,20C10.14,20 8.43,19.36 7.07,18.28M18.36,16.83C16.93,15.09 13.46,14.5 12,14.5C10.54,14.5 7.07,15.09 5.64,16.83C4.62,15.5 4,13.82 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,13.82 19.38,15.5 18.36,16.83M12,6C10.06,6 8.5,7.56 8.5,9.5C8.5,11.44 10.06,13 12,13C13.94,13 15.5,11.44 15.5,9.5C15.5,7.56 13.94,6 12,6M12,11A1.5,1.5 0 0,1 10.5,9.5A1.5,1.5 0 0,1 12,8A1.5,1.5 0 0,1 13.5,9.5A1.5,1.5 0 0,1 12,11Z"/>
@@ -2439,6 +2439,12 @@
                 currentGuildId = serverId;
                 await loadRecipients();
                 
+                // Load current settings to populate form fields
+                await loadCurrentSettings(serverId);
+                
+                // Load guild members for Discord recipient selection
+                await loadGuildMembersForRecipients(serverId);
+                
                 // Populate current roles
                 populateCurrentRoles(adminRoles, employeeRoles);
                 
@@ -2908,6 +2914,77 @@
             await loadRecipients();
         }
 
+        // Load current settings from backend and populate form fields
+        async function loadCurrentSettings(serverId) {
+            try {
+                const response = await fetch(`/api/guild/${serverId}/settings`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const settings = await response.json();
+                    
+                    // Populate timezone select
+                    const timezoneSelect = document.getElementById('timezoneSelect');
+                    if (settings.timezone && timezoneSelect) {
+                        timezoneSelect.value = settings.timezone;
+                    }
+                    
+                    // Populate name display mode select
+                    const nameDisplaySelect = document.getElementById('nameDisplayMode');
+                    if (settings.name_display_mode && nameDisplaySelect) {
+                        nameDisplaySelect.value = settings.name_display_mode;
+                    }
+                    
+                    console.log('Current settings loaded:', settings);
+                } else {
+                    console.log('No existing settings found, using defaults');
+                }
+                
+            } catch (error) {
+                console.error('Error loading current settings:', error);
+                // Don't show error message as this is not critical (defaults will be used)
+            }
+        }
+
+        // Load guild members for Discord recipient selection
+        async function loadGuildMembersForRecipients(serverId) {
+            try {
+                const response = await fetch(`/api/guild/${serverId}/members`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const members = data.members || [];
+                    
+                    // Populate Discord user select dropdown
+                    const discordSelect = document.getElementById('discordUserSelect');
+                    if (discordSelect) {
+                        // Clear existing options except the first one
+                        discordSelect.innerHTML = '<option value="">Select a user to add...</option>';
+                        
+                        members.forEach(member => {
+                            const option = document.createElement('option');
+                            option.value = member.id;
+                            option.textContent = `${member.display_name} (@${member.username})`;
+                            discordSelect.appendChild(option);
+                        });
+                        
+                        console.log(`Loaded ${members.length} guild members for recipient selection`);
+                    }
+                } else {
+                    console.log('Failed to load guild members for recipient selection');
+                }
+                
+            } catch (error) {
+                console.error('Error loading guild members:', error);
+                // Don't show error message as this is not critical
+            }
+        }
+
         // Load recipients from backend
         async function loadRecipients() {
             try {
@@ -3333,14 +3410,122 @@
             }, 100);
         }
 
+        // Tile Visibility Control System
+        let currentUserRole = 'guest'; // guest, employee, admin
+        let currentSubscriptionTier = 'free'; // free, basic, pro
+        
+        function setUserContext(role, tier) {
+            currentUserRole = role;
+            currentSubscriptionTier = tier;
+            updateTileVisibility();
+        }
+        
+        function updateTileVisibility() {
+            const tiles = document.querySelectorAll('[data-tile]');
+            
+            tiles.forEach(tile => {
+                const visibility = tile.dataset.visibility;
+                const allowedRoles = tile.dataset.roles ? tile.dataset.roles.split(',') : [];
+                const allowedTiers = tile.dataset.tiers ? tile.dataset.tiers.split(',') : [];
+                
+                let shouldShow = false;
+                
+                // Check visibility requirements
+                switch (visibility) {
+                    case 'always':
+                        shouldShow = true;
+                        break;
+                    case 'guest-only':
+                        shouldShow = currentUserRole === 'guest';
+                        break;
+                    case 'auth-required':
+                        shouldShow = currentUserRole !== 'guest';
+                        break;
+                    default:
+                        shouldShow = true;
+                }
+                
+                // Check role requirements (if specified)
+                if (shouldShow && allowedRoles.length > 0) {
+                    shouldShow = allowedRoles.includes(currentUserRole);
+                }
+                
+                // Check tier requirements (if specified)
+                if (shouldShow && allowedTiers.length > 0) {
+                    shouldShow = allowedTiers.includes(currentSubscriptionTier);
+                }
+                
+                // Apply visibility
+                if (shouldShow) {
+                    tile.style.display = '';
+                    tile.classList.remove('tile-hidden');
+                } else {
+                    tile.style.display = 'none';
+                    tile.classList.add('tile-hidden');
+                }
+                
+                // Add tile access level indicators for debugging
+                if (window.location.search.includes('debug=tiles')) {
+                    const indicator = tile.querySelector('.tile-debug') || document.createElement('div');
+                    indicator.className = 'tile-debug';
+                    indicator.style.cssText = `
+                        position: absolute;
+                        top: 5px;
+                        right: 5px;
+                        background: rgba(0,0,0,0.8);
+                        color: white;
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        font-size: 10px;
+                        z-index: 100;
+                    `;
+                    indicator.textContent = `Tile ${tile.dataset.tile} - ${shouldShow ? 'Visible' : 'Hidden'}`;
+                    if (!tile.querySelector('.tile-debug')) {
+                        tile.style.position = 'relative';
+                        tile.appendChild(indicator);
+                    }
+                }
+            });
+        }
+        
+        // Public functions to control tile visibility
+        window.showTile = function(tileNumber) {
+            const tile = document.querySelector(`[data-tile="${tileNumber}"]`);
+            if (tile) {
+                tile.style.display = '';
+                tile.classList.remove('tile-hidden');
+            }
+        };
+        
+        window.hideTile = function(tileNumber) {
+            const tile = document.querySelector(`[data-tile="${tileNumber}"]`);
+            if (tile) {
+                tile.style.display = 'none';
+                tile.classList.add('tile-hidden');
+            }
+        };
+        
+        // Updated auth status check to integrate with tile system
+        async function checkAuthStatusWithTiles() {
+            await checkAuthStatus();
+            
+            // Update tile visibility based on auth status
+            if (isLoggedIn && currentUser) {
+                // For now, set default roles - this will be enhanced when we add the backend APIs
+                setUserContext('admin', 'free'); // Default for testing
+            } else {
+                setUserContext('guest', 'free');
+            }
+        }
+
         // Load initial data
         document.addEventListener('DOMContentLoaded', function() {
             // Load server stats (public)
             document.getElementById('memberCount').textContent = '247';
             document.getElementById('onlineCount').textContent = '89';
             
-            // Check if user is already authenticated
-            checkAuthStatus();
+            // Check if user is already authenticated and update tiles
+            checkAuthStatusWithTiles();
         });
     </script>
 

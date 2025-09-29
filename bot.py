@@ -1604,6 +1604,126 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"❌ Guild member API error: {e}")
             self.send_json_response({'error': 'Server error'}, 500)
 
+    def handle_api_guild_members(self, session: Dict, guild_id_str: str):
+        """Handle GET /api/guild/{id}/members?query=... - Search guild members for recipients"""
+        try:
+            guild_id = int(guild_id_str)
+            
+            # Check if user has access to this guild
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild or not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({"error": "Admin access required"}, 403)
+                return
+                
+            # Get bot guild data
+            bot_instance = getattr(type(self), 'bot', None)
+            if not bot_instance or not bot_instance.is_ready():
+                self.send_json_response({"error": "Bot not ready"}, 503)
+                return
+                
+            bot_guild = bot_instance.get_guild(guild_id)
+            if not bot_guild:
+                self.send_json_response({"error": "Guild not found"}, 404)
+                return
+            
+            # Parse query parameters for search
+            from urllib.parse import urlparse, parse_qs
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            
+            search_query = query_params.get('query', [''])[0].lower().strip()
+            limit = min(int(query_params.get('limit', ['50'])[0]), 100)  # Max 100 members
+            
+            # Get guild members (limited to first 1000 due to Discord API limitations without special intents)
+            members = []
+            member_count = 0
+            
+            for member in bot_guild.members:
+                if member_count >= limit:
+                    break
+                    
+                # Skip bots unless specifically searching for them
+                if member.bot and 'bot' not in search_query:
+                    continue
+                
+                # Filter by search query if provided
+                if search_query:
+                    search_targets = [
+                        member.display_name.lower(),
+                        member.name.lower(),
+                        str(member.id)
+                    ]
+                    if member.nick:
+                        search_targets.append(member.nick.lower())
+                        
+                    if not any(search_query in target for target in search_targets):
+                        continue
+                
+                # Add member to results
+                members.append({
+                    "id": str(member.id),
+                    "username": member.name,
+                    "display_name": member.display_name,
+                    "avatar": member.avatar.url if member.avatar else None,
+                    "bot": member.bot,
+                    "nick": member.nick,
+                    "joined_at": member.joined_at.isoformat() if member.joined_at else None
+                })
+                member_count += 1
+                
+            self.send_json_response({
+                "members": members,
+                "total_shown": len(members),
+                "has_more": member_count >= limit,
+                "query": search_query
+            })
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Guild members API error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
+
+    def handle_api_get_guild_settings(self, session: Dict, guild_id_str: str):
+        """Handle GET /api/guild/{id}/settings - Get current guild settings"""
+        try:
+            guild_id = int(guild_id_str)
+            
+            # Check if user has access to this guild
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild or not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
+                self.send_json_response({"error": "Admin access required"}, 403)
+                return
+                
+            # Get current guild settings
+            settings = {
+                "timezone": get_guild_setting(guild_id, "timezone") or "UTC",
+                "name_display_mode": get_guild_setting(guild_id, "name_display_mode") or "username", 
+                "recipient_user_id": get_guild_setting(guild_id, "recipient_user_id"),
+                "main_admin_role_id": get_guild_setting(guild_id, "main_admin_role_id"),
+                "subscription_tier": get_server_tier(guild_id),
+                "admin_roles": get_admin_roles(guild_id),
+                "employee_roles": get_clock_roles(guild_id)
+            }
+            
+            self.send_json_response({"settings": settings})
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Guild settings API error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
+
     def handle_api_get_admin_roles(self, session, guild_id_str):
         """Handle GET /api/guild/{id}/admin-roles - Get current admin roles"""
         try:
@@ -2010,6 +2130,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         elif endpoint == "recipients":
                             # /api/guild/{id}/recipients
                             self.handle_api_get_recipients(session, guild_id)
+                        elif endpoint == "members":
+                            # /api/guild/{id}/members
+                            self.handle_api_guild_members(session, guild_id)
+                        elif endpoint == "settings":
+                            # /api/guild/{id}/settings
+                            self.handle_api_get_guild_settings(session, guild_id)
                         else:
                             self.send_json_response({"error": "Endpoint not found"}, 404)
                     else:
