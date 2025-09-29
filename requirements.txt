@@ -10,3 +10,6 @@ requests
 stripe
 tzdata
 urllib3
+flask
+Flask-Discord
+requests-oauthlib
