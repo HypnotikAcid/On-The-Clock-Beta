@@ -416,5 +416,13 @@ if __name__ == "__main__":
     print(f"📍 Base URL: {get_base_url()}")
     print(f"🔄 Redirect URI: {app.config['DISCORD_REDIRECT_URI']}")
     
+    # Production-ready configuration
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV', 'development') == 'development'
+    
+    print(f"🔧 Environment: {os.environ.get('FLASK_ENV', 'development')}")
+    print(f"🌐 Port: {port}")
+    print(f"🐛 Debug: {debug}")
+    
     # Run Flask app
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=debug)
