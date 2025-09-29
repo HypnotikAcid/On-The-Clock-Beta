@@ -8,8 +8,8 @@ import requests
 
 app = Flask(__name__)
 
-# Security configuration
-app.secret_key = os.urandom(24)  # Secure random secret key
+# Security configuration - use environment variable for production consistency
+app.secret_key = os.environ.get('SECRET_KEY') or 'dev-fallback-key-change-in-production'
 
 # Discord OAuth2 configuration
 app.config["DISCORD_CLIENT_ID"] = os.environ.get("DISCORD_CLIENT_ID")
