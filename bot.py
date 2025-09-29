@@ -1153,13 +1153,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
         
-    def user_has_dashboard_admin_access(self, user_id: str, guild_id: int, user_guild: Dict) -> bool:
-        """Check if an OAuth user has admin access to manage a guild's settings"""
+    def is_dashboard_admin(self, session: Dict, guild_id: int) -> bool:
+        """Unified permission check using OAuth data and database role configuration"""
+        user_id = session['user_id']
+        
+        # Find the guild data in the user's session
+        user_guild = None
+        for ug in session.get('guilds', []):
+            if ug['id'] == str(guild_id):
+                user_guild = ug
+                break
+                
+        if not user_guild:
+            return False
+            
         # Check Discord permissions from OAuth data
         permissions = int(user_guild.get('permissions', '0'))
         
-        # Check if user has Discord administrator permission
-        # Administrator permission = 0x8 (bit 3)
+        # Check if user has Discord administrator permission (0x8 = bit 3)
         if permissions & 0x8:
             return True
             
@@ -1167,16 +1178,36 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         if user_guild.get('owner', False):
             return True
             
-        # If bot is available, check custom admin roles
-        bot_instance = getattr(type(self), 'bot', None)
-        if bot_instance and bot_instance.is_ready():
-            bot_guild = bot_instance.get_guild(guild_id)
-            if bot_guild:
-                bot_member = bot_guild.get_member(int(user_id))
-                if bot_member:
-                    return user_has_admin_access(bot_member)
+        # Check custom admin roles from database using OAuth role data
+        # Get user's Discord roles from OAuth member data if available
+        access_token = session.get('access_token')
+        if access_token:
+            # Try to get user's roles via OAuth API
+            member_data = get_discord_guild_member(access_token, str(guild_id))
+            if member_data:
+                user_role_ids = [int(role_id) for role_id in member_data.get('roles', [])]
+                
+                # Check main admin role
+                main_admin_role_id = get_guild_setting(guild_id, "main_admin_role_id")
+                if main_admin_role_id and main_admin_role_id in user_role_ids:
+                    return True
+                
+                # Check custom admin roles
+                admin_roles = get_admin_roles(guild_id)
+                if any(role_id in user_role_ids for role_id in admin_roles):
+                    return True
                     
         return False
+
+    def user_has_dashboard_admin_access(self, user_id: str, guild_id: int, user_guild: Dict) -> bool:
+        """Check if an OAuth user has admin access to manage a guild's settings"""
+        # Create a minimal session-like dict for the unified function
+        session = {
+            'user_id': user_id,
+            'guilds': [user_guild],
+            'access_token': None  # Not available in this context
+        }
+        return self.is_dashboard_admin(session, guild_id)
 
     def handle_api_settings_update(self):
         """Handle POST /api/guild/{id}/settings - Update general guild settings"""
@@ -1524,17 +1555,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Sort by position (higher position = higher in hierarchy)
             user_roles.sort(key=lambda r: r["position"], reverse=True)
             
-            # Check if user has admin or employee access through timeclock roles
-            user_id = session['user_id']
-            bot_member = bot_guild.get_member(int(user_id))
-            has_admin_access = False
-            has_employee_access = False
+            # Check if user has admin or employee access using unified OAuth-based logic
+            has_admin_access = self.is_dashboard_admin(session, guild_id)
             
-            if bot_member:
-                # Get server tier for timeclock access check
-                server_tier = get_server_tier(guild_id)
-                has_admin_access = user_has_admin_access(bot_member)
-                has_employee_access = user_has_clock_access(bot_member, server_tier)
+            # For employee access, check clock roles using OAuth member data
+            has_employee_access = has_admin_access  # Admins always have employee access
+            
+            if not has_admin_access:
+                # Check if user has specific employee/clock roles using existing member_data
+                user_role_ids = [int(role_id) for role_id in member_data.get('roles', [])]
+                
+                # Check clock roles from database
+                clock_roles = get_clock_roles(guild_id)
+                
+                # If no clock roles configured, fall back to admin-only access
+                if not clock_roles:
+                    has_employee_access = has_admin_access
+                else:
+                    has_employee_access = any(role_id in user_role_ids for role_id in clock_roles)
             
             response_data = {
                 "user": {
