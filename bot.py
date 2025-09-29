@@ -1110,21 +1110,23 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 
     def get_session_id(self) -> Optional[str]:
-        """Extract session ID from cookie or query parameter"""
-        # Check query parameter first
-        if '?' in self.path:
-            parsed_url = urlparse(self.path)
-            query_params = dict(parse_qsl(parsed_url.query))
-            if 'session' in query_params:
-                return query_params['session']
+        """Extract session ID from secure HttpOnly cookie only"""
+        # SECURITY: Only read session from HttpOnly cookies, never from URL parameters
+        # This prevents session fixation attacks via crafted URLs
         
-        # Check cookies
+        from http.cookies import SimpleCookie
         cookie_header = self.headers.get('Cookie', '')
-        for cookie in cookie_header.split(';'):
-            if '=' in cookie:
-                name, value = cookie.strip().split('=', 1)
-                if name == 'session':
-                    return value
+        if cookie_header:
+            cookies = SimpleCookie()
+            cookies.load(cookie_header)
+            
+            # Look for our bot's session cookie first
+            if 'otc_session' in cookies:
+                return cookies['otc_session'].value
+            
+            # Legacy fallback for existing sessions (temporary)
+            if 'session' in cookies:
+                return cookies['session'].value
         return None
 
     def send_json_response(self, data, status=200):
