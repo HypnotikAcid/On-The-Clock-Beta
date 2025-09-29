@@ -1078,7 +1078,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Set session cookie and redirect to dashboard
             self.send_response(302)
             self.send_header('Location', '/')
-            self.send_header('Set-Cookie', f'session={session_id}; Path=/; HttpOnly')
+            self.send_header('Set-Cookie', f'otc_session={session_id}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400')
             self.end_headers()
             
             print(f"✅ OAuth success: {user_data['username']} logged in with {len(guilds_data)} guilds")
@@ -2010,13 +2010,20 @@ def purge_guild_data_for_testing(guild_id: int):
             if 'session' in query_params:
                 return query_params['session']
         
-        # Check cookies
+        # Check cookies using proper cookie parsing
+        from http.cookies import SimpleCookie
         cookie_header = self.headers.get('Cookie', '')
-        for cookie in cookie_header.split(';'):
-            if '=' in cookie:
-                name, value = cookie.strip().split('=', 1)
-                if name == 'session':
-                    return value
+        if cookie_header:
+            cookies = SimpleCookie()
+            cookies.load(cookie_header)
+            
+            # Look for our bot's session cookie first
+            if 'otc_session' in cookies:
+                return cookies['otc_session'].value
+            
+            # Legacy fallback for existing sessions (temporary)
+            if 'session' in cookies:
+                return cookies['session'].value
                     
         return None
 
