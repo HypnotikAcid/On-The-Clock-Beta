@@ -4,3 +4,9 @@ discord.py
 stripe
 requests
 urllib3
+aiohttp
+discord.py
+requests
+stripe
+tzdata
+urllib3
