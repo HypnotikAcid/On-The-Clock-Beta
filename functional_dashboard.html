@@ -340,33 +340,7 @@
             color: #b0b0b0;
         }
 
-        /* Role Management */
-        .role-list {
-            margin: 1rem 0;
-        }
-
-        .role-item {
-            background: rgba(40, 40, 50, 0.5);
-            padding: 12px;
-            margin-bottom: 8px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .role-name {
-            color: #ffffff;
-            font-weight: 500;
-        }
-
-        .role-type {
-            background: #5865F2;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-        }
+        /* Legacy role management styles removed - using new listbox approach */
 
         /* Subscription Display */
         .subscription-info {
@@ -926,75 +900,7 @@
             box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
         }
 
-        .role-manager {
-            margin: 1rem 0;
-        }
-
-        .role-section {
-            margin: 1.5rem 0;
-        }
-
-        .role-section h4 {
-            color: #ffffff;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .role-list {
-            background: rgba(40, 40, 50, 0.5);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            min-height: 60px;
-        }
-
-        .role-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: rgba(88, 101, 242, 0.1);
-            padding: 8px 12px;
-            border-radius: 6px;
-            margin: 4px 0;
-        }
-
-        .role-name {
-            color: #ffffff;
-            font-weight: 500;
-        }
-
-        .remove-role-btn {
-            background: #ff6b6b;
-            border: none;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-
-        .add-role-section {
-            display: flex;
-            gap: 8px;
-            align-items: end;
-        }
-
-        .add-role-section select {
-            flex: 1;
-        }
-
-        .add-role-btn {
-            background: #00ff88;
-            border: none;
-            color: white;
-            padding: 12px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            white-space: nowrap;
-        }
+        /* Legacy role management styles removed - now using listbox approach */
 
         .save-settings-btn {
             background: linear-gradient(45deg, #00ff88, #00cc6a);
@@ -1038,6 +944,264 @@
             background: rgba(255, 107, 107, 0.1);
             border: 1px solid #ff6b6b;
             color: #ff6b6b;
+        }
+
+        /* Role Management Styles */
+        .role-management-group {
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: rgba(40, 40, 50, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(88, 101, 242, 0.2);
+        }
+
+        .role-management-row {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .role-selection {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex: 1;
+        }
+
+        .role-dropdown {
+            flex: 1;
+            background: rgba(40, 40, 50, 0.8);
+            border: 1px solid #404050;
+            border-radius: 8px;
+            padding: 10px;
+            color: #ffffff;
+            font-size: 0.9rem;
+            min-width: 200px;
+        }
+
+        .role-dropdown:focus {
+            outline: none;
+            border-color: #5865F2;
+            box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+        }
+
+        .arrow-btn {
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+        }
+
+        .arrow-btn:hover {
+            background: linear-gradient(45deg, #7289DA, #5865F2);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
+        }
+
+        .arrow-btn:active {
+            transform: translateY(0);
+        }
+
+        .role-list-container {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .role-list-header {
+            color: #b0b0b0;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .role-listbox {
+            width: 100%;
+            background: rgba(40, 40, 50, 0.6);
+            border: 1px solid #404050;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            padding: 8px;
+        }
+
+        .role-listbox:focus {
+            outline: none;
+            border-color: #5865F2;
+            box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+        }
+
+        .role-listbox option {
+            background: #2a2a3e;
+            color: #ffffff;
+            padding: 8px;
+        }
+
+        .role-listbox option:checked {
+            background: #5865F2;
+        }
+
+        .remove-role-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ff5252);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .remove-role-btn:hover {
+            background: linear-gradient(45deg, #ff5252, #ff6b6b);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        .remove-role-btn:disabled {
+            background: #404050;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.6;
+        }
+
+        /* Toggle Switch Styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 180px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, #5865F2, #7289DA);
+            border-radius: 34px;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(45deg, #ff6b6b, #ff5252);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(146px);
+        }
+
+        .toggle-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+            z-index: 1;
+            padding: 0 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toggle-label.discord {
+            margin-left: 30px;
+        }
+
+        .toggle-label.email {
+            margin-right: 30px;
+        }
+
+        /* Email Input Styles */
+        .email-input {
+            flex: 1;
+            background: rgba(40, 40, 50, 0.8);
+            border: 1px solid #404050;
+            border-radius: 8px;
+            padding: 10px;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .email-input:focus {
+            outline: none;
+            border-color: #ff6b6b;
+            box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+        }
+
+        .email-input::placeholder {
+            color: #888;
+        }
+
+        /* Recipients Section */
+        .recipients-section {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(30, 30, 40, 0.4);
+            border-radius: 10px;
+            border: 1px solid rgba(64, 64, 80, 0.5);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .role-management-row {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .role-selection {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .role-dropdown {
+                min-width: unset;
+                width: 100%;
+            }
+
+            .toggle-switch {
+                width: 160px;
+            }
+
+            .toggle-switch input:checked + .toggle-slider:before {
+                transform: translateX(126px);
+            }
         }
     </style>
 </head>
@@ -1509,6 +1673,182 @@
                 <button class="save-settings-btn" onclick="saveGeneralSettings()">
                     💾 Save Settings
                 </button>
+            </div>
+            
+            <!-- Role Management Section -->
+            <div class="settings-section">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M12,5.5A3.5,3.5 0 0,1 15.5,9A3.5,3.5 0 0,1 12,12.5A3.5,3.5 0 0,1 8.5,9A3.5,3.5 0 0,1 12,5.5M5,8C5.56,8 6.08,8.15 6.53,8.42C6.38,9.85 6.8,11.27 7.66,12.38C7.16,13.34 6.16,14 5,14A3,3 0 0,1 2,11A3,3 0 0,1 5,8M19,8A3,3 0 0,1 22,11A3,3 0 0,1 19,14C17.84,14 16.84,13.34 16.34,12.38C17.2,11.27 17.62,9.85 17.47,8.42C17.92,8.15 18.44,8 19,8M5.5,18.25C5.5,16.18 8.41,14.5 12,14.5C15.59,14.5 18.5,16.18 18.5,18.25V20H5.5V18.25M0,20V18.5C0,17.11 1.89,15.94 4.45,15.6C3.86,16.28 3.5,17.22 3.5,18.25V20H0M24,20H20.5V18.25C20.5,17.22 20.14,16.28 19.55,15.6C22.11,15.94 24,17.11 24,18.5V20Z"/>
+                    </svg>
+                    Role Management
+                </h3>
+                
+                <!-- Admin Roles Management -->
+                <div class="role-management-group">
+                    <h4 style="color: #5865F2; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.5C14.8,12.6 13.9,13.5 12.8,13.5H11.2C10.1,13.5 9.2,12.6 9.2,11.5V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,9.5V10.8H13.5V9.5C13.5,8.7 12.8,8.2 12,8.2Z"/>
+                        </svg>
+                        Admin Roles
+                    </h4>
+                    <div class="role-management-row">
+                        <div class="role-selection">
+                            <select id="availableAdminRoles" class="role-dropdown">
+                                <option value="">Select a role...</option>
+                            </select>
+                            <button id="addAdminRoleBtn" class="arrow-btn" onclick="addAdminRole()" title="Add Admin Role">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M13,14H11V10H7V8H11V4H13V8H17V10H13V14M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="role-list-container">
+                            <div class="role-list-header">Current Admin Roles</div>
+                            <select id="adminRolesList" class="role-listbox" size="4" multiple>
+                                <!-- Populated dynamically -->
+                            </select>
+                            <button class="remove-role-btn" onclick="removeSelectedAdminRole()" title="Remove Selected">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"/>
+                                </svg>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employee Roles Management -->
+                <div class="role-management-group">
+                    <h4 style="color: #00D4FF; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,4C18.2,4 20,5.8 20,8C20,10.2 18.2,12 16,12C13.8,12 12,10.2 12,8C12,5.8 13.8,4 16,4M16,5.5A2.5,2.5 0 0,0 13.5,8A2.5,2.5 0 0,0 16,10.5A2.5,2.5 0 0,0 18.5,8A2.5,2.5 0 0,0 16,5.5M16,13C18.67,13 24,14.33 24,17V20H8V17C8,14.33 13.33,13 16,13M16,14.9C14.03,14.9 11.9,15.36 11.1,16H20.9C20.1,15.36 17.97,14.9 16,14.9M8,12C10.2,12 12,10.2 12,8C12,5.8 10.2,4 8,4C5.8,4 4,5.8 4,8C4,10.2 5.8,12 8,12M8,5.5A2.5,2.5 0 0,1 10.5,8A2.5,2.5 0 0,1 8,10.5A2.5,2.5 0 0,1 5.5,8A2.5,2.5 0 0,1 8,5.5M8,13C10.67,13 16,14.33 16,17V20H0V17C0,14.33 5.33,13 8,13M8,14.9C6.03,14.9 3.9,15.36 3.1,16H12.9C12.1,15.36 9.97,14.9 8,14.9Z"/>
+                        </svg>
+                        Employee Roles
+                    </h4>
+                    <div class="role-management-row">
+                        <div class="role-selection">
+                            <select id="availableEmployeeRoles" class="role-dropdown">
+                                <option value="">Select a role...</option>
+                            </select>
+                            <button id="addEmployeeRoleBtn" class="arrow-btn" onclick="addEmployeeRole()" title="Add Employee Role">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M13,14H11V10H7V8H11V4H13V8H17V10H13V14M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="role-list-container">
+                            <div class="role-list-header">Current Employee Roles</div>
+                            <select id="employeeRolesList" class="role-listbox" size="4" multiple>
+                                <!-- Populated dynamically -->
+                            </select>
+                            <button class="remove-role-btn" onclick="removeSelectedEmployeeRole()" title="Remove Selected">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"/>
+                                </svg>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Report Recipients Section -->
+            <div class="settings-section" style="opacity: 0.7;">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M20,8L12,13L4,8V6L12,11L20,6M20,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6C22,4.89 21.1,4 20,4Z"/>
+                    </svg>
+                    Report Recipients
+                    <span style="background: #ff6b6b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 8px;">Coming Soon</span>
+                </h3>
+                
+                <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                    <p style="color: #ff6b6b; margin: 0; font-size: 0.9rem;">
+                        📧 This feature is under development. Currently, reports are sent to the single recipient configured via Discord commands.
+                        Multi-recipient support and email delivery will be available in a future update.
+                    </p>
+                </div>
+                
+                <!-- Delivery Method Toggle -->
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <span style="color: #ffffff; font-weight: 600;">Delivery Method:</span>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="emailDeliveryToggle" onchange="toggleDeliveryMethod()" disabled>
+                            <span class="toggle-slider">
+                                <span class="toggle-label discord">Discord DM</span>
+                                <span class="toggle-label email">Email</span>
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Discord Recipients (shown when Discord DM is selected) -->
+                <div id="discordRecipientsSection" class="recipients-section">
+                    <h4 style="color: #5865F2; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M22,4C22,2.89 21.1,2 20,2H4A2,2 0 0,0 2,4V16A2,2 0 0,0 4,18H18L22,22V4Z"/>
+                        </svg>
+                        Discord Recipients
+                    </h4>
+                    <div class="role-management-row">
+                        <div class="role-selection">
+                            <select id="discordUserSelect" class="role-dropdown">
+                                <option value="">Select a user...</option>
+                            </select>
+                            <button id="addDiscordRecipientBtn" class="arrow-btn" onclick="addDiscordRecipient()" title="Add Discord Recipient" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M13,14H11V10H7V8H11V4H13V8H17V10H13V14M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="role-list-container">
+                            <div class="role-list-header">Current Discord Recipients</div>
+                            <select id="discordRecipientsList" class="role-listbox" size="3" multiple>
+                                <!-- Populated dynamically -->
+                            </select>
+                            <button class="remove-role-btn" onclick="removeSelectedDiscordRecipient()" title="Remove Selected" disabled>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"/>
+                                </svg>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email Recipients (shown when Email is selected) -->
+                <div id="emailRecipientsSection" class="recipients-section" style="display: none;">
+                    <h4 style="color: #FF6B6B; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20,8L12,13L4,8V6L12,11L20,6M20,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6C22,4.89 21.1,4 20,4Z"/>
+                        </svg>
+                        Email Recipients
+                    </h4>
+                    <div class="role-management-row">
+                        <div class="role-selection">
+                            <input type="email" id="customEmailInput" class="email-input" placeholder="Enter email address...">
+                            <button id="addEmailRecipientBtn" class="arrow-btn" onclick="addEmailRecipient()" title="Add Email Recipient" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M13,14H11V10H7V8H11V4H13V8H17V10H13V14M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="role-list-container">
+                            <div class="role-list-header">Current Email Recipients</div>
+                            <select id="emailRecipientsList" class="role-listbox" size="3" multiple>
+                                <!-- Populated dynamically -->
+                            </select>
+                            <button class="remove-role-btn" onclick="removeSelectedEmailRecipient()" title="Remove Selected" disabled>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"/>
+                                </svg>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Server Overview Section -->
@@ -2113,46 +2453,49 @@
             });
         }
 
-        // Populate current roles in the lists
+        // Populate current roles in the listboxes
         function populateCurrentRoles(adminRoles, employeeRoles) {
             const adminList = document.getElementById('adminRolesList');
             const employeeList = document.getElementById('employeeRolesList');
             
-            // Clear existing roles
+            // Clear existing options
             adminList.innerHTML = '';
             employeeList.innerHTML = '';
             
-            // Add admin roles
+            // Add admin roles to listbox
             if (adminRoles.length === 0) {
-                adminList.innerHTML = '<div style="color: #b0b0b0; text-align: center; padding: 1rem;">No admin roles configured</div>';
+                const option = document.createElement('option');
+                option.disabled = true;
+                option.textContent = 'No admin roles configured';
+                option.style.color = '#b0b0b0';
+                adminList.appendChild(option);
             } else {
                 adminRoles.forEach(role => {
-                    const roleItem = createRoleItem(role, 'admin');
-                    adminList.appendChild(roleItem);
+                    const option = document.createElement('option');
+                    option.value = role.id;
+                    option.textContent = `@${role.name}`;
+                    adminList.appendChild(option);
                 });
             }
             
-            // Add employee roles  
+            // Add employee roles to listbox
             if (employeeRoles.length === 0) {
-                employeeList.innerHTML = '<div style="color: #b0b0b0; text-align: center; padding: 1rem;">No employee roles configured</div>';
+                const option = document.createElement('option');
+                option.disabled = true;
+                option.textContent = 'No employee roles configured';
+                option.style.color = '#b0b0b0';
+                employeeList.appendChild(option);
             } else {
                 employeeRoles.forEach(role => {
-                    const roleItem = createRoleItem(role, 'employee');
-                    employeeList.appendChild(roleItem);
+                    const option = document.createElement('option');
+                    option.value = role.id;
+                    option.textContent = `@${role.name}`;
+                    employeeList.appendChild(option);
                 });
             }
         }
 
-        // Create role item HTML element
-        function createRoleItem(role, type) {
-            const item = document.createElement('div');
-            item.className = 'role-item';
-            item.innerHTML = `
-                <span class="role-name">@${role.name}</span>
-                <button class="remove-role-btn" onclick="removeRole('${role.id}', '${type}')">Remove</button>
-            `;
-            return item;
-        }
+        // Legacy function removed - now using listbox approach
 
         // Add admin role
         async function addAdminRole() {
@@ -2182,12 +2525,7 @@
             select.value = '';
         }
 
-        // Remove role
-        async function removeRole(roleId, type) {
-            if (confirm('Are you sure you want to remove this role?')) {
-                await updateRole(roleId, type, 'remove');
-            }
-        }
+        // Legacy function removed - now using removeSelectedAdminRole/EmployeeRole functions
 
         // Update role via API
         async function updateRole(roleId, type, action) {
@@ -2291,6 +2629,179 @@
         // Upgrade from settings
         function upgradeFromSettings() {
             alert('This would redirect to /upgrade command or Stripe checkout for the current server.');
+        }
+
+        // Remove selected admin role from listbox
+        async function removeSelectedAdminRole() {
+            const listbox = document.getElementById('adminRolesList');
+            const selectedOptions = Array.from(listbox.selectedOptions);
+            
+            if (selectedOptions.length === 0) {
+                showSettingsMessage('Please select a role to remove from the list.', 'error');
+                return;
+            }
+            
+            // Remove each selected role
+            for (const option of selectedOptions) {
+                if (confirm(`Are you sure you want to remove admin access for role: ${option.textContent}?`)) {
+                    try {
+                        await updateRole(option.value, 'admin', 'remove');
+                        showSettingsMessage(`Admin role ${option.textContent} removed successfully!`, 'success');
+                    } catch (error) {
+                        showSettingsMessage(`Failed to remove admin role ${option.textContent}: ${error.message}`, 'error');
+                    }
+                }
+            }
+        }
+
+        // Remove selected employee role from listbox
+        async function removeSelectedEmployeeRole() {
+            const listbox = document.getElementById('employeeRolesList');
+            const selectedOptions = Array.from(listbox.selectedOptions);
+            
+            if (selectedOptions.length === 0) {
+                showSettingsMessage('Please select a role to remove from the list.', 'error');
+                return;
+            }
+            
+            // Remove each selected role
+            for (const option of selectedOptions) {
+                if (confirm(`Are you sure you want to remove employee access for role: ${option.textContent}?`)) {
+                    try {
+                        await updateRole(option.value, 'employee', 'remove');
+                        showSettingsMessage(`Employee role ${option.textContent} removed successfully!`, 'success');
+                    } catch (error) {
+                        showSettingsMessage(`Failed to remove employee role ${option.textContent}: ${error.message}`, 'error');
+                    }
+                }
+            }
+        }
+
+        // Toggle delivery method between Discord DM and Email
+        function toggleDeliveryMethod() {
+            const toggle = document.getElementById('emailDeliveryToggle');
+            const discordSection = document.getElementById('discordRecipientsSection');
+            const emailSection = document.getElementById('emailRecipientsSection');
+            
+            if (toggle.checked) {
+                // Email delivery selected
+                discordSection.style.display = 'none';
+                emailSection.style.display = 'block';
+            } else {
+                // Discord DM selected
+                discordSection.style.display = 'block';
+                emailSection.style.display = 'none';
+            }
+        }
+
+        // Add Discord recipient
+        function addDiscordRecipient() {
+            const select = document.getElementById('discordUserSelect');
+            const listbox = document.getElementById('discordRecipientsList');
+            const userId = select.value;
+            
+            if (!userId) {
+                alert('Please select a user to add as a Discord recipient.');
+                return;
+            }
+            
+            // Check if user is already in the list
+            const existingOptions = Array.from(listbox.options);
+            if (existingOptions.some(option => option.value === userId)) {
+                alert('This user is already in the recipients list.');
+                return;
+            }
+            
+            // Add to listbox
+            const option = document.createElement('option');
+            option.value = userId;
+            option.textContent = select.options[select.selectedIndex].textContent;
+            listbox.appendChild(option);
+            
+            // Reset dropdown
+            select.value = '';
+            
+            // TODO: Backend integration needed - POST to /api/guild/{id}/recipients
+            // This will need new API endpoint and database schema for multi-recipients
+            showSettingsMessage('Discord recipient added (UI only - backend integration needed)', 'success');
+        }
+
+        // Remove selected Discord recipient
+        function removeSelectedDiscordRecipient() {
+            const listbox = document.getElementById('discordRecipientsList');
+            const selectedOptions = listbox.selectedOptions;
+            
+            if (selectedOptions.length === 0) {
+                alert('Please select a recipient to remove from the list.');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to remove the selected Discord recipients?')) {
+                Array.from(selectedOptions).forEach(option => {
+                    listbox.removeChild(option);
+                    // TODO: Backend integration needed - DELETE from recipients API
+                    showSettingsMessage('Discord recipient removed (UI only)', 'success');
+                });
+            }
+        }
+
+        // Add Email recipient
+        function addEmailRecipient() {
+            const input = document.getElementById('customEmailInput');
+            const listbox = document.getElementById('emailRecipientsList');
+            const email = input.value.trim();
+            
+            if (!email) {
+                alert('Please enter an email address.');
+                return;
+            }
+            
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address.');
+                return;
+            }
+            
+            // Check if email is already in the list
+            const existingOptions = Array.from(listbox.options);
+            if (existingOptions.some(option => option.value === email)) {
+                alert('This email address is already in the recipients list.');
+                return;
+            }
+            
+            // Add to listbox
+            const option = document.createElement('option');
+            option.value = email;
+            option.textContent = email;
+            listbox.appendChild(option);
+            
+            // Clear input
+            input.value = '';
+            
+            // TODO: Backend integration needed - POST to /api/guild/{id}/email-recipients  
+            // This will need new API endpoint, database schema, and email integration setup
+            showSettingsMessage('Email recipient added (UI only - backend integration needed)', 'success');
+        }
+
+        // Remove selected email recipient
+        function removeSelectedEmailRecipient() {
+            const listbox = document.getElementById('emailRecipientsList');
+            const selectedOptions = listbox.selectedOptions;
+            
+            if (selectedOptions.length === 0) {
+                alert('Please select an email to remove from the list.');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to remove the selected email recipients?')) {
+                Array.from(selectedOptions).forEach(option => {
+                    listbox.removeChild(option);
+            
+                    // TODO: Backend integration needed - DELETE from email recipients API
+                    showSettingsMessage('Email recipient removed (UI only)', 'success');
+                });
+            }
         }
 
         // Load user's roles and permissions for the current server
