@@ -13,3 +13,4 @@ urllib3
 flask
 Flask-Discord
 requests-oauthlib
+werkzeug

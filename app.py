@@ -4,15 +4,19 @@ import json
 from datetime import datetime, timedelta
 from flask import Flask, redirect, url_for, render_template, session, request, jsonify
 from flask_discord import DiscordOAuth2Session, requires_authorization, Unauthorized
+from werkzeug.middleware.proxy_fix import ProxyFix
 import requests
 
 app = Flask(__name__)
 
+# Critical: Add ProxyFix for Replit's reverse proxy environment
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 # Security configuration - use environment variable for production consistency
 app.secret_key = os.environ.get('SECRET_KEY') or 'dev-fallback-key-change-in-production'
 
-# Session configuration for production - comprehensive Replit fix
-app.config['SESSION_COOKIE_SECURE'] = False  # Replit proxy requires this
+# Session configuration for production - corrected for HTTPS with ProxyFix
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('REPLIT_ENVIRONMENT') == 'production'  # True for HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  
 app.config['SESSION_COOKIE_DOMAIN'] = None
@@ -48,10 +52,10 @@ app.config["DISCORD_BOT_TOKEN"] = os.environ.get("DISCORD_TOKEN")
 # Initialize Discord OAuth session
 discord = DiscordOAuth2Session(app)
 
-# Fix for Replit HTTPS proxy - ensure secure transport
-import os
+# OAuth transport configuration - corrected for proxy environment
 if os.environ.get("REPLIT_ENVIRONMENT") == "production":
-    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'  # Enforce HTTPS
+    # In production, we're behind a proxy so need to allow "insecure" transport from proxy to Flask
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Required for reverse proxy
 else:
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Allow HTTP in dev
 
