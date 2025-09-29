@@ -11,6 +11,11 @@ app = Flask(__name__)
 # Security configuration - use environment variable for production consistency
 app.secret_key = os.environ.get('SECRET_KEY') or 'dev-fallback-key-change-in-production'
 
+# Session configuration for production
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('REPLIT_ENVIRONMENT') == 'production'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 # Discord OAuth2 configuration
 app.config["DISCORD_CLIENT_ID"] = os.environ.get("DISCORD_CLIENT_ID")
 app.config["DISCORD_CLIENT_SECRET"] = os.environ.get("DISCORD_CLIENT_SECRET")
@@ -148,8 +153,14 @@ def dashboard():
 def api_user():
     """Get current user data."""
     try:
+        print(f"🔍 API user request - Session data: {dict(session)}")
+        print(f"🔍 Discord token exists: {'DISCORD_TOKEN' in session}")
+        
         user = discord.fetch_user()
+        print(f"✅ Successfully fetched user: {user.name}")
+        
         guilds = discord.fetch_guilds()
+        print(f"✅ Successfully fetched {len(guilds)} guilds")
         
         # Filter to admin guilds only
         admin_guilds = [
