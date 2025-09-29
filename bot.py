@@ -43,7 +43,19 @@ STRIPE_PRICE_IDS = {
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")  # Your bot's client ID
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")  # Required for OAuth
 DISCORD_REDIRECT_URI = None  # Will be set dynamically based on domain
+
+# CRITICAL: These scopes MUST match what's configured in Discord Developer Portal
 DISCORD_OAUTH_SCOPES = "identify guilds guilds.members.read email"
+
+# Force environment variable check to ensure we have the required credentials
+if not DISCORD_CLIENT_SECRET:
+    print("❌ CRITICAL: DISCORD_CLIENT_SECRET environment variable is not set!")
+    print("   This will cause OAuth authentication to fail!")
+    
+print(f"🔧 OAuth Configuration:")
+print(f"   Client ID: {DISCORD_CLIENT_ID}")
+print(f"   Client Secret: {'✓ Set' if DISCORD_CLIENT_SECRET else '✗ MISSING'}")
+print(f"   OAuth Scopes: {DISCORD_OAUTH_SCOPES}")
 
 # Session storage - now using database for persistence instead of in-memory dictionaries
 
@@ -134,23 +146,51 @@ def get_domain() -> str:
 # --- OAuth Helper Functions ---
 def get_discord_oauth_url(state: str) -> str:
     """Generate Discord OAuth authorization URL"""
-    # Use the same domain detection as get_domain()
-    domain = get_domain()
-    
-    global DISCORD_REDIRECT_URI
-    DISCORD_REDIRECT_URI = f"https://{domain}/oauth/callback"
-    
-    base_url = "https://discord.com/api/oauth2/authorize"
-    params = {
-        "client_id": DISCORD_CLIENT_ID,
-        "redirect_uri": DISCORD_REDIRECT_URI,
-        "response_type": "code",
-        "scope": DISCORD_OAUTH_SCOPES,  # Let requests.utils.quote handle encoding
-        "state": state
-    }
-    
-    query_string = "&".join([f"{k}={requests.utils.quote(str(v))}" for k, v in params.items()])
-    return f"{base_url}?{query_string}"
+    try:
+        # Use the same domain detection as get_domain()
+        domain = get_domain()
+        
+        global DISCORD_REDIRECT_URI
+        DISCORD_REDIRECT_URI = f"https://{domain}/oauth/callback"
+        
+        # Validate configuration
+        if not DISCORD_CLIENT_ID:
+            raise ValueError("DISCORD_CLIENT_ID is not set")
+        if not state:
+            raise ValueError("OAuth state parameter is required")
+            
+        # Log the configuration being used
+        print(f"🔍 OAuth URL Generation:")
+        print(f"   Domain: {domain}")
+        print(f"   Redirect URI: {DISCORD_REDIRECT_URI}")
+        print(f"   Client ID: {DISCORD_CLIENT_ID}")
+        print(f"   Scopes: '{DISCORD_OAUTH_SCOPES}'")
+        print(f"   State: {state[:8]}...")
+        
+        base_url = "https://discord.com/api/oauth2/authorize"
+        params = {
+            "client_id": DISCORD_CLIENT_ID,
+            "redirect_uri": DISCORD_REDIRECT_URI,
+            "response_type": "code",
+            "scope": DISCORD_OAUTH_SCOPES,
+            "state": state
+        }
+        
+        # Build query string properly
+        query_parts = []
+        for key, value in params.items():
+            encoded_value = requests.utils.quote(str(value))
+            query_parts.append(f"{key}={encoded_value}")
+        
+        query_string = "&".join(query_parts)
+        oauth_url = f"{base_url}?{query_string}"
+        
+        print(f"🔗 Final OAuth URL: {oauth_url}")
+        return oauth_url
+        
+    except Exception as e:
+        print(f"❌ OAuth URL generation failed: {e}")
+        raise
 
 def exchange_oauth_code(code: str) -> Optional[Dict]:
     """Exchange OAuth code for access token"""
@@ -158,22 +198,34 @@ def exchange_oauth_code(code: str) -> Optional[Dict]:
         print("❌ DISCORD_CLIENT_SECRET not set")
         return None
         
+    # CRITICAL FIX: Calculate redirect URI deterministically instead of using global variable
+    domain = get_domain()
+    redirect_uri = f"https://{domain}/oauth/callback"
+    
+    print(f"🔍 Token Exchange:")
+    print(f"   Code: {code[:8]}...")
+    print(f"   Redirect URI: {redirect_uri}")
+        
     data = {
         "client_id": DISCORD_CLIENT_ID,
         "client_secret": DISCORD_CLIENT_SECRET,
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": DISCORD_REDIRECT_URI
+        "redirect_uri": redirect_uri  # Use calculated value, not global variable
     }
     
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     
     try:
+        print("🔄 Sending token exchange request to Discord...")
         response = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers)
+        
         if response.status_code == 200:
+            print("✅ Token exchange successful")
             return response.json()
         else:
-            print(f"❌ OAuth token exchange failed: {response.status_code} {response.text}")
+            print(f"❌ OAuth token exchange failed: {response.status_code}")
+            print(f"   Response: {response.text}")
             return None
     except Exception as e:
         print(f"❌ OAuth token exchange error: {e}")
@@ -928,24 +980,48 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             print(f"🔗 OAuth callback received: {self.path}")
             
-            # Parse query parameters
+            # Parse query parameters with detailed logging
             parsed_url = urlparse(self.path)
             query_params = dict(parse_qsl(parsed_url.query))
+            
+            print(f"🔍 Full query parameters: {query_params}")
             
             code = query_params.get('code')
             state = query_params.get('state')
             error = query_params.get('error')
+            error_description = query_params.get('error_description')
             
-            print(f"📋 OAuth params - code: {'✓' if code else '✗'}, state: {'✓' if state else '✗'}, error: {error or 'None'}")
+            print(f"📋 OAuth callback analysis:")
+            print(f"   Code: {'✓ Present' if code else '✗ MISSING'}")
+            print(f"   State: {'✓ Present' if state else '✗ MISSING'}")
+            print(f"   Error: {error or 'None'}")
+            if error_description:
+                print(f"   Error Description: {error_description}")
             
+            # Handle Discord errors first
             if error:
-                print(f"❌ OAuth error: {error}")
-                self.send_oauth_error("OAuth authorization was denied")
+                print(f"❌ Discord OAuth error: {error}")
+                if error_description:
+                    print(f"   Description: {error_description}")
+                    
+                if error == "access_denied":
+                    self.send_oauth_error("Authentication was cancelled. Please try again.")
+                else:
+                    self.send_oauth_error(f"OAuth error: {error}")
                 return
                 
-            if not code or not state:
-                print("❌ Missing OAuth parameters")
-                self.send_oauth_error("Missing authentication parameters")
+            # Check for missing required parameters
+            if not code:
+                print("❌ CRITICAL: Missing OAuth 'code' parameter from Discord")
+                print(f"   This suggests Discord didn't send the authorization code")
+                print(f"   Full URL: {self.path}")
+                self.send_oauth_error("Missing authentication code from Discord")
+                return
+                
+            if not state:
+                print("❌ CRITICAL: Missing OAuth 'state' parameter from Discord")  
+                print(f"   This suggests the OAuth flow was not initiated properly")
+                self.send_oauth_error("Missing authentication state parameter")
                 return
                 
             # Verify state parameter using database
