@@ -3684,7 +3684,8 @@ async def on_ready():
     commands = tree.get_commands()
     print(f"📋 Commands in tree: {len(commands)}")
     for cmd in commands:
-        print(f"   - {cmd.name}: {cmd.description}")
+        description = getattr(cmd, 'description', 'No description')
+        print(f"   - {cmd.name}: {description}")
     
     # Try syncing commands with better error handling
     synced_count = 0
