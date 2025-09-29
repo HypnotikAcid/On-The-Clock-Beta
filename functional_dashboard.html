@@ -714,6 +714,126 @@
         }
 
 
+        /* User Role Status Styles */
+        .user-role-container {
+            margin-top: 1rem;
+        }
+
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #b0b0b0;
+            font-size: 0.9rem;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #404050;
+            border-top: 2px solid #5865F2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .user-role-display {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .timeclock-access-indicator {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: rgba(88, 101, 242, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(88, 101, 242, 0.3);
+        }
+
+        .access-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .access-badge.admin {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
+        .access-badge.employee {
+            background: linear-gradient(45deg, #00d2d3, #54a0ff);
+            color: white;
+        }
+
+        .access-badge.no-access {
+            background: rgba(255, 255, 255, 0.1);
+            color: #b0b0b0;
+            border: 1px solid #404050;
+        }
+
+        .roles-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e6ed;
+            transition: all 0.3s ease;
+        }
+
+        .role-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .role-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .no-roles-message {
+            text-align: center;
+            color: #b0b0b0;
+            font-style: italic;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px dashed #404050;
+        }
+
+        .role-error-message {
+            text-align: center;
+            color: #ff6b6b;
+            padding: 1rem;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
         /* Server Settings Dashboard */
         .settings-dashboard {
             max-width: 1200px;
@@ -1318,6 +1438,23 @@
         </div>
         
         <div class="settings-grid">
+            <!-- User Role Status Section -->
+            <div class="settings-section">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                    </svg>
+                    Your Role Status
+                </h3>
+                
+                <div id="userRoleStatus" class="user-role-container">
+                    <div class="loading-indicator" id="roleLoadingIndicator">
+                        <div class="spinner"></div>
+                        <span>Loading your roles...</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- General Settings Section -->
             <div class="settings-section">
                 <h3>
@@ -1835,8 +1972,11 @@
                     // Update tier benefits
                     updateTierBenefits(guildData.tier);
                     
-                    // Load roles
-                    await loadServerRoles(serverId, guildData.admin_roles || [], guildData.employee_roles || []);
+                    // Load roles and user role status
+                    await Promise.all([
+                        loadServerRoles(serverId, guildData.admin_roles || [], guildData.employee_roles || []),
+                        loadUserRoles(serverId)
+                    ]);
                     
                 } else {
                     throw new Error('Failed to load guild data');
@@ -2097,6 +2237,109 @@
         // Upgrade from settings
         function upgradeFromSettings() {
             alert('This would redirect to /upgrade command or Stripe checkout for the current server.');
+        }
+
+        // Load user's roles and permissions for the current server
+        async function loadUserRoles(serverId) {
+            const roleContainer = document.getElementById('userRoleStatus');
+            const loadingIndicator = document.getElementById('roleLoadingIndicator');
+            
+            try {
+                // Show loading indicator
+                loadingIndicator.style.display = 'flex';
+                
+                // Fetch user's guild member data
+                const response = await fetch(`/api/guild/${serverId}/member`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch user roles: ${response.status}`);
+                }
+                
+                const memberData = await response.json();
+                
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
+                
+                // Display user roles
+                displayUserRoles(memberData);
+                
+            } catch (error) {
+                console.error('Error loading user roles:', error);
+                
+                // Hide loading indicator and show error
+                loadingIndicator.style.display = 'none';
+                
+                roleContainer.innerHTML = `
+                    <div class="role-error-message">
+                        <strong>⚠️ Unable to load your roles</strong><br>
+                        <small>Error: ${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Display user's roles and timeclock access
+        function displayUserRoles(memberData) {
+            const roleContainer = document.getElementById('userRoleStatus');
+            
+            const { user, roles, timeclock_access } = memberData;
+            
+            // Build timeclock access indicators
+            const accessBadges = [];
+            
+            if (timeclock_access.admin) {
+                accessBadges.push(`<div class="access-badge admin">🔧 Admin Access</div>`);
+            }
+            
+            if (timeclock_access.employee) {
+                accessBadges.push(`<div class="access-badge employee">⏰ Timeclock Access</div>`);
+            }
+            
+            if (!timeclock_access.admin && !timeclock_access.employee) {
+                accessBadges.push(`<div class="access-badge no-access">🚫 No Timeclock Access</div>`);
+            }
+            
+            // Build role badges
+            let rolesHtml = '';
+            
+            if (roles && roles.length > 0) {
+                const roleBadges = roles.map(role => {
+                    const colorHex = role.color ? `#${role.color.toString(16).padStart(6, '0')}` : '#99aab5';
+                    
+                    return `
+                        <div class="role-badge" title="Position: ${role.position}, Permissions: ${role.permissions}">
+                            <div class="role-color-dot" style="background-color: ${colorHex};"></div>
+                            <span>${role.name}</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                rolesHtml = `
+                    <div>
+                        <h4 style="margin-bottom: 0.75rem; color: #dcddde;">Your Roles (${roles.length})</h4>
+                        <div class="roles-list">${roleBadges}</div>
+                    </div>
+                `;
+            } else {
+                rolesHtml = `
+                    <div class="no-roles-message">
+                        <strong>No special roles assigned</strong><br>
+                        <small>You only have the default @everyone role in this server</small>
+                    </div>
+                `;
+            }
+            
+            // Update the container with the role display
+            roleContainer.innerHTML = `
+                <div class="user-role-display">
+                    <div class="timeclock-access-indicator">
+                        ${accessBadges.join('')}
+                    </div>
+                    ${rolesHtml}
+                </div>
+            `;
         }
 
         // Load initial data
