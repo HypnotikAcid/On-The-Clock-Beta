@@ -4730,7 +4730,8 @@ class PurgeConfirmationView(discord.ui.View):
             # If defer failed and interaction isn't done, we can't proceed
             return
         
-        if not user_has_admin_access(interaction.user):
+        # Check if user is a Member (should be in guild context) and has admin access
+        if not isinstance(interaction.user, discord.Member) or not user_has_admin_access(interaction.user):
             await interaction.followup.send("❌ Only administrators can use this command.", ephemeral=True)
             return
         
@@ -4764,7 +4765,8 @@ class PurgeConfirmationView(discord.ui.View):
             
             # Disable all buttons
             for item in self.children:
-                item.disabled = True
+                if isinstance(item, discord.ui.Button):
+                    item.disabled = True
             
         except Exception as e:
             await interaction.followup.send(f"❌ Error during purge: {str(e)}", ephemeral=True)
@@ -4784,7 +4786,8 @@ class PurgeConfirmationView(discord.ui.View):
         """Handle timeout"""
         # Disable all buttons when timeout occurs
         for item in self.children:
-            item.disabled = True
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
 
 @tree.command(name="purge", description="Permanently delete timeclock data (preserves subscription)")
 @app_commands.default_permissions(administrator=True)  
