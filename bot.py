@@ -313,9 +313,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             bot_status = "🟢 Online" if bot_instance and bot_instance.is_ready() else "🔴 Offline"
             guild_count = len(bot_instance.guilds) if bot_instance and bot_instance.is_ready() else "Loading..."
             
-            # Get bot's client ID for invite URL
-            bot_id = bot_instance.user.id if bot_instance and bot_instance.is_ready() and bot_instance.user else "1418446753379913809"
-            invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions=2048&scope=bot%20applications.commands"
             
             # Read the functional dashboard file
             try:
@@ -543,9 +540,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             </ul>
                     </div>
                     
-                    <a href="{invite_url}" class="add-bot-btn">
-            🔗 Add Bot to Your Discord Server
-                    </a>
                     
                     <div class="beta-warning">
             <h3>⚠️ Beta Service Disclaimer</h3>

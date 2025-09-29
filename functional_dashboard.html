@@ -141,26 +141,6 @@
             box-shadow: 0 10px 20px rgba(88, 101, 242, 0.4);
         }
 
-        .invite-bot-btn {
-            background: linear-gradient(45deg, #00D4FF, #5865F2);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-        }
-
-        .invite-bot-btn:hover {
-            background: linear-gradient(45deg, #5865F2, #00D4FF);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 212, 255, 0.4);
-        }
 
         .user-info {
             display: flex;
@@ -972,16 +952,6 @@
                     <span>Bot Online • 47 Servers</span>
                 </div>
 
-                <!-- Invite Bot Button (always visible) -->
-                <a href="https://discord.com/api/oauth2/authorize?client_id=1418446753379913809&permissions=268446720&scope=bot%20applications.commands" 
-                   target="_blank" 
-                   class="invite-bot-btn"
-                   title="Add Bot to Your Server">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                        <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zm-10 1H8v-2h4V8l4 4-4 4v-3z"/>
-                    </svg>
-                    Add Bot
-                </a>
 
                 <!-- Login Button (shown when not authenticated) -->
                 <button class="discord-login-btn" id="loginBtn" onclick="loginWithDiscord()">
@@ -1254,9 +1224,6 @@
                 <button class="slanted-btn secondary" onclick="viewHelp()">
                     <span>❓ View Help</span>
                 </button>
-                <button class="slanted-btn" onclick="inviteBot()">
-                    <span>🔗 Invite Bot</span>
-                </button>
             </div>
         </div>
 
@@ -1331,9 +1298,6 @@
             <h3>🤖 No Manageable Servers Found</h3>
             <p>You don't have admin permissions in any servers where the bot is installed.</p>
             <p>To manage server settings, you need administrator permissions or be assigned an admin role.</p>
-            <button class="invite-bot-btn" onclick="inviteBot()">
-                🔗 Invite Bot to Your Server
-            </button>
         </div>
     </div>
 
@@ -1729,10 +1693,6 @@
             alert('This would show the /help command information.');
         }
 
-        function inviteBot() {
-            const inviteUrl = 'https://discord.com/api/oauth2/authorize?client_id=1418446753379913809&permissions=2048&scope=bot%20applications.commands';
-            window.open(inviteUrl, '_blank');
-        }
 
         // Global variables for settings dashboard
         let currentSelectedServer = null;
