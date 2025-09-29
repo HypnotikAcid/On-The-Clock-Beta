@@ -336,19 +336,19 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 pass
             
             html_content = f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>On the Clock - Discord Timeclock Bot</title>
-    <style>
-        * {{
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>On the Clock - Discord Timeclock Bot</title>
+                <style>
+                    * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }}
-        body {{
+                    }}
+                    body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
@@ -356,8 +356,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             align-items: center;
             justify-content: center;
             color: #e0e6ed;
-        }}
-        .container {{
+                    }}
+                    .container {{
             background: #2c2f36;
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.4);
@@ -366,71 +366,71 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             max-width: 800px;
             width: 90%;
             text-align: center;
-        }}
-        .header {{
+                    }}
+                    .header {{
             margin-bottom: 30px;
-        }}
-        .bot-title {{
+                    }}
+                    .bot-title {{
             font-size: 2.5em;
             font-weight: bold;
             color: #5865F2;
             margin-bottom: 10px;
-        }}
-        .bot-subtitle {{
+                    }}
+                    .bot-subtitle {{
             font-size: 1.2em;
             color: #b9bbbe;
             margin-bottom: 20px;
-        }}
-        .status-grid {{
+                    }}
+                    .status-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin: 30px 0;
-        }}
-        .status-card {{
+                    }}
+                    .status-card {{
             background: #36393f;
             border-radius: 15px;
             padding: 20px;
             border-left: 4px solid #5865F2;
             border: 1px solid #42464d;
-        }}
-        .status-title {{
+                    }}
+                    .status-title {{
             font-weight: bold;
             color: #dcddde;
             margin-bottom: 8px;
-        }}
-        .status-value {{
+                    }}
+                    .status-value {{
             font-size: 1.1em;
             color: #5865F2;
-        }}
-        .features {{
+                    }}
+                    .features {{
             text-align: left;
             margin: 30px 0;
             background: #36393f;
             border-radius: 15px;
             padding: 25px;
             border: 1px solid #42464d;
-        }}
-        .features h3 {{
+                    }}
+                    .features h3 {{
             color: #5865F2;
             margin-bottom: 15px;
             text-align: center;
-        }}
-        .features ul {{
+                    }}
+                    .features ul {{
             list-style: none;
             color: #dcddde;
-        }}
-        .features li {{
+                    }}
+                    .features li {{
             margin: 8px 0;
             padding-left: 25px;
             position: relative;
-        }}
-        .features li:before {{
+                    }}
+                    .features li:before {{
             content: "✅";
             position: absolute;
             left: 0;
-        }}
-        .add-bot-btn {{
+                    }}
+                    .add-bot-btn {{
             display: inline-block;
             background: #5865F2;
             color: white;
@@ -441,66 +441,66 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             font-size: 1.1em;
             margin: 20px 0;
             transition: background-color 0.3s;
-        }}
-        .add-bot-btn:hover {{
+                    }}
+                    .add-bot-btn:hover {{
             background: #4752C4;
-        }}
-        .beta-warning {{
+                    }}
+                    .beta-warning {{
             background: #faa61a;
             color: #2c2f36;
             padding: 20px;
             border-radius: 10px;
             margin: 20px 0;
             font-weight: bold;
-        }}
-        .beta-warning h3 {{
+                    }}
+                    .beta-warning h3 {{
             margin-bottom: 10px;
-        }}
-        .beta-warning ul {{
+                    }}
+                    .beta-warning ul {{
             text-align: left;
             margin: 10px 0;
-        }}
-        .pricing-info {{
+                    }}
+                    .pricing-info {{
             background: #36393f;
             border-radius: 15px;
             padding: 25px;
             margin: 20px 0;
             border: 1px solid #42464d;
-        }}
-        .pricing-info h3 {{
+                    }}
+                    .pricing-info h3 {{
             color: #5865F2;
             margin-bottom: 20px;
-        }}
-        .pricing-tier {{
+                    }}
+                    .pricing-tier {{
             background: #2c2f36;
             padding: 15px;
             margin: 10px 0;
             border-radius: 8px;
             border-left: 4px solid #5865F2;
-        }}
-        .free-tier {{
+                    }}
+                    .free-tier {{
             border-left-color: #faa61a;
-        }}
-        .pro-tier {{
+                    }}
+                    .pro-tier {{
             border-left-color: #57F287;
-        }}
-        .footer {{
+                    }}
+                    .footer {{
             margin-top: 30px;
             padding-top: 20px;
             border-top: 1px solid #42464d;
             color: #b9bbbe;
             font-size: 0.9em;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
             <div class="bot-title">⏰ On the Clock</div>
             <div class="bot-subtitle">Professional Discord Timeclock Bot for Business Teams</div>
-        </div>
-        
-        <div class="status-grid">
+                    </div>
+                    
+                    <div class="status-grid">
             <div class="status-card">
                 <div class="status-title">Bot Status</div>
                 <div class="status-value">{bot_status}</div>
@@ -513,9 +513,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 <div class="status-title">Last Updated</div>
                 <div class="status-value">Just Now</div>
             </div>
-        </div>
-        
-        <div class="features">
+                    </div>
+                    
+                    <div class="features">
             <h3>🚀 Core Features</h3>
             <ul>
                 <li>Easy timeclock functions with Discord buttons</li>
@@ -529,9 +529,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 <li>Real-time "On the Clock" status display</li>
                 <li>Admin purge and cleanup commands</li>
             </ul>
-        </div>
-        
-        <div class="features">
+                    </div>
+                    
+                    <div class="features">
             <h3>🎉 Version 1.1 - No More Timeout Issues!</h3>
             <ul>
                 <li><strong>New Way:</strong> Type <code>/clock</code> to access your personal timeclock with fresh buttons</li>
@@ -541,13 +541,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 <li><strong>Zero Maintenance:</strong> No refresh commands needed - just works!</li>
                 <li><strong>Help:</strong> Use <code>/help</code> to see all available commands</li>
             </ul>
-        </div>
-        
-        <a href="{invite_url}" class="add-bot-btn">
+                    </div>
+                    
+                    <a href="{invite_url}" class="add-bot-btn">
             🔗 Add Bot to Your Discord Server
-        </a>
-        
-        <div class="beta-warning">
+                    </a>
+                    
+                    <div class="beta-warning">
             <h3>⚠️ Beta Service Disclaimer</h3>
             <p>This bot is currently in beta testing. Please be aware:</p>
             <ul>
@@ -556,9 +556,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 <li>📜 No warranty or guarantee of service availability is provided</li>
             </ul>
             <p><strong>Use at your own risk.</strong> This bot is provided "as-is" without any warranties.</p>
-        </div>
-        
-        <div class="pricing-info">
+                    </div>
+                    
+                    <div class="pricing-info">
             <h3>💰 Subscription Plans</h3>
             <div class="pricing-tier free-tier">
                 <strong>Free - Testing Only</strong><br>
@@ -572,15 +572,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 <strong>Pro - $10/month</strong><br>
                 Everything in Basic • Extended CSV Reports • Multiple Managers • 30 days data retention
             </div>
-        </div>
-        
-        <div class="footer">
+                    </div>
+                    
+                    <div class="footer">
             <p>Built for businesses and teams who need reliable time tracking in Discord</p>
             <p>Questions? Contact your server administrator</p>
-        </div>
-    </div>
-</body>
-</html>
+                    </div>
+                </div>
+            </body>
+            </html>
             """
             self.wfile.write(html_content.encode())
         elif self.path == "/health":
@@ -631,7 +631,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
-    
     
     def handle_payment_result(self):
         """Handle success/cancel pages"""
@@ -1587,175 +1586,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"❌ Get employee roles API error: {e}")
             self.send_json_response({'error': 'Server error'}, 500)
 
-
-def purge_guild_data_for_testing(guild_id: int):
-    """Standalone function to purge guild data for testing purposes"""
-    try:
-        with db() as conn:
-            # Set timeout for database operations
-            conn.execute("PRAGMA busy_timeout = 5000")
-            
-            # Delete all sessions data
-            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
-            sessions_deleted = sessions_cursor.rowcount
-            
-            # Delete guild settings
-            settings_cursor = conn.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))
-            settings_deleted = settings_cursor.rowcount
-            
-            # Delete authorized roles
-            auth_roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
-            auth_roles_deleted = auth_roles_cursor.rowcount
-            
-            # Delete admin roles
-            admin_roles_cursor = conn.execute("DELETE FROM admin_roles WHERE guild_id = ?", (guild_id,))
-            admin_roles_deleted = admin_roles_cursor.rowcount
-            
-            # Delete clock roles
-            clock_roles_cursor = conn.execute("DELETE FROM clock_roles WHERE guild_id = ?", (guild_id,))
-            clock_roles_deleted = clock_roles_cursor.rowcount
-            
-            # Reset subscription to free tier (don't delete subscription record)
-            conn.execute("""
-                UPDATE server_subscriptions 
-                SET tier = 'free', subscription_id = NULL, customer_id = NULL, 
-                    expires_at = NULL, status = 'cancelled'
-                WHERE guild_id = ?
-            """, (guild_id,))
-            
-            print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {clock_roles_deleted} clock roles")
-            return sessions_deleted + settings_deleted + auth_roles_deleted + admin_roles_deleted + clock_roles_deleted
-            
-    except Exception as e:
-        print(f"❌ Error purging guild data for {guild_id}: {e}")
-        raise
-    
-    def do_HEAD(self):
-        if self.path == "/" or self.path == "/health":
-            self.send_response(200)
-            if self.path == "/":
-                self.send_header('Content-type', 'text/html')
-            else:
-                self.send_header('Content-type', 'application/json')
-            self.end_headers()
-        else:
-            self.send_response(404)
-            self.end_headers()
-    
-    def handle_subscription_change(self, subscription):
-        """Handle subscription status changes"""
-        try:
-            # Find guild by customer_id or subscription_id
-            with db() as conn:
-                cursor = conn.execute("""
-                    SELECT guild_id FROM server_subscriptions 
-                    WHERE subscription_id = ? OR customer_id = ?
-                """, (subscription['id'], subscription['customer']))
-                result = cursor.fetchone()
-                
-                if result:
-                    guild_id = result[0]
-                    status = subscription['status']
-                    current_period_end = subscription['current_period_end']
-                    
-                    # Update subscription status
-                    conn.execute("""
-                        UPDATE server_subscriptions 
-                        SET status = ?, expires_at = ?
-                        WHERE guild_id = ?
-                    """, (status, datetime.fromtimestamp(current_period_end, timezone.utc).isoformat(), guild_id))
-                    
-                    print(f"🔄 Subscription updated: Guild {guild_id} -> {status}")
-                    
-        except Exception as e:
-            print(f"❌ Error handling subscription change: {e}")
-    
-    def handle_payment_failure(self, invoice):
-        """Handle failed payments"""
-        try:
-            customer_id = invoice['customer']
-            
-            with db() as conn:
-                cursor = conn.execute("""
-                    SELECT guild_id FROM server_subscriptions 
-                    WHERE customer_id = ?
-                """, (customer_id,))
-                result = cursor.fetchone()
-                
-                if result:
-                    guild_id = result[0]
-                    
-                    # Mark as past_due but don't downgrade immediately
-                    conn.execute("""
-                        UPDATE server_subscriptions 
-                        SET status = 'past_due'
-                        WHERE guild_id = ?
-                    """, (guild_id,))
-                    
-                    print(f"⚠️ Payment failed: Guild {guild_id} marked as past_due")
-                    
-        except Exception as e:
-            print(f"❌ Error handling payment failure: {e}")
-
-    def handle_oauth_login(self):
-        """Handle OAuth login initiation"""
-        try:
-            # Generate state parameter for security
-            state = secrets.token_urlsafe(32)
-            
-            # Store state in database instead of memory
-            if not create_oauth_session(state, self.client_address[0], expiry_minutes=15):
-                self.send_response(500)
-                self.send_header('Content-type', 'text/html')
-                self.end_headers()
-                self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to create session</p>")
-                return
-            
-            # Generate Discord OAuth URL
-            oauth_url = get_discord_oauth_url(state)
-            
-            # Redirect to Discord OAuth
-            self.send_response(302)
-            self.send_header('Location', oauth_url)
-            self.end_headers()
-            
-            print(f"🔗 OAuth login initiated from {self.client_address[0]} with state: {state[:8]}...")
-            
-        except Exception as e:
-            print(f"❌ OAuth login error: {e}")
-            self.send_response(500)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to initiate login</p>")
-
-
-    def send_oauth_error(self, message: str):
-        """Send OAuth error page"""
-        self.send_response(400)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Authentication Error</title>
-            <style>
-                body {{ font-family: Arial; text-align: center; padding: 50px; background: #1a1a2e; color: white; }}
-                .error {{ background: rgba(255,107,107,0.1); padding: 20px; border-radius: 10px; border: 1px solid #ff6b6b; }}
-            </style>
-        </head>
-        <body>
-            <div class="error">
-                <h1>🔒 Authentication Error</h1>
-                <p>{message}</p>
-                <p><a href="/" style="color: #5865F2;">Return to Dashboard</a></p>
-            </div>
-        </body>
-        </html>
-        """
-        self.wfile.write(html.encode('utf-8'))
-
     def handle_api_request(self):
         """Handle API requests for dashboard data"""
         try:
@@ -1964,6 +1794,176 @@ def purge_guild_data_for_testing(guild_id: int):
     def log_message(self, format, *args):
         # Suppress default HTTP server logs to avoid cluttering Discord bot logs
         pass
+
+
+def purge_guild_data_for_testing(guild_id: int):
+    """Standalone function to purge guild data for testing purposes"""
+    try:
+        with db() as conn:
+            # Set timeout for database operations
+            conn.execute("PRAGMA busy_timeout = 5000")
+            
+            # Delete all sessions data
+            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
+            sessions_deleted = sessions_cursor.rowcount
+            
+            # Delete guild settings
+            settings_cursor = conn.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))
+            settings_deleted = settings_cursor.rowcount
+            
+            # Delete authorized roles
+            auth_roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
+            auth_roles_deleted = auth_roles_cursor.rowcount
+            
+            # Delete admin roles
+            admin_roles_cursor = conn.execute("DELETE FROM admin_roles WHERE guild_id = ?", (guild_id,))
+            admin_roles_deleted = admin_roles_cursor.rowcount
+            
+            # Delete clock roles
+            clock_roles_cursor = conn.execute("DELETE FROM clock_roles WHERE guild_id = ?", (guild_id,))
+            clock_roles_deleted = clock_roles_cursor.rowcount
+            
+            # Reset subscription to free tier (don't delete subscription record)
+            conn.execute("""
+                UPDATE server_subscriptions 
+                SET tier = 'free', subscription_id = NULL, customer_id = NULL, 
+                    expires_at = NULL, status = 'cancelled'
+                WHERE guild_id = ?
+            """, (guild_id,))
+            
+            print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {clock_roles_deleted} clock roles")
+            return sessions_deleted + settings_deleted + auth_roles_deleted + admin_roles_deleted + clock_roles_deleted
+            
+    except Exception as e:
+        print(f"❌ Error purging guild data for {guild_id}: {e}")
+        raise
+    
+    def do_HEAD(self):
+        if self.path == "/" or self.path == "/health":
+            self.send_response(200)
+            if self.path == "/":
+                self.send_header('Content-type', 'text/html')
+            else:
+                self.send_header('Content-type', 'application/json')
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def handle_subscription_change(self, subscription):
+        """Handle subscription status changes"""
+        try:
+            # Find guild by customer_id or subscription_id
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT guild_id FROM server_subscriptions 
+                    WHERE subscription_id = ? OR customer_id = ?
+                """, (subscription['id'], subscription['customer']))
+                result = cursor.fetchone()
+                
+                if result:
+                    guild_id = result[0]
+                    status = subscription['status']
+                    current_period_end = subscription['current_period_end']
+                    
+                    # Update subscription status
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET status = ?, expires_at = ?
+                        WHERE guild_id = ?
+                    """, (status, datetime.fromtimestamp(current_period_end, timezone.utc).isoformat(), guild_id))
+                    
+                    print(f"🔄 Subscription updated: Guild {guild_id} -> {status}")
+                    
+        except Exception as e:
+            print(f"❌ Error handling subscription change: {e}")
+    
+    def handle_payment_failure(self, invoice):
+        """Handle failed payments"""
+        try:
+            customer_id = invoice['customer']
+            
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT guild_id FROM server_subscriptions 
+                    WHERE customer_id = ?
+                """, (customer_id,))
+                result = cursor.fetchone()
+                
+                if result:
+                    guild_id = result[0]
+                    
+                    # Mark as past_due but don't downgrade immediately
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET status = 'past_due'
+                        WHERE guild_id = ?
+                    """, (guild_id,))
+                    
+                    print(f"⚠️ Payment failed: Guild {guild_id} marked as past_due")
+                    
+        except Exception as e:
+            print(f"❌ Error handling payment failure: {e}")
+
+    def handle_oauth_login(self):
+        """Handle OAuth login initiation"""
+        try:
+            # Generate state parameter for security
+            state = secrets.token_urlsafe(32)
+            
+            # Store state in database instead of memory
+            if not create_oauth_session(state, self.client_address[0], expiry_minutes=15):
+                self.send_response(500)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to create session</p>")
+                return
+            
+            # Generate Discord OAuth URL
+            oauth_url = get_discord_oauth_url(state)
+            
+            # Redirect to Discord OAuth
+            self.send_response(302)
+            self.send_header('Location', oauth_url)
+            self.end_headers()
+            
+            print(f"🔗 OAuth login initiated from {self.client_address[0]} with state: {state[:8]}...")
+            
+        except Exception as e:
+            print(f"❌ OAuth login error: {e}")
+            self.send_response(500)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b"<h1>OAuth Error</h1><p>Failed to initiate login</p>")
+
+
+    def send_oauth_error(self, message: str):
+        """Send OAuth error page"""
+        self.send_response(400)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Authentication Error</title>
+            <style>
+                body {{ font-family: Arial; text-align: center; padding: 50px; background: #1a1a2e; color: white; }}
+                .error {{ background: rgba(255,107,107,0.1); padding: 20px; border-radius: 10px; border: 1px solid #ff6b6b; }}
+            </style>
+        </head>
+        <body>
+            <div class="error">
+                <h1>🔒 Authentication Error</h1>
+                <p>{message}</p>
+                <p><a href="/" style="color: #5865F2;">Return to Dashboard</a></p>
+            </div>
+        </body>
+        </html>
+        """
+        self.wfile.write(html.encode('utf-8'))
+
 
 def start_health_server():
     """Start the health check HTTP server in a separate thread"""
