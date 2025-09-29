@@ -1753,43 +1753,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"❌ Guild API error: {e}")
             self.send_json_response({"error": "Server error"}, 500)
 
-    def get_session_id(self) -> Optional[str]:
-        """Extract session ID from cookie or query parameter"""
-        # Check query parameter first
-        if '?' in self.path:
-            parsed_url = urlparse(self.path)
-            query_params = dict(parse_qsl(parsed_url.query))
-            if 'session' in query_params:
-                return query_params['session']
-        
-        # Check cookies using proper cookie parsing
-        from http.cookies import SimpleCookie
-        cookie_header = self.headers.get('Cookie', '')
-        if cookie_header:
-            cookies = SimpleCookie()
-            cookies.load(cookie_header)
-            
-            # Look for our bot's session cookie first
-            if 'otc_session' in cookies:
-                return cookies['otc_session'].value
-            
-            # Legacy fallback for existing sessions (temporary)
-            if 'session' in cookies:
-                return cookies['session'].value
-                    
-        return None
-
-    def send_json_response(self, data: dict, status_code: int = 200):
-        """Send JSON response"""
-        self.send_response(status_code)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        self.end_headers()
-        
-        json_data = json.dumps(data, indent=2)
-        self.wfile.write(json_data.encode('utf-8'))
     
     def log_message(self, format, *args):
         # Suppress default HTTP server logs to avoid cluttering Discord bot logs
@@ -1845,6 +1808,17 @@ def purge_guild_data_for_testing(guild_id: int):
                 self.send_header('Content-type', 'text/html')
             else:
                 self.send_header('Content-type', 'application/json')
+            self.end_headers()
+        elif self.path.startswith("/oauth/callback"):
+            # For OAuth callback, just return success without processing
+            # This prevents duplicate code exchange attempts from HEAD requests
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+        elif self.path.startswith("/oauth/login"):
+            # OAuth login endpoint
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
             self.end_headers()
         else:
             self.send_response(404)
