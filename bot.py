@@ -29,7 +29,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")            # required
 DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
 GUILD_ID = os.getenv("GUILD_ID")              # optional but makes commands appear instantly (guild sync)
 DEFAULT_TZ = "America/New_York"
-HTTP_PORT = int(os.getenv("PORT", "5000"))     # Dashboard and health check server port
+HTTP_PORT = int(os.getenv("HEALTH_PORT", "8080"))     # Health check server port (Flask uses 5000)
 
 # --- Bot Owner Configuration ---
 BOT_OWNER_ID = 107103438139056128  # Your Discord user ID for super admin access
