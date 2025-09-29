@@ -15,10 +15,6 @@ author = "agent"
 task = "workflow.run"
 args = "Dashboard & Bot"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "JWT Test Server"
-
 [[workflows.workflow]]
 name = "Dashboard & Bot"
 author = "agent"
@@ -30,18 +26,6 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
-
-[[workflows.workflow]]
-name = "JWT Test Server"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python test_jwt_oauth.py"
-waitForPort = 3001
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [deployment]
 deploymentTarget = "vm"
