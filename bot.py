@@ -34,6 +34,14 @@ HTTP_PORT = int(os.getenv("PORT", "5000"))     # Dashboard and health check serv
 # --- Bot Owner Configuration ---
 BOT_OWNER_ID = 107103438139056128  # Your Discord user ID for super admin access
 
+# --- Discord Data Caching ---
+# Simple in-memory cache for Discord API data to reduce rate limiting
+DISCORD_CACHE = {
+    "guild_roles": {},    # guild_id -> {timestamp, data}
+    "guild_members": {},  # guild_id -> {timestamp, data}
+}
+CACHE_DURATION = 300  # 5 minutes cache duration
+
 # --- Stripe Configuration ---
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
@@ -234,6 +242,34 @@ def exchange_oauth_code(code: str) -> Optional[Dict]:
     except Exception as e:
         print(f"❌ OAuth token exchange error: {e}")
         return None
+
+# --- Discord Data Caching Helper Functions ---
+def get_cached_discord_data(cache_key: str, guild_id: int):
+    """Get cached Discord data if still valid"""
+    if cache_key not in DISCORD_CACHE:
+        return None
+    
+    guild_cache = DISCORD_CACHE[cache_key].get(guild_id)
+    if not guild_cache:
+        return None
+    
+    # Check if cache is still valid (within CACHE_DURATION)
+    if time.time() - guild_cache["timestamp"] > CACHE_DURATION:
+        # Cache expired, remove it
+        del DISCORD_CACHE[cache_key][guild_id]
+        return None
+    
+    return guild_cache["data"]
+
+def set_cached_discord_data(cache_key: str, guild_id: int, data):
+    """Set Discord data in cache with current timestamp"""
+    if cache_key not in DISCORD_CACHE:
+        DISCORD_CACHE[cache_key] = {}
+    
+    DISCORD_CACHE[cache_key][guild_id] = {
+        "timestamp": time.time(),
+        "data": data
+    }
 
 def get_discord_user(access_token: str) -> Optional[Dict]:
     """Get Discord user info from access token"""
@@ -1466,6 +1502,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.send_json_response({"error": "Admin access required"}, 403)
                 return
                 
+            # Check cache first
+            cached_roles = get_cached_discord_data("guild_roles", guild_id)
+            if cached_roles:
+                self.send_json_response({"roles": cached_roles})
+                return
+
             # Get bot guild data
             bot_instance = getattr(type(self), 'bot', None)
             if not bot_instance or not bot_instance.is_ready():
@@ -1493,6 +1535,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     
             # Sort by position (higher position = higher in hierarchy)
             roles.sort(key=lambda r: r["position"], reverse=True)
+            
+            # Cache the results for better performance
+            set_cached_discord_data("guild_roles", guild_id, roles)
             
             self.send_json_response({"roles": roles})
             
@@ -1639,6 +1684,21 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             search_query = query_params.get('query', [''])[0].lower().strip()
             limit = min(int(query_params.get('limit', ['50'])[0]), 100)  # Max 100 members
             
+            # Check cache first (only for full member lists without search)
+            if not search_query:
+                cached_members = get_cached_discord_data("guild_members", guild_id)
+                if cached_members:
+                    # Apply limit to cached data
+                    limited_members = cached_members[:limit]
+                    # Return same API contract as non-cached path
+                    self.send_json_response({
+                        "members": limited_members,
+                        "total_shown": len(limited_members),
+                        "has_more": len(cached_members) > limit,
+                        "query": ""
+                    })
+                    return
+            
             # Get guild members (limited to first 1000 due to Discord API limitations without special intents)
             members = []
             member_count = 0
@@ -1675,6 +1735,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     "joined_at": member.joined_at.isoformat() if member.joined_at else None
                 })
                 member_count += 1
+                
+            # Cache the results for better performance (only for full member lists without search)
+            if not search_query:
+                set_cached_discord_data("guild_members", guild_id, members)
                 
             self.send_json_response({
                 "members": members,
