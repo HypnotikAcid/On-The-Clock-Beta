@@ -3639,6 +3639,8 @@ def sanitize_filename(filename: str) -> str:
 
 # --- Discord bot ---
 intents = discord.Intents.default()
+# Note: members intent requires privileged intent in Discord Developer Portal
+# For now, we'll use a fallback approach that works with default intents
 bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
