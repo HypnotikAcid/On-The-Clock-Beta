@@ -58,12 +58,14 @@ def get_base_url():
         return "http://localhost:5000"  # Local fallback only
 
 # Set redirect URI dynamically - ensure HTTPS in production
-redirect_uri = os.environ.get("DISCORD_REDIRECT_URI") or f"{get_base_url()}/callback"
+base_url = get_base_url()
+redirect_uri = os.environ.get("DISCORD_REDIRECT_URI") or f"{base_url}/callback"
 # Force HTTPS in production to fix OAuth insecure_transport error
 if os.environ.get("REPLIT_ENVIRONMENT") == "production" and redirect_uri.startswith("http://"):
     redirect_uri = redirect_uri.replace("http://", "https://")
 
 app.config["DISCORD_REDIRECT_URI"] = redirect_uri
+print(f"🔧 Discord OAuth Redirect URI: {redirect_uri}")
 app.config["DISCORD_BOT_TOKEN"] = os.environ.get("DISCORD_TOKEN")
 
 # Discord API configuration for direct OAuth implementation
@@ -279,8 +281,17 @@ def auth_login():
 @app.route("/callback")
 def callback():
     """Handle OAuth callback from Discord - simplified working version."""
+    print(f"🔄 Callback hit! Request args: {dict(request.args)}")
+    
     code = request.args.get('code')
     state = request.args.get('state')
+    error = request.args.get('error')
+    
+    if error:
+        print(f"❌ Discord OAuth error: {error}")
+        return redirect(url_for("index"))
+    
+    print(f"🔍 State check - received: {state}, session: {session.get('oauth_state')}")
     
     # Verify CSRF state token
     if not state or state != session.get('oauth_state'):
@@ -295,6 +306,8 @@ def callback():
         print("❌ No authorization code received from Discord")
         return redirect(url_for("index"))
     
+    print(f"✅ OAuth code received, exchanging for token...")
+    
     try:
         # Exchange code for access token
         token_info = exchange_code_for_token(code)
@@ -302,6 +315,7 @@ def callback():
             print("❌ Failed to exchange code for access token")
             return redirect(url_for("index"))
         
+        print(f"✅ Token exchange successful")
         access_token = token_info['access_token']
         
         # Get user info
@@ -310,8 +324,11 @@ def callback():
             print("❌ Failed to fetch Discord user information")
             return redirect(url_for("index"))
         
+        print(f"✅ User data fetched: {user_data['username']}")
+        
         # Get user's guilds
         guilds_data = get_discord_guilds(access_token)
+        print(f"✅ Guild data fetched: {len(guilds_data)} guilds")
         
         # Store user session data server-side for security
         user_id = user_data['id']
@@ -327,11 +344,13 @@ def callback():
         }
         session.permanent = True
         
-        print(f"✅ User logged in successfully: {user_data['username']}")
+        print(f"✅ User logged in successfully: {user_data['username']}, redirecting to dashboard")
         return redirect(url_for('dashboard'))
         
     except Exception as e:
         print(f"❌ OAuth callback error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         session.clear()
         return redirect(url_for("index"))
 
