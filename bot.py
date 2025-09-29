@@ -4292,12 +4292,13 @@ async def list_employee_roles(interaction: discord.Interaction):
     else:
         # Get role objects
         employee_roles = []
-        for role_id in clock_role_ids:
-            role = interaction.guild.get_role(role_id)
-            if role:
-                employee_roles.append(role.mention)
-            else:
-                employee_roles.append(f"<Deleted Role: {role_id}>")
+        if interaction.guild:  # Additional null check for LSP
+            for role_id in clock_role_ids:
+                role = interaction.guild.get_role(role_id)
+                if role:
+                    employee_roles.append(role.mention)
+                else:
+                    employee_roles.append(f"<Deleted Role: {role_id}>")
         
         embed.add_field(name="Employee Roles", value="\n".join(employee_roles), inline=False)
         
