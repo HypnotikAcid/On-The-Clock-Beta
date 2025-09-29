@@ -262,6 +262,23 @@ def get_discord_user_guilds(access_token: str) -> Optional[list]:
         print(f"❌ Discord guilds fetch error: {e}")
         return None
 
+def get_discord_guild_member(access_token: str, guild_id: str) -> Optional[Dict]:
+    """Get Discord user's guild member data from access token"""
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    try:
+        response = requests.get(f"https://discord.com/api/users/@me/guilds/{guild_id}/member", headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"❌ Failed to get Discord guild member data: {response.status_code}")
+            if response.status_code == 403:
+                print("   This may be due to missing guilds.members.read scope or user not in guild")
+            return None
+    except Exception as e:
+        print(f"❌ Discord guild member fetch error: {e}")
+        return None
+
 def create_secure_checkout_session(guild_id: int, tier: str) -> str:
     """Create a secure Stripe checkout session with proper validation"""
     if not stripe.api_key:
@@ -1448,6 +1465,101 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             print(f"❌ Guild roles API error: {e}")
             self.send_json_response({'error': 'Server error'}, 500)
 
+    def handle_api_guild_member(self, session: Dict, guild_id_str: str):
+        """Handle GET /api/guild/{id}/member - Get user's guild member data including current roles"""
+        try:
+            guild_id = int(guild_id_str)
+            
+            # Check if user has access to this guild
+            user_guild = None
+            for ug in session.get('guilds', []):
+                if ug['id'] == guild_id_str:
+                    user_guild = ug
+                    break
+                    
+            if not user_guild:
+                self.send_json_response({"error": "Guild access required"}, 403)
+                return
+                
+            # Get user's Discord guild member data using OAuth access token
+            access_token = session.get('access_token')
+            if not access_token:
+                self.send_json_response({"error": "Access token not found"}, 401)
+                return
+                
+            member_data = get_discord_guild_member(access_token, guild_id_str)
+            if not member_data:
+                self.send_json_response({"error": "Unable to fetch guild member data"}, 500)
+                return
+                
+            # Get bot guild data to fetch role details
+            bot_instance = getattr(type(self), 'bot', None)
+            if not bot_instance or not bot_instance.is_ready():
+                self.send_json_response({"error": "Bot not ready"}, 503)
+                return
+                
+            bot_guild = bot_instance.get_guild(guild_id)
+            if not bot_guild:
+                self.send_json_response({"error": "Guild not found"}, 404)
+                return
+                
+            # Get role details for user's roles
+            user_roles = []
+            user_role_ids = member_data.get('roles', [])
+            
+            for role_id in user_role_ids:
+                bot_role = bot_guild.get_role(int(role_id))
+                if bot_role and bot_role.name != "@everyone":
+                    user_roles.append({
+                        "id": str(bot_role.id),
+                        "name": bot_role.name,
+                        "color": bot_role.color.value,
+                        "position": bot_role.position,
+                        "mentionable": bot_role.mentionable,
+                        "hoist": bot_role.hoist,
+                        "managed": bot_role.managed,
+                        "permissions": str(bot_role.permissions.value)
+                    })
+            
+            # Sort by position (higher position = higher in hierarchy)
+            user_roles.sort(key=lambda r: r["position"], reverse=True)
+            
+            # Check if user has admin or employee access through timeclock roles
+            user_id = session['user_id']
+            bot_member = bot_guild.get_member(int(user_id))
+            has_admin_access = False
+            has_employee_access = False
+            
+            if bot_member:
+                # Get server tier for timeclock access check
+                server_tier = get_server_tier(guild_id)
+                has_admin_access = user_has_admin_access(bot_member)
+                has_employee_access = user_has_clock_access(bot_member, server_tier)
+            
+            response_data = {
+                "user": {
+                    "id": member_data.get('user', {}).get('id'),
+                    "username": member_data.get('user', {}).get('username'),
+                    "avatar": member_data.get('user', {}).get('avatar'),
+                    "nick": member_data.get('nick')
+                },
+                "roles": user_roles,
+                "joined_at": member_data.get('joined_at'),
+                "premium_since": member_data.get('premium_since'),
+                "timeclock_access": {
+                    "admin": has_admin_access,
+                    "employee": has_employee_access
+                }
+            }
+            
+            self.send_json_response(response_data)
+            
+        except ValueError:
+            self.send_json_response({'error': 'Invalid guild ID'}, 400)
+        except Exception as e:
+            print(f"❌ Guild member API error: {e}")
+            self.send_json_response({'error': 'Server error'}, 500)
+
     def handle_api_get_admin_roles(self, session, guild_id_str):
         """Handle GET /api/guild/{id}/admin-roles - Get current admin roles"""
         try:
@@ -1613,6 +1725,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         if endpoint == "roles":
                             # /api/guild/{id}/roles
                             self.handle_api_guild_roles(session, guild_id)
+                        elif endpoint == "member":
+                            # /api/guild/{id}/member
+                            self.handle_api_guild_member(session, guild_id)
                         else:
                             self.send_json_response({"error": "Endpoint not found"}, 404)
                     else:
