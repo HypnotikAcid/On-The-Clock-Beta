@@ -177,9 +177,10 @@ def get_discord_oauth_url(state: str) -> str:
         }
         
         # Build query string properly
+        from urllib.parse import quote
         query_parts = []
         for key, value in params.items():
-            encoded_value = requests.utils.quote(str(value))
+            encoded_value = quote(str(value))
             query_parts.append(f"{key}={encoded_value}")
         
         query_string = "&".join(query_parts)
