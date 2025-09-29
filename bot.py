@@ -21,6 +21,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+# Import email functionality for report delivery
+from email_utils import send_timeclock_report_email
+
 # --- Config / Secrets ---
 TOKEN = os.getenv("DISCORD_TOKEN")            # required
 DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
@@ -2961,8 +2964,39 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
                 errors.append(f"Failed to notify Discord user {discord_user_id}: {str(e)}")
         
         elif recipient_type == 'email' and email_address:
-            # TODO: Implement email notifications when email integration is ready
-            errors.append(f"Email notifications to {email_address} not yet implemented")
+            try:
+                # Send email notification
+                guild_name = interaction.guild.name if interaction.guild else "Unknown Server"
+                user_name = get_user_display_name(interaction.user, guild_id)
+                
+                # Create plain text email content
+                email_text = f"""
+Timeclock Entry Notification
+
+Employee: {user_name} (ID: {interaction.user.id})
+Server: {guild_name}
+
+Clock In: {fmt(start_dt, tz_name)}
+Clock Out: {fmt(end_dt, tz_name)}
+Total Duration: {human_duration(elapsed)}
+
+Timestamp: {end_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC
+""".strip()
+                
+                # Send email using our email utility
+                from email_utils import send_email
+                result = await send_email(
+                    to=email_address,
+                    subject=f"Timeclock Entry - {user_name} ({guild_name})",
+                    text=email_text
+                )
+                
+                notification_sent = True
+                print(f"✅ Email notification sent to {email_address}")
+                
+            except Exception as e:
+                errors.append(f"Failed to send email to {email_address}: {str(e)}")
+                print(f"❌ Email notification failed for {email_address}: {str(e)}")
     
     # Fallback to legacy recipient if no new recipients configured
     if not all_recipients and legacy_recipient_id:
@@ -5140,6 +5174,34 @@ async def generate_report(
         file=file,
         ephemeral=True
     )
+    
+    # Also send email reports to configured email recipients
+    try:
+        recipients = get_report_recipients(guild_id)
+        email_recipients = [r for r in recipients if r[1] == 'email' and r[3]]  # recipient_type == 'email' and email_address exists
+        
+        if email_recipients:
+            email_addresses = [r[3] for r in email_recipients]  # Extract email addresses
+            
+            try:
+                guild_name = interaction.guild.name if interaction.guild else f"Server-{guild_id}"
+                report_period = f"{start_date} to {end_date} - {user_display_name}"
+                
+                # Send email report to all email recipients
+                result = await send_timeclock_report_email(
+                    to=email_addresses,
+                    guild_name=guild_name,
+                    csv_content=csv_content,
+                    report_period=report_period
+                )
+                
+                print(f"✅ Email report sent to {len(email_addresses)} recipients for {user_display_name}")
+                
+            except Exception as email_error:
+                print(f"❌ Failed to send email report: {email_error}")
+                
+    except Exception as e:
+        print(f"⚠️ Email report delivery attempt failed: {e}")
 
 # --- Scheduled Tasks ---
 def schedule_daily_cleanup():
