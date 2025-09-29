@@ -70,6 +70,28 @@ def redirect_unauthorized(e):
     """Redirect unauthorized users to login."""
     return redirect(url_for("login"))
 
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle internal server errors gracefully."""
+    print(f"❌ Internal server error: {error}")
+    return render_template("dashboard.html", error="Something went wrong. Please try again later."), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle page not found errors."""
+    return render_template("dashboard.html", error="Page not found."), 404
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle unexpected exceptions."""
+    print(f"❌ Unexpected error: {e}")
+    # Return a generic error page for production
+    if os.environ.get('FLASK_ENV', 'development') == 'production':
+        return render_template("dashboard.html", error="An unexpected error occurred. Please try again."), 500
+    else:
+        # In development, let Flask show the full traceback
+        raise e
+
 @app.route("/")
 def index():
     """Homepage with login option."""

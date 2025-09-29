@@ -29,7 +29,7 @@ outputType = "webview"
 
 [deployment]
 deploymentTarget = "vm"
-run = ["python", "bot.py"]
+run = ["python", "start.py"]
 
 [[ports]]
 localPort = 5000
