@@ -22,6 +22,12 @@ def invite():
     invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions={permissions}&scope=bot%20applications.commands"
     return f'<script>window.location.href="{invite_url}";</script><a href="{invite_url}">Click here if you are not redirected</a>'
 
+@app.route("/favicon.ico")
+def favicon():
+    """Return empty favicon to prevent 404 errors."""
+    from flask import Response
+    return Response('', mimetype='image/x-icon')
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_ENV") != "production"
