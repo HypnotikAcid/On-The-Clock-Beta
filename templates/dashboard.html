@@ -473,7 +473,7 @@
                         <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
                     </div>
                 {% else %}
-                    <a href="{{ url_for('login') }}" class="discord-login-btn">
+                    <a href="{{ url_for('auth_login') }}" class="discord-login-btn">
                         <span>🔗</span>
                         Login with Discord
                     </a>
@@ -498,7 +498,7 @@
             <div class="welcome-section">
                 <h1 class="welcome-title">On the Clock</h1>
                 <p class="welcome-subtitle">Professional Discord Timeclock Management Dashboard</p>
-                <a href="{{ url_for('login') }}" class="discord-login-btn">
+                <a href="{{ url_for('auth_login') }}" class="discord-login-btn">
                     <span>🔗</span>
                     Get Started with Discord
                 </a>

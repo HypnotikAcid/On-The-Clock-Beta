@@ -11,6 +11,6 @@ stripe
 tzdata
 urllib3
 flask
-Flask-Discord
 requests-oauthlib
 werkzeug
+Flask-Session

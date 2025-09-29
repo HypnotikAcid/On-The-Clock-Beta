@@ -2,8 +2,8 @@ import os
 import sqlite3
 import json
 from datetime import datetime, timedelta
-from flask import Flask, redirect, url_for, render_template, session, request, jsonify
-from flask_discord import DiscordOAuth2Session, requires_authorization, Unauthorized
+from flask import Flask, redirect, url_for, render_template, session, request, jsonify, make_response
+from flask_session import Session
 from werkzeug.middleware.proxy_fix import ProxyFix
 import requests
 
@@ -15,13 +15,28 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 # Security configuration - use environment variable for production consistency
 app.secret_key = os.environ.get('SECRET_KEY') or 'dev-fallback-key-change-in-production'
 
-# Session configuration for production - corrected for HTTPS with ProxyFix
+# Session configuration for production - corrected for HTTPS with ProxyFix  
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('REPLIT_ENVIRONMENT') == 'production'  # True for HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  
 app.config['SESSION_COOKIE_DOMAIN'] = None
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)  # 24 hour sessions
+
+# Session storage - using filesystem sessions (proven reliable approach)
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_DIR'] = './flask_session'
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+
+# Initialize Flask-Session for proper server-side storage
+Session(app)
+
+# Create session directory if it doesn't exist
+import os
+os.makedirs('./flask_session', exist_ok=True)
+
+print("✅ Server-side session storage configured - filesystem-based for security and reliability")
 
 # Discord OAuth2 configuration
 app.config["DISCORD_CLIENT_ID"] = os.environ.get("DISCORD_CLIENT_ID")
@@ -49,15 +64,181 @@ if os.environ.get("REPLIT_ENVIRONMENT") == "production" and redirect_uri.startsw
 app.config["DISCORD_REDIRECT_URI"] = redirect_uri
 app.config["DISCORD_BOT_TOKEN"] = os.environ.get("DISCORD_TOKEN")
 
-# Initialize Discord OAuth session
-discord = DiscordOAuth2Session(app)
+# Discord API configuration for direct OAuth implementation
+DISCORD_API_BASE = "https://discord.com/api"
+DISCORD_CDN_BASE = "https://cdn.discordapp.com"
 
-# OAuth transport configuration - corrected for proxy environment
-if os.environ.get("REPLIT_ENVIRONMENT") == "production":
-    # In production, we're behind a proxy so need to allow "insecure" transport from proxy to Flask
-    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Required for reverse proxy
-else:
-    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Allow HTTP in dev
+# Direct Discord OAuth2 Implementation (Proven Pattern)
+def exchange_code_for_token(code):
+    """Exchange authorization code for access token using Discord API."""
+    token_data = {
+        'client_id': app.config['DISCORD_CLIENT_ID'],
+        'client_secret': app.config['DISCORD_CLIENT_SECRET'],
+        'grant_type': 'authorization_code',
+        'code': code,
+        'redirect_uri': app.config['DISCORD_REDIRECT_URI']
+    }
+    
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    
+    response = requests.post(f'{DISCORD_API_BASE}/oauth2/token', 
+                           data=token_data, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"❌ Token exchange failed: {response.status_code} - {response.text}")
+        return None
+
+def get_discord_user(access_token):
+    """Get Discord user info using access token."""
+    headers = {'Authorization': f'Bearer {access_token}'}
+    
+    response = requests.get(f'{DISCORD_API_BASE}/users/@me', headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"❌ User fetch failed: {response.status_code} - {response.text}")
+        return None
+
+def get_discord_guilds(access_token):
+    """Get user's Discord guilds using access token."""
+    headers = {'Authorization': f'Bearer {access_token}'}
+    
+    response = requests.get(f'{DISCORD_API_BASE}/users/@me/guilds', headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"❌ Guilds fetch failed: {response.status_code} - {response.text}")
+        return []
+
+def store_user_session_data(user_id, access_token, guilds_data, user_data=None):
+    """Store sensitive session data server-side in database."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Create user_sessions table if it doesn't exist FIRST
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            user_id TEXT PRIMARY KEY,
+            access_token TEXT,
+            guilds_data TEXT,
+            expires_at TIMESTAMP DEFAULT (datetime('now', '+24 hours'))
+        )
+    """)
+    
+    # Check if user_data column exists, add if missing (robust migration)
+    try:
+        cursor.execute("PRAGMA table_info(user_sessions)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        if 'user_data' not in columns:
+            print("🔧 Adding user_data column to user_sessions table...")
+            cursor.execute("ALTER TABLE user_sessions ADD COLUMN user_data TEXT")
+            print("✅ Database migration completed")
+    except Exception as e:
+        print(f"⚠️ Database migration error (likely already migrated): {e}")
+    
+    # Store session data (replace if exists)
+    cursor.execute("""
+        INSERT OR REPLACE INTO user_sessions (user_id, access_token, guilds_data, user_data, expires_at)
+        VALUES (?, ?, ?, ?, datetime('now', '+24 hours'))
+    """, (user_id, access_token, json.dumps(guilds_data), json.dumps(user_data) if user_data else None))
+    
+    conn.commit()
+    conn.close()
+    print(f"✅ Stored session data server-side for user {user_id}")
+
+def get_user_session_data(user_id):
+    """Get user's session data from server-side storage."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Resilient query - handle missing user_data column gracefully
+    try:
+        cursor.execute("""
+            SELECT access_token, guilds_data, user_data FROM user_sessions 
+            WHERE user_id = ? AND expires_at > datetime('now')
+        """, (user_id,))
+    except Exception:
+        # Fallback for legacy schema without user_data
+        cursor.execute("""
+            SELECT access_token, guilds_data FROM user_sessions 
+            WHERE user_id = ? AND expires_at > datetime('now')
+        """, (user_id,))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result:
+        # Always return consistent dict format
+        return {
+            'access_token': result[0] if result[0] else None,
+            'guilds_data': json.loads(result[1]) if result[1] else [],
+            'user_data': json.loads(result[2]) if len(result) >= 3 and result[2] else None
+        }
+    
+    return {'access_token': None, 'guilds_data': [], 'user_data': None}
+
+def get_user_guilds_cached(user_id):
+    """Get user's guilds from server-side cache."""
+    result = get_user_session_data(user_id)
+    return result.get('guilds_data', [])
+
+def store_finalize_token(token, user_id):
+    """Store one-time finalize token with short expiry for security."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Create finalize_tokens table if it doesn't exist
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS finalize_tokens (
+            token TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            expires_at TIMESTAMP DEFAULT (datetime('now', '+5 minutes'))
+        )
+    """)
+    
+    # Clean up expired tokens
+    cursor.execute("DELETE FROM finalize_tokens WHERE expires_at < datetime('now')")
+    
+    # Store new token with 5-minute expiry
+    cursor.execute("""
+        INSERT INTO finalize_tokens (token, user_id, expires_at)
+        VALUES (?, ?, datetime('now', '+5 minutes'))
+    """, (token, user_id))
+    
+    conn.commit()
+    conn.close()
+    print(f"✅ Stored finalize token for user {user_id}")
+
+def verify_and_consume_finalize_token(token):
+    """Verify and consume one-time finalize token, return user_id or None."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Check if token exists and is not expired
+    cursor.execute("""
+        SELECT user_id FROM finalize_tokens 
+        WHERE token = ? AND expires_at > datetime('now')
+    """, (token,))
+    
+    result = cursor.fetchone()
+    
+    if result:
+        user_id = result[0]
+        # Consume token (delete it immediately for security)
+        cursor.execute("DELETE FROM finalize_tokens WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
+        print(f"✅ Consumed finalize token for user {user_id}")
+        return user_id
+    else:
+        conn.close()
+        print("❌ Invalid or expired finalize token")
+        return None
 
 # Discord API cache
 discord_cache = {}
@@ -90,10 +271,14 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-@app.errorhandler(Unauthorized)
-def redirect_unauthorized(e):
-    """Redirect unauthorized users to login."""
-    return redirect(url_for("login"))
+def login_required(f):
+    """Decorator to require login for routes."""
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return redirect(url_for('auth_login'))
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
 
 @app.errorhandler(500)
 def internal_error(error):
@@ -122,90 +307,165 @@ def index():
     """Homepage with login option."""
     return render_template("dashboard.html")
 
-@app.route("/login/")
-def login():
-    """Initiate Discord OAuth login."""
-    return discord.create_session(scope=["identify", "email", "guilds"])
+@app.route("/auth/login")
+def auth_login():
+    """Initiate Discord OAuth login with CSRF protection."""
+    import secrets
+    
+    # Generate CSRF state token for security
+    state = secrets.token_urlsafe(32)
+    session['oauth_state'] = state
+    
+    # Properly encode OAuth URL parameters for security
+    from urllib.parse import urlencode
+    
+    params = {
+        'client_id': app.config['DISCORD_CLIENT_ID'],
+        'redirect_uri': app.config['DISCORD_REDIRECT_URI'],
+        'response_type': 'code',
+        'scope': 'identify guilds',  # Removed email scope as suggested
+        'state': state
+    }
+    discord_login_url = f"https://discord.com/api/oauth2/authorize?{urlencode(params)}"
+    return redirect(discord_login_url)
 
-@app.route("/callback/")
+@app.route("/callback")
 def callback():
-    """Handle OAuth callback from Discord."""
-    try:
-        print(f"🔧 OAuth callback started - Request args: {dict(request.args)}")
-        discord.callback()
-        # Make session permanent to ensure persistence
-        session.permanent = True
-        print(f"🔧 OAuth callback successful - Session: {dict(session)}")
-        print(f"🔧 Discord token in session: {'DISCORD_TOKEN' in session}")
-        return redirect(url_for("dashboard"))
-    except Exception as e:
-        print(f"❌ OAuth callback error: {str(e)}")
-        return f"OAuth Error: {str(e)}", 400
+    """Handle OAuth callback from Discord with CSRF protection."""
+    code = request.args.get('code')
+    state = request.args.get('state')
+    
+    # Verify CSRF state token
+    if not state or state != session.get('oauth_state'):
+        print("❌ Invalid or missing OAuth state - CSRF protection triggered")
+        session.clear()  # Clear potentially compromised session
+        return redirect(url_for("index"))
+    
+    # Clear the state token
+    session.pop('oauth_state', None)
+    
+    if not code:
+        print("❌ No authorization code received from Discord")
+        return redirect(url_for("index"))
+    
+    # Exchange code for access token
+    token_info = exchange_code_for_token(code)
+    if not token_info:
+        print("❌ Failed to exchange code for access token")
+        return redirect(url_for("index"))
+    
+    access_token = token_info['access_token']
+    
+    # Get user info
+    user_data = get_discord_user(access_token)
+    if not user_data:
+        print("❌ Failed to fetch Discord user information")
+        return redirect(url_for("index"))
+    
+    # Get user's guilds
+    guilds_data = get_discord_guilds(access_token)
+    
+    # Store minimal user data in session (secure approach)
+    user_id = user_data['id']
+    
+    # Store user session data server-side first (including user_data for finalize)
+    store_user_session_data(user_id, access_token, guilds_data, user_data)
+    
+    # Generate secure one-time finalize token (CSRF protection)
+    import secrets
+    finalize_token = secrets.token_urlsafe(32)
+    store_finalize_token(finalize_token, user_id)
+    
+    # Force session ID regeneration by clearing session and creating new response
+    session.clear()  # Clear old session data
+    
+    # Create response that forces new session cookie and redirect to finalize
+    response = make_response(redirect(url_for('auth_finalize', token=finalize_token)))
+    
+    # Properly delete old session cookie using Flask configuration
+    cookie_name = app.config.get('SESSION_COOKIE_NAME', getattr(app, 'session_cookie_name', 'session'))
+    cookie_domain = app.config.get('SESSION_COOKIE_DOMAIN')
+    cookie_path = app.config.get('SESSION_COOKIE_PATH', '/')
+    
+    response.delete_cookie(cookie_name, path=cookie_path, domain=cookie_domain)
+    
+    print(f"✅ User data stored server-side: {user_data['username']} - redirecting to finalize with secure token")
+    return response
 
-@app.route("/dashboard/")
-@requires_authorization
+@app.route("/dashboard")
+@login_required
 def dashboard():
     """Main dashboard page."""
     try:
-        user = discord.fetch_user()
-        guilds = discord.fetch_guilds()
+        user_data = session.get('user')
+        if not user_data:
+            return redirect(url_for('auth_login'))
+            
+        # Get guilds from secure server-side storage  
+        guilds_data = get_user_guilds_cached(user_data['id'])
         
-        # Filter guilds where the bot is present
-        bot_guilds = []
-        for guild in guilds:
-            # Check if user has admin permissions
-            if guild.permissions.administrator:
-                bot_guilds.append(guild)
+        # Filter guilds where user has admin permissions (direct API approach)
+        admin_guilds = []
+        for guild in guilds_data:
+            # Check if user has admin permissions (0x8 = ADMINISTRATOR)
+            if guild.get('permissions', 0) & 0x8:
+                admin_guilds.append(guild)
         
-        return render_template("dashboard.html", user=user, guilds=bot_guilds, authenticated=True)
+        return render_template("dashboard.html", 
+                             user=user_data, 
+                             guilds=admin_guilds, 
+                             authenticated=True)
     except Exception as e:
+        print(f"❌ Dashboard error: {e}")
         return f"Dashboard Error: {str(e)}", 500
 
 @app.route("/api/user")
-@requires_authorization
+@login_required
 def api_user():
     """Get current user data."""
     try:
-        print(f"🔍 API user request - Session data: {dict(session)}")
-        print(f"🔍 Discord token exists: {'DISCORD_TOKEN' in session}")
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"error": "User not authenticated"}), 401
+            
+        # Get guilds from secure server-side storage
+        guilds_data = get_user_guilds_cached(user_data['id'])
+        print(f"✅ API user request: {user_data['username']} with {len(guilds_data)} guilds from server-side storage")
         
-        user = discord.fetch_user()
-        print(f"✅ Successfully fetched user: {user.name}")
-        
-        guilds = discord.fetch_guilds()
-        print(f"✅ Successfully fetched {len(guilds)} guilds")
-        
-        # Filter to admin guilds only
+        # Filter to admin guilds only (0x8 = ADMINISTRATOR permission)
         admin_guilds = [
             {
-                "id": str(guild.id),
-                "name": guild.name,
-                "icon": guild.icon_url if guild.icon_url else None,
-                "owner": guild.owner,
-                "permissions": guild.permissions.administrator
+                "id": str(guild["id"]),
+                "name": guild["name"],
+                "icon": f"https://cdn.discordapp.com/icons/{guild['id']}/{guild['icon']}.png" if guild.get('icon') else None,
+                "permissions": guild.get("permissions", 0)
             }
-            for guild in guilds if guild.permissions.administrator
+            for guild in guilds_data if guild.get("permissions", 0) & 0x8  # ADMINISTRATOR permission
         ]
         
         return jsonify({
-            "id": str(user.id),
-            "username": user.name,
-            "discriminator": user.discriminator,
-            "avatar_url": user.avatar_url,
-            "email": user.email,
+            "id": user_data["id"],
+            "username": user_data["username"],
+            "discriminator": user_data.get("discriminator", "0000"),
+            "avatar_url": f"https://cdn.discordapp.com/avatars/{user_data['id']}/{user_data['avatar']}.png" if user_data.get('avatar') else None,
+            "email": user_data.get("email"),
             "guilds": admin_guilds
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/guild/<guild_id>")
-@requires_authorization
+@login_required
 def api_guild_info(guild_id):
     """Get guild information and statistics."""
     try:
-        # Verify user has access to this guild
-        guilds = discord.fetch_guilds()
-        guild = next((g for g in guilds if str(g.id) == guild_id and g.permissions.administrator), None)
+        # Verify user has access to this guild from server-side storage
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"error": "User not authenticated"}), 401
+            
+        guilds_data = get_user_guilds_cached(user_data['id'])
+        guild = next((g for g in guilds_data if str(g["id"]) == guild_id and g.get("permissions", 0) & 0x8), None)
         
         if not guild:
             return jsonify({"error": "Guild not found or no admin access"}), 403
@@ -235,9 +495,9 @@ def api_guild_info(guild_id):
         conn.close()
         
         return jsonify({
-            "id": str(guild.id),
-            "name": guild.name,
-            "icon": guild.icon_url,
+            "id": str(guild["id"]),
+            "name": guild["name"],
+            "icon": f"https://cdn.discordapp.com/icons/{guild['id']}/{guild['icon']}.png" if guild.get('icon') else None,
             "total_sessions": total_sessions,
             "active_users": active_users,
             "tier": tier,
@@ -247,13 +507,16 @@ def api_guild_info(guild_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/guild/<guild_id>/roles")
-@requires_authorization
+@login_required
 def api_guild_roles(guild_id):
     """Get guild roles using bot token."""
     try:
         # Verify user has access
-        guilds = discord.fetch_guilds()
-        guild = next((g for g in guilds if str(g.id) == guild_id and g.permissions.administrator), None)
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"error": "User not authenticated"}), 401
+        guilds_data = get_user_guilds_cached(user_data['id'])
+        guild = next((g for g in guilds_data if str(g["id"]) == guild_id and g.get("permissions", 0) & 0x8), None)
         
         if not guild:
             return jsonify({"error": "Guild not found or no admin access"}), 403
@@ -291,13 +554,16 @@ def api_guild_roles(guild_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/guild/<guild_id>/members")
-@requires_authorization  
+@login_required  
 def api_guild_members(guild_id):
     """Get guild members using bot token with fallback for missing privileged intents."""
     try:
         # Verify user has access
-        guilds = discord.fetch_guilds()
-        guild = next((g for g in guilds if str(g.id) == guild_id and g.permissions.administrator), None)
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"error": "User not authenticated"}), 401
+        guilds_data = get_user_guilds_cached(user_data['id'])
+        guild = next((g for g in guilds_data if str(g["id"]) == guild_id and g.get("permissions", 0) & 0x8), None)
         
         if not guild:
             return jsonify({"error": "Guild not found or no admin access"}), 403
@@ -367,13 +633,16 @@ def api_guild_members(guild_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/guild/<guild_id>/settings", methods=["GET"])
-@requires_authorization
+@login_required
 def api_guild_settings_get(guild_id):
     """Get guild settings."""
     try:
         # Verify user has access
-        guilds = discord.fetch_guilds()
-        guild = next((g for g in guilds if str(g.id) == guild_id and g.permissions.administrator), None)
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"error": "User not authenticated"}), 401
+        guilds_data = get_user_guilds_cached(user_data['id'])
+        guild = next((g for g in guilds_data if str(g["id"]) == guild_id and g.get("permissions", 0) & 0x8), None)
         
         if not guild:
             return jsonify({"error": "Guild not found or no admin access"}), 403
@@ -413,13 +682,16 @@ def api_guild_settings_get(guild_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/guild/<guild_id>/settings", methods=["POST"])
-@requires_authorization
+@login_required
 def api_guild_settings_post(guild_id):
     """Save guild settings."""
     try:
         # Verify user has access
-        guilds = discord.fetch_guilds()
-        guild = next((g for g in guilds if str(g.id) == guild_id and g.permissions.administrator), None)
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"error": "User not authenticated"}), 401
+        guilds_data = get_user_guilds_cached(user_data['id'])
+        guild = next((g for g in guilds_data if str(g["id"]) == guild_id and g.get("permissions", 0) & 0x8), None)
         
         if not guild:
             return jsonify({"error": "Guild not found or no admin access"}), 403
@@ -465,11 +737,74 @@ def api_guild_settings_post(guild_id):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/logout/")
+@app.route("/auth/finalize")
+def auth_finalize():
+    """Finalize authentication with new session ID using secure one-time token."""
+    token = request.args.get('token')
+    if not token:
+        print("❌ Missing finalize token")
+        return redirect(url_for("index"))
+    
+    # Verify and consume one-time token
+    user_id = verify_and_consume_finalize_token(token)
+    if not user_id:
+        print("❌ Invalid or expired finalize token")
+        return redirect(url_for("index"))
+    
+    # Retrieve user data from server-side storage
+    cached_data = get_user_session_data(user_id)
+    if not cached_data:
+        print("❌ No cached user data found during finalize")
+        return redirect(url_for("index"))
+    
+    user_data = cached_data.get('user_data')
+    if not user_data:
+        print("❌ Invalid cached user data during finalize")
+        return redirect(url_for("index"))
+    
+    # Set user session data in new session with new SID
+    session['user'] = {
+        'id': user_data['id'],
+        'username': user_data['username'],
+        'discriminator': user_data.get('discriminator', '0000'),
+        'avatar': user_data.get('avatar'),
+        'email': user_data.get('email')
+    }
+    session.permanent = True
+    session.modified = True  # Ensure Flask issues new session cookie
+    
+    print(f"✅ Authentication finalized with new SID for: {user_data['username']}")
+    return redirect(url_for('dashboard'))
+
+@app.route("/logout")
 def logout():
-    """Logout and revoke Discord session."""
-    discord.revoke()
-    return redirect(url_for("index"))
+    """Logout with comprehensive session cleanup."""
+    user_data = session.get('user')
+    if user_data:
+        # Clear server-side session data
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM user_sessions WHERE user_id = ?", (user_data['id'],))
+        conn.commit()
+        conn.close()
+        print(f"✅ Cleared server-side session data for user {user_data['id']}")
+    
+    # Clear client session and rotate session ID for security
+    session.clear()
+    print("✅ User logged out - all session data cleared")
+    
+    # Create response that properly deletes session cookie
+    response = make_response(redirect(url_for("index")))
+    
+    # Use Flask's session cookie configuration for proper deletion
+    cookie_name = app.config.get('SESSION_COOKIE_NAME', getattr(app, 'session_cookie_name', 'session'))
+    cookie_domain = app.config.get('SESSION_COOKIE_DOMAIN')
+    cookie_path = app.config.get('SESSION_COOKIE_PATH', '/')
+    
+    response.delete_cookie(cookie_name, path=cookie_path, domain=cookie_domain)
+    
+    print("✅ Session cookie properly deleted with all attributes")
+    return response
 
 if __name__ == "__main__":
     print("🚀 Starting Flask Dashboard Server...")
