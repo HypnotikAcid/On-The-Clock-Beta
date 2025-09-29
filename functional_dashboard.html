@@ -1601,10 +1601,51 @@
             }
         }
 
-        function logout() {
-            isLoggedIn = false;
-            currentUser = null;
-            updateAuthUI();
+        async function logout() {
+            try {
+                // Show loading state
+                const logoutBtn = document.querySelector('button[onclick="logout()"]');
+                if (logoutBtn) {
+                    logoutBtn.textContent = 'Logging out...';
+                    logoutBtn.disabled = true;
+                }
+                
+                // Call logout API endpoint
+                const response = await fetch('/api/logout', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                // Clear client-side data regardless of API response
+                localStorage.clear();
+                sessionStorage.clear();
+                isLoggedIn = false;
+                currentUser = null;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('🔄 Logout successful:', data.message);
+                    
+                    // Redirect to main dashboard page
+                    window.location.href = data.redirect || '/';
+                } else {
+                    console.warn('⚠️ Logout API failed, but cleared local data');
+                    // Still redirect even if API failed
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('❌ Logout error:', error);
+                
+                // Clear local data and redirect even on error
+                localStorage.clear();
+                sessionStorage.clear();
+                isLoggedIn = false;
+                currentUser = null;
+                window.location.href = '/';
+            }
         }
 
         function updateAuthUI() {

@@ -1711,6 +1711,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Route API endpoints
             if self.path == "/api/user":
                 self.handle_api_user(session)
+            elif self.path == "/api/logout":
+                self.handle_api_logout(session)
             elif self.path.startswith("/api/guild/"):
                 # Parse guild-specific endpoints
                 path_parts = self.path.split("/")
@@ -1773,6 +1775,46 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         })
         
         self.send_json_response(user_data)
+
+    def handle_api_logout(self, session: Dict):
+        """Handle /api/logout endpoint - Clear session and logout user"""
+        try:
+            session_id = self.get_session_id()
+            
+            # Delete the user session from database
+            if session_id:
+                delete_success = delete_user_session(session_id)
+                print(f"🔄 Logout: Session deletion {'successful' if delete_success else 'failed'} for user {session.get('username', 'unknown')}")
+            
+            # Clear the session cookie
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            
+            # Clear session cookies (both current and legacy)
+            self.send_header('Set-Cookie', 'otc_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0')
+            self.send_header('Set-Cookie', 'session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0')
+            
+            # Add cache control headers to prevent caching
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+            
+            # Add Clear-Site-Data header for thorough cleanup
+            self.send_header('Clear-Site-Data', '"cache", "cookies", "storage"')
+            
+            self.end_headers()
+            
+            response_data = {
+                "success": True,
+                "message": "Logged out successfully",
+                "redirect": "/"
+            }
+            
+            self.wfile.write(json.dumps(response_data).encode('utf-8'))
+            
+        except Exception as e:
+            print(f"❌ Logout error: {e}")
+            self.send_json_response({"error": "Logout failed"}, 500)
 
     def handle_api_guild(self, session: Dict, guild_id_str: str):
         """Handle /api/guild/{id} endpoint"""
