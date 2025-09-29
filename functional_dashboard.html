@@ -2340,6 +2340,191 @@
                     ${rolesHtml}
                 </div>
             `;
+            
+            // Apply role-based access control to UI elements
+            applyRoleBasedAccessControl(timeclock_access);
+        }
+
+        // Apply role-based access control to dashboard UI elements
+        function applyRoleBasedAccessControl(timeclockAccess) {
+            const hasAdminAccess = timeclockAccess.admin || false;
+            const hasAnyAccess = timeclockAccess.admin || timeclockAccess.employee || false;
+            
+            // Role Management Section - only show to admins
+            const roleManagementSection = document.getElementById('roleManagement');
+            if (roleManagementSection) {
+                // Remove any existing access denied overlay (for idempotency)
+                const existingOverlay = roleManagementSection.querySelector('.access-denied-overlay');
+                if (existingOverlay) {
+                    existingOverlay.remove();
+                }
+                
+                if (hasAdminAccess) {
+                    // Enable role management for admins
+                    roleManagementSection.style.display = 'block';
+                    roleManagementSection.style.opacity = '1';
+                    roleManagementSection.style.filter = 'none';
+                    roleManagementSection.style.pointerEvents = 'auto';
+                    roleManagementSection.style.position = '';
+                } else {
+                    // Show but disabled for non-admins
+                    roleManagementSection.style.display = 'block';
+                    roleManagementSection.style.opacity = '0.5';
+                    roleManagementSection.style.filter = 'blur(2px)';
+                    roleManagementSection.style.pointerEvents = 'none';
+                    roleManagementSection.style.position = 'relative';
+                    
+                    // Add an overlay message
+                    const overlay = document.createElement('div');
+                    overlay.className = 'access-denied-overlay';
+                    overlay.style.cssText = `
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: rgba(0, 0, 0, 0.8);
+                        color: #ff6b6b;
+                        padding: 1rem 2rem;
+                        border-radius: 8px;
+                        text-align: center;
+                        font-weight: bold;
+                        z-index: 10;
+                        border: 2px solid #ff6b6b;
+                    `;
+                    overlay.innerHTML = `
+                        <div style="font-size: 1.2rem; margin-bottom: 0.5rem;">🔒 Admin Access Required</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8;">You need admin permissions to manage roles</div>
+                    `;
+                    
+                    roleManagementSection.appendChild(overlay);
+                }
+            }
+            
+            // Settings buttons and forms - apply access control
+            const settingsForm = document.querySelector('.settings-grid');
+            if (settingsForm) {
+                if (hasAdminAccess) {
+                    // Enable settings for admins
+                    settingsForm.style.opacity = '1';
+                    settingsForm.style.pointerEvents = 'auto';
+                    
+                    // Remove any existing access denied messages
+                    const existingMessage = settingsForm.querySelector('.settings-access-message');
+                    if (existingMessage) {
+                        existingMessage.remove();
+                    }
+                    
+                    // Re-enable all form inputs
+                    const inputs = settingsForm.querySelectorAll('input, select, button');
+                    inputs.forEach(input => {
+                        input.disabled = false;
+                        input.style.cursor = 'pointer';
+                        input.removeAttribute('aria-disabled');
+                    });
+                } else {
+                    // Disable settings for non-admins
+                    settingsForm.style.opacity = '0.6';
+                    settingsForm.style.pointerEvents = 'none';
+                    
+                    // Add subtle message for non-admins
+                    const existingMessage = settingsForm.querySelector('.settings-access-message');
+                    if (!existingMessage) {
+                        const message = document.createElement('div');
+                        message.className = 'settings-access-message';
+                        message.style.cssText = `
+                            background: rgba(255, 107, 107, 0.1);
+                            border: 1px solid rgba(255, 107, 107, 0.3);
+                            color: #ff6b6b;
+                            padding: 0.75rem;
+                            border-radius: 8px;
+                            margin-bottom: 1rem;
+                            font-size: 0.9rem;
+                            text-align: center;
+                        `;
+                        message.textContent = '⚠️ Settings changes require admin permissions';
+                        settingsForm.insertBefore(message, settingsForm.firstChild);
+                    }
+                    
+                    // Truly disable form inputs for non-admins
+                    const inputs = settingsForm.querySelectorAll('input, select, button');
+                    inputs.forEach(input => {
+                        input.disabled = true;
+                        input.setAttribute('aria-disabled', 'true');
+                        input.style.cursor = 'not-allowed';
+                    });
+                }
+            }
+            
+            // Update access indicator in the interface
+            updateAccessIndicator(hasAdminAccess, hasAnyAccess);
+        }
+
+        // Update access indicator in the dashboard
+        function updateAccessIndicator(hasAdminAccess, hasAnyAccess) {
+            // Find or create access indicator
+            let accessIndicator = document.getElementById('dashboardAccessIndicator');
+            if (!accessIndicator) {
+                accessIndicator = document.createElement('div');
+                accessIndicator.id = 'dashboardAccessIndicator';
+                accessIndicator.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    padding: 0.75rem 1.25rem;
+                    border-radius: 25px;
+                    font-size: 0.9rem;
+                    font-weight: bold;
+                    z-index: 1000;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                    backdrop-filter: blur(8px);
+                    transition: all 0.3s ease;
+                    cursor: pointer;
+                    user-select: none;
+                `;
+                
+                // Add hover effect for the indicator
+                accessIndicator.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.05)';
+                    this.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.5)';
+                });
+                
+                accessIndicator.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+                });
+                
+                document.body.appendChild(accessIndicator);
+            }
+            
+            // Update indicator based on access level
+            if (hasAdminAccess) {
+                accessIndicator.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(16, 185, 129, 0.95))';
+                accessIndicator.style.color = '#ffffff';
+                accessIndicator.style.border = '2px solid rgba(34, 197, 94, 0.8)';
+                accessIndicator.innerHTML = '🔧 Admin Access';
+                accessIndicator.title = 'You have full administrative access to this server';
+            } else if (hasAnyAccess) {
+                accessIndicator.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))';
+                accessIndicator.style.color = '#ffffff';
+                accessIndicator.style.border = '2px solid rgba(59, 130, 246, 0.8)';
+                accessIndicator.innerHTML = '⏰ Employee Access';
+                accessIndicator.title = 'You have employee-level access to timeclock functions';
+            } else {
+                accessIndicator.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95))';
+                accessIndicator.style.color = '#ffffff';
+                accessIndicator.style.border = '2px solid rgba(239, 68, 68, 0.8)';
+                accessIndicator.innerHTML = '🚫 Limited Access';
+                accessIndicator.title = 'You have limited access - contact an admin for permissions';
+            }
+            
+            // Show the indicator with a slight animation
+            accessIndicator.style.opacity = '0';
+            accessIndicator.style.transform = 'translateY(-10px)';
+            
+            setTimeout(() => {
+                accessIndicator.style.opacity = '1';
+                accessIndicator.style.transform = 'translateY(0)';
+            }, 100);
         }
 
         // Load initial data
