@@ -17,6 +17,19 @@
             color: #e0e6ed;
             min-height: 100vh;
             overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Matrix Background Canvas */
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.08;
+            pointer-events: none;
         }
 
         /* Animated Background Gears */
@@ -1206,6 +1219,8 @@
     </style>
 </head>
 <body>
+    <!-- Matrix Digital Rain Background -->
+    <canvas id="matrixCanvas"></canvas>
     <!-- Animated Background Gears -->
     <svg class="gear-bg gear-1" viewBox="0 0 100 100">
         <path d="M50,10 L60,20 L70,15 L75,25 L85,30 L80,40 L90,50 L80,60 L85,70 L75,75 L70,85 L60,80 L50,90 L40,80 L30,85 L25,75 L15,70 L20,60 L10,50 L20,40 L15,30 L25,25 L30,15 L40,20 Z" fill="currentColor"/>
@@ -3185,6 +3200,81 @@
             
             // Check if user is already authenticated
             checkAuthStatus();
+        });
+    </script>
+
+    <!-- Matrix Digital Rain Effect Script -->
+    <script>
+        // Matrix Background Effect
+        const matrixCanvas = document.getElementById('matrixCanvas');
+        const ctx = matrixCanvas.getContext('2d');
+
+        // Set canvas size
+        function resizeCanvas() {
+            matrixCanvas.width = window.innerWidth;
+            matrixCanvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Matrix characters (mixed katakana, latin, numbers, symbols)
+        const matrixChars = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズヅブプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>?';
+        const chars = matrixChars.split('');
+
+        const fontSize = 14;
+        const columns = matrixCanvas.width / fontSize;
+        const drops = [];
+
+        // Initialize drops array
+        for (let x = 0; x < columns; x++) {
+            drops[x] = Math.random() * matrixCanvas.height / fontSize;
+        }
+
+        // Draw matrix rain
+        function drawMatrix() {
+            // Semi-transparent black background to create trail effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+            ctx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+            ctx.fillStyle = '#00D4FF'; // Brand cyan to match existing palette
+            ctx.font = fontSize + 'px "Courier New", monospace';
+
+            // Draw characters
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                const x = i * fontSize;
+                const y = drops[i] * fontSize;
+
+                // Add slight brightness variation with brand colors
+                const alpha = Math.random() * 0.3 + 0.7;
+                ctx.fillStyle = `rgba(0, 212, 255, ${alpha})`; // Brand cyan with alpha
+                ctx.fillText(text, x, y);
+
+                // Reset drop to top if it reaches bottom or randomly
+                if (y > matrixCanvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+
+                // Move drop down
+                drops[i]++;
+            }
+        }
+
+        // Start the matrix animation
+        function startMatrix() {
+            setInterval(drawMatrix, 35); // Adjust speed here
+        }
+
+        // Wait a moment for page to load, then start matrix
+        setTimeout(startMatrix, 500);
+
+        // Recalculate drops array when window resizes
+        window.addEventListener('resize', () => {
+            const newColumns = matrixCanvas.width / fontSize;
+            while (drops.length < newColumns) {
+                drops.push(Math.random() * matrixCanvas.height / fontSize);
+            }
+            drops.length = newColumns;
         });
     </script>
 </body>
