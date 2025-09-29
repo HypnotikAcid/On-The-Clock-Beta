@@ -1738,7 +1738,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def handle_api_get_recipients(self, session, guild_id_str):
         """Handle GET /api/guild/{id}/recipients - Get current report recipients"""
         try:
-            guild_id = int(guild_id_str)
+            # Validate guild ID format
+            try:
+                guild_id = int(guild_id_str)
+            except ValueError:
+                self.send_json_response({'error': 'Invalid guild ID format'}, 400)
+                return
             
             # Check if user has access to this guild
             user_guild = None
@@ -1748,12 +1753,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     break
                     
             if not user_guild:
-                self.send_json_response({'error': 'Guild not found'}, 404)
+                self.send_json_response({'error': 'Access denied: Guild not found in user permissions'}, 403)
                 return
             
-            # Check admin permissions
+            # CRITICAL: Check admin permissions for this specific guild
             if not self.user_has_dashboard_admin_access(session['user_id'], guild_id, user_guild):
-                self.send_json_response({'error': 'Admin access required'}, 403)
+                self.send_json_response({'error': 'Insufficient permissions: Admin access required for recipients management'}, 403)
                 return
             
             # Get all recipients
@@ -1884,11 +1889,21 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         self.send_json_response({'error': 'user_id required for discord recipients'}, 400)
                         return
                     
-                    success = add_report_recipient(guild_id, 'discord', user_id, None)
+                    # Validate Discord user ID format (should be numeric string)
+                    try:
+                        discord_user_id = int(user_id)
+                        if discord_user_id <= 0:
+                            self.send_json_response({'error': 'Invalid Discord user ID: must be positive integer'}, 400)
+                            return
+                    except (ValueError, TypeError):
+                        self.send_json_response({'error': 'Invalid Discord user ID format: must be numeric'}, 400)
+                        return
+                    
+                    success = add_report_recipient(guild_id, 'discord', str(discord_user_id), None)
                     if success:
                         self.send_json_response({'message': 'Discord recipient added successfully'})
                     else:
-                        self.send_json_response({'error': 'Recipient already exists'}, 409)
+                        self.send_json_response({'error': 'Recipient already exists for this guild'}, 409)
                         
                 elif recipient_type == 'email':
                     email = data.get('email')
@@ -1896,26 +1911,54 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         self.send_json_response({'error': 'email required for email recipients'}, 400)
                         return
                     
-                    success = add_report_recipient(guild_id, 'email', None, email)
+                    # Basic email validation (RFC-like check)
+                    if not isinstance(email, str) or '@' not in email or len(email) < 5 or len(email) > 254:
+                        self.send_json_response({'error': 'Invalid email format'}, 400)
+                        return
+                    
+                    # Additional email format checks
+                    email_parts = email.split('@')
+                    if len(email_parts) != 2 or not email_parts[0] or not email_parts[1] or '.' not in email_parts[1]:
+                        self.send_json_response({'error': 'Invalid email format: must contain valid local and domain parts'}, 400)
+                        return
+                    
+                    success = add_report_recipient(guild_id, 'email', None, email.lower().strip())
                     if success:
                         self.send_json_response({'message': 'Email recipient added successfully'})
                     else:
-                        self.send_json_response({'error': 'Recipient already exists'}, 409)
+                        self.send_json_response({'error': 'Email recipient already exists for this guild'}, 409)
             
             elif action == 'remove':
                 if recipient_type == 'discord':
                     user_id = data.get('user_id')
                     if not user_id:
-                        self.send_json_response({'error': 'user_id required'}, 400)
+                        self.send_json_response({'error': 'user_id required for Discord recipient removal'}, 400)
                         return
-                    remove_report_recipient(guild_id, 'discord', user_id, None)
+                    
+                    # Validate Discord user ID format for removal
+                    try:
+                        discord_user_id = int(user_id)
+                        if discord_user_id <= 0:
+                            self.send_json_response({'error': 'Invalid Discord user ID for removal'}, 400)
+                            return
+                    except (ValueError, TypeError):
+                        self.send_json_response({'error': 'Invalid Discord user ID format for removal'}, 400)
+                        return
+                    
+                    remove_report_recipient(guild_id, 'discord', str(discord_user_id), None)
                     
                 elif recipient_type == 'email':
                     email = data.get('email')
                     if not email:
-                        self.send_json_response({'error': 'email required'}, 400)
+                        self.send_json_response({'error': 'email required for email recipient removal'}, 400)
                         return
-                    remove_report_recipient(guild_id, 'email', None, email)
+                    
+                    # Basic validation for email removal
+                    if not isinstance(email, str) or '@' not in email:
+                        self.send_json_response({'error': 'Invalid email format for removal'}, 400)
+                        return
+                    
+                    remove_report_recipient(guild_id, 'email', None, email.lower().strip())
                 
                 self.send_json_response({'message': 'Recipient removed successfully'})
                 
