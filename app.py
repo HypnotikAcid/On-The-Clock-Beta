@@ -19,21 +19,33 @@ app.config["DISCORD_CLIENT_SECRET"] = os.environ.get("DISCORD_CLIENT_SECRET")
 def get_base_url():
     """Get the base URL for the current environment."""
     if os.environ.get("REPLIT_ENVIRONMENT") == "production":
-        # Production domain
+        # Production domain - always HTTPS
         return "https://on-the-clock.replit.app"
     else:
-        # Development/preview domain
+        # Development/preview domain - always HTTPS on Replit
         domains = os.environ.get("REPLIT_DOMAINS", "").split(",")
         if domains and domains[0]:
             return f"https://{domains[0].strip()}"
-        return "http://localhost:5000"  # Local fallback
+        return "http://localhost:5000"  # Local fallback only
 
-# Set redirect URI dynamically - override if needed
-app.config["DISCORD_REDIRECT_URI"] = os.environ.get("DISCORD_REDIRECT_URI") or f"{get_base_url()}/callback"
+# Set redirect URI dynamically - ensure HTTPS in production
+redirect_uri = os.environ.get("DISCORD_REDIRECT_URI") or f"{get_base_url()}/callback"
+# Force HTTPS in production to fix OAuth insecure_transport error
+if os.environ.get("REPLIT_ENVIRONMENT") == "production" and redirect_uri.startswith("http://"):
+    redirect_uri = redirect_uri.replace("http://", "https://")
+
+app.config["DISCORD_REDIRECT_URI"] = redirect_uri
 app.config["DISCORD_BOT_TOKEN"] = os.environ.get("DISCORD_TOKEN")
 
 # Initialize Discord OAuth session
 discord = DiscordOAuth2Session(app)
+
+# Fix for Replit HTTPS proxy - ensure secure transport
+import os
+if os.environ.get("REPLIT_ENVIRONMENT") == "production":
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'  # Enforce HTTPS
+else:
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Allow HTTP in dev
 
 # Discord API cache
 discord_cache = {}
