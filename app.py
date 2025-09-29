@@ -464,6 +464,28 @@ def api_guild_settings_post(guild_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/auth/callback-test')
+def callback_test():
+    """Test callback handler - redirects OAuth code to JWT test server"""
+    code = request.args.get('code')
+    if code:
+        # Redirect to test server running on port 3001
+        test_callback_url = f"http://172.31.100.194:3001/auth/callback?code={code}"
+        return f'''
+        <html><body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+        <h2>🧪 JWT Test - OAuth Code Received</h2>
+        <p><strong>Code:</strong> {code[:20]}...</p>
+        <p>Redirecting to JWT test server...</p>
+        <script>
+            setTimeout(() => {{
+                window.location.href = "{test_callback_url}";
+            }}, 2000);
+        </script>
+        <p><a href="{test_callback_url}">Click here if not redirected automatically</a></p>
+        </body></html>
+        '''
+    return redirect('/')
+
 @app.route("/logout/")
 def logout():
     """Logout and revoke Discord session."""

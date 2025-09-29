@@ -24,10 +24,10 @@ JWT_ALGORITHM = 'HS256'
 # Discord OAuth Configuration (using same credentials as main app)
 DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
-DISCORD_REDIRECT_URI = f"http://localhost:5001/auth/callback"
+DISCORD_REDIRECT_URI = f"http://localhost:3001/auth/callback"
 
 if os.environ.get("REPLIT_ENVIRONMENT") == "production":
-    DISCORD_REDIRECT_URI = f"https://on-the-clock.replit.app:5001/auth/callback"
+    DISCORD_REDIRECT_URI = f"https://on-the-clock.replit.app/auth/callback-test"
 
 print(f"🧪 JWT Test Configuration:")
 print(f"   Client ID: {DISCORD_CLIENT_ID}")
@@ -340,8 +340,8 @@ def test_api_guilds():
 
 if __name__ == '__main__':
     print("🧪 Starting JWT + Discord OAuth Test Server...")
-    print("📡 Test URL: http://localhost:5001")
+    print("📡 Test URL: http://localhost:3001")
     print("🎯 This tests the JWT approach without modifying your main app")
     print("=" * 60)
     
-    test_app.run(host='0.0.0.0', port=5001, debug=True)
+    test_app.run(host='0.0.0.0', port=3001, debug=True)
