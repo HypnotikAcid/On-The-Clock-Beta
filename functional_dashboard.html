@@ -1438,19 +1438,32 @@
         </div>
         
         <div class="settings-grid">
-            <!-- User Role Status Section -->
-            <div class="settings-section">
-                <h3>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                        <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
-                    </svg>
-                    Your Role Status
+            <!-- User Role Status Section (Enhanced) -->
+            <div class="settings-section" style="border: 2px solid rgba(88, 101, 242, 0.3); background: linear-gradient(135deg, rgba(88, 101, 242, 0.05), rgba(59, 130, 246, 0.05));">
+                <h3 style="color: #5865F2; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                        </svg>
+                        Your Role Status & Permissions
+                    </span>
+                    <div id="quickAccessBadge" style="font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: bold;">
+                        <!-- Quick access level indicator -->
+                    </div>
                 </h3>
                 
                 <div id="userRoleStatus" class="user-role-container">
                     <div class="loading-indicator" id="roleLoadingIndicator">
                         <div class="spinner"></div>
                         <span>Loading your roles...</span>
+                    </div>
+                </div>
+                
+                <!-- Permission Summary -->
+                <div id="permissionSummary" style="margin-top: 1rem; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border-left: 4px solid #5865F2; display: none;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: #dcddde; font-size: 0.9rem;">What you can do in this server:</h4>
+                    <div id="permissionList" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <!-- Permission items will be populated dynamically -->
                     </div>
                 </div>
             </div>
@@ -2343,6 +2356,91 @@
             
             // Apply role-based access control to UI elements
             applyRoleBasedAccessControl(timeclock_access);
+            
+            // Update enhanced role status interface
+            updateEnhancedRoleStatus(timeclock_access, roles);
+        }
+
+        // Update enhanced role status interface with quick badge and permission summary
+        function updateEnhancedRoleStatus(timeclockAccess, roles) {
+            const hasAdminAccess = timeclockAccess.admin || false;
+            const hasEmployeeAccess = timeclockAccess.employee || false;
+            const hasAnyAccess = hasAdminAccess || hasEmployeeAccess;
+            
+            // Update quick access badge
+            const quickAccessBadge = document.getElementById('quickAccessBadge');
+            if (quickAccessBadge) {
+                if (hasAdminAccess) {
+                    quickAccessBadge.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    quickAccessBadge.style.color = '#ffffff';
+                    quickAccessBadge.textContent = '🔧 Admin';
+                } else if (hasEmployeeAccess) {
+                    quickAccessBadge.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+                    quickAccessBadge.style.color = '#ffffff';
+                    quickAccessBadge.textContent = '⏰ Employee';
+                } else {
+                    quickAccessBadge.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    quickAccessBadge.style.color = '#ffffff';
+                    quickAccessBadge.textContent = '🚫 Limited';
+                }
+            }
+            
+            // Update permission summary
+            const permissionSummary = document.getElementById('permissionSummary');
+            const permissionList = document.getElementById('permissionList');
+            
+            if (permissionSummary && permissionList) {
+                // Build permission list based on access level
+                const permissions = [];
+                
+                if (hasAdminAccess) {
+                    permissions.push(
+                        { icon: '⚙️', text: 'Manage server timeclock settings', color: '#10b981' },
+                        { icon: '👥', text: 'Add and remove admin/employee roles', color: '#10b981' },
+                        { icon: '📊', text: 'Generate and view all timesheet reports', color: '#10b981' },
+                        { icon: '⏰', text: 'Use timeclock functions (clock in/out)', color: '#10b981' },
+                        { icon: '💳', text: 'Manage subscription and billing', color: '#10b981' },
+                        { icon: '🗑️', text: 'Access data cleanup and purge functions', color: '#10b981' }
+                    );
+                } else if (hasEmployeeAccess) {
+                    permissions.push(
+                        { icon: '⏰', text: 'Use timeclock functions (clock in/out)', color: '#3b82f6' },
+                        { icon: '📋', text: 'View your own timesheet history', color: '#3b82f6' },
+                        { icon: '🔍', text: 'Access basic timeclock interface', color: '#3b82f6' }
+                    );
+                } else {
+                    permissions.push(
+                        { icon: '👀', text: 'View this dashboard (read-only)', color: '#6b7280' },
+                        { icon: '💬', text: 'Contact admins for access requests', color: '#6b7280' }
+                    );
+                }
+                
+                // Render permissions
+                permissionList.innerHTML = permissions.map(perm => `
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: ${perm.color}; font-size: 0.85rem;">
+                        <span style="font-size: 1rem;">${perm.icon}</span>
+                        <span>${perm.text}</span>
+                    </div>
+                `).join('');
+                
+                // Show the permission summary
+                permissionSummary.style.display = 'block';
+                
+                // Add role count if user has roles
+                if (roles && roles.length > 0) {
+                    const roleCountInfo = document.createElement('div');
+                    roleCountInfo.style.cssText = `
+                        margin-top: 0.75rem; 
+                        padding-top: 0.75rem; 
+                        border-top: 1px solid rgba(255, 255, 255, 0.1); 
+                        color: #b0b0b0; 
+                        font-size: 0.8rem;
+                        text-align: center;
+                    `;
+                    roleCountInfo.innerHTML = `📊 You have <strong>${roles.length}</strong> role${roles.length !== 1 ? 's' : ''} in this server`;
+                    permissionSummary.appendChild(roleCountInfo);
+                }
+            }
         }
 
         // Apply role-based access control to dashboard UI elements
