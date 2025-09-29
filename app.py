@@ -11,10 +11,13 @@ app = Flask(__name__)
 # Security configuration - use environment variable for production consistency
 app.secret_key = os.environ.get('SECRET_KEY') or 'dev-fallback-key-change-in-production'
 
-# Session configuration for production
-app.config['SESSION_COOKIE_SECURE'] = os.environ.get('REPLIT_ENVIRONMENT') == 'production'
+# Session configuration for production - comprehensive Replit fix
+app.config['SESSION_COOKIE_SECURE'] = False  # Replit proxy requires this
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  
+app.config['SESSION_COOKIE_DOMAIN'] = None
+app.config['SESSION_COOKIE_PATH'] = '/'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)  # 24 hour sessions
 
 # Discord OAuth2 configuration
 app.config["DISCORD_CLIENT_ID"] = os.environ.get("DISCORD_CLIENT_ID")
@@ -124,9 +127,15 @@ def login():
 def callback():
     """Handle OAuth callback from Discord."""
     try:
+        print(f"🔧 OAuth callback started - Request args: {dict(request.args)}")
         discord.callback()
+        # Make session permanent to ensure persistence
+        session.permanent = True
+        print(f"🔧 OAuth callback successful - Session: {dict(session)}")
+        print(f"🔧 Discord token in session: {'DISCORD_TOKEN' in session}")
         return redirect(url_for("dashboard"))
     except Exception as e:
+        print(f"❌ OAuth callback error: {str(e)}")
         return f"OAuth Error: {str(e)}", 400
 
 @app.route("/dashboard/")
