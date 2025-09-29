@@ -607,7 +607,9 @@
         // Load user data and servers
         async function loadUserData() {
             try {
-                const response = await fetch('/api/user');
+                const response = await fetch('/api/user', {
+                    credentials: 'include'
+                });
                 if (response.ok) {
                     userData = await response.json();
                     displayServers(userData.guilds);
@@ -666,7 +668,9 @@
             
             // Load detailed server info
             try {
-                const response = await fetch(`/api/guild/${guildId}`);
+                const response = await fetch(`/api/guild/${guildId}`, {
+                    credentials: 'include'
+                });
                 if (response.ok) {
                     const guildData = await response.json();
                     updateServerStats(guildData);
@@ -704,9 +708,9 @@
             try {
                 // Load current settings and available roles/members
                 const [settingsResponse, rolesResponse, membersResponse] = await Promise.all([
-                    fetch(`/api/guild/${currentGuildId}/settings`),
-                    fetch(`/api/guild/${currentGuildId}/roles`),
-                    fetch(`/api/guild/${currentGuildId}/members`)
+                    fetch(`/api/guild/${currentGuildId}/settings`, { credentials: 'include' }),
+                    fetch(`/api/guild/${currentGuildId}/roles`, { credentials: 'include' }),
+                    fetch(`/api/guild/${currentGuildId}/members`, { credentials: 'include' })
                 ]);
                 
                 if (settingsResponse.ok && rolesResponse.ok && membersResponse.ok) {
@@ -858,6 +862,7 @@
             try {
                 const response = await fetch(`/api/guild/${currentGuildId}/settings`, {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
