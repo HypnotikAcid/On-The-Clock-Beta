@@ -1812,7 +1812,7 @@
                             <select id="discordUserSelect" class="role-dropdown">
                                 <option value="">Select a user...</option>
                             </select>
-                            <button id="addDiscordRecipientBtn" class="arrow-btn" onclick="addDiscordRecipient()" title="Add Discord Recipient" disabled>
+                            <button id="addDiscordRecipientBtn" class="arrow-btn" onclick="addDiscordRecipient()" title="Add Discord Recipient">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M13,14H11V10H7V8H11V4H13V8H17V10H13V14M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/>
                                 </svg>
@@ -1844,7 +1844,7 @@
                     <div class="role-management-row">
                         <div class="role-selection">
                             <input type="email" id="customEmailInput" class="email-input" placeholder="Enter email address...">
-                            <button id="addEmailRecipientBtn" class="arrow-btn" onclick="addEmailRecipient()" title="Add Email Recipient" disabled>
+                            <button id="addEmailRecipientBtn" class="arrow-btn" onclick="addEmailRecipient()" title="Add Email Recipient">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M13,14H11V10H7V8H11V4H13V8H17V10H13V14M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/>
                                 </svg>
@@ -2435,6 +2435,10 @@
                     availableRoles = [];
                 }
                 
+                // Load recipients for this guild
+                currentGuildId = serverId;
+                await loadRecipients();
+                
                 // Populate current roles
                 populateCurrentRoles(adminRoles, employeeRoles);
                 
@@ -2710,112 +2714,249 @@
         }
 
         // Add Discord recipient
-        function addDiscordRecipient() {
+        async function addDiscordRecipient() {
             const select = document.getElementById('discordUserSelect');
-            const listbox = document.getElementById('discordRecipientsList');
             const userId = select.value;
             
             if (!userId) {
-                alert('Please select a user to add as a Discord recipient.');
+                showSettingsMessage('Please select a user to add as a Discord recipient.', 'warning');
                 return;
             }
             
-            // Check if user is already in the list
-            const existingOptions = Array.from(listbox.options);
-            if (existingOptions.some(option => option.value === userId)) {
-                alert('This user is already in the recipients list.');
-                return;
+            const addButton = document.getElementById('addDiscordRecipientBtn');
+            const originalText = addButton.innerHTML;
+            addButton.disabled = true;
+            addButton.innerHTML = '<div class="spinner"></div>';
+            
+            try {
+                const response = await fetch(`/api/guild/${currentGuildId}/recipients`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        action: 'add',
+                        recipient_type: 'discord',
+                        user_id: userId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSettingsMessage(result.message || 'Discord recipient added successfully!', 'success');
+                    select.value = '';
+                    // Reload recipients to reflect changes
+                    await loadRecipients();
+                } else {
+                    showSettingsMessage(result.error || 'Failed to add Discord recipient', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding Discord recipient:', error);
+                showSettingsMessage('Network error: Unable to add Discord recipient', 'error');
+            } finally {
+                addButton.disabled = false;
+                addButton.innerHTML = originalText;
             }
-            
-            // Add to listbox
-            const option = document.createElement('option');
-            option.value = userId;
-            option.textContent = select.options[select.selectedIndex].textContent;
-            listbox.appendChild(option);
-            
-            // Reset dropdown
-            select.value = '';
-            
-            // TODO: Backend integration needed - POST to /api/guild/{id}/recipients
-            // This will need new API endpoint and database schema for multi-recipients
-            showSettingsMessage('Discord recipient added (UI only - backend integration needed)', 'success');
         }
 
         // Remove selected Discord recipient
-        function removeSelectedDiscordRecipient() {
+        async function removeSelectedDiscordRecipient() {
             const listbox = document.getElementById('discordRecipientsList');
-            const selectedOptions = listbox.selectedOptions;
+            const selectedOptions = Array.from(listbox.selectedOptions);
             
             if (selectedOptions.length === 0) {
-                alert('Please select a recipient to remove from the list.');
+                showSettingsMessage('Please select a recipient to remove from the list.', 'warning');
                 return;
             }
             
-            if (confirm('Are you sure you want to remove the selected Discord recipients?')) {
-                Array.from(selectedOptions).forEach(option => {
-                    listbox.removeChild(option);
-                    // TODO: Backend integration needed - DELETE from recipients API
-                    showSettingsMessage('Discord recipient removed (UI only)', 'success');
-                });
+            if (!confirm('Are you sure you want to remove the selected Discord recipients?')) {
+                return;
             }
+            
+            for (const option of selectedOptions) {
+                try {
+                    const response = await fetch(`/api/guild/${currentGuildId}/recipients`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            action: 'remove',
+                            recipient_type: 'discord',
+                            user_id: option.value
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        showSettingsMessage(result.message || 'Discord recipient removed successfully!', 'success');
+                    } else {
+                        showSettingsMessage(result.error || 'Failed to remove Discord recipient', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error removing Discord recipient:', error);
+                    showSettingsMessage('Network error: Unable to remove Discord recipient', 'error');
+                }
+            }
+            
+            // Reload recipients to reflect changes
+            await loadRecipients();
         }
 
         // Add Email recipient
-        function addEmailRecipient() {
+        async function addEmailRecipient() {
             const input = document.getElementById('customEmailInput');
-            const listbox = document.getElementById('emailRecipientsList');
             const email = input.value.trim();
             
             if (!email) {
-                alert('Please enter an email address.');
+                showSettingsMessage('Please enter an email address.', 'warning');
                 return;
             }
             
             // Basic email validation
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
-                alert('Please enter a valid email address.');
+                showSettingsMessage('Please enter a valid email address.', 'warning');
                 return;
             }
             
-            // Check if email is already in the list
-            const existingOptions = Array.from(listbox.options);
-            if (existingOptions.some(option => option.value === email)) {
-                alert('This email address is already in the recipients list.');
-                return;
+            const addButton = document.getElementById('addEmailRecipientBtn');
+            const originalText = addButton.innerHTML;
+            addButton.disabled = true;
+            addButton.innerHTML = '<div class="spinner"></div>';
+            
+            try {
+                const response = await fetch(`/api/guild/${currentGuildId}/recipients`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        action: 'add',
+                        recipient_type: 'email',
+                        email: email
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSettingsMessage(result.message || 'Email recipient added successfully!', 'success');
+                    input.value = '';
+                    // Reload recipients to reflect changes
+                    await loadRecipients();
+                } else {
+                    showSettingsMessage(result.error || 'Failed to add email recipient', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding email recipient:', error);
+                showSettingsMessage('Network error: Unable to add email recipient', 'error');
+            } finally {
+                addButton.disabled = false;
+                addButton.innerHTML = originalText;
             }
-            
-            // Add to listbox
-            const option = document.createElement('option');
-            option.value = email;
-            option.textContent = email;
-            listbox.appendChild(option);
-            
-            // Clear input
-            input.value = '';
-            
-            // TODO: Backend integration needed - POST to /api/guild/{id}/email-recipients  
-            // This will need new API endpoint, database schema, and email integration setup
-            showSettingsMessage('Email recipient added (UI only - backend integration needed)', 'success');
         }
 
         // Remove selected email recipient
-        function removeSelectedEmailRecipient() {
+        async function removeSelectedEmailRecipient() {
             const listbox = document.getElementById('emailRecipientsList');
-            const selectedOptions = listbox.selectedOptions;
+            const selectedOptions = Array.from(listbox.selectedOptions);
             
             if (selectedOptions.length === 0) {
-                alert('Please select an email to remove from the list.');
+                showSettingsMessage('Please select an email to remove from the list.', 'warning');
                 return;
             }
             
-            if (confirm('Are you sure you want to remove the selected email recipients?')) {
-                Array.from(selectedOptions).forEach(option => {
-                    listbox.removeChild(option);
+            if (!confirm('Are you sure you want to remove the selected email recipients?')) {
+                return;
+            }
             
-                    // TODO: Backend integration needed - DELETE from email recipients API
-                    showSettingsMessage('Email recipient removed (UI only)', 'success');
+            for (const option of selectedOptions) {
+                try {
+                    const response = await fetch(`/api/guild/${currentGuildId}/recipients`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            action: 'remove',
+                            recipient_type: 'email',
+                            email: option.value
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        showSettingsMessage(result.message || 'Email recipient removed successfully!', 'success');
+                    } else {
+                        showSettingsMessage(result.error || 'Failed to remove email recipient', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error removing email recipient:', error);
+                    showSettingsMessage('Network error: Unable to remove email recipient', 'error');
+                }
+            }
+            
+            // Reload recipients to reflect changes
+            await loadRecipients();
+        }
+
+        // Load recipients from backend
+        async function loadRecipients() {
+            try {
+                const response = await fetch(`/api/guild/${currentGuildId}/recipients`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
                 });
+                
+                if (!response.ok) {
+                    console.error('Failed to load recipients:', response.status);
+                    return;
+                }
+                
+                const recipients = await response.json();
+                
+                // Clear existing lists
+                const discordList = document.getElementById('discordRecipientsList');
+                const emailList = document.getElementById('emailRecipientsList');
+                discordList.innerHTML = '';
+                emailList.innerHTML = '';
+                
+                // Populate Discord recipients
+                recipients
+                    .filter(r => r.recipient_type === 'discord')
+                    .forEach(recipient => {
+                        const option = document.createElement('option');
+                        option.value = recipient.recipient_id;
+                        option.textContent = `User ID: ${recipient.recipient_id}`;
+                        discordList.appendChild(option);
+                    });
+                
+                // Populate Email recipients
+                recipients
+                    .filter(r => r.recipient_type === 'email')
+                    .forEach(recipient => {
+                        const option = document.createElement('option');
+                        option.value = recipient.email_address;
+                        option.textContent = recipient.email_address;
+                        emailList.appendChild(option);
+                    });
+                    
+                console.log(`Loaded ${recipients.length} recipients for guild ${currentGuildId}`);
+                
+            } catch (error) {
+                console.error('Error loading recipients:', error);
+                showSettingsMessage('Unable to load recipients list', 'error');
             }
         }
 
