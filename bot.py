@@ -3157,7 +3157,8 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
             try:
                 # Send email notification
                 guild_name = interaction.guild.name if interaction.guild else "Unknown Server"
-                user_name = get_user_display_name(interaction.user, guild_id)
+                # In guild interactions, user is always a Member
+                user_name = get_user_display_name(interaction.user, guild_id)  # type: ignore[arg-type]
                 
                 # Create plain text email content
                 email_text = f"""
