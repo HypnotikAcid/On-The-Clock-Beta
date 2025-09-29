@@ -3005,7 +3005,7 @@ class TimeClockView(discord.ui.View):
             
             try:
                 from zoneinfo import ZoneInfo
-                guild_tz = ZoneInfo(tz_name)
+                guild_tz = ZoneInfo(tz_name or DEFAULT_TZ)
             except (ImportError, Exception):
                 # If timezone or ZoneInfo import fails, fallback to EST instead of UTC
                 try:
@@ -4555,7 +4555,7 @@ async def generate_report(
     # Convert date range to UTC boundaries for proper filtering
     try:
         from zoneinfo import ZoneInfo
-        guild_tz = ZoneInfo(guild_tz_name)
+        guild_tz = ZoneInfo(guild_tz_name or DEFAULT_TZ)
     except Exception:
         guild_tz = timezone.utc
         guild_tz_name = "UTC"  # Use actual UTC if timezone is invalid
@@ -4580,7 +4580,7 @@ async def generate_report(
         return
     
     # Generate single CSV
-    csv_content = await generate_csv_report(bot, sessions_data, guild_id, guild_tz_name)
+    csv_content = await generate_csv_report(bot, sessions_data, guild_id, guild_tz_name or DEFAULT_TZ)
     
     # Create file using display name preference at the beginning
     user_display_name = get_user_display_name(user, guild_id)
