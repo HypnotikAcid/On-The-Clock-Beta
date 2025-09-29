@@ -1,7 +1,9 @@
 import os
 import sqlite3
 import json
+import secrets
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 from flask import Flask, redirect, url_for, render_template, session, request, jsonify, make_response
 from flask_session import Session
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -187,58 +189,7 @@ def get_user_guilds_cached(user_id):
     result = get_user_session_data(user_id)
     return result.get('guilds_data', [])
 
-def store_finalize_token(token, user_id):
-    """Store one-time finalize token with short expiry for security."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Create finalize_tokens table if it doesn't exist
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS finalize_tokens (
-            token TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            expires_at TIMESTAMP DEFAULT (datetime('now', '+5 minutes'))
-        )
-    """)
-    
-    # Clean up expired tokens
-    cursor.execute("DELETE FROM finalize_tokens WHERE expires_at < datetime('now')")
-    
-    # Store new token with 5-minute expiry
-    cursor.execute("""
-        INSERT INTO finalize_tokens (token, user_id, expires_at)
-        VALUES (?, ?, datetime('now', '+5 minutes'))
-    """, (token, user_id))
-    
-    conn.commit()
-    conn.close()
-    print(f"✅ Stored finalize token for user {user_id}")
-
-def verify_and_consume_finalize_token(token):
-    """Verify and consume one-time finalize token, return user_id or None."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Check if token exists and is not expired
-    cursor.execute("""
-        SELECT user_id FROM finalize_tokens 
-        WHERE token = ? AND expires_at > datetime('now')
-    """, (token,))
-    
-    result = cursor.fetchone()
-    
-    if result:
-        user_id = result[0]
-        # Consume token (delete it immediately for security)
-        cursor.execute("DELETE FROM finalize_tokens WHERE token = ?", (token,))
-        conn.commit()
-        conn.close()
-        print(f"✅ Consumed finalize token for user {user_id}")
-        return user_id
-    else:
-        conn.close()
-        print("❌ Invalid or expired finalize token")
-        return None
+# Removed finalize token functions - using simplified authentication flow
 
 # Discord API cache
 discord_cache = {}
@@ -310,20 +261,16 @@ def index():
 @app.route("/auth/login")
 def auth_login():
     """Initiate Discord OAuth login with CSRF protection."""
-    import secrets
-    
     # Generate CSRF state token for security
     state = secrets.token_urlsafe(32)
     session['oauth_state'] = state
     
     # Properly encode OAuth URL parameters for security
-    from urllib.parse import urlencode
-    
     params = {
         'client_id': app.config['DISCORD_CLIENT_ID'],
         'redirect_uri': app.config['DISCORD_REDIRECT_URI'],
         'response_type': 'code',
-        'scope': 'identify guilds',  # Removed email scope as suggested
+        'scope': 'identify guilds email',  # Match bot.py configuration
         'state': state
     }
     discord_login_url = f"https://discord.com/api/oauth2/authorize?{urlencode(params)}"
@@ -331,7 +278,7 @@ def auth_login():
 
 @app.route("/callback")
 def callback():
-    """Handle OAuth callback from Discord with CSRF protection."""
+    """Handle OAuth callback from Discord - simplified working version."""
     code = request.args.get('code')
     state = request.args.get('state')
     
@@ -348,49 +295,45 @@ def callback():
         print("❌ No authorization code received from Discord")
         return redirect(url_for("index"))
     
-    # Exchange code for access token
-    token_info = exchange_code_for_token(code)
-    if not token_info:
-        print("❌ Failed to exchange code for access token")
+    try:
+        # Exchange code for access token
+        token_info = exchange_code_for_token(code)
+        if not token_info:
+            print("❌ Failed to exchange code for access token")
+            return redirect(url_for("index"))
+        
+        access_token = token_info['access_token']
+        
+        # Get user info
+        user_data = get_discord_user(access_token)
+        if not user_data:
+            print("❌ Failed to fetch Discord user information")
+            return redirect(url_for("index"))
+        
+        # Get user's guilds
+        guilds_data = get_discord_guilds(access_token)
+        
+        # Store user session data server-side for security
+        user_id = user_data['id']
+        store_user_session_data(user_id, access_token, guilds_data)
+        
+        # Store minimal user data in client session
+        session['user'] = {
+            'id': user_id,
+            'username': user_data['username'],
+            'discriminator': user_data.get('discriminator', '0000'),
+            'avatar': user_data.get('avatar'),
+            'email': user_data.get('email')
+        }
+        session.permanent = True
+        
+        print(f"✅ User logged in successfully: {user_data['username']}")
+        return redirect(url_for('dashboard'))
+        
+    except Exception as e:
+        print(f"❌ OAuth callback error: {str(e)}")
+        session.clear()
         return redirect(url_for("index"))
-    
-    access_token = token_info['access_token']
-    
-    # Get user info
-    user_data = get_discord_user(access_token)
-    if not user_data:
-        print("❌ Failed to fetch Discord user information")
-        return redirect(url_for("index"))
-    
-    # Get user's guilds
-    guilds_data = get_discord_guilds(access_token)
-    
-    # Store minimal user data in session (secure approach)
-    user_id = user_data['id']
-    
-    # Store user session data server-side first (including user_data for finalize)
-    store_user_session_data(user_id, access_token, guilds_data, user_data)
-    
-    # Generate secure one-time finalize token (CSRF protection)
-    import secrets
-    finalize_token = secrets.token_urlsafe(32)
-    store_finalize_token(finalize_token, user_id)
-    
-    # Force session ID regeneration by clearing session and creating new response
-    session.clear()  # Clear old session data
-    
-    # Create response that forces new session cookie and redirect to finalize
-    response = make_response(redirect(url_for('auth_finalize', token=finalize_token)))
-    
-    # Properly delete old session cookie using Flask configuration
-    cookie_name = app.config.get('SESSION_COOKIE_NAME', getattr(app, 'session_cookie_name', 'session'))
-    cookie_domain = app.config.get('SESSION_COOKIE_DOMAIN')
-    cookie_path = app.config.get('SESSION_COOKIE_PATH', '/')
-    
-    response.delete_cookie(cookie_name, path=cookie_path, domain=cookie_domain)
-    
-    print(f"✅ User data stored server-side: {user_data['username']} - redirecting to finalize with secure token")
-    return response
 
 @app.route("/dashboard")
 @login_required
@@ -737,44 +680,7 @@ def api_guild_settings_post(guild_id):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/auth/finalize")
-def auth_finalize():
-    """Finalize authentication with new session ID using secure one-time token."""
-    token = request.args.get('token')
-    if not token:
-        print("❌ Missing finalize token")
-        return redirect(url_for("index"))
-    
-    # Verify and consume one-time token
-    user_id = verify_and_consume_finalize_token(token)
-    if not user_id:
-        print("❌ Invalid or expired finalize token")
-        return redirect(url_for("index"))
-    
-    # Retrieve user data from server-side storage
-    cached_data = get_user_session_data(user_id)
-    if not cached_data:
-        print("❌ No cached user data found during finalize")
-        return redirect(url_for("index"))
-    
-    user_data = cached_data.get('user_data')
-    if not user_data:
-        print("❌ Invalid cached user data during finalize")
-        return redirect(url_for("index"))
-    
-    # Set user session data in new session with new SID
-    session['user'] = {
-        'id': user_data['id'],
-        'username': user_data['username'],
-        'discriminator': user_data.get('discriminator', '0000'),
-        'avatar': user_data.get('avatar'),
-        'email': user_data.get('email')
-    }
-    session.permanent = True
-    session.modified = True  # Ensure Flask issues new session cookie
-    
-    print(f"✅ Authentication finalized with new SID for: {user_data['username']}")
-    return redirect(url_for('dashboard'))
+# Removed finalize route - using simplified authentication flow
 
 @app.route("/logout")
 def logout():
