@@ -523,19 +523,19 @@ def get_guild_settings(guild_id):
     Returns dict with admin_roles, employee_roles, emails, timezone, etc.
     """
     with get_db() as conn:
-        # Get admin roles
+        # Get admin roles (convert to strings to match Discord API format)
         admin_cursor = conn.execute(
             "SELECT role_id FROM admin_roles WHERE guild_id = ?",
             (guild_id,)
         )
-        admin_roles = [row[0] for row in admin_cursor.fetchall()]
+        admin_roles = [str(row[0]) for row in admin_cursor.fetchall()]
         
-        # Get employee roles
+        # Get employee roles (convert to strings to match Discord API format)
         employee_cursor = conn.execute(
             "SELECT role_id FROM employee_roles WHERE guild_id = ?",
             (guild_id,)
         )
-        employee_roles = [row[0] for row in employee_cursor.fetchall()]
+        employee_roles = [str(row[0]) for row in employee_cursor.fetchall()]
         
         # Get guild settings (timezone, recipient_user_id, etc.)
         settings_cursor = conn.execute(
