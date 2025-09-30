@@ -1528,36 +1528,42 @@
             return div;
         }
 
-        // Setup Admin Role Listeners
+        // Setup Admin Role Listeners (using event delegation)
         function setupAdminRoleListeners() {
-            document.querySelectorAll('#available-admin-roles .listbox-item').forEach(item => {
-                item.addEventListener('click', function() {
+            // Available admin roles - event delegation on parent container
+            const availableContainer = document.getElementById('available-admin-roles');
+            availableContainer.addEventListener('click', function(e) {
+                const item = e.target.closest('.listbox-item');
+                if (item) {
                     document.querySelectorAll('#available-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
-                    this.classList.add('selected');
+                    item.classList.add('selected');
                     selectedAvailableAdminRole = {
-                        id: this.dataset.roleId,
-                        name: this.dataset.roleName
+                        id: item.dataset.roleId,
+                        name: item.dataset.roleName
                     };
                     selectedCurrentAdminRole = null;
                     document.querySelectorAll('#current-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
                     document.getElementById('add-admin-role-btn').disabled = false;
                     document.getElementById('remove-admin-role-btn').disabled = true;
-                });
+                }
             });
 
-            document.querySelectorAll('#current-admin-roles .listbox-item').forEach(item => {
-                item.addEventListener('click', function() {
+            // Current admin roles - event delegation on parent container
+            const currentContainer = document.getElementById('current-admin-roles');
+            currentContainer.addEventListener('click', function(e) {
+                const item = e.target.closest('.listbox-item');
+                if (item) {
                     document.querySelectorAll('#current-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
-                    this.classList.add('selected');
+                    item.classList.add('selected');
                     selectedCurrentAdminRole = {
-                        id: this.dataset.roleId,
-                        name: this.dataset.roleName
+                        id: item.dataset.roleId,
+                        name: item.dataset.roleName
                     };
                     selectedAvailableAdminRole = null;
                     document.querySelectorAll('#available-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
                     document.getElementById('remove-admin-role-btn').disabled = false;
                     document.getElementById('add-admin-role-btn').disabled = true;
-                });
+                }
             });
         }
 
