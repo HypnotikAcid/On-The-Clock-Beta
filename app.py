@@ -6,6 +6,8 @@ import os
 import secrets
 import json
 import sqlite3
+import logging
+import traceback
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 import requests
@@ -13,6 +15,14 @@ from flask import Flask, render_template, redirect, request, session, jsonify, u
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+
+# Configure logging to work with Gunicorn
+if __name__ != '__main__':
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
+else:
+    logging.basicConfig(level=logging.DEBUG)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -73,21 +83,21 @@ def init_dashboard_tables():
         # Migration: Add refresh_token column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN refresh_token TEXT")
-            print("✅ Migration: Added refresh_token column")
+            app.logger.info("Migration: Added refresh_token column")
         except sqlite3.OperationalError:
             pass
         
         # Migration: Add created_at column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now'))")
-            print("✅ Migration: Added created_at column")
+            app.logger.info("Migration: Added created_at column")
         except sqlite3.OperationalError:
             pass
         
         # Migration: Add ip_address column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN ip_address TEXT NOT NULL DEFAULT 'unknown'")
-            print("✅ Migration: Added ip_address column")
+            app.logger.info("Migration: Added ip_address column")
         except sqlite3.OperationalError:
             pass
         
@@ -97,7 +107,7 @@ def init_dashboard_tables():
         conn.execute("DELETE FROM user_sessions WHERE expires_at < ?", 
                     (datetime.now(timezone.utc).isoformat(),))
         
-        print("✅ Dashboard tables initialized")
+        app.logger.info("Dashboard tables initialized")
 
 # Initialize tables when module is imported (for Gunicorn)
 init_dashboard_tables()
@@ -219,16 +229,24 @@ def require_auth(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        session_id = session.get('session_id')
-        if not session_id:
-            return redirect('/auth/login')
-        
-        user_session = get_user_session(session_id)
-        if not user_session:
+        try:
+            session_id = session.get('session_id')
+            if not session_id:
+                app.logger.info("No session_id found, redirecting to login")
+                return redirect('/auth/login')
+            
+            user_session = get_user_session(session_id)
+            if not user_session:
+                app.logger.warning(f"Invalid or expired session: {session_id[:8]}...")
+                session.clear()
+                return redirect('/auth/login')
+            
+            return f(user_session, *args, **kwargs)
+        except Exception as e:
+            app.logger.error(f"Authentication error: {str(e)}")
+            app.logger.error(traceback.format_exc())
             session.clear()
             return redirect('/auth/login')
-        
-        return f(user_session, *args, **kwargs)
     return decorated_function
 
 # Routes
@@ -252,47 +270,59 @@ def auth_login():
     }
     
     auth_url = f'https://discord.com/oauth2/authorize?{urlencode(params)}'
-    print(f"🔗 OAuth login - Redirect URI: {redirect_uri}")
+    app.logger.info(f"OAuth login initiated - Redirect URI: {redirect_uri}")
     return redirect(auth_url)
 
 @app.route("/auth/callback")
 def auth_callback():
     """Handle Discord OAuth callback"""
-    code = request.args.get('code')
-    state = request.args.get('state')
-    error = request.args.get('error')
-    
-    if error:
-        return f"<h1>Authentication Error</h1><p>{error}</p><a href='/'>Return Home</a>", 400
-    
-    if not code or not state:
-        return "<h1>Authentication Error</h1><p>Missing code or state</p><a href='/'>Return Home</a>", 400
-    
-    if not verify_oauth_state(state):
-        return "<h1>Authentication Error</h1><p>Invalid state - possible CSRF attack</p><a href='/'>Return Home</a>", 400
-    
     try:
+        code = request.args.get('code')
+        state = request.args.get('state')
+        error = request.args.get('error')
+        
+        app.logger.info(f"OAuth callback received - code: {'present' if code else 'missing'}, state: {'present' if state else 'missing'}, error: {error}")
+        
+        if error:
+            app.logger.error(f"OAuth error from Discord: {error}")
+            return "<h1>Authentication Error</h1><p>Unable to authenticate with Discord. Please try again.</p><a href='/'>Return Home</a>", 400
+        
+        if not code or not state:
+            app.logger.error("Missing code or state in OAuth callback")
+            return "<h1>Authentication Error</h1><p>Invalid authentication request. Please try again.</p><a href='/'>Return Home</a>", 400
+        
+        if not verify_oauth_state(state):
+            app.logger.error(f"Invalid OAuth state: {state[:8]}... (CSRF check failed)")
+            return "<h1>Authentication Error</h1><p>Security validation failed. Please try again.</p><a href='/'>Return Home</a>", 400
+        
         # Exchange code for token (use same redirect_uri as in authorization)
         redirect_uri = get_redirect_uri()
+        app.logger.info(f"Exchanging code for token with redirect_uri: {redirect_uri}")
         token_data = exchange_code_for_token(code, redirect_uri)
         access_token = token_data['access_token']
         refresh_token = token_data.get('refresh_token')
         
         # Get user info
+        app.logger.info("Fetching user info from Discord")
         user_data = get_user_info(access_token)
+        app.logger.info(f"User authenticated: {user_data.get('username')}")
         
         # Get user's guilds
+        app.logger.info("Fetching user guilds")
         guilds_data = get_user_guilds(access_token)
+        app.logger.info(f"Found {len(guilds_data)} guilds")
         
         # Create session
         session_id = create_user_session(user_data, access_token, refresh_token, guilds_data)
         session['session_id'] = session_id
+        app.logger.info(f"Session created: {session_id[:8]}...")
         
         return redirect('/dashboard')
         
     except Exception as e:
-        print(f"OAuth error: {e}")
-        return f"<h1>Authentication Error</h1><p>Failed to complete authentication: {str(e)}</p><a href='/'>Return Home</a>", 500
+        app.logger.error(f"OAuth callback error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return "<h1>Authentication Error</h1><p>An error occurred during authentication. Please try again later.</p><a href='/'>Return Home</a>", 500
 
 @app.route("/auth/logout")
 def auth_logout():
@@ -300,6 +330,7 @@ def auth_logout():
     session_id = session.get('session_id')
     if session_id:
         delete_user_session(session_id)
+        app.logger.info("User session cleared")
     session.clear()
     return redirect('/')
 
@@ -307,7 +338,13 @@ def auth_logout():
 @require_auth
 def dashboard(user_session):
     """Protected dashboard showing user info and guilds"""
-    return render_template('dashboard.html', user=user_session)
+    try:
+        app.logger.info(f"Dashboard accessed by user: {user_session.get('username')}")
+        return render_template('dashboard.html', user=user_session)
+    except Exception as e:
+        app.logger.error(f"Dashboard rendering error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return "<h1>Error</h1><p>Unable to load dashboard. Please try again later.</p><a href='/auth/logout'>Logout</a>", 500
 
 @app.route("/invite")
 def invite():
