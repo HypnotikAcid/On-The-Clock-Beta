@@ -23,6 +23,15 @@ if __name__ != '__main__':
     app.logger.setLevel(gunicorn_logger.level)
 else:
     logging.basicConfig(level=logging.DEBUG)
+
+# Custom Jinja2 filter for Discord permission checking
+@app.template_filter('has_permission')
+def has_permission(permissions, permission_flag):
+    """Check if a permission integer has a specific flag using bitwise AND"""
+    try:
+        return int(permissions) & permission_flag != 0
+    except (ValueError, TypeError):
+        return False
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True

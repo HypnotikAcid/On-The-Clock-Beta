@@ -295,9 +295,9 @@
                                     <div class="server-meta">
                                         {% if guild.owner %}
                                             <span class="server-badge owner-badge">👑 Owner</span>
-                                        {% elif guild.permissions|int & 0x8 %}
+                                        {% elif guild.permissions|has_permission(0x8) %}
                                             <span class="server-badge admin-badge">⚡ Administrator</span>
-                                        {% elif guild.permissions|int & 0x20 %}
+                                        {% elif guild.permissions|has_permission(0x20) %}
                                             <span class="server-badge admin-badge">🔧 Manage Server</span>
                                         {% endif %}
                                     </div>
