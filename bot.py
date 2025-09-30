@@ -2220,6 +2220,15 @@ def init_db():
             PRIMARY KEY (guild_id, role_id)
         )
         """)
+        
+        try:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='clock_roles'")
+            if cursor.fetchone():
+                conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) SELECT guild_id, role_id FROM clock_roles")
+                conn.execute("DROP TABLE clock_roles")
+        except:
+            pass
+        
         conn.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
