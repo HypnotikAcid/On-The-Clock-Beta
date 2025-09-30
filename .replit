@@ -29,11 +29,15 @@ outputType = "webview"
 
 [deployment]
 deploymentTarget = "vm"
-run = ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120"]
+run = ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:5000 --workers 2"]
 
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 42353
+externalPort = 3000
 
 [agent]
 expertMode = true

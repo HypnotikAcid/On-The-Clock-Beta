@@ -23,16 +23,24 @@ def run_discord_bot():
         print(f"❌ Error running Discord bot: {e}")
 
 def run_landing_page():
-    """Run the simple Flask landing page."""
-    print("🌐 Starting Landing Page...")
+    """Run the Flask app with Gunicorn production server."""
+    print("🌐 Starting Landing Page with Gunicorn...")
     try:
-        # Import and run the Flask app
-        from app import app
+        # Run Gunicorn with proper configuration
+        result = subprocess.run([
+            "gunicorn", 
+            "app:app",
+            "--bind", "0.0.0.0:5000",
+            "--workers", "2",
+            "--timeout", "120",
+            "--access-logfile", "-",
+            "--error-logfile", "-"
+        ], capture_output=False, text=True)
         
-        # Run Flask on port 5000 (the only exposed port)
-        app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+        if result.returncode != 0:
+            print(f"❌ Gunicorn exited with code {result.returncode}")
     except Exception as e:
-        print(f"❌ Error running landing page: {e}")
+        print(f"❌ Error running Gunicorn: {e}")
 
 def signal_handler(sig, frame):
     """Handle shutdown signals gracefully."""
