@@ -21,6 +21,11 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+# Import aiohttp for bot HTTP API server
+from aiohttp import web
+import hashlib
+import hmac
+
 # Import email functionality for report delivery
 from email_utils import send_timeclock_report_email
 
@@ -5698,6 +5703,129 @@ async def owner_server_listings(interaction: discord.Interaction):
         await interaction.followup.send(f"❌ Error fetching server listings: {str(e)}", ephemeral=True)
 
 
+# --- Bot HTTP API Server for Dashboard Integration ---
+BOT_API_PORT = int(os.getenv("BOT_API_PORT", "8081"))
+BOT_API_SECRET = os.getenv("BOT_API_SECRET", secrets.token_hex(32))  # Shared secret for auth
+
+def verify_api_request(request: web.Request) -> bool:
+    """Verify request is from authorized dashboard using shared secret"""
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return False
+    token = auth_header[7:]  # Remove 'Bearer ' prefix
+    return secrets.compare_digest(token, BOT_API_SECRET)
+
+async def handle_add_admin_role(request: web.Request):
+    """HTTP endpoint: Add admin role"""
+    if not verify_api_request(request):
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        data = await request.json()
+        guild_id = int(request.match_info['guild_id'])
+        role_id = int(data.get('role_id'))
+        
+        # Use existing bot function
+        add_admin_role(guild_id, role_id)
+        
+        return web.json_response({
+            'success': True,
+            'message': 'Admin role added successfully',
+            'role_id': str(role_id)
+        })
+    except Exception as e:
+        print(f"❌ Error adding admin role via API: {e}")
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
+async def handle_remove_admin_role(request: web.Request):
+    """HTTP endpoint: Remove admin role"""
+    if not verify_api_request(request):
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        data = await request.json()
+        guild_id = int(request.match_info['guild_id'])
+        role_id = int(data.get('role_id'))
+        
+        # Use existing bot function
+        remove_admin_role(guild_id, role_id)
+        
+        return web.json_response({
+            'success': True,
+            'message': 'Admin role removed successfully',
+            'role_id': str(role_id)
+        })
+    except Exception as e:
+        print(f"❌ Error removing admin role via API: {e}")
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
+async def handle_add_employee_role(request: web.Request):
+    """HTTP endpoint: Add employee role"""
+    if not verify_api_request(request):
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        data = await request.json()
+        guild_id = int(request.match_info['guild_id'])
+        role_id = int(data.get('role_id'))
+        
+        # Use existing bot function
+        add_employee_role(guild_id, role_id)
+        
+        return web.json_response({
+            'success': True,
+            'message': 'Employee role added successfully',
+            'role_id': str(role_id)
+        })
+    except Exception as e:
+        print(f"❌ Error adding employee role via API: {e}")
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
+async def handle_remove_employee_role(request: web.Request):
+    """HTTP endpoint: Remove employee role"""
+    if not verify_api_request(request):
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        data = await request.json()
+        guild_id = int(request.match_info['guild_id'])
+        role_id = int(data.get('role_id'))
+        
+        # Use existing bot function
+        remove_employee_role(guild_id, role_id)
+        
+        return web.json_response({
+            'success': True,
+            'message': 'Employee role removed successfully',
+            'role_id': str(role_id)
+        })
+    except Exception as e:
+        print(f"❌ Error removing employee role via API: {e}")
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
+async def start_bot_api_server():
+    """Start aiohttp server for bot API endpoints"""
+    app = web.Application()
+    app.router.add_post('/api/guild/{guild_id}/admin-roles/add', handle_add_admin_role)
+    app.router.add_post('/api/guild/{guild_id}/admin-roles/remove', handle_remove_admin_role)
+    app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
+    app.router.add_post('/api/guild/{guild_id}/employee-roles/remove', handle_remove_employee_role)
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', BOT_API_PORT)
+    await site.start()
+    print(f"🔌 Bot API server running on http://0.0.0.0:{BOT_API_PORT}")
+    print(f"🔐 API Secret: {BOT_API_SECRET[:16]}... (set BOT_API_SECRET env var)")
+
+async def run_bot_with_api():
+    """Run Discord bot and API server concurrently"""
+    # Start API server in background
+    asyncio.create_task(start_bot_api_server())
+    
+    # Start Discord bot (will block until disconnected)
+    await bot.start(TOKEN)
+
 if __name__ == "__main__":
     # Run database migrations first with exclusive locking
     print("🔧 Running database migrations...")
@@ -5717,6 +5845,6 @@ if __name__ == "__main__":
     # Start daily cleanup scheduler
     schedule_daily_cleanup()
     
-    # Start Discord bot (this will block)
-    print(f"🤖 Starting Discord bot...")
-    bot.run(TOKEN)
+    # Start Discord bot with API server
+    print(f"🤖 Starting Discord bot with API server...")
+    asyncio.run(run_bot_with_api())
