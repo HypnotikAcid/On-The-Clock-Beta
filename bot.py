@@ -2194,29 +2194,119 @@ def init_db():
         except:
             pass  # Column already exists
         
+        # Migration 1: Convert role_id from INTEGER to TEXT for Discord snowflakes
+        # Run BEFORE table creation to migrate existing data
+        try:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='admin_roles'")
+            if cursor.fetchone():
+                # Table exists, check if it needs migration
+                cursor = conn.execute("PRAGMA table_info(admin_roles)")
+                columns = cursor.fetchall()
+                role_id_col = next((col for col in columns if col[1] == 'role_id'), None)
+                if role_id_col and 'INTEGER' in role_id_col[2].upper():
+                    print("🔧 Migrating admin_roles: Converting role_id from INTEGER to TEXT...")
+                    conn.execute("""
+                    CREATE TABLE admin_roles_new (
+                        guild_id TEXT,
+                        role_id TEXT,
+                        PRIMARY KEY (guild_id, role_id)
+                    )
+                    """)
+                    conn.execute("""
+                    INSERT INTO admin_roles_new (guild_id, role_id)
+                    SELECT CAST(guild_id AS TEXT), CAST(role_id AS TEXT) FROM admin_roles
+                    """)
+                    conn.execute("DROP TABLE admin_roles")
+                    conn.execute("ALTER TABLE admin_roles_new RENAME TO admin_roles")
+                    print("✅ admin_roles migration completed")
+        except Exception as e:
+            print(f"⚠️ admin_roles migration skipped or failed: {e}")
+        
+        try:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='employee_roles'")
+            if cursor.fetchone():
+                # Table exists, check if it needs migration
+                cursor = conn.execute("PRAGMA table_info(employee_roles)")
+                columns = cursor.fetchall()
+                role_id_col = next((col for col in columns if col[1] == 'role_id'), None)
+                if role_id_col and 'INTEGER' in role_id_col[2].upper():
+                    print("🔧 Migrating employee_roles: Converting role_id from INTEGER to TEXT...")
+                    conn.execute("""
+                    CREATE TABLE employee_roles_new (
+                        guild_id TEXT,
+                        role_id TEXT,
+                        PRIMARY KEY (guild_id, role_id)
+                    )
+                    """)
+                    conn.execute("""
+                    INSERT INTO employee_roles_new (guild_id, role_id)
+                    SELECT CAST(guild_id AS TEXT), CAST(role_id AS TEXT) FROM employee_roles
+                    """)
+                    conn.execute("DROP TABLE employee_roles")
+                    conn.execute("ALTER TABLE employee_roles_new RENAME TO employee_roles")
+                    print("✅ employee_roles migration completed")
+        except Exception as e:
+            print(f"⚠️ employee_roles migration skipped or failed: {e}")
+        
+        # Migration 2: Convert main_admin_role_id from INTEGER to TEXT
+        try:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='guild_settings'")
+            if cursor.fetchone():
+                cursor = conn.execute("PRAGMA table_info(guild_settings)")
+                columns = cursor.fetchall()
+                main_admin_col = next((col for col in columns if col[1] == 'main_admin_role_id'), None)
+                if main_admin_col and 'INTEGER' in main_admin_col[2].upper():
+                    print("🔧 Migrating guild_settings: Converting main_admin_role_id from INTEGER to TEXT...")
+                    conn.execute("ALTER TABLE guild_settings ADD COLUMN main_admin_role_id_new TEXT")
+                    conn.execute("UPDATE guild_settings SET main_admin_role_id_new = CAST(main_admin_role_id AS TEXT) WHERE main_admin_role_id IS NOT NULL")
+                    conn.execute("""
+                    CREATE TABLE guild_settings_new (
+                        guild_id INTEGER PRIMARY KEY,
+                        recipient_user_id INTEGER,
+                        button_channel_id INTEGER,
+                        button_message_id INTEGER,
+                        timezone TEXT DEFAULT 'America/New_York',
+                        name_display_mode TEXT DEFAULT 'username',
+                        main_admin_role_id TEXT
+                    )
+                    """)
+                    conn.execute("""
+                    INSERT INTO guild_settings_new 
+                    SELECT guild_id, recipient_user_id, button_channel_id, button_message_id, 
+                           timezone, name_display_mode, main_admin_role_id_new 
+                    FROM guild_settings
+                    """)
+                    conn.execute("DROP TABLE guild_settings")
+                    conn.execute("ALTER TABLE guild_settings_new RENAME TO guild_settings")
+                    print("✅ guild_settings.main_admin_role_id migration completed")
+        except Exception as e:
+            print(f"⚠️ guild_settings migration skipped or failed: {e}")
+        
         # Add main_admin_role_id column if it doesn't exist (for main admin role feature)
         try:
-            conn.execute("ALTER TABLE guild_settings ADD COLUMN main_admin_role_id INTEGER")
+            conn.execute("ALTER TABLE guild_settings ADD COLUMN main_admin_role_id TEXT")
         except:
             pass  # Column already exists
+        
+        # Now create tables if they don't exist (with correct TEXT types)
         conn.execute("""
         CREATE TABLE IF NOT EXISTS authorized_roles (
-            guild_id INTEGER,
-            role_id INTEGER,
+            guild_id TEXT,
+            role_id TEXT,
             PRIMARY KEY (guild_id, role_id)
         )
         """)
         conn.execute("""
         CREATE TABLE IF NOT EXISTS admin_roles (
-            guild_id INTEGER,
-            role_id INTEGER,
+            guild_id TEXT,
+            role_id TEXT,
             PRIMARY KEY (guild_id, role_id)
         )
         """)
         conn.execute("""
         CREATE TABLE IF NOT EXISTS employee_roles (
-            guild_id INTEGER,
-            role_id INTEGER,
+            guild_id TEXT,
+            role_id TEXT,
             PRIMARY KEY (guild_id, role_id)
         )
         """)
@@ -2224,7 +2314,7 @@ def init_db():
         try:
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='clock_roles'")
             if cursor.fetchone():
-                conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) SELECT guild_id, role_id FROM clock_roles")
+                conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) SELECT CAST(guild_id AS TEXT), CAST(role_id AS TEXT) FROM clock_roles")
                 conn.execute("DROP TABLE clock_roles")
         except:
             pass
@@ -2707,20 +2797,23 @@ def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, e
 def add_admin_role(guild_id: int, role_id: int):
     """Add a role as admin for Reports/Upgrade button access."""
     with db() as conn:
+        # Convert IDs to strings for database storage (Discord snowflakes)
         conn.execute("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (?, ?)", 
-                     (guild_id, role_id))
+                     (str(guild_id), str(role_id)))
 
 def remove_admin_role(guild_id: int, role_id: int):
     """Remove a role from admin Reports/Upgrade button access."""
     with db() as conn:
+        # Convert IDs to strings for database storage (Discord snowflakes)
         conn.execute("DELETE FROM admin_roles WHERE guild_id=? AND role_id=?", 
-                     (guild_id, role_id))
+                     (str(guild_id), str(role_id)))
 
 def get_admin_roles(guild_id: int):
-    """Get all admin role IDs for a guild."""
+    """Get all admin role IDs for a guild. Returns integers for Discord.py compatibility."""
     with db() as conn:
-        cur = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id=?", (guild_id,))
-        return [row[0] for row in cur.fetchall()]
+        cur = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id=?", (str(guild_id),))
+        # Convert back to int for Discord.py (role.id is an int)
+        return [int(row[0]) for row in cur.fetchall()]
 
 def user_has_admin_access(user: discord.Member):
     """Check if user has admin access (Discord admin OR custom admin role OR main admin role)."""
@@ -2732,30 +2825,38 @@ def user_has_admin_access(user: discord.Member):
     
     # Check main admin role (primary designated admin role)
     main_admin_role_id = get_guild_setting(user.guild.id, "main_admin_role_id")
-    if main_admin_role_id and main_admin_role_id in user_role_ids:
-        return True
+    if main_admin_role_id:
+        # Convert to int for comparison with Discord.py role IDs
+        try:
+            if int(main_admin_role_id) in user_role_ids:
+                return True
+        except (ValueError, TypeError):
+            pass
     
-    # Check custom admin roles (additional admin roles)
+    # Check custom admin roles (additional admin roles) - already returns ints
     admin_roles = get_admin_roles(user.guild.id)
     return any(role_id in user_role_ids for role_id in admin_roles)
 
 def add_employee_role(guild_id: int, role_id: int):
     """Add a role that can use timeclock functions."""
     with db() as conn:
+        # Convert IDs to strings for database storage (Discord snowflakes)
         conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (?, ?)", 
-                     (guild_id, role_id))
+                     (str(guild_id), str(role_id)))
 
 def remove_employee_role(guild_id: int, role_id: int):
     """Remove a role from timeclock functions access."""
     with db() as conn:
+        # Convert IDs to strings for database storage (Discord snowflakes)
         conn.execute("DELETE FROM employee_roles WHERE guild_id=? AND role_id=?", 
-                     (guild_id, role_id))
+                     (str(guild_id), str(role_id)))
 
 def get_employee_roles(guild_id: int):
-    """Get all clock role IDs for a guild."""
+    """Get all clock role IDs for a guild. Returns integers for Discord.py compatibility."""
     with db() as conn:
-        cur = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id=?", (guild_id,))
-        return [row[0] for row in cur.fetchall()]
+        cur = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id=?", (str(guild_id),))
+        # Convert back to int for Discord.py (role.id is an int)
+        return [int(row[0]) for row in cur.fetchall()]
 
 def user_has_clock_access(user: discord.Member, server_tier: str):
     """Check if user can access clock buttons based on server tier and roles."""
