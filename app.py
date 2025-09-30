@@ -42,6 +42,43 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def init_dashboard_tables():
+    """Initialize database tables for OAuth and user sessions"""
+    with get_db() as conn:
+        # OAuth states table for CSRF protection
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS oauth_states (
+                state TEXT PRIMARY KEY,
+                expires_at TEXT NOT NULL
+            )
+        """)
+        
+        # User sessions table for logged-in users
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                discriminator TEXT,
+                avatar TEXT,
+                access_token TEXT NOT NULL,
+                refresh_token TEXT,
+                guilds_data TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            )
+        """)
+        
+        # Clean up expired sessions and states
+        conn.execute("DELETE FROM oauth_states WHERE expires_at < ?", 
+                    (datetime.now(timezone.utc).isoformat(),))
+        conn.execute("DELETE FROM user_sessions WHERE expires_at < ?", 
+                    (datetime.now(timezone.utc).isoformat(),))
+        
+        print("✅ Dashboard tables initialized")
+
+# Initialize tables when module is imported (for Gunicorn)
+init_dashboard_tables()
+
 # OAuth Helper Functions
 def create_oauth_state():
     """Generate and store OAuth state for CSRF protection"""
