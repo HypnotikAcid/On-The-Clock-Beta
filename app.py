@@ -532,7 +532,7 @@ def get_guild_settings(guild_id):
         
         # Get employee roles
         employee_cursor = conn.execute(
-            "SELECT role_id FROM clock_roles WHERE guild_id = ?",
+            "SELECT role_id FROM employee_roles WHERE guild_id = ?",
             (guild_id,)
         )
         employee_roles = [row[0] for row in employee_cursor.fetchall()]
@@ -729,7 +729,7 @@ def api_add_employee_role(user_session, guild_id):
         # Add role to database
         with get_db() as conn:
             conn.execute(
-                "INSERT OR IGNORE INTO clock_roles (guild_id, role_id) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (?, ?)",
                 (guild_id, role_id)
             )
         
@@ -760,7 +760,7 @@ def api_remove_employee_role(user_session, guild_id):
         # Remove role from database
         with get_db() as conn:
             conn.execute(
-                "DELETE FROM clock_roles WHERE guild_id = ? AND role_id = ?",
+                "DELETE FROM employee_roles WHERE guild_id = ? AND role_id = ?",
                 (guild_id, role_id)
             )
         
