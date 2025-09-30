@@ -286,6 +286,132 @@
             font-weight: bold;
         }
 
+        /* Coffee Button with Steam Animation */
+        .coffee-button {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #CD853F 100%);
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .coffee-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.6);
+            background: linear-gradient(135deg, #A0522D 0%, #E87A3E 50%, #DEB887 100%);
+        }
+
+        .coffee-button:active {
+            transform: translateY(0);
+        }
+
+        /* Animated Coffee Icon with Steam */
+        .coffee-icon {
+            font-size: 24px;
+            position: relative;
+            animation: coffeeWiggle 2s ease-in-out infinite;
+        }
+
+        @keyframes coffeeWiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-5deg); }
+            75% { transform: rotate(5deg); }
+        }
+
+        /* Steam animation */
+        .coffee-icon::before,
+        .coffee-icon::after {
+            content: '';
+            position: absolute;
+            width: 3px;
+            height: 15px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            animation: steam 2s ease-in-out infinite;
+        }
+
+        .coffee-icon::before {
+            left: 8px;
+            top: -10px;
+            animation-delay: 0s;
+        }
+
+        .coffee-icon::after {
+            right: 8px;
+            top: -10px;
+            animation-delay: 0.5s;
+        }
+
+        @keyframes steam {
+            0% {
+                opacity: 0;
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-15px) scale(0.5);
+            }
+        }
+
+        .coffee-caption {
+            text-align: center;
+            color: #b0b0b0;
+            font-size: 13px;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        /* Support Button */
+        .support-button {
+            background: linear-gradient(135deg, #5865f2 0%, #7289da 100%);
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4);
+        }
+
+        .support-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(88, 101, 242, 0.6);
+            background: linear-gradient(135deg, #6f7ff2 0%, #8aa0e8 100%);
+        }
+
+        .support-button:active {
+            transform: translateY(0);
+        }
+
+        /* Button Container */
+        .action-buttons-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 30px 0 20px;
+        }
+
         /* Footer */
         .footer {
             text-align: center;
@@ -429,6 +555,19 @@
                 </div>
             </div>
         </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons-container">
+            <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="coffee-button">
+                <span class="coffee-icon">☕</span>
+                <span>Buy Me a Coffee</span>
+            </a>
+            <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="support-button">
+                <span>✉️</span>
+                <span>App Ideas & Requests</span>
+            </a>
+        </div>
+        <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
 
         <!-- Footer -->
         <div class="footer">

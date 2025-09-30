@@ -467,6 +467,201 @@
         .email-list::-webkit-scrollbar-thumb:hover {
             background: rgba(88, 101, 242, 0.7);
         }
+
+        /* Sync Disclaimer Notice */
+        .sync-notice {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.15));
+            border: 2px solid rgba(255, 193, 7, 0.4);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: subtlePulse 3s ease-in-out infinite;
+        }
+
+        @keyframes subtlePulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 193, 7, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.4); }
+        }
+
+        .sync-notice-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .sync-notice-text {
+            color: #ffc107;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .sync-notice-text strong {
+            color: #ffd54f;
+        }
+
+        /* Coffee Button with Steam Animation */
+        .coffee-button {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #CD853F 100%);
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .coffee-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.6);
+            background: linear-gradient(135deg, #A0522D 0%, #E87A3E 50%, #DEB887 100%);
+        }
+
+        .coffee-button:active {
+            transform: translateY(0);
+        }
+
+        /* Animated Coffee Icon with Steam */
+        .coffee-icon {
+            font-size: 24px;
+            position: relative;
+            animation: coffeeWiggle 2s ease-in-out infinite;
+        }
+
+        @keyframes coffeeWiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-5deg); }
+            75% { transform: rotate(5deg); }
+        }
+
+        /* Steam animation */
+        .coffee-icon::before,
+        .coffee-icon::after {
+            content: '';
+            position: absolute;
+            width: 3px;
+            height: 15px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            animation: steam 2s ease-in-out infinite;
+        }
+
+        .coffee-icon::before {
+            left: 8px;
+            top: -10px;
+            animation-delay: 0s;
+        }
+
+        .coffee-icon::after {
+            right: 8px;
+            top: -10px;
+            animation-delay: 0.5s;
+        }
+
+        @keyframes steam {
+            0% {
+                opacity: 0;
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-15px) scale(0.5);
+            }
+        }
+
+        .coffee-caption {
+            text-align: center;
+            color: #b0b0b0;
+            font-size: 13px;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        /* Support Button */
+        .support-button {
+            background: linear-gradient(135deg, #5865f2 0%, #7289da 100%);
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4);
+        }
+
+        .support-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(88, 101, 242, 0.6);
+            background: linear-gradient(135deg, #6f7ff2 0%, #8aa0e8 100%);
+        }
+
+        .support-button:active {
+            transform: translateY(0);
+        }
+
+        /* Button Container */
+        .action-buttons-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        /* Coming Soon Overlay for Email Tile */
+        .coming-soon-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 46, 0.85);
+            backdrop-filter: blur(5px);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            gap: 20px;
+        }
+
+        .coming-soon-text {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffc107;
+            text-shadow: 0 0 20px rgba(255, 193, 7, 0.5);
+            letter-spacing: 3px;
+            animation: comingSoonPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes comingSoonPulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        .tile {
+            position: relative;
+        }
     </style>
 </head>
 <body>
@@ -489,6 +684,14 @@
     </div>
 
     <div class="settings-container">
+        <!-- Sync Disclaimer Notice -->
+        <div class="sync-notice">
+            <div class="sync-notice-icon">⏱️</div>
+            <div class="sync-notice-text">
+                <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands. Refresh this page to see the latest updates.
+            </div>
+        </div>
+
         <div class="tiles-grid">
             <!-- Tile 1: Admin Roles -->
             <div class="tile" id="Tile1">
@@ -654,6 +857,18 @@
                         Customize Email Format
                     </button>
                 </div>
+
+                <!-- Coming Soon Overlay -->
+                <div class="coming-soon-overlay">
+                    <div class="coming-soon-text">COMING SOON...</div>
+                    <div>
+                        <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="coffee-button">
+                            <span class="coffee-icon">☕</span>
+                            <span>Buy Me a Coffee</span>
+                        </a>
+                        <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+                    </div>
+                </div>
             </div>
 
             <!-- Tile 4: Timezone -->
@@ -679,6 +894,19 @@
                 <button class="save-btn" id="save-timezone-btn">Save Timezone</button>
             </div>
         </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons-container">
+            <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="coffee-button">
+                <span class="coffee-icon">☕</span>
+                <span>Buy Me a Coffee</span>
+            </a>
+            <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="support-button">
+                <span>✉️</span>
+                <span>App Ideas & Requests</span>
+            </a>
+        </div>
+        <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
     </div>
 
     <script>
