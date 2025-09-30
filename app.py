@@ -163,7 +163,8 @@ def create_user_session(user_data, access_token, refresh_token, guilds_data):
     session_id = secrets.token_urlsafe(32)
     created_at = datetime.now(timezone.utc)
     expires_at = created_at + timedelta(hours=24)
-    ip_address = request.remote_addr or 'unknown'
+    # Get real client IP from proxy headers (falls back to remote_addr)
+    ip_address = request.access_route[0] if request.access_route else (request.remote_addr or 'unknown')
     
     with get_db() as conn:
         conn.execute("""
