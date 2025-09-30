@@ -435,6 +435,164 @@ def dashboard(user_session):
         app.logger.error(traceback.format_exc())
         return "<h1>Error</h1><p>Unable to load dashboard. Please try again later.</p><a href='/auth/logout'>Logout</a>", 500
 
+def verify_guild_access(user_session, guild_id):
+    """
+    Verify user has access to a specific guild.
+    Returns the guild object if user has access, None otherwise.
+    """
+    all_guilds = user_session.get('guilds', [])
+    for guild in all_guilds:
+        if guild.get('id') == guild_id:
+            # Check if user has admin access to this guild
+            if user_has_admin_access(user_session['user_id'], guild_id, guild):
+                return guild
+    return None
+
+def get_guild_roles_from_bot(guild_id):
+    """
+    Fetch guild roles using Discord bot token.
+    Returns list of roles, or None if error.
+    Note: Members are fetched via separate API endpoint to avoid heavy initial page load.
+    """
+    bot_token = os.environ.get('DISCORD_TOKEN')
+    if not bot_token:
+        app.logger.error("DISCORD_TOKEN not found in environment")
+        return None
+    
+    headers = {'Authorization': f'Bot {bot_token}'}
+    try:
+        # Fetch guild roles only (lighter initial load)
+        roles_response = requests.get(
+            f'{DISCORD_API_BASE}/guilds/{guild_id}/roles',
+            headers=headers,
+            timeout=5
+        )
+        roles_response.raise_for_status()
+        roles = roles_response.json()
+        
+        return roles
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            app.logger.error(f"Bot lacks permissions to fetch roles for guild {guild_id}")
+        elif e.response.status_code == 404:
+            app.logger.error(f"Guild {guild_id} not found or bot not in guild")
+        else:
+            app.logger.error(f"HTTP error fetching guild roles: {str(e)}")
+        return None
+    except Exception as e:
+        app.logger.error(f"Error fetching guild roles: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return None
+
+def get_guild_settings(guild_id):
+    """
+    Fetch guild settings from database.
+    Returns dict with admin_roles, employee_roles, emails, timezone, etc.
+    """
+    with get_db() as conn:
+        # Get admin roles
+        admin_cursor = conn.execute(
+            "SELECT role_id FROM admin_roles WHERE guild_id = ?",
+            (guild_id,)
+        )
+        admin_roles = [row[0] for row in admin_cursor.fetchall()]
+        
+        # Get employee roles
+        employee_cursor = conn.execute(
+            "SELECT role_id FROM employee_roles WHERE guild_id = ?",
+            (guild_id,)
+        )
+        employee_roles = [row[0] for row in employee_cursor.fetchall()]
+        
+        # Get guild settings (timezone, recipient, etc.)
+        settings_cursor = conn.execute(
+            "SELECT timezone, recipient, name_display_mode FROM guild_settings WHERE guild_id = ?",
+            (guild_id,)
+        )
+        settings_row = settings_cursor.fetchone()
+        
+        # Get main admin role
+        main_admin_cursor = conn.execute(
+            "SELECT main_admin_role_id FROM guild_settings WHERE guild_id = ?",
+            (guild_id,)
+        )
+        main_admin_row = main_admin_cursor.fetchone()
+        main_admin_role_id = main_admin_row[0] if main_admin_row and main_admin_row[0] else None
+        
+        return {
+            'admin_roles': admin_roles,
+            'employee_roles': employee_roles,
+            'timezone': settings_row[0] if settings_row else 'America/New_York',
+            'recipient': settings_row[1] if settings_row else None,
+            'name_display_mode': settings_row[2] if settings_row else 'username',
+            'main_admin_role_id': main_admin_role_id,
+            'emails': []  # TODO: Add email table and fetch emails
+        }
+
+@app.route("/server/<guild_id>/settings")
+@require_auth
+def server_settings(user_session, guild_id):
+    """Server-specific settings page with admin/employee management, email, and timezone"""
+    try:
+        app.logger.info(f"Server settings accessed for guild {guild_id} by user {user_session.get('username')}")
+        
+        # Check if bot is present in this guild first (before expensive Discord API calls)
+        bot_guild_ids = get_bot_guild_ids()
+        if guild_id not in bot_guild_ids:
+            app.logger.warning(f"Bot not present in guild {guild_id}")
+            return "<h1>Bot Not Present</h1><p>The On the Clock bot is not in this server. Please invite the bot first.</p><a href='/dashboard'>Back to Dashboard</a>", 404
+        
+        # Verify user has access to this guild
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            app.logger.warning(f"User {user_session.get('username')} unauthorized for guild {guild_id}")
+            return "<h1>Access Denied</h1><p>You don't have admin access to this server.</p><a href='/dashboard'>Back to Dashboard</a>", 403
+        
+        # Fetch guild roles from Discord (members loaded via API later)
+        roles = get_guild_roles_from_bot(guild_id)
+        if not roles:
+            app.logger.error(f"Failed to fetch roles for guild {guild_id}")
+            # Render page with error state but show existing settings
+            current_settings = get_guild_settings(guild_id)
+            return render_template('server_settings.html', 
+                                   user=user_session, 
+                                   guild=guild, 
+                                   guild_id=guild_id, 
+                                   roles=[],
+                                   current_settings=current_settings,
+                                   error="Could not fetch server roles. Please check bot permissions and try again."), 200
+        
+        # Fetch current settings from database
+        try:
+            current_settings = get_guild_settings(guild_id)
+        except Exception as e:
+            app.logger.error(f"Error fetching guild settings: {str(e)}")
+            # Use defaults if database error
+            current_settings = {
+                'admin_roles': [],
+                'employee_roles': [],
+                'timezone': 'America/New_York',
+                'recipient': None,
+                'name_display_mode': 'username',
+                'main_admin_role_id': None,
+                'emails': []
+            }
+        
+        # Prepare data for template
+        template_data = {
+            'user': user_session,
+            'guild': guild,
+            'guild_id': guild_id,
+            'roles': roles,
+            'current_settings': current_settings
+        }
+        
+        return render_template('server_settings.html', **template_data)
+    except Exception as e:
+        app.logger.error(f"Server settings error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return "<h1>Error</h1><p>Unable to load server settings. Please try again later.</p><a href='/dashboard'>Back to Dashboard</a>", 500
+
 @app.route("/invite")
 def invite():
     """Redirect to Discord bot invite link."""
