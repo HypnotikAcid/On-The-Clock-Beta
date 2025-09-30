@@ -257,6 +257,28 @@ def require_auth(f):
             return redirect('/auth/login')
     return decorated_function
 
+def require_api_auth(f):
+    """Decorator to require authentication for API routes (returns JSON instead of redirect)"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            session_id = session.get('session_id')
+            if not session_id:
+                return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+            
+            user_session = get_user_session(session_id)
+            if not user_session:
+                session.clear()
+                return jsonify({'success': False, 'error': 'Session expired'}), 401
+            
+            return f(user_session, *args, **kwargs)
+        except Exception as e:
+            app.logger.error(f"API authentication error: {str(e)}")
+            app.logger.error(traceback.format_exc())
+            return jsonify({'success': False, 'error': 'Authentication error'}), 500
+    return decorated_function
+
 def get_bot_guild_ids():
     """Get list of guild IDs where the bot is present (as strings for OAuth comparison)"""
     try:
@@ -595,22 +617,37 @@ def server_settings(user_session, guild_id):
 
 # API Endpoints for Settings Management
 
+def validate_role_in_guild(guild_id, role_id):
+    """Validate that a role_id belongs to the specified guild"""
+    try:
+        roles = get_guild_roles_from_bot(guild_id)
+        if not roles:
+            return False
+        return any(str(role['id']) == str(role_id) for role in roles)
+    except Exception as e:
+        app.logger.error(f"Error validating role: {str(e)}")
+        return False
+
 @app.route("/api/server/<guild_id>/admin-roles/add", methods=["POST"])
-@require_auth
+@require_api_auth
 def api_add_admin_role(user_session, guild_id):
     """API endpoint to add an admin role"""
     try:
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         
         # Get role_id from request
         data = request.get_json()
         if not data or 'role_id' not in data:
-            return jsonify({'error': 'Missing role_id'}), 400
+            return jsonify({'success': False, 'error': 'Missing role_id'}), 400
         
         role_id = str(data['role_id'])
+        
+        # Validate role belongs to guild
+        if not validate_role_in_guild(guild_id, role_id):
+            return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
         
         # Add role to database
         with get_db() as conn:
@@ -620,26 +657,26 @@ def api_add_admin_role(user_session, guild_id):
             )
         
         app.logger.info(f"Added admin role {role_id} to guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'role_id': role_id})
+        return jsonify({'success': True, 'message': 'Admin role added successfully', 'role_id': role_id})
     except Exception as e:
         app.logger.error(f"Error adding admin role: {str(e)}")
         app.logger.error(traceback.format_exc())
-        return jsonify({'error': 'Server error'}), 500
+        return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/admin-roles/remove", methods=["POST"])
-@require_auth
+@require_api_auth
 def api_remove_admin_role(user_session, guild_id):
     """API endpoint to remove an admin role"""
     try:
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         
         # Get role_id from request
         data = request.get_json()
         if not data or 'role_id' not in data:
-            return jsonify({'error': 'Missing role_id'}), 400
+            return jsonify({'success': False, 'error': 'Missing role_id'}), 400
         
         role_id = str(data['role_id'])
         
@@ -651,28 +688,32 @@ def api_remove_admin_role(user_session, guild_id):
             )
         
         app.logger.info(f"Removed admin role {role_id} from guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'role_id': role_id})
+        return jsonify({'success': True, 'message': 'Admin role removed successfully', 'role_id': role_id})
     except Exception as e:
         app.logger.error(f"Error removing admin role: {str(e)}")
         app.logger.error(traceback.format_exc())
-        return jsonify({'error': 'Server error'}), 500
+        return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/employee-roles/add", methods=["POST"])
-@require_auth
+@require_api_auth
 def api_add_employee_role(user_session, guild_id):
     """API endpoint to add an employee role"""
     try:
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         
         # Get role_id from request
         data = request.get_json()
         if not data or 'role_id' not in data:
-            return jsonify({'error': 'Missing role_id'}), 400
+            return jsonify({'success': False, 'error': 'Missing role_id'}), 400
         
         role_id = str(data['role_id'])
+        
+        # Validate role belongs to guild
+        if not validate_role_in_guild(guild_id, role_id):
+            return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
         
         # Add role to database
         with get_db() as conn:
@@ -682,26 +723,26 @@ def api_add_employee_role(user_session, guild_id):
             )
         
         app.logger.info(f"Added employee role {role_id} to guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'role_id': role_id})
+        return jsonify({'success': True, 'message': 'Employee role added successfully', 'role_id': role_id})
     except Exception as e:
         app.logger.error(f"Error adding employee role: {str(e)}")
         app.logger.error(traceback.format_exc())
-        return jsonify({'error': 'Server error'}), 500
+        return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/employee-roles/remove", methods=["POST"])
-@require_auth
+@require_api_auth
 def api_remove_employee_role(user_session, guild_id):
     """API endpoint to remove an employee role"""
     try:
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         
         # Get role_id from request
         data = request.get_json()
         if not data or 'role_id' not in data:
-            return jsonify({'error': 'Missing role_id'}), 400
+            return jsonify({'success': False, 'error': 'Missing role_id'}), 400
         
         role_id = str(data['role_id'])
         
@@ -713,28 +754,37 @@ def api_remove_employee_role(user_session, guild_id):
             )
         
         app.logger.info(f"Removed employee role {role_id} from guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'role_id': role_id})
+        return jsonify({'success': True, 'message': 'Employee role removed successfully', 'role_id': role_id})
     except Exception as e:
         app.logger.error(f"Error removing employee role: {str(e)}")
         app.logger.error(traceback.format_exc())
-        return jsonify({'error': 'Server error'}), 500
+        return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/timezone", methods=["POST"])
-@require_auth
+@require_api_auth
 def api_update_timezone(user_session, guild_id):
     """API endpoint to update timezone"""
     try:
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         
         # Get timezone from request
         data = request.get_json()
         if not data or 'timezone' not in data:
-            return jsonify({'error': 'Missing timezone'}), 400
+            return jsonify({'success': False, 'error': 'Missing timezone'}), 400
         
-        timezone = data['timezone']
+        timezone_str = data['timezone']
+        
+        # Validate timezone
+        try:
+            from zoneinfo import ZoneInfo, available_timezones
+            if timezone_str not in available_timezones():
+                return jsonify({'success': False, 'error': 'Invalid timezone'}), 400
+        except Exception as tz_error:
+            app.logger.error(f"Timezone validation error: {str(tz_error)}")
+            return jsonify({'success': False, 'error': 'Invalid timezone'}), 400
         
         # Update or insert guild settings
         with get_db() as conn:
@@ -745,20 +795,20 @@ def api_update_timezone(user_session, guild_id):
             if exists:
                 conn.execute(
                     "UPDATE guild_settings SET timezone = ? WHERE guild_id = ?",
-                    (timezone, guild_id)
+                    (timezone_str, guild_id)
                 )
             else:
                 conn.execute(
                     "INSERT INTO guild_settings (guild_id, timezone) VALUES (?, ?)",
-                    (guild_id, timezone)
+                    (guild_id, timezone_str)
                 )
         
-        app.logger.info(f"Updated timezone to {timezone} for guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'timezone': timezone})
+        app.logger.info(f"Updated timezone to {timezone_str} for guild {guild_id} by user {user_session.get('username')}")
+        return jsonify({'success': True, 'message': 'Timezone updated successfully', 'timezone': timezone_str})
     except Exception as e:
         app.logger.error(f"Error updating timezone: {str(e)}")
         app.logger.error(traceback.format_exc())
-        return jsonify({'error': 'Server error'}), 500
+        return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/invite")
 def invite():

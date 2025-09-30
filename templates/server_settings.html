@@ -755,10 +755,11 @@
                     body: JSON.stringify({ role_id: selectedAvailableAdminRole.id })
                 });
                 
-                if (response.ok) {
+                const data = await response.json();
+                if (response.ok && data.success) {
                     location.reload(); // Refresh to show updated lists
                 } else {
-                    alert('Error adding admin role');
+                    alert(data.error || 'Error adding admin role');
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -776,10 +777,11 @@
                     body: JSON.stringify({ role_id: selectedCurrentAdminRole.id })
                 });
                 
-                if (response.ok) {
+                const data = await response.json();
+                if (response.ok && data.success) {
                     location.reload(); // Refresh to show updated lists
                 } else {
-                    alert('Error removing admin role');
+                    alert(data.error || 'Error removing admin role');
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -798,10 +800,11 @@
                     body: JSON.stringify({ role_id: selectedAvailableRole.id })
                 });
                 
-                if (response.ok) {
+                const data = await response.json();
+                if (response.ok && data.success) {
                     location.reload(); // Refresh to show updated lists
                 } else {
-                    alert('Error adding employee role');
+                    alert(data.error || 'Error adding employee role');
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -819,10 +822,11 @@
                     body: JSON.stringify({ role_id: selectedCurrentRole.id })
                 });
                 
-                if (response.ok) {
+                const data = await response.json();
+                if (response.ok && data.success) {
                     location.reload(); // Refresh to show updated lists
                 } else {
-                    alert('Error removing employee role');
+                    alert(data.error || 'Error removing employee role');
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -841,10 +845,11 @@
                     body: JSON.stringify({ timezone: timezone })
                 });
                 
-                if (response.ok) {
-                    alert('Timezone updated successfully!');
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    alert(data.message || 'Timezone updated successfully!');
                 } else {
-                    alert('Error updating timezone');
+                    alert(data.error || 'Error updating timezone');
                 }
             } catch (error) {
                 console.error('Error:', error);
