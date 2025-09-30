@@ -1,0 +1,11 @@
+Great works nice i see the proper servers. My ideal with this information is allowing the user to click on the specified server they want to customize settings for this will lead to new page in which our tile structure will be present aswell but here the settings will be specific to that exact server chosen by the user here i want different tiles allowing the customization to different parts of the commands the bot will use on the server such as:
+
+Tile 1:  A listbox showing users with current Admin ability for the bot including Admins of the server aswell as users added with the slash command. In between this listbox and another one to its right should be a button with a > & < allowing the user the ability to select a user from either listbox and add them or remove them from the admin role of the bot.
+
+Tile 2: This should be similar to Tile 1 but for the employees in which the left listbox shows user roles for the server and as the same < and > buttons to allow to move or remove it from the listbox on the right which consists of server user roles that have the employee abilities
+
+Tile 3: Email , this should be auto populated with the current emails set by the user in the discord with the slash command or set previously within the dashboard. Again this should work similar to the other tiles except it may not need two list boxes just a text box to enter a email address and button to add it to one listbox that shows all email addresses the bot will send reports to. 
+This tile should  have toggle options in which it asks if the user wants the reports through discord Direct message or through email or both. If email or both is selected then a button should appear on the tile called "Customize" and it should lead to a new page with the tile structure aswell in which we will need to come back to later to finish setting up the customization of the email for the user.
+
+Tile 4 This tile should be straight forward and just be a timezone selected it should be set to EST as default and also match what the bot on the server is as well it should be EST and if not set it that way when working on this tile.
+
