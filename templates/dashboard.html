@@ -1517,8 +1517,16 @@
             div.dataset.roleId = role.id;
             div.dataset.roleName = role.name;
             
+            // Get role color or default gray
+            const roleColor = role.color ? role.color.toString(16).padStart(6, '0') : '99aab5';
+            
+            // Choose emoji based on type
+            const emoji = type === 'admin' ? '🛡️' : '🎭';
+            
             div.innerHTML = `
-                <div class="listbox-item-icon">${role.name.charAt(0).toUpperCase()}</div>
+                <div class="listbox-item-icon" style="background-color: #${roleColor};">
+                    ${emoji}
+                </div>
                 <div class="listbox-item-info">
                     <div class="listbox-item-name">${role.name}</div>
                     <div class="listbox-item-meta">Role ID: ${role.id}</div>
