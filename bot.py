@@ -2271,6 +2271,15 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_report_recipients_guild 
         ON report_recipients(guild_id)
         """)
+        
+        # Bot guilds table to track which servers the bot is connected to
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS bot_guilds (
+            guild_id TEXT PRIMARY KEY,
+            guild_name TEXT,
+            joined_at TEXT NOT NULL
+        )
+        """)
 
 
 
@@ -3886,6 +3895,18 @@ async def on_ready():
         print(f"🤖 Logged in as {bot.user} ({bot.user.id})")
     else:
         print("🤖 Bot user information not available")
+    
+    # Update bot_guilds table with all connected guilds
+    try:
+        with db() as conn:
+            for guild in bot.guilds:
+                conn.execute("""
+                    INSERT OR REPLACE INTO bot_guilds (guild_id, guild_name, joined_at)
+                    VALUES (?, ?, datetime('now'))
+                """, (str(guild.id), guild.name))
+        print(f"✅ Updated bot_guilds table with {len(bot.guilds)} guilds")
+    except Exception as e:
+        print(f"❌ Error updating bot_guilds table: {e}")
 
 @bot.event
 async def on_guild_join(guild):
@@ -3986,6 +4007,29 @@ async def on_guild_join(guild):
                 print(f"❌ Could not send welcome message anywhere in {guild.name}: {e}")
     except Exception as e:
         print(f"❌ Error sending welcome message for {guild.name}: {e}")
+    
+    # Add guild to bot_guilds table
+    try:
+        with db() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO bot_guilds (guild_id, guild_name, joined_at)
+                VALUES (?, ?, datetime('now'))
+            """, (str(guild.id), guild.name))
+        print(f"✅ Added {guild.name} to bot_guilds table")
+    except Exception as e:
+        print(f"❌ Error adding guild to bot_guilds table: {e}")
+
+@bot.event
+async def on_guild_remove(guild):
+    """Remove guild from bot_guilds table when bot leaves a server"""
+    print(f"👋 Bot removed from server: {guild.name} (ID: {guild.id})")
+    
+    try:
+        with db() as conn:
+            conn.execute("DELETE FROM bot_guilds WHERE guild_id = ?", (str(guild.id),))
+        print(f"✅ Removed {guild.name} from bot_guilds table")
+    except Exception as e:
+        print(f"❌ Error removing guild from bot_guilds table: {e}")
 
 @tree.command(name="setup", description="View timeclock setup information and instructions")
 @app_commands.default_permissions(administrator=True)
