@@ -92,21 +92,18 @@ def init_dashboard_tables():
         # Migration: Add refresh_token column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN refresh_token TEXT")
-            app.logger.info("Migration: Added refresh_token column")
         except sqlite3.OperationalError:
             pass
         
         # Migration: Add created_at column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now'))")
-            app.logger.info("Migration: Added created_at column")
         except sqlite3.OperationalError:
             pass
         
         # Migration: Add ip_address column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN ip_address TEXT NOT NULL DEFAULT 'unknown'")
-            app.logger.info("Migration: Added ip_address column")
         except sqlite3.OperationalError:
             pass
         
@@ -115,11 +112,13 @@ def init_dashboard_tables():
                     (datetime.now(timezone.utc).isoformat(),))
         conn.execute("DELETE FROM user_sessions WHERE expires_at < ?", 
                     (datetime.now(timezone.utc).isoformat(),))
-        
-        app.logger.info("Dashboard tables initialized")
 
 # Initialize tables when module is imported (for Gunicorn)
-init_dashboard_tables()
+try:
+    init_dashboard_tables()
+except Exception as e:
+    # Fallback to print if logger not available during import
+    print(f"⚠️ Dashboard initialization warning: {e}")
 
 # OAuth Helper Functions
 def create_oauth_state():
