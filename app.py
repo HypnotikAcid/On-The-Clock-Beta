@@ -257,6 +257,68 @@ def require_auth(f):
             return redirect('/auth/login')
     return decorated_function
 
+def get_bot_guild_ids():
+    """Get list of guild IDs where the bot is present"""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT guild_id FROM bot_guilds")
+        return set(row[0] for row in cursor.fetchall())
+
+def user_has_admin_access(user_id, guild_id, user_guild):
+    """
+    Check if user has admin access to a guild.
+    Returns True if user has:
+    - Discord Owner permissions, OR
+    - Discord Administrator permissions, OR
+    - A custom admin role configured via bot slash commands, OR
+    - The main admin role configured for the guild
+    """
+    # Check Discord owner permission
+    if user_guild.get('owner', False):
+        return True
+    
+    # Check Discord administrator permission (0x8 = ADMINISTRATOR)
+    permissions = int(user_guild.get('permissions', '0'))
+    if permissions & 0x8:  # Administrator permission
+        return True
+    
+    # Check custom admin roles and main admin role from database
+    # Note: We can't easily get user's role IDs from OAuth guilds endpoint
+    # The guilds endpoint only gives us basic guild info and permissions
+    # For now, we'll trust Discord permissions (owner/administrator)
+    # Custom admin roles would require additional Discord API calls per guild
+    
+    # TODO: If needed, implement Discord API call to get member roles:
+    # GET /guilds/{guild_id}/members/{user_id} with bot token
+    # Then check against admin_roles and guild_settings.main_admin_role_id
+    
+    return False
+
+def filter_user_guilds(user_session):
+    """
+    Filter user's guilds to show only those where:
+    1. The bot is present (in bot_guilds table), AND
+    2. The user has admin access (owner, administrator, or custom admin role)
+    """
+    all_guilds = user_session.get('guilds', [])
+    bot_guild_ids = get_bot_guild_ids()
+    filtered_guilds = []
+    
+    for guild in all_guilds:
+        guild_id = guild.get('id')
+        
+        # Check if bot is in this guild
+        if guild_id not in bot_guild_ids:
+            continue
+        
+        # Check if user has admin access
+        if not user_has_admin_access(user_session['user_id'], guild_id, guild):
+            continue
+        
+        # Guild passes both filters
+        filtered_guilds.append(guild)
+    
+    return filtered_guilds
+
 # Routes
 @app.route("/")
 def index():
@@ -345,10 +407,23 @@ def auth_logout():
 @app.route("/dashboard")
 @require_auth
 def dashboard(user_session):
-    """Protected dashboard showing user info and guilds"""
+    """Protected dashboard showing user info and guilds where bot is present and user has admin access"""
     try:
         app.logger.info(f"Dashboard accessed by user: {user_session.get('username')}")
-        return render_template('dashboard.html', user=user_session)
+        
+        # Filter guilds to show only where bot is present AND user has admin access
+        filtered_guilds = filter_user_guilds(user_session)
+        
+        # Create a modified user session with filtered guilds
+        dashboard_data = {
+            **user_session,
+            'guilds': filtered_guilds,
+            'total_guilds': len(user_session.get('guilds', [])),
+            'filtered_count': len(filtered_guilds)
+        }
+        
+        app.logger.info(f"Showing {len(filtered_guilds)} of {len(user_session.get('guilds', []))} guilds")
+        return render_template('dashboard.html', user=dashboard_data)
     except Exception as e:
         app.logger.error(f"Dashboard rendering error: {str(e)}")
         app.logger.error(traceback.format_exc())

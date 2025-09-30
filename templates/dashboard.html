@@ -276,9 +276,12 @@
                 </div>
             </div>
 
-            <!-- Tile2: Discord Servers -->
+            <!-- Tile2: Discord Servers (Filtered: Bot Present + Admin Access) -->
             <div class="tile" id="Tile2">
-                <h2><span class="tile-icon">🏢</span>Your Discord Servers ({{ user.guilds|length }})</h2>
+                <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.guilds|length }})</h2>
+                <p style="color: #b0b0b0; font-size: 13px; margin-bottom: 15px;">
+                    Showing servers where On the Clock bot is present and you have admin access
+                </p>
                 {% if user.guilds %}
                     <div class="servers-list">
                         {% for guild in user.guilds %}
@@ -307,7 +310,11 @@
                     </div>
                 {% else %}
                     <div class="no-servers">
-                        <p>No Discord servers found</p>
+                        <p style="margin-bottom: 10px;"><strong>No managed servers found</strong></p>
+                        <p style="font-size: 13px;">To see servers here, you need:</p>
+                        <p style="font-size: 13px;">✅ The "On the Clock" bot added to your server</p>
+                        <p style="font-size: 13px;">✅ Admin permissions in that server</p>
+                        <p style="margin-top: 15px;"><a href="/invite" style="color: #5865f2; text-decoration: underline;">Add bot to your server</a></p>
                     </div>
                 {% endif %}
             </div>
