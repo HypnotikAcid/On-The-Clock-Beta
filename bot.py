@@ -793,8 +793,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 admin_roles_deleted = admin_roles_cursor.rowcount
                 
                 # Delete clock roles
-                clock_roles_cursor = conn.execute("DELETE FROM clock_roles WHERE guild_id = ?", (guild_id,))
-                clock_roles_deleted = clock_roles_cursor.rowcount
+                employee_roles_cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id = ?", (guild_id,))
+                employee_roles_deleted = employee_roles_cursor.rowcount
                 
                 # Reset subscription to free tier (don't delete subscription record)
                 conn.execute("""
@@ -804,7 +804,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     WHERE guild_id = ?
                 """, (guild_id,))
                 
-                print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {clock_roles_deleted} clock roles")
+                print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {employee_roles_deleted} clock roles")
                 
         except Exception as e:
             print(f"❌ Error purging guild data for {guild_id}: {e}")
@@ -1184,13 +1184,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 user_role_ids = [int(role_id) for role_id in member_data.get('roles', [])]
                 
                 # Check clock roles from database
-                clock_roles = get_clock_roles(guild_id)
+                employee_roles = get_employee_roles(guild_id)
                 
                 # If no clock roles configured, fall back to admin-only access
-                if not clock_roles:
+                if not employee_roles:
                     has_employee_access = has_admin_access
                 else:
-                    has_employee_access = any(role_id in user_role_ids for role_id in clock_roles)
+                    has_employee_access = any(role_id in user_role_ids for role_id in employee_roles)
             
             response_data = {
                 "user": {
@@ -1344,7 +1344,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "main_admin_role_id": get_guild_setting(guild_id, "main_admin_role_id"),
                 "subscription_tier": get_server_tier(guild_id),
                 "admin_roles": get_admin_roles(guild_id),
-                "employee_roles": get_clock_roles(guild_id)
+                "employee_roles": get_employee_roles(guild_id)
             }
             
             self.send_json_response({"settings": settings})
@@ -1450,7 +1450,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 return
                 
             # Get configured employee roles
-            employee_role_ids = get_clock_roles(guild_id)
+            employee_role_ids = get_employee_roles(guild_id)
             employee_roles = []
             
             for role_id in employee_role_ids:
@@ -1908,7 +1908,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 admin_role_ids = [row[0] for row in cursor.fetchall()]
                 
                 # Get employee roles  
-                cursor = conn.execute("SELECT role_id FROM clock_roles WHERE guild_id = ?", (guild_id,))
+                cursor = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id = ?", (guild_id,))
                 employee_role_ids = [row[0] for row in cursor.fetchall()]
                 
             # Get role names from Discord
@@ -1973,8 +1973,8 @@ def purge_guild_data_for_testing(guild_id: int):
             admin_roles_deleted = admin_roles_cursor.rowcount
             
             # Delete clock roles
-            clock_roles_cursor = conn.execute("DELETE FROM clock_roles WHERE guild_id = ?", (guild_id,))
-            clock_roles_deleted = clock_roles_cursor.rowcount
+            employee_roles_cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id = ?", (guild_id,))
+            employee_roles_deleted = employee_roles_cursor.rowcount
             
             # Reset subscription to free tier (don't delete subscription record)
             conn.execute("""
@@ -1984,8 +1984,8 @@ def purge_guild_data_for_testing(guild_id: int):
                 WHERE guild_id = ?
             """, (guild_id,))
             
-            print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {clock_roles_deleted} clock roles")
-            return sessions_deleted + settings_deleted + auth_roles_deleted + admin_roles_deleted + clock_roles_deleted
+            print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {employee_roles_deleted} clock roles")
+            return sessions_deleted + settings_deleted + auth_roles_deleted + admin_roles_deleted + employee_roles_deleted
             
     except Exception as e:
         print(f"❌ Error purging guild data for {guild_id}: {e}")
@@ -2214,7 +2214,7 @@ def init_db():
         )
         """)
         conn.execute("""
-        CREATE TABLE IF NOT EXISTS clock_roles (
+        CREATE TABLE IF NOT EXISTS employee_roles (
             guild_id INTEGER,
             role_id INTEGER,
             PRIMARY KEY (guild_id, role_id)
@@ -2733,19 +2733,19 @@ def user_has_admin_access(user: discord.Member):
 def add_employee_role(guild_id: int, role_id: int):
     """Add a role that can use timeclock functions."""
     with db() as conn:
-        conn.execute("INSERT OR IGNORE INTO clock_roles (guild_id, role_id) VALUES (?, ?)", 
+        conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (?, ?)", 
                      (guild_id, role_id))
 
 def remove_employee_role(guild_id: int, role_id: int):
     """Remove a role from timeclock functions access."""
     with db() as conn:
-        conn.execute("DELETE FROM clock_roles WHERE guild_id=? AND role_id=?", 
+        conn.execute("DELETE FROM employee_roles WHERE guild_id=? AND role_id=?", 
                      (guild_id, role_id))
 
-def get_clock_roles(guild_id: int):
+def get_employee_roles(guild_id: int):
     """Get all clock role IDs for a guild."""
     with db() as conn:
-        cur = conn.execute("SELECT role_id FROM clock_roles WHERE guild_id=?", (guild_id,))
+        cur = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id=?", (guild_id,))
         return [row[0] for row in cur.fetchall()]
 
 def user_has_clock_access(user: discord.Member, server_tier: str):
@@ -2754,13 +2754,13 @@ def user_has_clock_access(user: discord.Member, server_tier: str):
     
     # All tiers: check clock roles OR admin access
     # If no clock roles are configured, default to admin-only
-    clock_roles = get_clock_roles(guild_id)
-    if not clock_roles:
+    employee_roles = get_employee_roles(guild_id)
+    if not employee_roles:
         return user_has_admin_access(user)
     
     # Check if user has any of the configured clock roles
     user_role_ids = [role.id for role in user.roles]
-    has_clock_role = any(role_id in user_role_ids for role_id in clock_roles)
+    has_clock_role = any(role_id in user_role_ids for role_id in employee_roles)
     
     # Allow access if user has clock role OR admin access
     return has_clock_role or user_has_admin_access(user)
@@ -4472,7 +4472,7 @@ async def list_employee_roles(interaction: discord.Interaction):
     if interaction.guild_id is None:
         await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
         return
-    clock_role_ids = get_clock_roles(interaction.guild_id)
+    clock_role_ids = get_employee_roles(interaction.guild_id)
     server_tier = get_server_tier(interaction.guild_id)
     
     embed = discord.Embed(
@@ -5509,8 +5509,8 @@ async def owner_server_listings(interaction: discord.Interaction):
             employee_count = "N/A*"
             
             # Check if clock roles are configured (indicates employees beyond admins)
-            clock_roles = get_clock_roles(guild.id)
-            employee_setup = "Admin-only" if not clock_roles else f"{len(clock_roles)} employee roles"
+            employee_roles = get_employee_roles(guild.id)
+            employee_setup = "Admin-only" if not employee_roles else f"{len(employee_roles)} employee roles"
             
             server_data.append({
                 'name': guild.name,
