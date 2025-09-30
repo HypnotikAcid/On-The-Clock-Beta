@@ -57,8 +57,16 @@ def get_redirect_uri():
 
 # Database connection
 def get_db():
+    """
+    Get database connection with same PRAGMA settings as bot.py
+    for proper synchronization between Discord bot and web dashboard
+    """
     conn = sqlite3.connect('timeclock.db')
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
+    conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 def init_dashboard_tables():
