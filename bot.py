@@ -4293,25 +4293,28 @@ async def list_admin_roles(interaction: discord.Interaction):
     
     admin_role_ids = get_admin_roles(guild_id)
     
-    if not admin_role_ids:
-        await send_reply(interaction, "No custom admin roles configured. Only Discord Administrators can use Reports/Upgrade buttons.", ephemeral=True)
-        return
-    
-    # Get role objects
-    admin_roles = []
-    for role_id in admin_role_ids:
-        role = interaction.guild.get_role(role_id) if interaction.guild else None
-        if role:
-            admin_roles.append(role.mention)
-        else:
-            admin_roles.append(f"<Deleted Role: {role_id}>")
-    
     embed = discord.Embed(
         title="🛡️ Admin Roles",
         description="Roles that can access Reports and Upgrade buttons:",
         color=discord.Color.blue()
     )
-    embed.add_field(name="Custom Admin Roles", value="\n".join(admin_roles), inline=False)
+    
+    # Always show Administrator role first (permanent, cannot be removed)
+    embed.add_field(name="Built-in Admin Role", value="@Admin (Discord Administrators)", inline=False)
+    
+    # Show custom admin roles if any are configured
+    if admin_role_ids:
+        admin_roles = []
+        for role_id in admin_role_ids:
+            role = interaction.guild.get_role(role_id) if interaction.guild else None
+            if role:
+                admin_roles.append(role.mention)
+            else:
+                admin_roles.append(f"<Deleted Role: {role_id}>")
+        embed.add_field(name="Custom Admin Roles", value="\n".join(admin_roles), inline=False)
+    else:
+        embed.add_field(name="Custom Admin Roles", value="*No custom admin roles configured*", inline=False)
+    
     embed.add_field(name="Note", value="Discord Administrators always have admin access.", inline=False)
     
     await send_reply(interaction, embed=embed, ephemeral=True)
@@ -4490,13 +4493,11 @@ async def list_employee_roles(interaction: discord.Interaction):
         color=discord.Color.green()
     )
     
-    if not clock_role_ids:
-        if server_tier == "free":
-            embed.add_field(name="Access Control", value="**Free Tier:** Only administrators can use timeclock functions.\nUpgrade to Basic/Pro and configure roles for team access!", inline=False)
-        else:
-            embed.add_field(name="Access Control", value="**No employee roles configured.** Only administrators can use timeclock functions.\nUse `/add_employee_role @role` to grant access to your team!", inline=False)
-    else:
-        # Get role objects
+    # Always show Administrator role first (permanent, cannot be removed)
+    embed.add_field(name="Built-in Employee Access", value="@Admin (Discord Administrators)", inline=False)
+    
+    # Show custom employee roles if any are configured
+    if clock_role_ids:
         employee_roles = []
         if interaction.guild:  # Additional null check for LSP
             for role_id in clock_role_ids:
@@ -4506,10 +4507,15 @@ async def list_employee_roles(interaction: discord.Interaction):
                 else:
                     employee_roles.append(f"<Deleted Role: {role_id}>")
         
-        embed.add_field(name="Employee Roles", value="\n".join(employee_roles), inline=False)
+        embed.add_field(name="Custom Employee Roles", value="\n".join(employee_roles), inline=False)
         
         if server_tier == "free":
             embed.add_field(name="⚠️ Free Tier Limitation", value="These roles are configured but won't take effect until you upgrade to Basic/Pro. Currently only admins can use timeclock functions.", inline=False)
+    else:
+        if server_tier == "free":
+            embed.add_field(name="Custom Employee Roles", value="*No custom employee roles configured.*\nUpgrade to Basic/Pro to configure roles for team access!", inline=False)
+        else:
+            embed.add_field(name="Custom Employee Roles", value="*No custom employee roles configured.*\nUse `/add_employee_role @role` to grant access to your team!", inline=False)
     
     embed.add_field(name="Note", value="Administrators always have timeclock access regardless of role configuration.", inline=False)
     

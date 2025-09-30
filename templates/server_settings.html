@@ -523,6 +523,15 @@
                     <div class="listbox-wrapper">
                         <div class="listbox-label">Admin Roles</div>
                         <div class="listbox" id="current-admin-roles">
+                            <div class="listbox-item permanent-role" style="opacity: 0.7; cursor: not-allowed;" title="Built-in role (cannot be removed)">
+                                <div class="listbox-item-icon" style="background-color: #5865F2;">
+                                    👑
+                                </div>
+                                <div class="listbox-item-info">
+                                    <div class="listbox-item-name">Administrator</div>
+                                    <div class="listbox-item-meta">Built-in Discord role (permanent)</div>
+                                </div>
+                            </div>
                             {% if current_settings.admin_roles %}
                                 {% for admin_role_id in current_settings.admin_roles %}
                                     {% for role in roles %}
@@ -539,8 +548,6 @@
                                         {% endif %}
                                     {% endfor %}
                                 {% endfor %}
-                            {% else %}
-                                <div class="empty-state">No custom admin roles configured<br>Discord administrators have access by default</div>
                             {% endif %}
                         </div>
                     </div>
@@ -580,6 +587,15 @@
                     <div class="listbox-wrapper">
                         <div class="listbox-label">Employee Roles</div>
                         <div class="listbox" id="current-roles">
+                            <div class="listbox-item permanent-role" style="opacity: 0.7; cursor: not-allowed;" title="Built-in role (cannot be removed)">
+                                <div class="listbox-item-icon" style="background-color: #5865F2;">
+                                    👑
+                                </div>
+                                <div class="listbox-item-info">
+                                    <div class="listbox-item-name">Administrator</div>
+                                    <div class="listbox-item-meta">Built-in Discord role (permanent)</div>
+                                </div>
+                            </div>
                             {% if current_settings.employee_roles %}
                                 {% for employee_role_id in current_settings.employee_roles %}
                                     {% for role in roles %}
@@ -596,8 +612,6 @@
                                         {% endif %}
                                     {% endfor %}
                                 {% endfor %}
-                            {% else %}
-                                <div class="empty-state">No employee roles configured<br>Add roles to enable timeclock access</div>
                             {% endif %}
                         </div>
                     </div>
@@ -698,7 +712,7 @@
 
         document.getElementById('current-admin-roles').addEventListener('click', function(e) {
             const item = e.target.closest('.listbox-item');
-            if (item) {
+            if (item && !item.classList.contains('permanent-role')) {
                 document.querySelectorAll('#current-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
                 item.classList.add('selected');
                 selectedCurrentAdminRole = {
@@ -730,7 +744,7 @@
 
         document.getElementById('current-roles').addEventListener('click', function(e) {
             const item = e.target.closest('.listbox-item');
-            if (item) {
+            if (item && !item.classList.contains('permanent-role')) {
                 document.querySelectorAll('#current-roles .listbox-item').forEach(i => i.classList.remove('selected'));
                 item.classList.add('selected');
                 selectedCurrentRole = {
