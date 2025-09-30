@@ -526,9 +526,9 @@ def get_guild_settings(guild_id):
         )
         employee_roles = [row[0] for row in employee_cursor.fetchall()]
         
-        # Get guild settings (timezone, recipient, etc.)
+        # Get guild settings (timezone, recipient_user_id, etc.)
         settings_cursor = conn.execute(
-            "SELECT timezone, recipient, name_display_mode FROM guild_settings WHERE guild_id = ?",
+            "SELECT timezone, recipient_user_id, name_display_mode FROM guild_settings WHERE guild_id = ?",
             (guild_id,)
         )
         settings_row = settings_cursor.fetchone()
@@ -545,7 +545,7 @@ def get_guild_settings(guild_id):
             'admin_roles': admin_roles,
             'employee_roles': employee_roles,
             'timezone': settings_row[0] if settings_row else 'America/New_York',
-            'recipient': settings_row[1] if settings_row else None,
+            'recipient_user_id': settings_row[1] if settings_row else None,
             'name_display_mode': settings_row[2] if settings_row else 'username',
             'main_admin_role_id': main_admin_role_id,
             'emails': []  # TODO: Add email table and fetch emails
