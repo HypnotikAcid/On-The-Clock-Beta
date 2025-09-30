@@ -68,6 +68,14 @@ def init_dashboard_tables():
             )
         """)
         
+        # Migration: Add refresh_token column if it doesn't exist
+        try:
+            conn.execute("ALTER TABLE user_sessions ADD COLUMN refresh_token TEXT")
+            print("✅ Migration: Added refresh_token column")
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
+        
         # Clean up expired sessions and states
         conn.execute("DELETE FROM oauth_states WHERE expires_at < ?", 
                     (datetime.now(timezone.utc).isoformat(),))
