@@ -35,6 +35,10 @@ run = ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:5000 --workers 2"]
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 43937
+externalPort = 3000
+
 [agent]
 expertMode = true
 integrations = ["flask_stripe:1.0.0", "replitmail:1.0.0"]
