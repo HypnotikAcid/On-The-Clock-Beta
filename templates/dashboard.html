@@ -157,6 +157,8 @@
             border-radius: 8px;
             transition: background 0.2s;
             cursor: pointer;
+            text-decoration: none;
+            color: inherit;
         }
 
         .server-item:hover {
@@ -285,7 +287,7 @@
                 {% if user.guilds %}
                     <div class="servers-list">
                         {% for guild in user.guilds %}
-                            <div class="server-item">
+                            <a href="{{ url_for('server_settings', guild_id=guild.id) }}" class="server-item">
                                 <div class="server-icon">
                                     {% if guild.icon %}
                                         <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64" alt="{{ guild.name }}">
@@ -305,7 +307,7 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                            </div>
+                            </a>
                         {% endfor %}
                     </div>
                 {% else %}
