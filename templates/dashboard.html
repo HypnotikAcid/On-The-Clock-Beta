@@ -1567,36 +1567,42 @@
             });
         }
 
-        // Setup Employee Role Listeners
+        // Setup Employee Role Listeners (using event delegation)
         function setupEmployeeRoleListeners() {
-            document.querySelectorAll('#available-roles .listbox-item').forEach(item => {
-                item.addEventListener('click', function() {
+            // Available employee roles - event delegation on parent container
+            const availableContainer = document.getElementById('available-roles');
+            availableContainer.addEventListener('click', function(e) {
+                const item = e.target.closest('.listbox-item');
+                if (item) {
                     document.querySelectorAll('#available-roles .listbox-item').forEach(i => i.classList.remove('selected'));
-                    this.classList.add('selected');
+                    item.classList.add('selected');
                     selectedAvailableRole = {
-                        id: this.dataset.roleId,
-                        name: this.dataset.roleName
+                        id: item.dataset.roleId,
+                        name: item.dataset.roleName
                     };
                     selectedCurrentRole = null;
                     document.querySelectorAll('#current-roles .listbox-item').forEach(i => i.classList.remove('selected'));
                     document.getElementById('add-role-btn').disabled = false;
                     document.getElementById('remove-role-btn').disabled = true;
-                });
+                }
             });
 
-            document.querySelectorAll('#current-roles .listbox-item').forEach(item => {
-                item.addEventListener('click', function() {
+            // Current employee roles - event delegation on parent container
+            const currentContainer = document.getElementById('current-roles');
+            currentContainer.addEventListener('click', function(e) {
+                const item = e.target.closest('.listbox-item');
+                if (item) {
                     document.querySelectorAll('#current-roles .listbox-item').forEach(i => i.classList.remove('selected'));
-                    this.classList.add('selected');
+                    item.classList.add('selected');
                     selectedCurrentRole = {
-                        id: this.dataset.roleId,
-                        name: this.dataset.roleName
+                        id: item.dataset.roleId,
+                        name: item.dataset.roleName
                     };
                     selectedAvailableRole = null;
                     document.querySelectorAll('#available-roles .listbox-item').forEach(i => i.classList.remove('selected'));
                     document.getElementById('remove-role-btn').disabled = false;
                     document.getElementById('add-role-btn').disabled = true;
-                });
+                }
             });
         }
 
