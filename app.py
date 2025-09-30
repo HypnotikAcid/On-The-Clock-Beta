@@ -40,6 +40,9 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Fix for Replit reverse proxy - ensures correct scheme/host detection and client IP
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 
+# Database Configuration - MUST match bot.py for proper synchronization
+DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
+
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
@@ -61,7 +64,7 @@ def get_db():
     Get database connection with same PRAGMA settings as bot.py
     for proper synchronization between Discord bot and web dashboard
     """
-    conn = sqlite3.connect('timeclock.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")

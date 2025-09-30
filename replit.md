@@ -52,6 +52,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Database
 - **SQLite**: Used for data storage with WAL mode enabled.
+- **Synchronized Database Path**: Both `bot.py` and `app.py` use `DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")` to ensure they connect to the same database file. This prevents data isolation between Discord commands and web dashboard.
 
 # Server Settings Page Implementation
 
