@@ -594,7 +594,7 @@ def server_settings(user_session, guild_id):
                 'admin_roles': [],
                 'employee_roles': [],
                 'timezone': 'America/New_York',
-                'recipient': None,
+                'recipient_user_id': None,
                 'name_display_mode': 'username',
                 'main_admin_role_id': None,
                 'emails': []
