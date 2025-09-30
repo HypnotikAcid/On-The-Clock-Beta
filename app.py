@@ -258,10 +258,16 @@ def require_auth(f):
     return decorated_function
 
 def get_bot_guild_ids():
-    """Get list of guild IDs where the bot is present"""
-    with get_db() as conn:
-        cursor = conn.execute("SELECT guild_id FROM bot_guilds")
-        return set(row[0] for row in cursor.fetchall())
+    """Get list of guild IDs where the bot is present (as strings for OAuth comparison)"""
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("SELECT guild_id FROM bot_guilds")
+            # Cast to string to match Discord OAuth guild IDs (which are strings)
+            return set(str(row[0]) for row in cursor.fetchall())
+    except Exception as e:
+        app.logger.error(f"Error fetching bot guild IDs: {e}")
+        # Return empty set to avoid 500 errors if table missing or locked
+        return set()
 
 def user_has_admin_access(user_id, guild_id, user_guild):
     """
