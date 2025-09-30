@@ -642,8 +642,14 @@ def validate_role_in_guild(guild_id, role_id):
 @app.route("/api/server/<guild_id>/admin-roles/add", methods=["POST"])
 @require_api_auth
 def api_add_admin_role(user_session, guild_id):
-    """API endpoint to add an admin role"""
+    """API endpoint to add an admin role - Proxies to bot API"""
     try:
+        # Check for BOT_API_SECRET
+        bot_api_secret = os.getenv('BOT_API_SECRET')
+        if not bot_api_secret:
+            app.logger.error("BOT_API_SECRET not configured")
+            return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
+        
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -660,15 +666,23 @@ def api_add_admin_role(user_session, guild_id):
         if not validate_role_in_guild(guild_id, role_id):
             return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
         
-        # Add role to database
-        with get_db() as conn:
-            conn.execute(
-                "INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (?, ?)",
-                (guild_id, role_id)
-            )
+        # Forward request to bot API (Bot as Boss)
+        bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/admin-roles/add"
         
-        app.logger.info(f"Added admin role {role_id} to guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'message': 'Admin role added successfully', 'role_id': role_id})
+        response = requests.post(
+            bot_api_url,
+            json={'role_id': role_id},
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            timeout=5
+        )
+        
+        if response.ok:
+            app.logger.info(f"Added admin role {role_id} to guild {guild_id} by user {user_session.get('username')}")
+            return jsonify(response.json())
+        else:
+            app.logger.error(f"Bot API error: {response.status_code} - {response.text}")
+            return jsonify({'success': False, 'error': 'Bot API error'}), response.status_code
+            
     except Exception as e:
         app.logger.error(f"Error adding admin role: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -677,8 +691,14 @@ def api_add_admin_role(user_session, guild_id):
 @app.route("/api/server/<guild_id>/admin-roles/remove", methods=["POST"])
 @require_api_auth
 def api_remove_admin_role(user_session, guild_id):
-    """API endpoint to remove an admin role"""
+    """API endpoint to remove an admin role - Proxies to bot API"""
     try:
+        # Check for BOT_API_SECRET
+        bot_api_secret = os.getenv('BOT_API_SECRET')
+        if not bot_api_secret:
+            app.logger.error("BOT_API_SECRET not configured")
+            return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
+        
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -691,15 +711,23 @@ def api_remove_admin_role(user_session, guild_id):
         
         role_id = str(data['role_id'])
         
-        # Remove role from database
-        with get_db() as conn:
-            conn.execute(
-                "DELETE FROM admin_roles WHERE guild_id = ? AND role_id = ?",
-                (guild_id, role_id)
-            )
+        # Forward request to bot API (Bot as Boss)
+        bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/admin-roles/remove"
         
-        app.logger.info(f"Removed admin role {role_id} from guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'message': 'Admin role removed successfully', 'role_id': role_id})
+        response = requests.post(
+            bot_api_url,
+            json={'role_id': role_id},
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            timeout=5
+        )
+        
+        if response.ok:
+            app.logger.info(f"Removed admin role {role_id} from guild {guild_id} by user {user_session.get('username')}")
+            return jsonify(response.json())
+        else:
+            app.logger.error(f"Bot API error: {response.status_code} - {response.text}")
+            return jsonify({'success': False, 'error': 'Bot API error'}), response.status_code
+            
     except Exception as e:
         app.logger.error(f"Error removing admin role: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -708,8 +736,14 @@ def api_remove_admin_role(user_session, guild_id):
 @app.route("/api/server/<guild_id>/employee-roles/add", methods=["POST"])
 @require_api_auth
 def api_add_employee_role(user_session, guild_id):
-    """API endpoint to add an employee role"""
+    """API endpoint to add an employee role - Proxies to bot API"""
     try:
+        # Check for BOT_API_SECRET
+        bot_api_secret = os.getenv('BOT_API_SECRET')
+        if not bot_api_secret:
+            app.logger.error("BOT_API_SECRET not configured")
+            return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
+        
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -726,15 +760,23 @@ def api_add_employee_role(user_session, guild_id):
         if not validate_role_in_guild(guild_id, role_id):
             return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
         
-        # Add role to database
-        with get_db() as conn:
-            conn.execute(
-                "INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (?, ?)",
-                (guild_id, role_id)
-            )
+        # Forward request to bot API (Bot as Boss)
+        bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/employee-roles/add"
         
-        app.logger.info(f"Added employee role {role_id} to guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'message': 'Employee role added successfully', 'role_id': role_id})
+        response = requests.post(
+            bot_api_url,
+            json={'role_id': role_id},
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            timeout=5
+        )
+        
+        if response.ok:
+            app.logger.info(f"Added employee role {role_id} to guild {guild_id} by user {user_session.get('username')}")
+            return jsonify(response.json())
+        else:
+            app.logger.error(f"Bot API error: {response.status_code} - {response.text}")
+            return jsonify({'success': False, 'error': 'Bot API error'}), response.status_code
+            
     except Exception as e:
         app.logger.error(f"Error adding employee role: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -743,8 +785,14 @@ def api_add_employee_role(user_session, guild_id):
 @app.route("/api/server/<guild_id>/employee-roles/remove", methods=["POST"])
 @require_api_auth
 def api_remove_employee_role(user_session, guild_id):
-    """API endpoint to remove an employee role"""
+    """API endpoint to remove an employee role - Proxies to bot API"""
     try:
+        # Check for BOT_API_SECRET
+        bot_api_secret = os.getenv('BOT_API_SECRET')
+        if not bot_api_secret:
+            app.logger.error("BOT_API_SECRET not configured")
+            return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
+        
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -757,15 +805,23 @@ def api_remove_employee_role(user_session, guild_id):
         
         role_id = str(data['role_id'])
         
-        # Remove role from database
-        with get_db() as conn:
-            conn.execute(
-                "DELETE FROM employee_roles WHERE guild_id = ? AND role_id = ?",
-                (guild_id, role_id)
-            )
+        # Forward request to bot API (Bot as Boss)
+        bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/employee-roles/remove"
         
-        app.logger.info(f"Removed employee role {role_id} from guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'message': 'Employee role removed successfully', 'role_id': role_id})
+        response = requests.post(
+            bot_api_url,
+            json={'role_id': role_id},
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            timeout=5
+        )
+        
+        if response.ok:
+            app.logger.info(f"Removed employee role {role_id} from guild {guild_id} by user {user_session.get('username')}")
+            return jsonify(response.json())
+        else:
+            app.logger.error(f"Bot API error: {response.status_code} - {response.text}")
+            return jsonify({'success': False, 'error': 'Bot API error'}), response.status_code
+            
     except Exception as e:
         app.logger.error(f"Error removing employee role: {str(e)}")
         app.logger.error(traceback.format_exc())
