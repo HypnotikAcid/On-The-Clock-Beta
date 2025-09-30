@@ -12,23 +12,41 @@
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
-            color: #e0e6ed;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+            color: #C9D1D9;
             min-height: 100vh;
-            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Matrix Background Animation */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.15;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 900px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 3rem 2rem;
         }
 
         /* Header */
         .header {
             text-align: center;
-            margin-bottom: 3rem;
+            margin-bottom: 4rem;
+            padding-top: 2rem;
         }
 
         .logo {
@@ -36,25 +54,24 @@
             align-items: center;
             justify-content: center;
             gap: 15px;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         .logo-icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(45deg, #5865F2, #7289DA);
-            border-radius: 15px;
+            width: 55px;
+            height: 55px;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
-            overflow: hidden;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
         }
 
         .logo-gear {
-            width: 36px;
-            height: 36px;
-            fill: white;
+            width: 32px;
+            height: 32px;
+            fill: #0D1117;
             animation: rotate 8s linear infinite;
         }
 
@@ -64,516 +81,361 @@
         }
 
         .logo-text {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
             font-weight: 700;
-            background: linear-gradient(45deg, #5865F2, #00D4FF);
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1, #D4AF37);
+            background-size: 200% auto;
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+        }
+
+        @keyframes shimmer {
+            to { background-position: 200% center; }
         }
 
         .subtitle {
-            font-size: 1.2rem;
-            color: #b0b0b0;
+            font-size: 1.1rem;
+            color: #8B949E;
             margin-bottom: 2rem;
+            font-weight: 400;
         }
 
-        /* Beta Warning */
+        /* Beta Warning - Minimal */
         .beta-warning {
-            background: rgba(255, 193, 7, 0.1);
-            border: 2px solid #FFC107;
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin: 2rem auto;
-            max-width: 600px;
+            background: rgba(212, 175, 55, 0.08);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            margin: 0 auto 3rem;
+            max-width: 500px;
             text-align: center;
         }
 
         .beta-warning h3 {
-            color: #FFC107;
-            font-size: 1.3rem;
-            margin-bottom: 0.5rem;
+            color: #D4AF37;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
         }
 
         .beta-warning p {
-            color: #e0e6ed;
+            color: #8B949E;
+            font-size: 0.9rem;
         }
 
-        /* Features Section */
-        .features {
+        /* Action Buttons - Primary Focus */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
             margin: 3rem 0;
         }
 
-        .section-title {
-            text-align: center;
-            font-size: 2rem;
-            font-weight: 600;
-            color: #ffffff;
-            margin-bottom: 2rem;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin: 2rem 0;
-        }
-
-        .feature-card {
-            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
-            border: 1px solid #404050;
-            border-radius: 15px;
-            padding: 2rem;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(88, 101, 242, 0.2);
-            border-color: #5865F2;
-        }
-
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .feature-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #ffffff;
-            margin-bottom: 1rem;
-        }
-
-        .feature-description {
-            color: #b0b0b0;
-        }
-
-        /* Buttons */
         .btn {
-            display: inline-block;
-            background: linear-gradient(45deg, #5865F2, #7289DA);
-            color: white;
-            text-decoration: none;
-            padding: 15px 30px;
-            border-radius: 25px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 8px;
             font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
             transition: all 0.3s ease;
-            margin: 10px;
             border: none;
             cursor: pointer;
-            font-size: 1rem;
         }
 
-        .btn:hover {
-            background: linear-gradient(45deg, #7289DA, #5865F2);
+        .btn-primary {
+            background: linear-gradient(135deg, #D4AF37, #C19A2E);
+            color: #0D1117;
+            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
+        }
+
+        .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(88, 101, 242, 0.4);
+            box-shadow: 0 6px 30px rgba(212, 175, 55, 0.5);
+            background: linear-gradient(135deg, #E5C147, #D4AF37);
         }
 
         .btn-secondary {
-            background: linear-gradient(45deg, #40444b, #36393f);
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
+            color: #A78BFA;
+            border: 1px solid rgba(124, 58, 237, 0.3);
         }
 
         .btn-secondary:hover {
-            background: linear-gradient(45deg, #36393f, #40444b);
-        }
-
-        .btn-success {
-            background: linear-gradient(45deg, #00ff88, #00cc6a);
-        }
-
-        .btn-success:hover {
-            background: linear-gradient(45deg, #00cc6a, #00ff88);
-        }
-
-        /* Action Section */
-        .action-section {
-            text-align: center;
-            margin: 3rem 0;
-            padding: 3rem 2rem;
-            background: rgba(88, 101, 242, 0.1);
-            border-radius: 20px;
-            border: 1px solid rgba(88, 101, 242, 0.3);
-        }
-
-        .action-title {
-            font-size: 1.8rem;
-            font-weight: 600;
-            color: #ffffff;
-            margin-bottom: 1rem;
-        }
-
-        .action-subtitle {
-            color: #b0b0b0;
-            margin-bottom: 2rem;
-            font-size: 1.1rem;
-        }
-
-        /* Upgrade Section */
-        .upgrade-section {
-            margin: 3rem 0;
-        }
-
-        .tiers-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            margin: 2rem 0;
-        }
-
-        .tier-card {
-            background: linear-gradient(145deg, #1a1a2e, #2a2a3e);
-            border: 1px solid #404050;
-            border-radius: 15px;
-            padding: 2rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .tier-card.featured {
-            border-color: #00ff88;
-            transform: scale(1.05);
-        }
-
-        .tier-card.featured::before {
-            content: 'POPULAR';
-            position: absolute;
-            top: 15px;
-            right: -30px;
-            background: #00ff88;
-            color: white;
-            padding: 5px 40px;
-            transform: rotate(45deg);
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .tier-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #ffffff;
-            margin-bottom: 0.5rem;
-        }
-
-        .tier-price {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #00D4FF;
-            margin-bottom: 1rem;
-        }
-
-        .tier-features {
-            list-style: none;
-            margin: 1.5rem 0;
-        }
-
-        .tier-features li {
-            color: #b0b0b0;
-            margin: 0.5rem 0;
-            padding-left: 1.5rem;
-            position: relative;
-        }
-
-        .tier-features li::before {
-            content: '✓';
-            position: absolute;
-            left: 0;
-            color: #00ff88;
-            font-weight: bold;
-        }
-
-        /* Coffee Button with Steam Animation */
-        .coffee-button {
-            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #CD853F 100%);
-            color: #fff;
-            border: none;
-            padding: 14px 28px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .coffee-button:hover {
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
+            border-color: rgba(124, 58, 237, 0.5);
             transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.6);
-            background: linear-gradient(135deg, #A0522D 0%, #E87A3E 50%, #DEB887 100%);
         }
 
-        .coffee-button:active {
-            transform: translateY(0);
+        .btn-coffee {
+            background: linear-gradient(135deg, #8B4513, #A0522D);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
         }
 
-        /* Animated Coffee Icon with Steam */
+        .btn-coffee:hover {
+            background: linear-gradient(135deg, #A0522D, #8B4513);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.5);
+        }
+
         .coffee-icon {
-            font-size: 24px;
-            position: relative;
-            animation: coffeeWiggle 2s ease-in-out infinite;
+            display: inline-block;
+            animation: wiggle 2s ease-in-out infinite;
         }
 
-        @keyframes coffeeWiggle {
+        @keyframes wiggle {
             0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-5deg); }
-            75% { transform: rotate(5deg); }
+            25% { transform: rotate(-15deg); }
+            75% { transform: rotate(15deg); }
         }
 
-        /* Steam animation */
-        .coffee-icon::before,
-        .coffee-icon::after {
-            content: '';
-            position: absolute;
-            width: 3px;
-            height: 15px;
-            background: rgba(255, 255, 255, 0.4);
-            border-radius: 50%;
-            animation: steam 2s ease-in-out infinite;
+        /* Features - Compact List */
+        .features-section {
+            margin: 4rem 0;
         }
 
-        .coffee-icon::before {
-            left: 8px;
-            top: -10px;
-            animation-delay: 0s;
-        }
-
-        .coffee-icon::after {
-            right: 8px;
-            top: -10px;
-            animation-delay: 0.5s;
-        }
-
-        @keyframes steam {
-            0% {
-                opacity: 0;
-                transform: translateY(0) scale(1);
-            }
-            50% {
-                opacity: 1;
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-15px) scale(0.5);
-            }
-        }
-
-        .coffee-caption {
+        .features-title {
             text-align: center;
-            color: #b0b0b0;
-            font-size: 13px;
-            margin-top: 10px;
-            font-style: italic;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #D4AF37;
+            margin-bottom: 2rem;
         }
 
-        /* Support Button */
-        .support-button {
-            background: linear-gradient(135deg, #5865f2 0%, #7289da 100%);
-            color: #fff;
-            border: none;
-            padding: 14px 28px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            text-decoration: none;
-            display: inline-flex;
+        .features-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .feature-item {
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            display: flex;
             align-items: center;
             gap: 12px;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4);
         }
 
-        .support-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(88, 101, 242, 0.6);
-            background: linear-gradient(135deg, #6f7ff2 0%, #8aa0e8 100%);
+        .feature-item:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+            background: rgba(30, 35, 45, 0.8);
+            transform: translateX(5px);
         }
 
-        .support-button:active {
-            transform: translateY(0);
+        .feature-icon {
+            font-size: 1.3rem;
+            min-width: 24px;
         }
 
-        /* Button Container */
-        .action-buttons-container {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin: 30px 0 20px;
+        .feature-text {
+            font-size: 0.95rem;
+            color: #C9D1D9;
+            font-weight: 500;
         }
 
         /* Footer */
         .footer {
             text-align: center;
-            margin: 3rem 0 1rem;
-            padding: 2rem;
-            border-top: 1px solid #404050;
-            color: #b0b0b0;
+            margin-top: 5rem;
+            padding: 2rem 0;
+            border-top: 1px solid rgba(212, 175, 55, 0.2);
+            color: #8B949E;
+            font-size: 0.9rem;
         }
 
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .container {
-                padding: 1rem;
+                padding: 2rem 1rem;
             }
             
             .logo-text {
                 font-size: 2rem;
             }
-            
-            .features-grid,
-            .tiers-grid {
-                grid-template-columns: 1fr;
+
+            .action-buttons {
+                flex-direction: column;
+                align-items: stretch;
             }
-            
-            .tier-card.featured {
-                transform: none;
+
+            .btn {
+                justify-content: center;
+            }
+
+            .features-list {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo">
-                <div class="logo-icon">
-                    <svg class="logo-gear" viewBox="0 0 24 24">
-                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
-                    </svg>
+    <!-- Matrix Canvas Background -->
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="content-wrapper">
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <svg class="logo-gear" viewBox="0 0 24 24">
+                            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                        </svg>
+                    </div>
+                    <div class="logo-text">On the Clock</div>
                 </div>
-                <div class="logo-text">On the Clock</div>
+                <div class="subtitle">Professional Discord Timeclock Management</div>
             </div>
-            <div class="subtitle">Professional Discord Timeclock Management for Your Team</div>
-        </div>
 
-        <!-- Beta Warning -->
-        <div class="beta-warning">
-            <h3>⚠️ Beta Version</h3>
-            <p>This bot is currently in beta testing. Some features may be unstable or change frequently. Report any issues to our support team.</p>
-        </div>
-
-        <!-- Features Section -->
-        <div class="features">
-            <h2 class="section-title">🚀 Powerful Features</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">⏰</div>
-                    <div class="feature-title">Smart Timeclock</div>
-                    <div class="feature-description">Clock in and out with simple slash commands. Track work hours, breaks, and project time with precision.</div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <div class="feature-title">Detailed Reports</div>
-                    <div class="feature-description">Generate comprehensive CSV reports with timesheet data, overtime calculations, and productivity insights.</div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">👥</div>
-                    <div class="feature-title">Role Management</div>
-                    <div class="feature-description">Configure admin and employee roles. Control who can access reports, manage settings, and upgrade subscriptions.</div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🌍</div>
-                    <div class="feature-title">Timezone Support</div>
-                    <div class="feature-description">Automatically handle multiple timezones. Perfect for remote teams working across different regions.</div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📧</div>
-                    <div class="feature-title">Email Integration</div>
-                    <div class="feature-description">Receive timesheet reports directly in your inbox. Automated delivery with professional formatting.</div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💳</div>
-                    <div class="feature-title">Subscription Tiers</div>
-                    <div class="feature-description">Flexible pricing plans from free to pro. Scale features based on your team's needs and size.</div>
-                </div>
+            <!-- Beta Warning -->
+            <div class="beta-warning">
+                <h3>⚠️ Beta Version</h3>
+                <p>Currently in beta testing. Report issues to support.</p>
             </div>
-        </div>
 
-        <!-- Call to Action -->
-        <div class="action-section">
-            <h2 class="action-title">Ready to Get Started?</h2>
-            <p class="action-subtitle">Add On the Clock to your Discord server and start tracking time in minutes!</p>
-            <a href="/invite" class="btn btn-success">🤖 Add to Discord</a>
-            <a href="/auth/login" class="btn btn-secondary">🔐 Login to Dashboard</a>
-            <a href="#upgrades" class="btn btn-secondary">💎 View Pricing</a>
-        </div>
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="/invite" class="btn btn-primary">
+                    <span>🤖</span>
+                    <span>Add to Discord</span>
+                </a>
+                <a href="/auth/login" class="btn btn-secondary">
+                    <span>🔐</span>
+                    <span>Dashboard Login</span>
+                </a>
+                <a href="https://discord.gg/YourSupportServer" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                    <span>💬</span>
+                    <span>Support Server</span>
+                </a>
+                <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn btn-coffee">
+                    <span class="coffee-icon">☕</span>
+                    <span>Buy Me a Coffee</span>
+                </a>
+            </div>
 
-        <!-- Upgrade Section -->
-        <div class="upgrade-section" id="upgrades">
-            <h2 class="section-title">💎 Subscription Plans</h2>
-            <div class="tiers-grid">
-                <div class="tier-card">
-                    <div class="tier-name">Free</div>
-                    <div class="tier-price">$0<span style="font-size: 1rem; color: #b0b0b0;">/month</span></div>
-                    <ul class="tier-features">
-                        <li>Basic timeclock functionality</li>
-                        <li>Clock in/out commands</li>
-                        <li>Current session status</li>
-                        <li>Limited data retention</li>
-                        <li>Community support</li>
-                    </ul>
-                    <a href="/invite" class="btn">Get Started Free</a>
-                </div>
-                
-                <div class="tier-card featured">
-                    <div class="tier-name">Basic</div>
-                    <div class="tier-price">$5<span style="font-size: 1rem; color: #b0b0b0;">/month</span></div>
-                    <ul class="tier-features">
-                        <li>All Free features</li>
-                        <li>CSV report generation</li>
-                        <li>Email report delivery</li>
-                        <li>7-day data retention</li>
-                        <li>Role management</li>
-                        <li>Priority support</li>
-                    </ul>
-                    <a href="/invite" class="btn btn-success">Upgrade to Basic</a>
-                </div>
-                
-                <div class="tier-card">
-                    <div class="tier-name">Pro</div>
-                    <div class="tier-price">$10<span style="font-size: 1rem; color: #b0b0b0;">/month</span></div>
-                    <ul class="tier-features">
-                        <li>All Basic features</li>
-                        <li>Advanced analytics</li>
-                        <li>30-day data retention</li>
-                        <li>Custom time zones</li>
-                        <li>Project tracking</li>
-                        <li>Dedicated support</li>
-                    </ul>
-                    <a href="/invite" class="btn">Upgrade to Pro</a>
+            <!-- Compact Features List -->
+            <div class="features-section">
+                <h2 class="features-title">Core Features</h2>
+                <div class="features-list">
+                    <div class="feature-item">
+                        <span class="feature-icon">⏰</span>
+                        <span class="feature-text">Smart Clock In/Out System</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📊</span>
+                        <span class="feature-text">Detailed CSV Reports</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">👥</span>
+                        <span class="feature-text">Role-Based Access Control</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🌍</span>
+                        <span class="feature-text">Multi-Timezone Support</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📧</span>
+                        <span class="feature-text">Email Notifications</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">💎</span>
+                        <span class="feature-text">Flexible Subscription Plans</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Action Buttons -->
-        <div class="action-buttons-container">
-            <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="coffee-button">
-                <span class="coffee-icon">☕</span>
-                <span>Buy Me a Coffee</span>
-            </a>
-            <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="support-button">
-                <span>✉️</span>
-                <span>App Ideas & Requests</span>
-            </a>
-        </div>
-        <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <p>&copy; 2025 On the Clock Discord Bot. Made with ❤️ for productivity teams.</p>
-            <p>Need help? Join our <a href="https://discord.gg/yoursupport" style="color: #5865F2;">support Discord</a> or email support@ontheclock.bot</p>
+            <!-- Footer -->
+            <div class="footer">
+                <p>&copy; 2025 On the Clock. All rights reserved.</p>
+            </div>
         </div>
     </div>
+
+    <!-- Matrix Animation Script -->
+    <script>
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>?';
+        const fontSize = 14;
+        let columns, drops;
+
+        function initMatrix() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            ctx.scale(dpr, dpr);
+
+            columns = Math.floor(window.innerWidth / fontSize);
+            drops = [];
+            for (let i = 0; i < columns; i++) {
+                drops[i] = Math.random() * -100;
+            }
+        }
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(10, 15, 31, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                
+                const gradient = ctx.createLinearGradient(
+                    i * fontSize, drops[i] * fontSize - 20,
+                    i * fontSize, drops[i] * fontSize + 20
+                );
+                gradient.addColorStop(0, 'rgba(212, 175, 55, 0)');
+                gradient.addColorStop(0.5, 'rgba(212, 175, 55, 0.9)');
+                gradient.addColorStop(1, 'rgba(212, 175, 55, 0)');
+                
+                ctx.fillStyle = gradient;
+                
+                if (i % 3 === 0) {
+                    ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
+                    ctx.shadowBlur = 12;
+                }
+                
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                ctx.shadowBlur = 0;
+
+                if (drops[i] * fontSize > window.innerHeight && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+            
+            requestAnimationFrame(drawMatrix);
+        }
+
+        initMatrix();
+        requestAnimationFrame(drawMatrix);
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                initMatrix();
+            }, 250);
+        });
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            canvas.style.display = 'none';
+        }
+    </script>
 </body>
 </html>

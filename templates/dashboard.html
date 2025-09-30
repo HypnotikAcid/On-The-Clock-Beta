@@ -12,11 +12,29 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #e0e0e0;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+            color: #C9D1D9;
             min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
             padding: 20px;
+        }
+
+        /* Matrix Background Animation */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.15;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
         }
 
         .header {
@@ -24,9 +42,11 @@
             justify-content: space-between;
             align-items: center;
             padding: 20px;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(30, 35, 45, 0.6);
             border-radius: 10px;
             margin-bottom: 30px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            backdrop-filter: blur(10px);
         }
 
         .logo {
@@ -35,27 +55,36 @@
             gap: 15px;
             font-size: 24px;
             font-weight: bold;
-            color: #5865f2;
         }
 
         .logo-icon {
             font-size: 32px;
         }
 
+        .logo-text {
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
         .logout-btn {
-            background: #ed4245;
-            color: white;
-            border: none;
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
+            color: #A78BFA;
+            border: 1px solid rgba(124, 58, 237, 0.3);
             padding: 10px 20px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             text-decoration: none;
             font-size: 14px;
-            transition: background 0.3s;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
 
         .logout-btn:hover {
-            background: #c03537;
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
+            border-color: rgba(124, 58, 237, 0.5);
+            transform: translateY(-2px);
         }
 
         .dashboard-container {
@@ -71,15 +100,21 @@
         }
 
         .tile {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(30, 35, 45, 0.6);
             border-radius: 10px;
             padding: 25px;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .tile:hover {
+            border-color: rgba(212, 175, 55, 0.4);
+            background: rgba(30, 35, 45, 0.8);
         }
 
         .tile h2 {
-            color: #5865f2;
+            color: #D4AF37;
             margin-bottom: 20px;
             font-size: 20px;
             display: flex;
@@ -102,13 +137,14 @@
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #5865f2, #7289da);
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 32px;
             font-weight: bold;
-            color: white;
+            color: #0D1117;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
         }
 
         .user-avatar img {
@@ -120,23 +156,25 @@
 
         .user-info h3 {
             font-size: 22px;
-            color: #ffffff;
+            color: #C9D1D9;
             margin-bottom: 5px;
         }
 
         .user-info p {
-            color: #b0b0b0;
+            color: #8B949E;
             font-size: 14px;
         }
 
         .user-id {
             margin-top: 10px;
             padding: 5px 10px;
-            background: rgba(88, 101, 242, 0.2);
+            background: rgba(212, 175, 55, 0.15);
+            border: 1px solid rgba(212, 175, 55, 0.3);
             border-radius: 5px;
             font-family: monospace;
             font-size: 12px;
             display: inline-block;
+            color: #D4AF37;
         }
 
         /* Tile2: Server List */
@@ -153,30 +191,34 @@
             align-items: center;
             gap: 15px;
             padding: 15px;
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(30, 35, 45, 0.4);
+            border: 1px solid rgba(212, 175, 55, 0.15);
             border-radius: 8px;
-            transition: background 0.2s;
+            transition: all 0.3s ease;
             cursor: pointer;
             text-decoration: none;
             color: inherit;
         }
 
         .server-item:hover {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(30, 35, 45, 0.7);
+            border-color: rgba(212, 175, 55, 0.4);
+            transform: translateX(5px);
         }
 
         .server-icon {
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #7289da, #5865f2);
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 20px;
             font-weight: bold;
-            color: white;
+            color: #0D1117;
             flex-shrink: 0;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
         }
 
         .server-icon img {
@@ -193,7 +235,7 @@
         .server-name {
             font-size: 16px;
             font-weight: 600;
-            color: #ffffff;
+            color: #C9D1D9;
             margin-bottom: 5px;
         }
 
@@ -201,30 +243,45 @@
             display: flex;
             gap: 15px;
             font-size: 12px;
-            color: #b0b0b0;
+            color: #8B949E;
         }
 
         .server-badge {
             padding: 2px 8px;
-            background: rgba(88, 101, 242, 0.2);
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(212, 175, 55, 0.3);
             border-radius: 3px;
             font-size: 11px;
+            color: #D4AF37;
         }
 
         .owner-badge {
-            background: rgba(254, 231, 92, 0.2);
-            color: #fec84b;
+            background: rgba(212, 175, 55, 0.25);
+            border-color: rgba(212, 175, 55, 0.4);
+            color: #F4E5A1;
         }
 
         .admin-badge {
-            background: rgba(88, 101, 242, 0.2);
-            color: #5865f2;
+            background: rgba(124, 58, 237, 0.2);
+            border-color: rgba(124, 58, 237, 0.3);
+            color: #A78BFA;
         }
 
         .no-servers {
             text-align: center;
             padding: 40px;
-            color: #b0b0b0;
+            color: #8B949E;
+        }
+
+        .no-servers a {
+            color: #D4AF37;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .no-servers a:hover {
+            color: #F4E5A1;
+            text-decoration: underline;
         }
 
         .servers-list::-webkit-scrollbar {
@@ -232,137 +289,20 @@
         }
 
         .servers-list::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(30, 35, 45, 0.5);
             border-radius: 10px;
         }
 
         .servers-list::-webkit-scrollbar-thumb {
-            background: rgba(88, 101, 242, 0.5);
+            background: rgba(212, 175, 55, 0.5);
             border-radius: 10px;
         }
 
         .servers-list::-webkit-scrollbar-thumb:hover {
-            background: rgba(88, 101, 242, 0.7);
+            background: rgba(212, 175, 55, 0.7);
         }
 
-        /* Coffee Button with Steam Animation */
-        .coffee-button {
-            background: linear-gradient(135deg, #8B4513 0%, #D2691E 50%, #CD853F 100%);
-            color: #fff;
-            border: none;
-            padding: 14px 28px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.4);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .coffee-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.6);
-            background: linear-gradient(135deg, #A0522D 0%, #E87A3E 50%, #DEB887 100%);
-        }
-
-        .coffee-button:active {
-            transform: translateY(0);
-        }
-
-        /* Animated Coffee Icon with Steam */
-        .coffee-icon {
-            font-size: 24px;
-            position: relative;
-            animation: coffeeWiggle 2s ease-in-out infinite;
-        }
-
-        @keyframes coffeeWiggle {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-5deg); }
-            75% { transform: rotate(5deg); }
-        }
-
-        /* Steam animation */
-        .coffee-icon::before,
-        .coffee-icon::after {
-            content: '';
-            position: absolute;
-            width: 3px;
-            height: 15px;
-            background: rgba(255, 255, 255, 0.4);
-            border-radius: 50%;
-            animation: steam 2s ease-in-out infinite;
-        }
-
-        .coffee-icon::before {
-            left: 8px;
-            top: -10px;
-            animation-delay: 0s;
-        }
-
-        .coffee-icon::after {
-            right: 8px;
-            top: -10px;
-            animation-delay: 0.5s;
-        }
-
-        @keyframes steam {
-            0% {
-                opacity: 0;
-                transform: translateY(0) scale(1);
-            }
-            50% {
-                opacity: 1;
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-15px) scale(0.5);
-            }
-        }
-
-        .coffee-caption {
-            text-align: center;
-            color: #b0b0b0;
-            font-size: 13px;
-            margin-top: 10px;
-            font-style: italic;
-        }
-
-        /* Support Button */
-        .support-button {
-            background: linear-gradient(135deg, #5865f2 0%, #7289da 100%);
-            color: #fff;
-            border: none;
-            padding: 14px 28px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4);
-        }
-
-        .support-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(88, 101, 242, 0.6);
-            background: linear-gradient(135deg, #6f7ff2 0%, #8aa0e8 100%);
-        }
-
-        .support-button:active {
-            transform: translateY(0);
-        }
-
-        /* Button Container */
+        /* Action Buttons */
         .action-buttons-container {
             display: flex;
             gap: 15px;
@@ -370,96 +310,260 @@
             justify-content: center;
             margin: 30px 0;
         }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .coffee-button {
+            background: linear-gradient(135deg, #8B4513, #A0522D);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
+        }
+
+        .coffee-button:hover {
+            background: linear-gradient(135deg, #A0522D, #8B4513);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.5);
+        }
+
+        .support-button {
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
+            color: #A78BFA;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+        }
+
+        .support-button:hover {
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
+            border-color: rgba(124, 58, 237, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .coffee-icon {
+            display: inline-block;
+            animation: wiggle 2s ease-in-out infinite;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-15deg); }
+            75% { transform: rotate(15deg); }
+        }
+
+        .coffee-caption {
+            text-align: center;
+            color: #8B949E;
+            font-size: 13px;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .tiles-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .action-buttons-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="logo">
-            <span class="logo-icon">⚙️</span>
-            <span>On the Clock Dashboard</span>
-        </div>
-        <a href="/auth/logout" class="logout-btn">Logout</a>
-    </div>
+    <!-- Matrix Canvas Background -->
+    <canvas id="matrix-canvas"></canvas>
 
-    <div class="dashboard-container">
-        <div class="tiles-grid">
-            <!-- Tile1: User Profile -->
-            <div class="tile" id="Tile1">
-                <h2><span class="tile-icon">👤</span>Your Profile</h2>
-                <div class="user-profile">
-                    <div class="user-avatar">
-                        {% if user.avatar %}
-                            <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128" alt="Avatar">
-                        {% else %}
-                            {{ user.username[0]|upper }}
-                        {% endif %}
+    <div class="content-wrapper">
+        <div class="header">
+            <div class="logo">
+                <span class="logo-icon">⚙️</span>
+                <span class="logo-text">On the Clock Dashboard</span>
+            </div>
+            <a href="/auth/logout" class="logout-btn">Logout</a>
+        </div>
+
+        <div class="dashboard-container">
+            <div class="tiles-grid">
+                <!-- Tile1: User Profile -->
+                <div class="tile" id="Tile1">
+                    <h2><span class="tile-icon">👤</span>Your Profile</h2>
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            {% if user.avatar %}
+                                <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128" alt="Avatar">
+                            {% else %}
+                                {{ user.username[0]|upper }}
+                            {% endif %}
+                        </div>
+                        <div class="user-info">
+                            <h3>{{ user.username }}</h3>
+                            {% if user.discriminator != '0' %}
+                                <p>#{{ user.discriminator }}</p>
+                            {% endif %}
+                            <div class="user-id">ID: {{ user.user_id }}</div>
+                        </div>
                     </div>
-                    <div class="user-info">
-                        <h3>{{ user.username }}</h3>
-                        {% if user.discriminator != '0' %}
-                            <p>#{{ user.discriminator }}</p>
-                        {% endif %}
-                        <div class="user-id">ID: {{ user.user_id }}</div>
-                    </div>
+                </div>
+
+                <!-- Tile2: Discord Servers (Filtered: Bot Present + Admin Access) -->
+                <div class="tile" id="Tile2">
+                    <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.guilds|length }})</h2>
+                    <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
+                        Showing servers where On the Clock bot is present and you have admin access
+                    </p>
+                    {% if user.guilds %}
+                        <div class="servers-list">
+                            {% for guild in user.guilds %}
+                                <a href="{{ url_for('server_settings', guild_id=guild.id) }}" class="server-item">
+                                    <div class="server-icon">
+                                        {% if guild.icon %}
+                                            <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64" alt="{{ guild.name }}">
+                                        {% else %}
+                                            {{ guild.name[0]|upper }}
+                                        {% endif %}
+                                    </div>
+                                    <div class="server-info">
+                                        <div class="server-name">{{ guild.name }}</div>
+                                        <div class="server-meta">
+                                            {% if guild.owner %}
+                                                <span class="server-badge owner-badge">👑 Owner</span>
+                                            {% elif guild.permissions|has_permission(0x8) %}
+                                                <span class="server-badge admin-badge">⚡ Administrator</span>
+                                            {% elif guild.permissions|has_permission(0x20) %}
+                                                <span class="server-badge admin-badge">🔧 Manage Server</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="no-servers">
+                            <p style="margin-bottom: 10px;"><strong>No managed servers found</strong></p>
+                            <p style="font-size: 13px;">To see servers here, you need:</p>
+                            <p style="font-size: 13px;">✅ The "On the Clock" bot added to your server</p>
+                            <p style="font-size: 13px;">✅ Admin permissions in that server</p>
+                            <p style="margin-top: 15px;"><a href="/invite">Add bot to your server</a></p>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
 
-            <!-- Tile2: Discord Servers (Filtered: Bot Present + Admin Access) -->
-            <div class="tile" id="Tile2">
-                <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.guilds|length }})</h2>
-                <p style="color: #b0b0b0; font-size: 13px; margin-bottom: 15px;">
-                    Showing servers where On the Clock bot is present and you have admin access
-                </p>
-                {% if user.guilds %}
-                    <div class="servers-list">
-                        {% for guild in user.guilds %}
-                            <a href="{{ url_for('server_settings', guild_id=guild.id) }}" class="server-item">
-                                <div class="server-icon">
-                                    {% if guild.icon %}
-                                        <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64" alt="{{ guild.name }}">
-                                    {% else %}
-                                        {{ guild.name[0]|upper }}
-                                    {% endif %}
-                                </div>
-                                <div class="server-info">
-                                    <div class="server-name">{{ guild.name }}</div>
-                                    <div class="server-meta">
-                                        {% if guild.owner %}
-                                            <span class="server-badge owner-badge">👑 Owner</span>
-                                        {% elif guild.permissions|has_permission(0x8) %}
-                                            <span class="server-badge admin-badge">⚡ Administrator</span>
-                                        {% elif guild.permissions|has_permission(0x20) %}
-                                            <span class="server-badge admin-badge">🔧 Manage Server</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </a>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="no-servers">
-                        <p style="margin-bottom: 10px;"><strong>No managed servers found</strong></p>
-                        <p style="font-size: 13px;">To see servers here, you need:</p>
-                        <p style="font-size: 13px;">✅ The "On the Clock" bot added to your server</p>
-                        <p style="font-size: 13px;">✅ Admin permissions in that server</p>
-                        <p style="margin-top: 15px;"><a href="/invite" style="color: #5865f2; text-decoration: underline;">Add bot to your server</a></p>
-                    </div>
-                {% endif %}
+            <!-- Action Buttons -->
+            <div class="action-buttons-container">
+                <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn coffee-button">
+                    <span class="coffee-icon">☕</span>
+                    <span>Buy Me a Coffee</span>
+                </a>
+                <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="btn support-button">
+                    <span>✉️</span>
+                    <span>App Ideas & Requests</span>
+                </a>
             </div>
+            <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="action-buttons-container">
-            <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="coffee-button">
-                <span class="coffee-icon">☕</span>
-                <span>Buy Me a Coffee</span>
-            </a>
-            <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="support-button">
-                <span>✉️</span>
-                <span>App Ideas & Requests</span>
-            </a>
-        </div>
-        <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
     </div>
+
+    <!-- Matrix Animation Script -->
+    <script>
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>?';
+        const fontSize = 14;
+        let columns, drops;
+
+        function initMatrix() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            ctx.scale(dpr, dpr);
+
+            columns = Math.floor(window.innerWidth / fontSize);
+            drops = [];
+            for (let i = 0; i < columns; i++) {
+                drops[i] = Math.random() * -100;
+            }
+        }
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(10, 15, 31, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                
+                const gradient = ctx.createLinearGradient(
+                    i * fontSize, drops[i] * fontSize - 20,
+                    i * fontSize, drops[i] * fontSize + 20
+                );
+                gradient.addColorStop(0, 'rgba(212, 175, 55, 0)');
+                gradient.addColorStop(0.5, 'rgba(212, 175, 55, 0.9)');
+                gradient.addColorStop(1, 'rgba(212, 175, 55, 0)');
+                
+                ctx.fillStyle = gradient;
+                
+                if (i % 3 === 0) {
+                    ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
+                    ctx.shadowBlur = 12;
+                }
+                
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                ctx.shadowBlur = 0;
+
+                if (drops[i] * fontSize > window.innerHeight && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+            
+            requestAnimationFrame(drawMatrix);
+        }
+
+        initMatrix();
+        requestAnimationFrame(drawMatrix);
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                initMatrix();
+            }, 250);
+        });
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            canvas.style.display = 'none';
+        }
+    </script>
 </body>
 </html>
