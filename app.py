@@ -64,7 +64,6 @@ def init_dashboard_tables():
                 access_token TEXT NOT NULL,
                 refresh_token TEXT,
                 guilds_data TEXT NOT NULL,
-                created_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL
             )
         """)
@@ -73,14 +72,6 @@ def init_dashboard_tables():
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN refresh_token TEXT")
             print("✅ Migration: Added refresh_token column")
-        except sqlite3.OperationalError:
-            # Column already exists
-            pass
-        
-        # Migration: Add created_at column if it doesn't exist
-        try:
-            conn.execute("ALTER TABLE user_sessions ADD COLUMN created_at TEXT NOT NULL DEFAULT '2025-01-01T00:00:00+00:00'")
-            print("✅ Migration: Added created_at column")
         except sqlite3.OperationalError:
             # Column already exists
             pass
@@ -155,14 +146,13 @@ def get_user_guilds(access_token):
 def create_user_session(user_data, access_token, refresh_token, guilds_data):
     """Create user session in database"""
     session_id = secrets.token_urlsafe(32)
-    created_at = datetime.now(timezone.utc)
-    expires_at = created_at + timedelta(hours=24)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     
     with get_db() as conn:
         conn.execute("""
             INSERT INTO user_sessions 
-            (session_id, user_id, username, discriminator, avatar, access_token, refresh_token, guilds_data, created_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (session_id, user_id, username, discriminator, avatar, access_token, refresh_token, guilds_data, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             session_id,
             user_data['id'],
@@ -172,7 +162,6 @@ def create_user_session(user_data, access_token, refresh_token, guilds_data):
             access_token,
             refresh_token,
             json.dumps(guilds_data),
-            created_at.isoformat(),
             expires_at.isoformat()
         ))
     return session_id
