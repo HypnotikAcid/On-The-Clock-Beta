@@ -4263,32 +4263,38 @@ async def toggle_name_display(interaction: discord.Interaction, mode: app_comman
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def add_admin_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    await interaction.response.defer(ephemeral=True)
+    
     guild_id = interaction.guild_id
     if guild_id is None:
-        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.")
         return
     add_admin_role(guild_id, role.id)
-    await send_reply(interaction, f"✅ Added {role.mention} to admin roles. They can now use Reports and Upgrade buttons.", ephemeral=True)
+    await interaction.followup.send(f"✅ Added {role.mention} to admin roles. They can now use Reports and Upgrade buttons.")
 
 @tree.command(name="remove_admin_role", description="Remove a role's admin access to Reports and Upgrade buttons")
 @app_commands.describe(role="Role to remove admin access from")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def remove_admin_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    await interaction.response.defer(ephemeral=True)
+    
     guild_id = interaction.guild_id
     if guild_id is None:
-        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.")
         return
     remove_admin_role(guild_id, role.id)
-    await send_reply(interaction, f"✅ Removed {role.mention} from admin roles. They can no longer use Reports and Upgrade buttons.", ephemeral=True)
+    await interaction.followup.send(f"✅ Removed {role.mention} from admin roles. They can no longer use Reports and Upgrade buttons.")
 
 @tree.command(name="list_admin_roles", description="List all roles with admin access")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def list_admin_roles(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    
     guild_id = interaction.guild_id
     if guild_id is None:
-        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.")
         return
     
     admin_role_ids = get_admin_roles(guild_id)
@@ -4317,7 +4323,7 @@ async def list_admin_roles(interaction: discord.Interaction):
     
     embed.add_field(name="Note", value="Discord Administrators always have admin access.", inline=False)
     
-    await send_reply(interaction, embed=embed, ephemeral=True)
+    await interaction.followup.send(embed=embed)
 
 @tree.command(name="set_main_role", description="Set the primary admin role (gets all admin functions)")
 @app_commands.describe(role="Role to designate as main admin (gets Reports, Upgrade, all admin access)")
@@ -4451,9 +4457,11 @@ async def clear_main_role(interaction: discord.Interaction):
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def add_employee_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    await interaction.response.defer(ephemeral=True)
+    
     guild_id = interaction.guild_id
     if guild_id is None:
-        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.")
         return
     add_employee_role(guild_id, role.id)
     server_tier = get_server_tier(guild_id)
@@ -4464,25 +4472,29 @@ async def add_employee_role_cmd(interaction: discord.Interaction, role: discord.
     else:
         message = f"✅ Added {role.mention} to employee roles. Members with this role can now use timeclock functions."
     
-    await send_reply(interaction, message, ephemeral=True)
+    await interaction.followup.send(message)
 
 @tree.command(name="remove_employee_role", description="Remove a role's access to timeclock functions")
 @app_commands.describe(role="Role to remove employee access from")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def remove_employee_role_cmd(interaction: discord.Interaction, role: discord.Role):
+    await interaction.response.defer(ephemeral=True)
+    
     if interaction.guild_id is None:
-        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.")
         return
     remove_employee_role(interaction.guild_id, role.id)
-    await send_reply(interaction, f"✅ Removed {role.mention} from employee roles. They can no longer use timeclock functions (unless admin).", ephemeral=True)
+    await interaction.followup.send(f"✅ Removed {role.mention} from employee roles. They can no longer use timeclock functions (unless admin).")
 
 @tree.command(name="list_employee_roles", description="List all roles that can use timeclock functions")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def list_employee_roles(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    
     if interaction.guild_id is None:
-        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.")
         return
     clock_role_ids = get_employee_roles(interaction.guild_id)
     server_tier = get_server_tier(interaction.guild_id)
@@ -4519,7 +4531,7 @@ async def list_employee_roles(interaction: discord.Interaction):
     
     embed.add_field(name="Note", value="Administrators always have timeclock access regardless of role configuration.", inline=False)
     
-    await send_reply(interaction, embed=embed, ephemeral=True)
+    await interaction.followup.send(embed=embed)
 
 
 @tree.command(name="help", description="List all available slash commands")
