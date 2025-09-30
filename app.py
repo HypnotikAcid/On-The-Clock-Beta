@@ -18,8 +18,8 @@ app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-# Fix for Replit reverse proxy - ensures correct scheme/host detection
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+# Fix for Replit reverse proxy - ensures correct scheme/host detection and client IP
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
@@ -64,7 +64,9 @@ def init_dashboard_tables():
                 access_token TEXT NOT NULL,
                 refresh_token TEXT,
                 guilds_data TEXT NOT NULL,
-                expires_at TEXT NOT NULL
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                expires_at TEXT NOT NULL,
+                ip_address TEXT NOT NULL DEFAULT 'unknown'
             )
         """)
         
@@ -73,7 +75,20 @@ def init_dashboard_tables():
             conn.execute("ALTER TABLE user_sessions ADD COLUMN refresh_token TEXT")
             print("✅ Migration: Added refresh_token column")
         except sqlite3.OperationalError:
-            # Column already exists
+            pass
+        
+        # Migration: Add created_at column if it doesn't exist
+        try:
+            conn.execute("ALTER TABLE user_sessions ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now'))")
+            print("✅ Migration: Added created_at column")
+        except sqlite3.OperationalError:
+            pass
+        
+        # Migration: Add ip_address column if it doesn't exist
+        try:
+            conn.execute("ALTER TABLE user_sessions ADD COLUMN ip_address TEXT NOT NULL DEFAULT 'unknown'")
+            print("✅ Migration: Added ip_address column")
+        except sqlite3.OperationalError:
             pass
         
         # Clean up expired sessions and states
@@ -146,13 +161,15 @@ def get_user_guilds(access_token):
 def create_user_session(user_data, access_token, refresh_token, guilds_data):
     """Create user session in database"""
     session_id = secrets.token_urlsafe(32)
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    created_at = datetime.now(timezone.utc)
+    expires_at = created_at + timedelta(hours=24)
+    ip_address = request.remote_addr or 'unknown'
     
     with get_db() as conn:
         conn.execute("""
             INSERT INTO user_sessions 
-            (session_id, user_id, username, discriminator, avatar, access_token, refresh_token, guilds_data, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (session_id, user_id, username, discriminator, avatar, access_token, refresh_token, guilds_data, created_at, expires_at, ip_address)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             session_id,
             user_data['id'],
@@ -162,7 +179,9 @@ def create_user_session(user_data, access_token, refresh_token, guilds_data):
             access_token,
             refresh_token,
             json.dumps(guilds_data),
-            expires_at.isoformat()
+            created_at.isoformat(),
+            expires_at.isoformat(),
+            ip_address
         ))
     return session_id
 
