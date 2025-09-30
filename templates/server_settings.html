@@ -744,6 +744,114 @@
             }
         });
 
+        // Admin role transfer button handlers
+        document.getElementById('add-admin-role-btn').addEventListener('click', async function() {
+            if (!selectedAvailableAdminRole) return;
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/admin-roles/add`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role_id: selectedAvailableAdminRole.id })
+                });
+                
+                if (response.ok) {
+                    location.reload(); // Refresh to show updated lists
+                } else {
+                    alert('Error adding admin role');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding admin role');
+            }
+        });
+
+        document.getElementById('remove-admin-role-btn').addEventListener('click', async function() {
+            if (!selectedCurrentAdminRole) return;
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/admin-roles/remove`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role_id: selectedCurrentAdminRole.id })
+                });
+                
+                if (response.ok) {
+                    location.reload(); // Refresh to show updated lists
+                } else {
+                    alert('Error removing admin role');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error removing admin role');
+            }
+        });
+
+        // Employee role transfer button handlers
+        document.getElementById('add-role-btn').addEventListener('click', async function() {
+            if (!selectedAvailableRole) return;
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/employee-roles/add`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role_id: selectedAvailableRole.id })
+                });
+                
+                if (response.ok) {
+                    location.reload(); // Refresh to show updated lists
+                } else {
+                    alert('Error adding employee role');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding employee role');
+            }
+        });
+
+        document.getElementById('remove-role-btn').addEventListener('click', async function() {
+            if (!selectedCurrentRole) return;
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/employee-roles/remove`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role_id: selectedCurrentRole.id })
+                });
+                
+                if (response.ok) {
+                    location.reload(); // Refresh to show updated lists
+                } else {
+                    alert('Error removing employee role');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error removing employee role');
+            }
+        });
+
+        // Timezone save button handler
+        document.getElementById('save-timezone-btn').addEventListener('click', async function() {
+            const timezone = document.getElementById('timezone-select').value;
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/timezone`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ timezone: timezone })
+                });
+                
+                if (response.ok) {
+                    alert('Timezone updated successfully!');
+                } else {
+                    alert('Error updating timezone');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating timezone');
+            }
+        });
+
         // Email toggle handling
         const toggleDM = document.getElementById('toggle-dm');
         const toggleEmail = document.getElementById('toggle-email');
@@ -760,8 +868,7 @@
         toggleEmail.addEventListener('change', updateCustomizeButton);
         updateCustomizeButton();
 
-        // Initialize with current settings (will be populated by API calls below)
-        // Placeholder functionality - actual API calls will be added in next tasks
+        // Initialize
         console.log('Server settings page initialized for guild:', guildId);
         console.log('Current settings:', currentSettings);
     </script>
