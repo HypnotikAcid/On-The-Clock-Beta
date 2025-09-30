@@ -821,6 +821,40 @@ def api_update_timezone(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
+@app.route("/api/server/<guild_id>/data", methods=["GET"])
+@require_api_auth
+def api_get_server_data(user_session, guild_id):
+    """API endpoint to fetch server roles and settings for dashboard integration"""
+    try:
+        # Verify user has access
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Check if bot is present
+        bot_guild_ids = get_bot_guild_ids()
+        if guild_id not in bot_guild_ids:
+            return jsonify({'success': False, 'error': 'Bot not present in this server'}), 404
+        
+        # Fetch guild roles
+        roles = get_guild_roles_from_bot(guild_id)
+        if not roles:
+            return jsonify({'success': False, 'error': 'Could not fetch server roles'}), 500
+        
+        # Fetch current settings
+        current_settings = get_guild_settings(guild_id)
+        
+        return jsonify({
+            'success': True,
+            'guild': guild,
+            'roles': roles,
+            'current_settings': current_settings
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching server data: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
 @app.route("/invite")
 def invite():
     """Redirect to Discord bot invite link."""

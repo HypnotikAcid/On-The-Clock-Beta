@@ -55,6 +55,10 @@ externalPort = 4200
 localPort = 43937
 externalPort = 3000
 
+[[ports]]
+localPort = 44439
+externalPort = 5000
+
 [agent]
 expertMode = true
 integrations = ["flask_stripe:1.0.0", "replitmail:1.0.0"]

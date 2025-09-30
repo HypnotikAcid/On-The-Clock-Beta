@@ -18,7 +18,6 @@
             min-height: 100vh;
             overflow-x: hidden;
             position: relative;
-            padding: 20px;
         }
 
         /* Matrix Background Animation */
@@ -32,66 +31,254 @@
             opacity: 0.15;
         }
 
-        .content-wrapper {
+        /* Main Layout Container */
+        .layout-container {
             position: relative;
             z-index: 1;
+            display: flex;
+            min-height: 100vh;
         }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            background: rgba(30, 35, 45, 0.6);
-            border-radius: 10px;
-            margin-bottom: 30px;
-            border: 1px solid rgba(212, 175, 55, 0.2);
+        /* Left Sidebar */
+        .sidebar {
+            width: 250px;
+            background: rgba(10, 15, 31, 0.85);
+            border-right: 1px solid rgba(212, 175, 55, 0.2);
             backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 100;
         }
 
-        .logo {
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
+        /* Sidebar Logo */
+        .sidebar-logo {
+            padding: 20px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
             display: flex;
             align-items: center;
-            gap: 15px;
-            font-size: 24px;
+            gap: 12px;
+        }
+
+        .sidebar-logo-icon {
+            font-size: 28px;
+        }
+
+        .sidebar-logo-text {
+            font-size: 16px;
             font-weight: bold;
-        }
-
-        .logo-icon {
-            font-size: 32px;
-        }
-
-        .logo-text {
             background: linear-gradient(135deg, #D4AF37, #F4E5A1);
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            line-height: 1.2;
         }
 
-        .logout-btn {
-            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
-            color: #A78BFA;
-            border: 1px solid rgba(124, 58, 237, 0.3);
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-section-title {
+            padding: 0 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #8B949E;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item {
             padding: 10px 20px;
-            border-radius: 8px;
+            margin: 2px 10px;
+            border-radius: 6px;
             cursor: pointer;
-            text-decoration: none;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #C9D1D9;
             font-size: 14px;
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(30, 35, 45, 0.6);
+            border-color: rgba(212, 175, 55, 0.15);
+        }
+
+        .nav-item.active {
+            background: rgba(212, 175, 55, 0.15);
+            border-color: rgba(212, 175, 55, 0.3);
+            color: #D4AF37;
+        }
+
+        .nav-item-icon {
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Sidebar User Profile */
+        .sidebar-user {
+            padding: 15px;
+            border-top: 1px solid rgba(212, 175, 55, 0.15);
+            background: rgba(10, 15, 31, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #0D1117;
+            flex-shrink: 0;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .sidebar-user-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .sidebar-user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-user-name {
+            font-size: 13px;
             font-weight: 600;
-            transition: all 0.3s ease;
+            color: #C9D1D9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .logout-btn:hover {
-            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
-            border-color: rgba(124, 58, 237, 0.5);
-            transform: translateY(-2px);
+        .sidebar-user-id {
+            font-size: 11px;
+            color: #8B949E;
+            font-family: monospace;
         }
 
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
+        .logout-icon {
+            font-size: 18px;
+            color: #8B949E;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
         }
 
+        .logout-icon:hover {
+            background: rgba(237, 66, 69, 0.2);
+            color: #ed4245;
+        }
+
+        /* Mobile Hamburger */
+        .mobile-hamburger {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 101;
+            background: rgba(30, 35, 45, 0.9);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+
+        .hamburger-icon {
+            font-size: 24px;
+            color: #D4AF37;
+        }
+
+        /* Mobile Overlay */
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+
+        .mobile-overlay.active {
+            display: block;
+        }
+
+        /* Right Content Area */
+        .content-area {
+            flex: 1;
+            margin-left: 250px;
+            padding: 30px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .content-section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Content Header */
+        .content-header {
+            margin-bottom: 30px;
+        }
+
+        .content-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #C9D1D9;
+            margin-bottom: 8px;
+        }
+
+        .content-subtitle {
+            font-size: 14px;
+            color: #8B949E;
+        }
+
+        /* Tiles Grid */
         .tiles-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -126,63 +313,12 @@
             font-size: 24px;
         }
 
-        /* Tile1: User Profile */
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .user-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            font-weight: bold;
-            color: #0D1117;
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
-        }
-
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .user-info h3 {
-            font-size: 22px;
-            color: #C9D1D9;
-            margin-bottom: 5px;
-        }
-
-        .user-info p {
-            color: #8B949E;
-            font-size: 14px;
-        }
-
-        .user-id {
-            margin-top: 10px;
-            padding: 5px 10px;
-            background: rgba(212, 175, 55, 0.15);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 12px;
-            display: inline-block;
-            color: #D4AF37;
-        }
-
-        /* Tile2: Server List */
+        /* Server List */
         .servers-list {
             display: flex;
             flex-direction: column;
             gap: 15px;
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
         }
 
@@ -368,20 +504,347 @@
             font-style: italic;
         }
 
+        /* Server-Specific Navigation */
+        .nav-section {
+            margin-bottom: 15px;
+        }
+
+        .back-to-servers {
+            padding: 10px 20px;
+            margin: 2px 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #A78BFA;
+            font-size: 14px;
+            font-weight: 600;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+        .back-to-servers:hover {
+            background: rgba(124, 58, 237, 0.2);
+            border-color: rgba(124, 58, 237, 0.5);
+            transform: translateX(-3px);
+        }
+
+        .server-nav-header {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+            margin-bottom: 10px;
+        }
+
+        .server-nav-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #0D1117;
+            flex-shrink: 0;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .server-nav-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .server-nav-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #C9D1D9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Dual Listbox Styles */
+        .dual-listbox-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .listbox-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .listbox-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #C9D1D9;
+        }
+
+        .listbox {
+            background: rgba(10, 15, 31, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 250px;
+            max-height: 350px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .listbox-item {
+            background: rgba(30, 35, 45, 0.4);
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid transparent;
+        }
+
+        .listbox-item:hover {
+            background: rgba(30, 35, 45, 0.7);
+            border-color: rgba(212, 175, 55, 0.2);
+        }
+
+        .listbox-item.selected {
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+        }
+
+        .listbox-item-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #0D1117;
+            flex-shrink: 0;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+
+        .listbox-item-info {
+            flex: 1;
+        }
+
+        .listbox-item-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #C9D1D9;
+        }
+
+        .listbox-item-meta {
+            font-size: 12px;
+            color: #8B949E;
+        }
+
+        .transfer-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .transfer-btn {
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
+            color: #A78BFA;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            min-width: 50px;
+        }
+
+        .transfer-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
+            border-color: rgba(124, 58, 237, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .transfer-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8B949E;
+            font-size: 13px;
+        }
+
+        .listbox::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .listbox::-webkit-scrollbar-track {
+            background: rgba(10, 15, 31, 0.5);
+            border-radius: 10px;
+        }
+
+        .listbox::-webkit-scrollbar-thumb {
+            background: rgba(212, 175, 55, 0.5);
+            border-radius: 10px;
+        }
+
+        .listbox::-webkit-scrollbar-thumb:hover {
+            background: rgba(212, 175, 55, 0.7);
+        }
+
+        /* Timezone Selector */
+        .timezone-select {
+            background: rgba(10, 15, 31, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            border-radius: 8px;
+            padding: 12px;
+            color: #C9D1D9;
+            font-size: 14px;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .timezone-select:focus {
+            outline: none;
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .save-btn {
+            background: linear-gradient(135deg, #D4AF37, #C19A2E);
+            color: #0D1117;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .save-btn:hover {
+            background: linear-gradient(135deg, #E5C147, #D4AF37);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(212, 175, 55, 0.5);
+        }
+
+        /* Sync Notice */
+        .sync-notice {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.15));
+            border: 2px solid rgba(255, 193, 7, 0.4);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: subtlePulse 3s ease-in-out infinite;
+        }
+
+        @keyframes subtlePulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 193, 7, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.4); }
+        }
+
+        .sync-notice-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .sync-notice-text {
+            color: #D4AF37;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .sync-notice-text strong {
+            color: #F4E5A1;
+        }
+
+        /* Coming Soon Overlay */
+        .coming-soon-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 46, 0.85);
+            backdrop-filter: blur(5px);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            gap: 20px;
+        }
+
+        .coming-soon-text {
+            font-size: 32px;
+            font-weight: bold;
+            color: #D4AF37;
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+            letter-spacing: 3px;
+            animation: comingSoonPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes comingSoonPulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        .tile {
+            position: relative;
+        }
+
+        .tile-description {
+            color: #8B949E;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
+            .sidebar {
+                width: 280px;
+            }
+
+            .sidebar.mobile-hidden {
+                transform: translateX(-100%);
+            }
+
+            .mobile-hamburger {
+                display: block;
+            }
+
+            .content-area {
+                margin-left: 0;
+                padding: 70px 15px 20px;
             }
 
             .tiles-grid {
                 grid-template-columns: 1fr;
-            }
-
-            .header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
             }
 
             .action-buttons-container {
@@ -392,6 +855,10 @@
             .btn {
                 justify-content: center;
             }
+
+            .content-title {
+                font-size: 24px;
+            }
         }
     </style>
 </head>
@@ -399,95 +866,390 @@
     <!-- Matrix Canvas Background -->
     <canvas id="matrix-canvas"></canvas>
 
-    <div class="content-wrapper">
-        <div class="header">
-            <div class="logo">
-                <span class="logo-icon">⚙️</span>
-                <span class="logo-text">On the Clock Dashboard</span>
-            </div>
-            <a href="/auth/logout" class="logout-btn">Logout</a>
-        </div>
+    <!-- Mobile Hamburger -->
+    <div class="mobile-hamburger" id="mobileHamburger">
+        <span class="hamburger-icon">☰</span>
+    </div>
 
-        <div class="dashboard-container">
-            <div class="tiles-grid">
-                <!-- Tile1: User Profile -->
-                <div class="tile" id="Tile1">
-                    <h2><span class="tile-icon">👤</span>Your Profile</h2>
-                    <div class="user-profile">
-                        <div class="user-avatar">
-                            {% if user.avatar %}
-                                <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128" alt="Avatar">
-                            {% else %}
-                                {{ user.username[0]|upper }}
-                            {% endif %}
-                        </div>
-                        <div class="user-info">
-                            <h3>{{ user.username }}</h3>
-                            {% if user.discriminator != '0' %}
-                                <p>#{{ user.discriminator }}</p>
-                            {% endif %}
-                            <div class="user-id">ID: {{ user.user_id }}</div>
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <!-- Main Layout -->
+    <div class="layout-container">
+        <!-- Left Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <!-- Logo -->
+            <div class="sidebar-logo">
+                <span class="sidebar-logo-icon">⚙️</span>
+                <div class="sidebar-logo-text">On the Clock<br>Dashboard</div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Main Navigation (shown when no server is selected) -->
+                <div id="main-nav">
+                    <div class="nav-section-title">Navigation</div>
+                    <div class="nav-item active" data-section="my-servers">
+                        <span class="nav-item-icon">🏢</span>
+                        <span>My Servers</span>
+                    </div>
+                </div>
+
+                <!-- Server-Specific Navigation (hidden by default) -->
+                <div id="server-nav" style="display: none;">
+                    <div class="back-to-servers" id="backToServers">
+                        <span>←</span>
+                        <span>Back to Servers</span>
+                    </div>
+                    <div class="server-nav-header" id="serverNavHeader">
+                        <div class="server-nav-icon" id="serverNavIcon">S</div>
+                        <div class="server-nav-name" id="serverNavName">Server Name</div>
+                    </div>
+                    <div class="nav-section-title">Server Settings</div>
+                    <div class="nav-item" data-section="server-overview" data-server-menu>
+                        <span class="nav-item-icon">📊</span>
+                        <span>Server Overview</span>
+                    </div>
+                    <div class="nav-item" data-section="admin-roles" data-server-menu>
+                        <span class="nav-item-icon">👥</span>
+                        <span>Admin Roles</span>
+                    </div>
+                    <div class="nav-item" data-section="employee-roles" data-server-menu>
+                        <span class="nav-item-icon">👷</span>
+                        <span>Employee Roles</span>
+                    </div>
+                    <div class="nav-item" data-section="email-settings" data-server-menu>
+                        <span class="nav-item-icon">📧</span>
+                        <span>Email Settings</span>
+                    </div>
+                    <div class="nav-item" data-section="timezone-settings" data-server-menu>
+                        <span class="nav-item-icon">🕐</span>
+                        <span>Timezone Settings</span>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- User Profile -->
+            <div class="sidebar-user">
+                <div class="sidebar-user-avatar">
+                    {% if user.avatar %}
+                        <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128" alt="Avatar">
+                    {% else %}
+                        {{ user.username[0]|upper }}
+                    {% endif %}
+                </div>
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-name">{{ user.username }}</div>
+                    <div class="sidebar-user-id">{{ user.user_id[:8] }}...</div>
+                </div>
+                <a href="/auth/logout" class="logout-icon" title="Logout">🚪</a>
+            </div>
+        </aside>
+
+        <!-- Right Content Area -->
+        <main class="content-area">
+            <!-- My Servers Section -->
+            <section class="content-section active" id="section-my-servers">
+                <div class="content-header">
+                    <h1 class="content-title">My Servers</h1>
+                    <p class="content-subtitle">Manage your Discord servers where On the Clock bot is active</p>
+                </div>
+
+                <div class="tiles-grid">
+                    <!-- Server List Tile -->
+                    <div class="tile">
+                        <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.guilds|length }})</h2>
+                        <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
+                            Showing servers where On the Clock bot is present and you have admin access
+                        </p>
+                        {% if user.guilds %}
+                            <div class="servers-list">
+                                {% for guild in user.guilds %}
+                                    <div class="server-item" data-guild-id="{{ guild.id }}" data-guild-name="{{ guild.name }}" data-guild-icon="{% if guild.icon %}https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64{% endif %}">
+                                        <div class="server-icon">
+                                            {% if guild.icon %}
+                                                <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64" alt="{{ guild.name }}">
+                                            {% else %}
+                                                {{ guild.name[0]|upper }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="server-info">
+                                            <div class="server-name">{{ guild.name }}</div>
+                                            <div class="server-meta">
+                                                {% if guild.owner %}
+                                                    <span class="server-badge owner-badge">👑 Owner</span>
+                                                {% elif guild.permissions|has_permission(0x8) %}
+                                                    <span class="server-badge admin-badge">⚡ Administrator</span>
+                                                {% elif guild.permissions|has_permission(0x20) %}
+                                                    <span class="server-badge admin-badge">🔧 Manage Server</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="no-servers">
+                                <p style="margin-bottom: 10px;"><strong>No managed servers found</strong></p>
+                                <p style="font-size: 13px;">To see servers here, you need:</p>
+                                <p style="font-size: 13px;">✅ The "On the Clock" bot added to your server</p>
+                                <p style="font-size: 13px;">✅ Admin permissions in that server</p>
+                                <p style="margin-top: 15px;"><a href="/invite">Add bot to your server</a></p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
+                </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
+
+            <!-- Server Overview Section -->
+            <section class="content-section" id="section-server-overview">
+                <div class="content-header">
+                    <h1 class="content-title">Server Overview</h1>
+                    <p class="content-subtitle" id="serverOverviewSubtitle">Server settings and configuration</p>
+                </div>
+
+                <!-- Sync Notice -->
+                <div class="sync-notice">
+                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-text">
+                        <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands. Refresh this page to see the latest updates.
+                    </div>
+                </div>
+
+                <div class="tiles-grid">
+                    <div class="tile">
+                        <h2><span class="tile-icon">📊</span>Server Information</h2>
+                        <p class="tile-description">Quick overview of your server configuration and active settings.</p>
+                        <p style="color: #C9D1D9; margin-top: 15px;">Select a setting from the sidebar to manage your server.</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
+                </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
+
+            <!-- Admin Roles Section -->
+            <section class="content-section" id="section-admin-roles">
+                <div class="content-header">
+                    <h1 class="content-title">Admin Roles</h1>
+                    <p class="content-subtitle">Manage roles that can access admin features</p>
+                </div>
+
+                <!-- Sync Notice -->
+                <div class="sync-notice">
+                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-text">
+                        <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands. Refresh this page to see the latest updates.
+                    </div>
+                </div>
+
+                <div class="tiles-grid">
+                    <div class="tile">
+                        <h2><span class="tile-icon">👥</span>Admin Roles</h2>
+                        <p class="tile-description">Set which roles can access admin features like Reports and Upgrade buttons. Discord administrators always have access.</p>
+                        
+                        <div class="dual-listbox-container">
+                            <div class="listbox-wrapper">
+                                <div class="listbox-label">Available Roles</div>
+                                <div class="listbox" id="available-admin-roles"></div>
+                            </div>
+                            <div class="transfer-buttons">
+                                <button class="transfer-btn" id="add-admin-role-btn" disabled>→</button>
+                                <button class="transfer-btn" id="remove-admin-role-btn" disabled>←</button>
+                            </div>
+                            <div class="listbox-wrapper">
+                                <div class="listbox-label">Admin Roles</div>
+                                <div class="listbox" id="current-admin-roles"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Tile2: Discord Servers (Filtered: Bot Present + Admin Access) -->
-                <div class="tile" id="Tile2">
-                    <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.guilds|length }})</h2>
-                    <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
-                        Showing servers where On the Clock bot is present and you have admin access
-                    </p>
-                    {% if user.guilds %}
-                        <div class="servers-list">
-                            {% for guild in user.guilds %}
-                                <a href="{{ url_for('server_settings', guild_id=guild.id) }}" class="server-item">
-                                    <div class="server-icon">
-                                        {% if guild.icon %}
-                                            <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64" alt="{{ guild.name }}">
-                                        {% else %}
-                                            {{ guild.name[0]|upper }}
-                                        {% endif %}
-                                    </div>
-                                    <div class="server-info">
-                                        <div class="server-name">{{ guild.name }}</div>
-                                        <div class="server-meta">
-                                            {% if guild.owner %}
-                                                <span class="server-badge owner-badge">👑 Owner</span>
-                                            {% elif guild.permissions|has_permission(0x8) %}
-                                                <span class="server-badge admin-badge">⚡ Administrator</span>
-                                            {% elif guild.permissions|has_permission(0x20) %}
-                                                <span class="server-badge admin-badge">🔧 Manage Server</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </a>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="no-servers">
-                            <p style="margin-bottom: 10px;"><strong>No managed servers found</strong></p>
-                            <p style="font-size: 13px;">To see servers here, you need:</p>
-                            <p style="font-size: 13px;">✅ The "On the Clock" bot added to your server</p>
-                            <p style="font-size: 13px;">✅ Admin permissions in that server</p>
-                            <p style="margin-top: 15px;"><a href="/invite">Add bot to your server</a></p>
-                        </div>
-                    {% endif %}
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
                 </div>
-            </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
 
-            <!-- Action Buttons -->
-            <div class="action-buttons-container">
-                <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn coffee-button">
-                    <span class="coffee-icon">☕</span>
-                    <span>Buy Me a Coffee</span>
-                </a>
-                <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="btn support-button">
-                    <span>✉️</span>
-                    <span>App Ideas & Requests</span>
-                </a>
-            </div>
-            <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
-        </div>
+            <!-- Employee Roles Section -->
+            <section class="content-section" id="section-employee-roles">
+                <div class="content-header">
+                    <h1 class="content-title">Employee Roles</h1>
+                    <p class="content-subtitle">Manage roles that can use timeclock functions</p>
+                </div>
+
+                <!-- Sync Notice -->
+                <div class="sync-notice">
+                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-text">
+                        <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands. Refresh this page to see the latest updates.
+                    </div>
+                </div>
+
+                <div class="tiles-grid">
+                    <div class="tile">
+                        <h2><span class="tile-icon">👷</span>Employee Roles</h2>
+                        <p class="tile-description">Choose which roles can use the /clock command and access timeclock functions.</p>
+                        
+                        <div class="dual-listbox-container">
+                            <div class="listbox-wrapper">
+                                <div class="listbox-label">Available Roles</div>
+                                <div class="listbox" id="available-roles"></div>
+                            </div>
+                            <div class="transfer-buttons">
+                                <button class="transfer-btn" id="add-role-btn" disabled>→</button>
+                                <button class="transfer-btn" id="remove-role-btn" disabled>←</button>
+                            </div>
+                            <div class="listbox-wrapper">
+                                <div class="listbox-label">Employee Roles</div>
+                                <div class="listbox" id="current-roles"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
+                </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
+
+            <!-- Email Settings Section -->
+            <section class="content-section" id="section-email-settings">
+                <div class="content-header">
+                    <h1 class="content-title">Email Settings</h1>
+                    <p class="content-subtitle">Configure email notifications for your server</p>
+                </div>
+
+                <!-- Sync Notice -->
+                <div class="sync-notice">
+                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-text">
+                        <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands. Refresh this page to see the latest updates.
+                    </div>
+                </div>
+
+                <div class="tiles-grid">
+                    <div class="tile">
+                        <h2><span class="tile-icon">📧</span>Email Notifications</h2>
+                        <p class="tile-description">Set up email notifications for time entries and reports.</p>
+                        
+                        <div class="coming-soon-overlay">
+                            <div class="coming-soon-text">COMING SOON</div>
+                        </div>
+                        
+                        <p style="color: #8B949E; margin-top: 15px;">Email notification features will be available in a future update.</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
+                </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
+
+            <!-- Timezone Settings Section -->
+            <section class="content-section" id="section-timezone-settings">
+                <div class="content-header">
+                    <h1 class="content-title">Timezone Settings</h1>
+                    <p class="content-subtitle">Configure timezone for your server</p>
+                </div>
+
+                <!-- Sync Notice -->
+                <div class="sync-notice">
+                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-text">
+                        <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands. Refresh this page to see the latest updates.
+                    </div>
+                </div>
+
+                <div class="tiles-grid">
+                    <div class="tile">
+                        <h2><span class="tile-icon">🕐</span>Timezone Settings</h2>
+                        <p class="tile-description">Set the timezone for displaying time entries in reports and notifications.</p>
+                        
+                        <select id="timezone-select" class="timezone-select">
+                            <option value="America/New_York">Eastern Time (US & Canada)</option>
+                            <option value="America/Chicago">Central Time (US & Canada)</option>
+                            <option value="America/Denver">Mountain Time (US & Canada)</option>
+                            <option value="America/Phoenix">Arizona</option>
+                            <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
+                            <option value="America/Anchorage">Alaska</option>
+                            <option value="Pacific/Honolulu">Hawaii</option>
+                            <option value="Europe/London">London</option>
+                            <option value="Europe/Paris">Paris</option>
+                            <option value="Europe/Berlin">Berlin</option>
+                            <option value="Asia/Tokyo">Tokyo</option>
+                            <option value="Asia/Shanghai">Shanghai</option>
+                            <option value="Asia/Dubai">Dubai</option>
+                            <option value="Australia/Sydney">Sydney</option>
+                        </select>
+                        
+                        <button id="save-timezone-btn" class="save-btn">Save Timezone</button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests" class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
+                </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
+        </main>
     </div>
 
     <!-- Matrix Animation Script -->
@@ -563,6 +1325,421 @@
 
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
             canvas.style.display = 'none';
+        }
+
+        // Server Settings State
+        let currentGuildId = null;
+        let currentServerData = null;
+        let selectedAvailableAdminRole = null;
+        let selectedCurrentAdminRole = null;
+        let selectedAvailableRole = null;
+        let selectedCurrentRole = null;
+
+        // Navigation functionality
+        function updateNavigation() {
+            const navItems = document.querySelectorAll('.nav-item');
+            const contentSections = document.querySelectorAll('.content-section');
+
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const sectionId = item.getAttribute('data-section');
+                    
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    item.classList.add('active');
+                    
+                    contentSections.forEach(section => section.classList.remove('active'));
+                    const targetSection = document.getElementById('section-' + sectionId);
+                    if (targetSection) {
+                        targetSection.classList.add('active');
+                    }
+
+                    if (window.innerWidth <= 768) {
+                        closeMobileSidebar();
+                    }
+                });
+            });
+        }
+
+        updateNavigation();
+
+        // Server Selection Handler
+        document.querySelectorAll('.server-item').forEach(item => {
+            item.addEventListener('click', async function() {
+                const guildId = this.dataset.guildId;
+                const guildName = this.dataset.guildName;
+                const guildIcon = this.dataset.guildIcon;
+                
+                currentGuildId = guildId;
+                
+                // Update server navigation header
+                document.getElementById('serverNavName').textContent = guildName;
+                const serverNavIcon = document.getElementById('serverNavIcon');
+                if (guildIcon) {
+                    serverNavIcon.innerHTML = `<img src="${guildIcon}" alt="${guildName}">`;
+                } else {
+                    serverNavIcon.textContent = guildName.charAt(0).toUpperCase();
+                }
+                
+                // Switch to server navigation
+                document.getElementById('main-nav').style.display = 'none';
+                document.getElementById('server-nav').style.display = 'block';
+                
+                // Load server data
+                await loadServerData(guildId);
+                
+                // Navigate to server overview
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                document.querySelector('[data-section="server-overview"]').classList.add('active');
+                document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+                document.getElementById('section-server-overview').classList.add('active');
+                
+                updateNavigation();
+            });
+        });
+
+        // Back to Servers Handler
+        document.getElementById('backToServers').addEventListener('click', () => {
+            currentGuildId = null;
+            currentServerData = null;
+            
+            // Switch back to main navigation
+            document.getElementById('main-nav').style.display = 'block';
+            document.getElementById('server-nav').style.display = 'none';
+            
+            // Navigate to My Servers
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            document.querySelector('[data-section="my-servers"]').classList.add('active');
+            document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+            document.getElementById('section-my-servers').classList.add('active');
+            
+            updateNavigation();
+        });
+
+        // Load Server Data
+        async function loadServerData(guildId) {
+            try {
+                const response = await fetch(`/api/server/${guildId}/data`);
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    alert(data.error || 'Error loading server data');
+                    return;
+                }
+                
+                currentServerData = data;
+                
+                // Populate roles and settings
+                populateAdminRoles(data.roles, data.current_settings.admin_roles);
+                populateEmployeeRoles(data.roles, data.current_settings.employee_roles);
+                populateTimezoneSettings(data.current_settings.timezone);
+                
+            } catch (error) {
+                console.error('Error loading server data:', error);
+                alert('Error loading server data');
+            }
+        }
+
+        // Populate Admin Roles
+        function populateAdminRoles(allRoles, currentAdminRoles) {
+            const availableContainer = document.getElementById('available-admin-roles');
+            const currentContainer = document.getElementById('current-admin-roles');
+            
+            availableContainer.innerHTML = '';
+            currentContainer.innerHTML = '';
+            
+            // Filter out @everyone role
+            const roles = allRoles.filter(role => role.name !== '@everyone');
+            
+            // Available roles (not in admin roles)
+            roles.filter(role => !currentAdminRoles.includes(role.id)).forEach(role => {
+                const roleItem = createRoleItem(role, 'admin');
+                availableContainer.appendChild(roleItem);
+            });
+            
+            // Current admin roles
+            roles.filter(role => currentAdminRoles.includes(role.id)).forEach(role => {
+                const roleItem = createRoleItem(role, 'admin', true);
+                currentContainer.appendChild(roleItem);
+            });
+            
+            if (availableContainer.children.length === 0) {
+                availableContainer.innerHTML = '<div class="empty-state">No available roles</div>';
+            }
+            if (currentContainer.children.length === 0) {
+                currentContainer.innerHTML = '<div class="empty-state">No admin roles configured</div>';
+            }
+            
+            setupAdminRoleListeners();
+        }
+
+        // Populate Employee Roles
+        function populateEmployeeRoles(allRoles, currentEmployeeRoles) {
+            const availableContainer = document.getElementById('available-roles');
+            const currentContainer = document.getElementById('current-roles');
+            
+            availableContainer.innerHTML = '';
+            currentContainer.innerHTML = '';
+            
+            // Filter out @everyone role
+            const roles = allRoles.filter(role => role.name !== '@everyone');
+            
+            // Available roles (not in employee roles)
+            roles.filter(role => !currentEmployeeRoles.includes(role.id)).forEach(role => {
+                const roleItem = createRoleItem(role, 'employee');
+                availableContainer.appendChild(roleItem);
+            });
+            
+            // Current employee roles
+            roles.filter(role => currentEmployeeRoles.includes(role.id)).forEach(role => {
+                const roleItem = createRoleItem(role, 'employee', true);
+                currentContainer.appendChild(roleItem);
+            });
+            
+            if (availableContainer.children.length === 0) {
+                availableContainer.innerHTML = '<div class="empty-state">No available roles</div>';
+            }
+            if (currentContainer.children.length === 0) {
+                currentContainer.innerHTML = '<div class="empty-state">No employee roles configured</div>';
+            }
+            
+            setupEmployeeRoleListeners();
+        }
+
+        // Populate Timezone Settings
+        function populateTimezoneSettings(currentTimezone) {
+            document.getElementById('timezone-select').value = currentTimezone || 'America/New_York';
+        }
+
+        // Create Role Item
+        function createRoleItem(role, type, isCurrent = false) {
+            const div = document.createElement('div');
+            div.className = 'listbox-item';
+            div.dataset.roleId = role.id;
+            div.dataset.roleName = role.name;
+            
+            div.innerHTML = `
+                <div class="listbox-item-icon">${role.name.charAt(0).toUpperCase()}</div>
+                <div class="listbox-item-info">
+                    <div class="listbox-item-name">${role.name}</div>
+                    <div class="listbox-item-meta">Role ID: ${role.id}</div>
+                </div>
+            `;
+            
+            return div;
+        }
+
+        // Setup Admin Role Listeners
+        function setupAdminRoleListeners() {
+            document.querySelectorAll('#available-admin-roles .listbox-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('#available-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedAvailableAdminRole = {
+                        id: this.dataset.roleId,
+                        name: this.dataset.roleName
+                    };
+                    selectedCurrentAdminRole = null;
+                    document.querySelectorAll('#current-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
+                    document.getElementById('add-admin-role-btn').disabled = false;
+                    document.getElementById('remove-admin-role-btn').disabled = true;
+                });
+            });
+
+            document.querySelectorAll('#current-admin-roles .listbox-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('#current-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedCurrentAdminRole = {
+                        id: this.dataset.roleId,
+                        name: this.dataset.roleName
+                    };
+                    selectedAvailableAdminRole = null;
+                    document.querySelectorAll('#available-admin-roles .listbox-item').forEach(i => i.classList.remove('selected'));
+                    document.getElementById('remove-admin-role-btn').disabled = false;
+                    document.getElementById('add-admin-role-btn').disabled = true;
+                });
+            });
+        }
+
+        // Setup Employee Role Listeners
+        function setupEmployeeRoleListeners() {
+            document.querySelectorAll('#available-roles .listbox-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('#available-roles .listbox-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedAvailableRole = {
+                        id: this.dataset.roleId,
+                        name: this.dataset.roleName
+                    };
+                    selectedCurrentRole = null;
+                    document.querySelectorAll('#current-roles .listbox-item').forEach(i => i.classList.remove('selected'));
+                    document.getElementById('add-role-btn').disabled = false;
+                    document.getElementById('remove-role-btn').disabled = true;
+                });
+            });
+
+            document.querySelectorAll('#current-roles .listbox-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('#current-roles .listbox-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedCurrentRole = {
+                        id: this.dataset.roleId,
+                        name: this.dataset.roleName
+                    };
+                    selectedAvailableRole = null;
+                    document.querySelectorAll('#available-roles .listbox-item').forEach(i => i.classList.remove('selected'));
+                    document.getElementById('remove-role-btn').disabled = false;
+                    document.getElementById('add-role-btn').disabled = true;
+                });
+            });
+        }
+
+        // Admin Role API Handlers
+        document.getElementById('add-admin-role-btn').addEventListener('click', async function() {
+            if (!selectedAvailableAdminRole || !currentGuildId) return;
+            
+            try {
+                const response = await fetch(`/api/server/${currentGuildId}/admin-roles/add`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role_id: selectedAvailableAdminRole.id })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    await loadServerData(currentGuildId);
+                } else {
+                    alert(data.error || 'Error adding admin role');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding admin role');
+            }
+        });
+
+        document.getElementById('remove-admin-role-btn').addEventListener('click', async function() {
+            if (!selectedCurrentAdminRole || !currentGuildId) return;
+            
+            try {
+                const response = await fetch(`/api/server/${currentGuildId}/admin-roles/remove`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role_id: selectedCurrentAdminRole.id })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    await loadServerData(currentGuildId);
+                } else {
+                    alert(data.error || 'Error removing admin role');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error removing admin role');
+            }
+        });
+
+        // Employee Role API Handlers
+        document.getElementById('add-role-btn').addEventListener('click', async function() {
+            if (!selectedAvailableRole || !currentGuildId) return;
+            
+            try {
+                const response = await fetch(`/api/server/${currentGuildId}/employee-roles/add`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role_id: selectedAvailableRole.id })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    await loadServerData(currentGuildId);
+                } else {
+                    alert(data.error || 'Error adding employee role');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding employee role');
+            }
+        });
+
+        document.getElementById('remove-role-btn').addEventListener('click', async function() {
+            if (!selectedCurrentRole || !currentGuildId) return;
+            
+            try {
+                const response = await fetch(`/api/server/${currentGuildId}/employee-roles/remove`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role_id: selectedCurrentRole.id })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    await loadServerData(currentGuildId);
+                } else {
+                    alert(data.error || 'Error removing employee role');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error removing employee role');
+            }
+        });
+
+        // Timezone Save Handler
+        document.getElementById('save-timezone-btn').addEventListener('click', async function() {
+            if (!currentGuildId) return;
+            
+            const timezone = document.getElementById('timezone-select').value;
+            
+            try {
+                const response = await fetch(`/api/server/${currentGuildId}/timezone`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ timezone: timezone })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    alert(data.message || 'Timezone updated successfully!');
+                } else {
+                    alert(data.error || 'Error updating timezone');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating timezone');
+            }
+        });
+
+        // Mobile menu functionality
+        const mobileHamburger = document.getElementById('mobileHamburger');
+        const sidebar = document.getElementById('sidebar');
+        const mobileOverlay = document.getElementById('mobileOverlay');
+
+        function openMobileSidebar() {
+            sidebar.classList.remove('mobile-hidden');
+            mobileOverlay.classList.add('active');
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.add('mobile-hidden');
+            mobileOverlay.classList.remove('active');
+        }
+
+        mobileHamburger.addEventListener('click', openMobileSidebar);
+        mobileOverlay.addEventListener('click', closeMobileSidebar);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('mobile-hidden');
+                mobileOverlay.classList.remove('active');
+            } else {
+                sidebar.classList.add('mobile-hidden');
+            }
+        });
+
+        // Initialize mobile state
+        if (window.innerWidth <= 768) {
+            sidebar.classList.add('mobile-hidden');
         }
     </script>
 </body>
