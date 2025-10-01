@@ -2852,14 +2852,23 @@ def get_report_recipients(guild_id: int, recipient_type: Optional[str] = None):
         return cursor.fetchall()
 
 async def send_timeclock_notifications(guild_id: int, interaction: discord.Interaction, start_dt: datetime, end_dt: datetime, elapsed: int, tz_name: str):
-    """Send timeclock notifications via Discord DM to configured Discord recipients only"""
-    # Get Discord recipients only (email recipients receive scheduled reports, not clock-out notifications)
-    all_recipients = get_report_recipients(guild_id, recipient_type='discord')
+    """Send timeclock notifications to Discord recipients (DMs) and optionally to email recipients"""
+    # Check if auto-send on clock-out is enabled
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT auto_send_on_clockout FROM email_settings WHERE guild_id = ?",
+            (guild_id,)
+        )
+        settings_row = cursor.fetchone()
+        auto_send_enabled = bool(settings_row[0]) if settings_row else False
+    
+    # Get Discord recipients for DM notifications
+    discord_recipients = get_report_recipients(guild_id, recipient_type='discord')
     
     # Also check for legacy single recipient
     legacy_recipient_id = get_guild_setting(guild_id, "recipient_user_id")
     
-    # Prepare the notification embed
+    # Prepare the notification embed for Discord
     embed = discord.Embed(
         title="Timeclock Entry",
         description=f"**Employee:** {interaction.user.mention} (`{interaction.user.id}`)",
@@ -2875,8 +2884,8 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
     notification_sent = False
     errors = []
     
-    # Send to Discord recipients only
-    for recipient_row in all_recipients:
+    # Send Discord DMs to Discord recipients
+    for recipient_row in discord_recipients:
         recipient_id, recipient_type, discord_user_id, email_address, created_at = recipient_row
         
         if recipient_type == 'discord' and discord_user_id:
@@ -2892,7 +2901,7 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
                 errors.append(f"Failed to notify Discord user {discord_user_id}: {str(e)}")
     
     # Fallback to legacy recipient if no new recipients configured
-    if not all_recipients and legacy_recipient_id:
+    if not discord_recipients and legacy_recipient_id:
         try:
             manager = await bot.fetch_user(legacy_recipient_id)
             await manager.send(embed=embed)
@@ -2903,6 +2912,33 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
             errors.append("Legacy recipient not found")
         except Exception as e:
             errors.append(f"Failed to notify legacy recipient: {str(e)}")
+    
+    # Send emails to email recipients if auto-send is enabled
+    if auto_send_enabled:
+        email_recipients = get_report_recipients(guild_id, recipient_type='email')
+        if email_recipients:
+            try:
+                user_name = get_user_display_name(interaction.user, guild_id)  # type: ignore[arg-type]
+                
+                # Create CSV for single clock-out entry
+                duration_hours = round(elapsed / 3600, 2)
+                csv_content = f"User ID,Clock In,Clock Out,Duration (hours)\n{interaction.user.id},{start_dt.isoformat()},{end_dt.isoformat()},{duration_hours}"
+                
+                email_addresses = [row[3] for row in email_recipients if row[3]]
+                
+                if email_addresses:
+                    report_period = f"Clock-out at {fmt(end_dt, tz_name)} - {user_name}"
+                    await send_timeclock_report_email(
+                        to=email_addresses,
+                        guild_name=guild_name,
+                        csv_content=csv_content,
+                        report_period=report_period
+                    )
+                    notification_sent = True
+                    print(f"✅ Clock-out email sent to {len(email_addresses)} recipient(s)")
+            except Exception as e:
+                errors.append(f"Failed to send clock-out email: {str(e)}")
+                print(f"❌ Clock-out email failed: {str(e)}")
     
     # Report any errors to the user
     if errors and not notification_sent:
