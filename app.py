@@ -563,25 +563,20 @@ def get_guild_settings(guild_id):
         
         # Get guild settings (timezone, recipient_user_id, etc.)
         settings_cursor = conn.execute(
-            "SELECT timezone, recipient_user_id, name_display_mode, work_day_end_time FROM guild_settings WHERE guild_id = ?",
+            "SELECT timezone, recipient_user_id, name_display_mode, main_admin_role_id FROM guild_settings WHERE guild_id = ?",
             (guild_id,)
         )
         settings_row = settings_cursor.fetchone()
         
-        # Get main admin role
-        main_admin_cursor = conn.execute(
-            "SELECT main_admin_role_id FROM guild_settings WHERE guild_id = ?",
-            (guild_id,)
-        )
-        main_admin_row = main_admin_cursor.fetchone()
-        main_admin_role_id = main_admin_row[0] if main_admin_row and main_admin_row[0] else None
-        
-        # Get email settings
-        email_settings_cursor = conn.execute(
-            "SELECT auto_send_on_clockout, auto_email_before_delete FROM email_settings WHERE guild_id = ?",
-            (guild_id,)
-        )
-        email_settings_row = email_settings_cursor.fetchone()
+        # Get email settings - check if email_settings table exists
+        try:
+            email_settings_cursor = conn.execute(
+                "SELECT auto_send_on_clockout, auto_email_before_delete, work_day_end_time FROM email_settings WHERE guild_id = ?",
+                (guild_id,)
+            )
+            email_settings_row = email_settings_cursor.fetchone()
+        except:
+            email_settings_row = None
         
         return {
             'admin_roles': admin_roles,
@@ -589,8 +584,8 @@ def get_guild_settings(guild_id):
             'timezone': (settings_row[0] if settings_row else None) or 'America/New_York',
             'recipient_user_id': settings_row[1] if settings_row else None,
             'name_display_mode': (settings_row[2] if settings_row else None) or 'username',
-            'work_day_end_time': (settings_row[3] if settings_row and len(settings_row) > 3 else None) or '17:00',
-            'main_admin_role_id': main_admin_role_id,
+            'main_admin_role_id': settings_row[3] if settings_row and len(settings_row) > 3 else None,
+            'work_day_end_time': (email_settings_row[2] if email_settings_row and len(email_settings_row) > 2 else None) or '17:00',
             'auto_send_on_clockout': bool(email_settings_row[0]) if email_settings_row else False,
             'auto_email_before_delete': bool(email_settings_row[1]) if email_settings_row else False,
             'emails': []  # TODO: Add email table and fetch emails
