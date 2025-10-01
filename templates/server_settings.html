@@ -488,6 +488,102 @@
             font-size: 13px;
         }
 
+        .email-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .email-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .email-input {
+            flex: 1;
+            background: rgba(10, 15, 31, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            border-radius: 8px;
+            padding: 12px;
+            color: #C9D1D9;
+            font-size: 14px;
+        }
+
+        .email-input:focus {
+            outline: none;
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .add-btn {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .add-btn:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-2px);
+        }
+
+        .email-list {
+            background: rgba(10, 15, 31, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .email-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .email-item:hover {
+            background: rgba(30, 35, 45, 0.8);
+            border-color: rgba(212, 175, 55, 0.3);
+        }
+
+        .email-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .email-address {
+            color: #C9D1D9;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .email-remove-btn {
+            background: linear-gradient(135deg, #DC2626, #B91C1C);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .email-remove-btn:hover {
+            background: linear-gradient(135deg, #B91C1C, #991B1B);
+            transform: scale(1.05);
+        }
+
         .listbox::-webkit-scrollbar,
         .email-list::-webkit-scrollbar {
             width: 8px;
@@ -1277,6 +1373,104 @@
                 alert('Error updating work day end time');
             }
         });
+
+        // Email recipient management
+        async function loadEmailRecipients() {
+            try {
+                const response = await fetch(`/api/server/${guildId}/email-recipients`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    renderEmailList(data.emails);
+                } else {
+                    console.error('Error loading emails:', data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function renderEmailList(emails) {
+            const emailList = document.getElementById('email-list');
+            
+            if (!emails || emails.length === 0) {
+                emailList.innerHTML = '<div class="empty-state">No email addresses configured</div>';
+                return;
+            }
+            
+            emailList.innerHTML = emails.map(email => `
+                <div class="email-item" data-email-id="${email.id}">
+                    <span class="email-address">📧 ${email.email}</span>
+                    <button class="email-remove-btn" onclick="removeEmail(${email.id})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        async function addEmail() {
+            const emailInput = document.getElementById('email-input');
+            const email = emailInput.value.trim();
+            
+            if (!email) {
+                alert('Please enter an email address');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/email-recipients/add`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email: email })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    emailInput.value = '';
+                    await loadEmailRecipients();
+                } else {
+                    alert(data.error || 'Error adding email');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding email');
+            }
+        }
+
+        async function removeEmail(emailId) {
+            if (!confirm('Are you sure you want to remove this email recipient?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/email-recipients/remove`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: emailId })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    await loadEmailRecipients();
+                } else {
+                    alert(data.error || 'Error removing email');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error removing email');
+            }
+        }
+
+        // Add email button handler
+        document.getElementById('add-email-btn').addEventListener('click', addEmail);
+        
+        // Allow Enter key to add email
+        document.getElementById('email-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addEmail();
+            }
+        });
+
+        // Load email recipients on page load
+        loadEmailRecipients();
 
         // Initialize
         console.log('Server settings page initialized for guild:', guildId);

@@ -976,6 +976,9 @@
                                         <div class="server-info">
                                             <div class="server-name">{{ guild.name }}</div>
                                             <div class="server-meta">
+                                                {% if guild.bot_access_paid %}
+                                                    <span class="server-badge" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15)); border: 1px solid rgba(16, 185, 129, 0.3); color: #10B981;">💰 Paid</span>
+                                                {% endif %}
                                                 {% if guild.owner %}
                                                     <span class="server-badge owner-badge">👑 Owner</span>
                                                 {% elif guild.permissions|has_permission(0x8) %}

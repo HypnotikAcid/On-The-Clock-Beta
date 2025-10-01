@@ -361,10 +361,23 @@ def filter_user_guilds(user_session):
     Filter user's guilds to show only those where:
     1. The bot is present (in bot_guilds table), AND
     2. The user has admin access (owner, administrator, or custom admin role)
+    Also adds subscription information to each guild.
     """
     all_guilds = user_session.get('guilds', [])
     bot_guild_ids = get_bot_guild_ids()
     filtered_guilds = []
+    
+    # Fetch all subscription data in one query for efficiency
+    subscription_data = {}
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions"
+        )
+        for row in cursor.fetchall():
+            subscription_data[str(row[0])] = {
+                'bot_access_paid': bool(row[1]),
+                'retention_tier': row[2]
+            }
     
     for guild in all_guilds:
         guild_id = guild.get('id')
@@ -376,6 +389,11 @@ def filter_user_guilds(user_session):
         # Check if user has admin access
         if not user_has_admin_access(user_session['user_id'], guild_id, guild):
             continue
+        
+        # Add subscription info to guild
+        sub_info = subscription_data.get(guild_id, {'bot_access_paid': False, 'retention_tier': 'none'})
+        guild['bot_access_paid'] = sub_info['bot_access_paid']
+        guild['retention_tier'] = sub_info['retention_tier']
         
         # Guild passes both filters
         filtered_guilds.append(guild)
