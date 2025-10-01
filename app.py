@@ -20,15 +20,25 @@ app = Flask(__name__)
 # Start Discord bot in background daemon thread
 def start_discord_bot():
     """Start the Discord bot in a background daemon thread."""
-    import bot
-    print("🤖 Starting Discord bot in background thread...")
-    bot.client.run(bot.TOKEN)
+    try:
+        import asyncio
+        from bot import run_bot_with_api
+        app.logger.info("🤖 Starting Discord bot in background thread...")
+        asyncio.run(run_bot_with_api())
+    except Exception as e:
+        app.logger.error(f"❌ Error starting Discord bot: {e}")
+        import traceback
+        traceback.print_exc()
 
-# Start bot thread when running under Gunicorn
+# Start bot thread when running under Gunicorn (only in first worker)
 if __name__ != '__main__':
-    bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
-    bot_thread.start()
-    print("✅ Discord bot thread started")
+    import os
+    worker_id = os.environ.get('GUNICORN_WORKER_ID', '1')
+    # Only start bot in first worker to avoid multiple instances
+    if worker_id == '1' or 'GUNICORN_WORKER_ID' not in os.environ:
+        bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
+        bot_thread.start()
+        app.logger.info("✅ Discord bot thread started in worker")
 
 # Configure logging to work with Gunicorn
 if __name__ != '__main__':
