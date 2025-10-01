@@ -163,6 +163,11 @@ def create_secure_checkout_session(guild_id: int, product_type: str, guild_name:
     if product_type not in STRIPE_PRICE_IDS:
         raise ValueError(f"Invalid product_type: {product_type}. Must be one of: {', '.join(STRIPE_PRICE_IDS.keys())}")
     
+    # CRITICAL: Server-side enforcement - prevent retention purchase without bot access
+    if product_type in ['retention_7day', 'retention_30day']:
+        if not check_bot_access(guild_id):
+            raise ValueError("Bot access must be purchased before adding retention plans")
+    
     domain = get_domain()
     
     # Determine mode based on product type
@@ -673,6 +678,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
             elif product_type == 'retention_7day':
                 # 7-day retention subscription
+                # CRITICAL: Server-side enforcement - verify bot access before granting retention
+                if not check_bot_access(guild_id):
+                    print(f"❌ SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
+                    # TODO: Consider refunding the payment automatically here
+                    return
+                
                 subscription_id = session.get('subscription')
                 customer_id = session.get('customer')
                 set_retention_tier(guild_id, '7day')
@@ -692,6 +703,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
             elif product_type == 'retention_30day':
                 # 30-day retention subscription
+                # CRITICAL: Server-side enforcement - verify bot access before granting retention
+                if not check_bot_access(guild_id):
+                    print(f"❌ SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
+                    # TODO: Consider refunding the payment automatically here
+                    return
+                
                 subscription_id = session.get('subscription')
                 customer_id = session.get('customer')
                 set_retention_tier(guild_id, '30day')
@@ -5513,20 +5530,14 @@ async def purge_data(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 # --- Subscription Management Commands ---
-@tree.command(name="upgrade", description="Upgrade your server to Basic or Pro plan")
-@app_commands.describe(plan="Choose Basic ($5/month) or Pro ($10/month)")
-@app_commands.choices(plan=[
-    app_commands.Choice(name="Basic - $5/month", value="basic"),
-    app_commands.Choice(name="Pro - $10/month", value="pro")
-])
+@tree.command(name="upgrade", description="Upgrade your server with bot access or data retention")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
-async def upgrade_server(interaction: discord.Interaction, plan: str):
-    """Create Stripe checkout link for server upgrade"""
+async def upgrade_server(interaction: discord.Interaction):
+    """Show upgrade options based on current access level (NEW MONETIZATION MODEL)"""
     # Robust defer with proper fallback
     defer_success = await robust_defer(interaction, ephemeral=True)
     if not defer_success and not interaction.response.is_done():
-        # If defer failed and interaction isn't done, we can't proceed
         return
     
     if interaction.guild is None:
@@ -5536,19 +5547,7 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
     guild_id = interaction.guild.id
     
     try:
-        current_tier = get_server_tier(guild_id)
-        
-        # Check if already on this tier or higher
-        tier_hierarchy = {'free': 0, 'basic': 1, 'pro': 2}
-        if tier_hierarchy.get(current_tier, 0) >= tier_hierarchy.get(plan, 0):
-            await interaction.followup.send(
-                f"✅ Your server is already on **{current_tier.title()}** plan or higher!\n"
-                f"Use `/subscription_status` to view current subscription details.",
-                ephemeral=True
-            )
-            return
-        
-        # Check Stripe configuration
+        # Check Stripe configuration first
         if not stripe.api_key:
             await interaction.followup.send(
                 "❌ Payment system is not configured. Please contact support.",
@@ -5556,40 +5555,146 @@ async def upgrade_server(interaction: discord.Interaction, plan: str):
             )
             return
         
-        # Create secure checkout session server-side
-        checkout_url = create_secure_checkout_session(guild_id, plan)
+        # Check current bot access status
+        has_bot_access = check_bot_access(guild_id)
+        retention_tier = get_retention_tier(guild_id)
         
-        plan_details = {
-            'basic': "**Basic Plan - $5/month**\n• Full team access to timeclock\n• All admin commands\n• CSV Reports\n• Role management\n• 1 week data retention",
-            'pro': "**Pro Plan - $10/month**\n• Everything in Basic\n• Extended CSV reports\n• Multiple manager notifications\n• 30 days data retention"
-        }
-        
-        embed = discord.Embed(
-            title=f"💳 Upgrade to {plan.title()} Plan",
-            description=plan_details[plan],
-            color=discord.Color.blue()
-        )
-        embed.add_field(
-            name="Next Steps",
-            value=f"Click the button below to complete your upgrade through Stripe.\n"
-                  f"You'll be redirected to a secure checkout page.",
-            inline=False
-        )
-        
-        # Create a view with a button that opens the checkout URL
-        view = discord.ui.View()
-        button = discord.ui.Button(
-            label=f"Upgrade to {plan.title()} - ${5 if plan == 'basic' else 10}/month",
-            style=discord.ButtonStyle.primary,
-            url=checkout_url
-        )
-        view.add_item(button)
-        
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        if not has_bot_access:
+            # STEP 1: Offer bot access first ($5 one-time)
+            checkout_url = create_secure_checkout_session(guild_id, "bot_access")
+            
+            embed = discord.Embed(
+                title="🔓 Unlock Full Bot Access",
+                description=(
+                    "**Get full access to On the Clock for just $5 (one-time payment)!**\n\n"
+                    "Currently on **Free Tier** with 24-hour data deletion.\n"
+                    "Upgrade to unlock real reports and full functionality."
+                ),
+                color=discord.Color.gold()
+            )
+            embed.add_field(
+                name="✨ What You Get:",
+                value=(
+                    "✅ Real CSV reports & exports\n"
+                    "✅ Full dashboard access\n"
+                    "✅ All bot features unlocked\n"
+                    "✅ One-time payment, lifetime access\n"
+                    "✅ Still 24-hour deletion (add retention separately)"
+                ),
+                inline=False
+            )
+            embed.add_field(
+                name="💳 Pricing:",
+                value="**$5 one-time per server** - No recurring fees!",
+                inline=False
+            )
+            
+            # Create button for bot access checkout
+            view = discord.ui.View()
+            button = discord.ui.Button(
+                label="Unlock Bot Access - $5 One-Time",
+                style=discord.ButtonStyle.success,
+                url=checkout_url
+            )
+            view.add_item(button)
+            
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            
+        else:
+            # STEP 2: Bot access paid, offer retention add-ons
+            embed = discord.Embed(
+                title="📁 Add Data Retention",
+                description=(
+                    "**✅ Full Bot Access Active!**\n\n"
+                    f"Current retention: **{retention_tier if retention_tier != 'none' else 'None (24-hour deletion)'}**\n\n"
+                    "Add a retention plan to keep your time tracking data longer:"
+                ),
+                color=discord.Color.blue()
+            )
+            
+            # Show available retention options
+            if retention_tier == "none":
+                embed.add_field(
+                    name="📊 7-Day Retention - $5/month",
+                    value=(
+                        "• Rolling 7-day data retention\n"
+                        "• Perfect for weekly payroll\n"
+                        "• Export reports up to 7 days back"
+                    ),
+                    inline=False
+                )
+                embed.add_field(
+                    name="📈 30-Day Retention - $10/month",
+                    value=(
+                        "• Rolling 30-day data retention\n"
+                        "• Full month reporting\n"
+                        "• Export reports up to 30 days back"
+                    ),
+                    inline=False
+                )
+                
+                # Create buttons for both retention options
+                view = discord.ui.View()
+                
+                checkout_url_7day = create_secure_checkout_session(guild_id, "retention_7day")
+                button_7day = discord.ui.Button(
+                    label="7-Day Retention - $5/month",
+                    style=discord.ButtonStyle.primary,
+                    url=checkout_url_7day
+                )
+                view.add_item(button_7day)
+                
+                checkout_url_30day = create_secure_checkout_session(guild_id, "retention_30day")
+                button_30day = discord.ui.Button(
+                    label="30-Day Retention - $10/month",
+                    style=discord.ButtonStyle.primary,
+                    url=checkout_url_30day
+                )
+                view.add_item(button_30day)
+                
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+                
+            elif retention_tier == "7day":
+                # Already have 7-day, offer 30-day upgrade
+                embed.add_field(
+                    name="⬆️ Upgrade to 30-Day Retention",
+                    value=(
+                        "**Current:** 7-day retention ($5/month)\n\n"
+                        "**Upgrade to 30-Day - $10/month:**\n"
+                        "• Rolling 30-day data retention\n"
+                        "• Full month reporting\n"
+                        "• Export reports up to 30 days back"
+                    ),
+                    inline=False
+                )
+                
+                view = discord.ui.View()
+                checkout_url_30day = create_secure_checkout_session(guild_id, "retention_30day")
+                button_30day = discord.ui.Button(
+                    label="Upgrade to 30-Day - $10/month",
+                    style=discord.ButtonStyle.success,
+                    url=checkout_url_30day
+                )
+                view.add_item(button_30day)
+                
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+                
+            else:
+                # Already have 30-day (max tier)
+                embed.add_field(
+                    name="✅ Maximum Plan Active",
+                    value=(
+                        "You're on the **30-day retention plan** - the highest tier available!\n\n"
+                        "Thank you for supporting On the Clock! 🎉"
+                    ),
+                    inline=False
+                )
+                
+                await interaction.followup.send(embed=embed, ephemeral=True)
         
     except Exception as e:
         await interaction.followup.send(
-            f"❌ Error creating checkout session: {str(e)}", 
+            f"❌ Error creating upgrade options: {str(e)}", 
             ephemeral=True
         )
 
