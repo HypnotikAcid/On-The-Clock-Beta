@@ -12,7 +12,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 import requests
-from flask import Flask, render_template, redirect, request, session, jsonify, url_for
+from flask import Flask, render_template, redirect, request, session, jsonify, url_for, make_response
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
@@ -775,7 +775,12 @@ def server_settings(user_session, guild_id):
             'retention_tier': retention_tier
         }
         
-        return render_template('server_settings.html', **template_data)
+        # Add cache-busting headers to ensure users see latest changes
+        response = make_response(render_template('server_settings.html', **template_data))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
     except Exception as e:
         app.logger.error(f"Server settings error: {str(e)}")
         app.logger.error(traceback.format_exc())
