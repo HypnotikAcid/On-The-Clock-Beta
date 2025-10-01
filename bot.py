@@ -635,33 +635,79 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 expand=['line_items']
             )
             
-            # Verify the price ID matches our expected tiers
-            if full_session.line_items and full_session.line_items.data and full_session.line_items.data[0].price:
-                price_id = full_session.line_items.data[0].price.id
+            # Extract price_id from session
+            price_id = None
+            if full_session.line_items and full_session.line_items.data:
+                line_item = full_session.line_items.data[0]
+                if line_item.price:
+                    price_id = line_item.price.id
+            
+            if not price_id:
+                print("❌ No price ID found in checkout session")
+                return
+            
+            # Match price_id against STRIPE_PRICE_IDS to determine product_type
+            product_type = None
+            for ptype, pid in STRIPE_PRICE_IDS.items():
+                if pid == price_id:
+                    product_type = ptype
+                    break
+            
+            if not product_type:
+                print(f"❌ Unknown price ID in checkout: {price_id}")
+                return
+            
+            guild_id = session.get('metadata', {}).get('guild_id')
+            
+            if not guild_id:
+                print("❌ No guild_id found in session metadata")
+                return
+            
+            guild_id = int(guild_id)
+            
+            # Process based on product type
+            if product_type == 'bot_access':
+                # One-time bot access payment
+                set_bot_access(guild_id, True)
+                print(f"✅ Bot access granted for server {guild_id}")
                 
-                tier = None
-                for t, pid in STRIPE_PRICE_IDS.items():
-                    if pid == price_id:
-                        tier = t
-                        break
+            elif product_type == 'retention_7day':
+                # 7-day retention subscription
+                subscription_id = session.get('subscription')
+                customer_id = session.get('customer')
+                set_retention_tier(guild_id, '7day')
                 
-                if not tier:
-                    print(f"❌ Unknown price ID in checkout: {price_id}")
-                    return
+                # Store subscription_id and customer_id in database
+                with db() as conn:
+                    conn.execute("""
+                        INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
+                        VALUES (?, ?, ?, 'active')
+                        ON CONFLICT(guild_id) DO UPDATE SET 
+                            subscription_id = ?,
+                            customer_id = ?,
+                            status = 'active'
+                    """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
                 
-                guild_id = session.get('metadata', {}).get('guild_id')
+                print(f"✅ 7-day retention granted for server {guild_id}")
                 
-                if guild_id:
-                    subscription_id = session.get('subscription')
-                    customer_id = session.get('customer')
-                    
-                    # Update database with verified subscription
-                    set_server_tier(int(guild_id), tier, subscription_id, customer_id)
-                    print(f"✅ Subscription activated: Guild {guild_id} -> {tier.title()}")
-                else:
-                    print("❌ No guild_id found in session metadata")
-            else:
-                print("❌ No line items found in checkout session")
+            elif product_type == 'retention_30day':
+                # 30-day retention subscription
+                subscription_id = session.get('subscription')
+                customer_id = session.get('customer')
+                set_retention_tier(guild_id, '30day')
+                
+                # Store subscription_id and customer_id in database
+                with db() as conn:
+                    conn.execute("""
+                        INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
+                        VALUES (?, ?, ?, 'active')
+                        ON CONFLICT(guild_id) DO UPDATE SET 
+                            subscription_id = ?,
+                            customer_id = ?,
+                            status = 'active'
+                    """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
+                
+                print(f"✅ 30-day retention granted for server {guild_id}")
                 
         except Exception as e:
             print(f"❌ Error processing checkout session: {e}")
@@ -689,17 +735,20 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if result:
                     guild_id = result[0]
                     
-                    # Update subscription status to canceled and downgrade to free
+                    # Set retention tier to 'none' (user keeps bot access if they paid for it)
+                    set_retention_tier(guild_id, 'none')
+                    
+                    # Update subscription status to canceled in database
                     conn.execute("""
                         UPDATE server_subscriptions 
-                        SET tier = 'free', status = 'canceled'
+                        SET status = 'canceled', subscription_id = NULL
                         WHERE guild_id = ?
                     """, (guild_id,))
                     
-                    # Purge data according to free tier policy (no retention)
+                    # Trigger immediate data deletion for that guild
                     purge_timeclock_data_only(guild_id)
                     
-                    print(f"✅ Subscription cancelled: Guild {guild_id} downgraded to free")
+                    print(f"✅ Retention subscription canceled for server {guild_id}, data will be deleted")
                 else:
                     print(f"❌ No guild found for subscription {subscription_id}")
                     
@@ -714,6 +763,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             subscription_id = subscription.get('id')
             customer_id = subscription.get('customer')
             status = subscription.get('status')
+            current_period_end = subscription.get('current_period_end')
             
             if not subscription_id:
                 print("❌ No subscription ID in subscription change event")
@@ -729,27 +779,37 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if result:
                     guild_id = result[0]
                     
-                    # Update subscription status  
-                    if status in ['active', 'trialing', 'past_due', 'canceled', 'incomplete', 'incomplete_expired', 'unpaid']:
+                    # Update subscription status in database
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET status = ?
+                        WHERE guild_id = ?
+                    """, (status, guild_id))
+                    
+                    # Handle retention tier based on subscription status
+                    if status == 'active':
+                        # Keep retention_tier as is
+                        print(f"✅ Subscription active: Guild {guild_id} - retention tier maintained")
+                        
+                    elif status in ['past_due', 'canceled']:
+                        # Set retention_tier to 'none'
+                        set_retention_tier(guild_id, 'none')
+                        print(f"⚠️ Subscription {status}: Guild {guild_id} - retention tier set to 'none'")
+                        
+                    else:
+                        # Other statuses (trialing, incomplete, etc.)
+                        print(f"ℹ️ Subscription status changed: Guild {guild_id} status -> {status}")
+                    
+                    # Update expires_at timestamp if available
+                    if current_period_end:
+                        expires_at = datetime.fromtimestamp(current_period_end, tz=timezone.utc)
                         conn.execute("""
                             UPDATE server_subscriptions 
-                            SET status = ?
+                            SET expires_at = ?
                             WHERE guild_id = ?
-                        """, (status, guild_id))
+                        """, (expires_at.isoformat(), guild_id))
+                        print(f"📅 Subscription expires_at updated for Guild {guild_id}: {expires_at.isoformat()}")
                         
-                        # Only downgrade and purge for truly inactive subscriptions
-                        if status in ['canceled', 'incomplete_expired', 'unpaid']:
-                            conn.execute("""
-                                UPDATE server_subscriptions 
-                                SET tier = 'free'
-                                WHERE guild_id = ?
-                            """, (guild_id,))
-                            # Purge data according to free tier policy
-                            purge_timeclock_data_only(guild_id)
-                        
-                        print(f"✅ Subscription updated: Guild {guild_id} status -> {status}")
-                    else:
-                        print(f"⚠️ Unknown subscription status: {status}")
                 else:
                     print(f"❌ No guild found for subscription {subscription_id}")
                     
