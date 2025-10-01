@@ -3169,6 +3169,10 @@ async def setup_hook():
     bot.add_view(TimeClockView())
     print("✅ TimeClockView registered")
     
+    # Register SetupInstructionsView for welcome messages
+    bot.add_view(SetupInstructionsView())
+    print("✅ SetupInstructionsView registered")
+    
     print("✅ Persistent view setup complete - ephemeral interface mode")
 
 bot.setup_hook = setup_hook
@@ -3952,6 +3956,37 @@ class TimeClockView(discord.ui.View):
         await send_reply(interaction, embed=embed, ephemeral=True)
 
 
+class SetupInstructionsView(discord.ui.View):
+    """Persistent view with a button that shows setup instructions"""
+    def __init__(self):
+        super().__init__(timeout=None)
+    
+    @discord.ui.button(
+        label="📋 Setup Instructions",
+        style=discord.ButtonStyle.primary,
+        custom_id="setup:show_instructions"
+    )
+    async def show_instructions(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show the setup instructions embed when button is clicked"""
+        try:
+            # Create the setup embed
+            embed = create_setup_embed()
+            
+            # Send ephemeral message so only the user who clicked sees it
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            print(f"❌ Error showing setup instructions: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ Error loading setup instructions. Please try again.",
+                        ephemeral=True
+                    )
+            except Exception:
+                pass
+
+
 @bot.event
 async def on_ready():
     # Persistent views are now registered in setup_hook (both new and legacy views)
@@ -4023,15 +4058,8 @@ async def on_ready():
     except Exception as e:
         print(f"❌ Error updating bot_guilds table: {e}")
 
-@bot.event
-async def on_guild_join(guild):
-    """Send welcome message with setup instructions when bot joins a new server"""
-    print(f"🎉 Bot joined new server: {guild.name} (ID: {guild.id})")
-    
-    # Try to find the person who added the bot (guild owner as fallback)
-    inviter = guild.owner
-    
-    # Create a fancy welcome embed
+def create_setup_embed() -> discord.Embed:
+    """Create the setup instructions embed (reusable for DMs and button responses)"""
     embed = discord.Embed(
         title="⏰ Welcome to On the Clock!",
         description="Thanks for adding our professional Discord timeclock bot to your server!",
@@ -4113,16 +4141,33 @@ async def on_guild_join(guild):
         icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
     )
     
-    # Try to send the welcome message to the server owner
+    return embed
+
+@bot.event
+async def on_guild_join(guild):
+    """Send welcome message with setup instructions when bot joins a new server"""
+    print(f"🎉 Bot joined new server: {guild.name} (ID: {guild.id})")
+    
+    # Try to find the person who added the bot (guild owner as fallback)
+    inviter = guild.owner
+    
+    # Create the setup embed using the helper function
+    embed = create_setup_embed()
+    
+    # Try to send the welcome message to the server owner via DM
     try:
         if inviter:
             await inviter.send(embed=embed)
-            print(f"✅ Sent welcome message to {inviter} in {guild.name}")
+            print(f"✅ Sent welcome DM to {inviter} in {guild.name}")
         else:
             print(f"⚠️ Could not find owner for {guild.name}")
     except discord.Forbidden:
         print(f"❌ Could not DM owner of {guild.name} - DMs disabled")
-        # Try to send to system channel or first text channel as fallback
+    except Exception as e:
+        print(f"❌ Error sending welcome DM for {guild.name}: {e}")
+    
+    # ALSO send a welcome message with button to first available text channel
+    try:
         target_channel = guild.system_channel
         if not target_channel:
             # Find first text channel the bot can send to
@@ -4132,13 +4177,21 @@ async def on_guild_join(guild):
                     break
         
         if target_channel:
-            try:
-                await target_channel.send(f"👋 {inviter.mention}" if inviter else "👋 Hello!", embed=embed)
-                print(f"✅ Sent welcome message to #{target_channel.name} in {guild.name}")
-            except Exception as e:
-                print(f"❌ Could not send welcome message anywhere in {guild.name}: {e}")
+            # Create the SetupInstructionsView button
+            view = SetupInstructionsView()
+            
+            # Send a brief welcome message with the button
+            welcome_text = f"👋 Welcome! I'm **On the Clock**, your professional Discord timeclock bot.\n\n"
+            if inviter:
+                welcome_text += f"{inviter.mention} added me to help manage your team's time tracking.\n\n"
+            welcome_text += "Click the button below for setup instructions and getting started guide!"
+            
+            await target_channel.send(welcome_text, view=view)
+            print(f"✅ Sent welcome button to #{target_channel.name} in {guild.name}")
+        else:
+            print(f"⚠️ Could not find any text channel to send welcome button in {guild.name}")
     except Exception as e:
-        print(f"❌ Error sending welcome message for {guild.name}: {e}")
+        print(f"❌ Error sending welcome button to channel in {guild.name}: {e}")
     
     # Add guild to bot_guilds table
     try:
