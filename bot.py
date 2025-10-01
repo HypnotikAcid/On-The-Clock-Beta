@@ -2162,6 +2162,45 @@ def run_migrations():
                 else:
                     print("✅ Migration check: customer_id column already exists")
                 
+                # Check if bot_access_paid column exists
+                cursor = conn.execute("PRAGMA table_info(server_subscriptions)")
+                columns = {row[1] for row in cursor.fetchall()}
+                
+                if 'bot_access_paid' not in columns:
+                    print("🔧 Adding bot_access_paid column to server_subscriptions table...")
+                    conn.execute("ALTER TABLE server_subscriptions ADD COLUMN bot_access_paid BOOLEAN DEFAULT 0")
+                    # Migrate existing data: Set bot_access_paid=TRUE for tier='basic' or tier='pro'
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET bot_access_paid = 1 
+                        WHERE tier IN ('basic', 'pro')
+                    """)
+                    print("✅ Migration completed: bot_access_paid column added and data migrated")
+                else:
+                    print("✅ Migration check: bot_access_paid column already exists")
+                
+                # Check if retention_tier column exists
+                cursor = conn.execute("PRAGMA table_info(server_subscriptions)")
+                columns = {row[1] for row in cursor.fetchall()}
+                
+                if 'retention_tier' not in columns:
+                    print("🔧 Adding retention_tier column to server_subscriptions table...")
+                    conn.execute("ALTER TABLE server_subscriptions ADD COLUMN retention_tier TEXT DEFAULT 'none'")
+                    # Migrate existing data based on tier
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET retention_tier = '7day' 
+                        WHERE tier = 'basic'
+                    """)
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET retention_tier = '30day' 
+                        WHERE tier = 'pro'
+                    """)
+                    print("✅ Migration completed: retention_tier column added and data migrated")
+                else:
+                    print("✅ Migration check: retention_tier column already exists")
+                
                 conn.commit()
                 return True
                 
@@ -2351,7 +2390,19 @@ def init_db():
             subscription_id TEXT,
             customer_id TEXT,
             expires_at TEXT,
-            status TEXT DEFAULT 'active'
+            status TEXT DEFAULT 'active',
+            bot_access_paid BOOLEAN DEFAULT 0,
+            retention_tier TEXT DEFAULT 'none' CHECK(retention_tier IN ('none', '7day', '30day'))
+        )
+        """)
+        
+        # Email settings table for automated email features
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS email_settings (
+            guild_id INTEGER PRIMARY KEY,
+            auto_send_on_clockout BOOLEAN DEFAULT 0,
+            auto_email_before_delete BOOLEAN DEFAULT 0,
+            FOREIGN KEY (guild_id) REFERENCES server_subscriptions (guild_id)
         )
         """)
         
