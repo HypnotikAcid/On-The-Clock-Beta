@@ -1,12 +1,37 @@
 import asyncio
 import logging
+import sqlite3
+import os
 from datetime import datetime, timezone, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
+from contextlib import contextmanager
 
-from bot import db, get_retention_tier
 from email_utils import send_timeclock_report_email
+
+# Database connection
+DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
+
+@contextmanager
+def db():
+    """Context manager for database operations"""
+    conn = sqlite3.connect(DB_PATH, isolation_level=None, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+def get_retention_tier(guild_id: int) -> str:
+    """Get the retention tier for a guild"""
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT tier FROM server_subscriptions WHERE guild_id = ?",
+            (guild_id,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else 'free'
 
 logger = logging.getLogger(__name__)
 
