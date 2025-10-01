@@ -4273,8 +4273,21 @@ def create_setup_embed() -> discord.Embed:
     """Create the setup instructions embed (reusable for DMs and button responses)"""
     embed = discord.Embed(
         title="⏰ Welcome to On the Clock!",
-        description="Thanks for adding our professional Discord timeclock bot to your server!",
+        description=(
+            "Thanks for adding our professional Discord timeclock bot to your server!\n\n"
+            "**⚠️ Free mode is for testing - data is auto-deleted after 24 hours.**"
+        ),
         color=discord.Color.blurple()
+    )
+    
+    # DATA DELETION WARNING - Top-level field for maximum visibility
+    embed.add_field(
+        name="⚠️ IMPORTANT: Data Deletion Policy",
+        value=(
+            "**All time entries are purged after 24 hours unless a retention add-on is active.**\n"
+            "Free tier is for testing only. Upgrade to save your data!"
+        ),
+        inline=False
     )
     
     # Add setup instructions
@@ -4294,31 +4307,28 @@ def create_setup_embed() -> discord.Embed:
     embed.add_field(
         name="🆓 Free Tier - What You Get",
         value=(
-            "**Available Functions:**\n"
-            "✅ Clock in/out tracking (Discord Admins only)\n"
+            "✅ Employee role management\n"
+            "✅ Clock in/out tracking via `/clock`\n"
             "✅ View current status (who's clocked in)\n"
-            "✅ Access timeclock interface via `/clock`\n"
-            "✅ Basic timezone settings\n"
-            "✅ Role management commands\n\n"
-            "**⚠️ Data Retention:** No saved reports (0 days)\n"
-            "**⚠️ Employee Access:** Admins only - upgrade for team access!"
+            "✅ Basic timezone settings\n\n"
+            "**Note:** Reports visible but locked. Upgrade to unlock CSV exports!"
         ),
         inline=False
     )
     
-    # Add subscription tier information
+    # Add subscription tier information - NEW MODEL
     embed.add_field(
-        name="💼 Upgrade for Full Features",
+        name="💼 Upgrade Options",
         value=(
-            "**💼 Basic ($5/month):**\n"
-            "• Full team access (any role you set)\n"
-            "• 7-day report history & data retention\n"
-            "• CSV export for payroll\n\n"
-            "**⭐ Pro ($10/month):**\n"
-            "• Everything in Basic\n"
-            "• 30-day report history & data retention\n"
-            "• Priority support\n\n"
-            "Use `/upgrade` to see upgrade options!"
+            "**🔓 Full Bot Access ($5 one-time per server):**\n"
+            "• Unlock real reports & CSV exports\n"
+            "• Full dashboard access\n"
+            "• One-time payment, lifetime access\n"
+            "• Still 24-hour deletion (buy retention separately)\n\n"
+            "**📁 Data Retention Add-Ons (require bot access):**\n"
+            "• **Basic ($5/month):** 7-day rolling retention\n"
+            "• **Pro ($10/month):** 30-day rolling retention\n\n"
+            "Use `/upgrade` to unlock features!"
         ),
         inline=False
     )
