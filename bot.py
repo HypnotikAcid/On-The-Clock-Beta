@@ -4040,38 +4040,46 @@ async def on_guild_join(guild):
     
     # Add setup instructions
     embed.add_field(
-        name="🚀 Quick Setup",
+        name="🚀 Quick Setup Guide",
         value=(
-            "1️⃣ Run `/setup_timeclock` in your desired channel\n"
-            "2️⃣ Configure role access with `/add_employee_role @role`\n"
-            "3️⃣ Set admin roles with `/add_admin_role @role` (optional)\n"
-            "4️⃣ Your team can start tracking time immediately!"
+            "1️⃣ **Set Employee Roles:** Use `/add_employee_role @role` to grant timeclock access\n"
+            "2️⃣ **Set Admin Roles** (optional): Use `/add_admin_role @role` for report/upgrade access\n"
+            "3️⃣ **Start Tracking:** Use `/clock` to get your timeclock interface\n"
+            "4️⃣ **Get Reports:** Admins can use `/report @user` to export CSV timesheets\n\n"
+            "💡 **Tip:** Use `/setup` anytime to see all available commands!"
         ),
         inline=False
     )
     
-    # Add access control explanation
+    # Add free tier features
     embed.add_field(
-        name="🔐 Access Control",
+        name="🆓 Free Tier - What You Get",
         value=(
-            "**Timeclock functions:**\n"
-            "• Free tier: Admins only\n"
-            "• Basic/Pro tier: Any role you specify\n\n"
-            "**Reports/Upgrade buttons:**\n"
-            "• Discord Administrators\n"
-            "• Custom admin roles (via `/add_admin_role`)"
+            "**Available Functions:**\n"
+            "✅ Clock in/out tracking (Discord Admins only)\n"
+            "✅ View current status (who's clocked in)\n"
+            "✅ Access timeclock interface via `/clock`\n"
+            "✅ Basic timezone settings\n"
+            "✅ Role management commands\n\n"
+            "**⚠️ Data Retention:** No saved reports (0 days)\n"
+            "**⚠️ Employee Access:** Admins only - upgrade for team access!"
         ),
         inline=False
     )
     
     # Add subscription tier information
     embed.add_field(
-        name="💼 Subscription Tiers",
+        name="💼 Upgrade for Full Features",
         value=(
-            "**🆓 Free (Current):** Admin-only access, sample reports\n"
-            "**💼 Basic ($5/month):** Full team access, 7-day reports\n"
-            "**⭐ Pro ($10/month):** Everything + 30-day reports\n\n"
-            "Use `/upgrade basic` or `/upgrade pro` to unlock full features!"
+            "**💼 Basic ($5/month):**\n"
+            "• Full team access (any role you set)\n"
+            "• 7-day report history & data retention\n"
+            "• CSV export for payroll\n\n"
+            "**⭐ Pro ($10/month):**\n"
+            "• Everything in Basic\n"
+            "• 30-day report history & data retention\n"
+            "• Priority support\n\n"
+            "Use `/upgrade` to see upgrade options!"
         ),
         inline=False
     )
@@ -4091,8 +4099,17 @@ async def on_guild_join(guild):
     )
     
     # Add footer with support info
+    embed.add_field(
+        name="💬 Need Help?",
+        value=(
+            "Join our support server for assistance:\n"
+            "🔗 https://discord.gg/KdTRTqdPcj\n\n"
+            "Run `/help` anytime to see all available commands!"
+        ),
+        inline=False
+    )
     embed.set_footer(
-        text="Need help? Contact support or check our documentation",
+        text="On the Clock - Professional Discord Timeclock Management",
         icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
     )
     
