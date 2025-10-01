@@ -934,6 +934,22 @@
                         <div class="empty-state">No email addresses configured</div>
                     </div>
 
+                    <div class="workday-time-setting" style="margin-bottom: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
+                        <label style="display: block; color: #C9D1D9; font-weight: 500; margin-bottom: 10px;">
+                            🕐 Work Day End Time (for auto-send reports)
+                        </label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="time" id="work-day-end-time" value="{{ current_settings.work_day_end_time or '17:00' }}" 
+                                   style="background: rgba(30, 35, 45, 0.8); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 6px; padding: 8px 12px; color: #C9D1D9; font-size: 14px; flex: 0 0 auto;">
+                            <button id="save-workday-time-btn" style="background: linear-gradient(135deg, #3B82F6, #2563EB); color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s ease;">
+                                Save Time
+                            </button>
+                        </div>
+                        <p style="margin-top: 8px; color: #8B949E; font-size: 12px;">
+                            Reports will be auto-sent at this time if toggle is enabled
+                        </p>
+                    </div>
+
                     <div class="toggle-group">
                         <div class="toggle-item">
                             <span class="toggle-label">📤 Auto-send report on clock-out</span>
@@ -1215,6 +1231,29 @@
 
         toggleAutoSendClockout.addEventListener('change', updateEmailSettings);
         toggleAutoEmailDelete.addEventListener('change', updateEmailSettings);
+
+        // Work day end time save handler
+        document.getElementById('save-workday-time-btn').addEventListener('click', async function() {
+            const workDayEndTime = document.getElementById('work-day-end-time').value;
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/work-day-time`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ work_day_end_time: workDayEndTime })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    alert(data.message || 'Work day end time updated successfully!');
+                } else {
+                    alert(data.error || 'Error updating work day end time');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating work day end time');
+            }
+        });
 
         // Initialize
         console.log('Server settings page initialized for guild:', guildId);

@@ -563,7 +563,7 @@ def get_guild_settings(guild_id):
         
         # Get guild settings (timezone, recipient_user_id, etc.)
         settings_cursor = conn.execute(
-            "SELECT timezone, recipient_user_id, name_display_mode FROM guild_settings WHERE guild_id = ?",
+            "SELECT timezone, recipient_user_id, name_display_mode, work_day_end_time FROM guild_settings WHERE guild_id = ?",
             (guild_id,)
         )
         settings_row = settings_cursor.fetchone()
@@ -586,9 +586,10 @@ def get_guild_settings(guild_id):
         return {
             'admin_roles': admin_roles,
             'employee_roles': employee_roles,
-            'timezone': settings_row[0] if settings_row else 'America/New_York',
+            'timezone': (settings_row[0] if settings_row else None) or 'America/New_York',
             'recipient_user_id': settings_row[1] if settings_row else None,
-            'name_display_mode': settings_row[2] if settings_row else 'username',
+            'name_display_mode': (settings_row[2] if settings_row else None) or 'username',
+            'work_day_end_time': (settings_row[3] if settings_row and len(settings_row) > 3 else None) or '17:00',
             'main_admin_role_id': main_admin_role_id,
             'auto_send_on_clockout': bool(email_settings_row[0]) if email_settings_row else False,
             'auto_email_before_delete': bool(email_settings_row[1]) if email_settings_row else False,
@@ -1084,6 +1085,54 @@ def api_update_email_settings(user_session, guild_id):
         })
     except Exception as e:
         app.logger.error(f"Error updating email settings: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/work-day-time", methods=["POST"])
+@require_api_auth
+def api_update_work_day_time(user_session, guild_id):
+    """API endpoint to update work day end time"""
+    try:
+        # Verify user has access
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Get work day end time from request
+        data = request.get_json()
+        if not data or 'work_day_end_time' not in data:
+            return jsonify({'success': False, 'error': 'Missing work day end time'}), 400
+        
+        work_day_end_time = data['work_day_end_time']
+        
+        # Validate time format (HH:MM)
+        import re
+        if not re.match(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$', work_day_end_time):
+            return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
+        
+        # Update or insert guild settings
+        with get_db() as conn:
+            # Check if settings exist
+            cursor = conn.execute("SELECT guild_id FROM guild_settings WHERE guild_id = ?", (guild_id,))
+            exists = cursor.fetchone()
+            
+            if exists:
+                conn.execute(
+                    "UPDATE guild_settings SET work_day_end_time = ? WHERE guild_id = ?",
+                    (work_day_end_time, guild_id)
+                )
+            else:
+                # Insert with proper defaults for all columns
+                conn.execute(
+                    """INSERT INTO guild_settings (guild_id, timezone, name_display_mode, work_day_end_time) 
+                       VALUES (?, 'America/New_York', 'username', ?)""",
+                    (guild_id, work_day_end_time)
+                )
+        
+        app.logger.info(f"Updated work day end time to {work_day_end_time} for guild {guild_id} by user {user_session.get('username')}")
+        return jsonify({'success': True, 'message': 'Work day end time updated successfully', 'work_day_end_time': work_day_end_time})
+    except Exception as e:
+        app.logger.error(f"Error updating work day end time: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 

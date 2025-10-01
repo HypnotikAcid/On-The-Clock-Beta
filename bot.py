@@ -2433,6 +2433,12 @@ def init_db():
         except:
             pass  # Column already exists
         
+        # Add work_day_end_time column if it doesn't exist (for auto-send feature)
+        try:
+            conn.execute("ALTER TABLE guild_settings ADD COLUMN work_day_end_time TEXT DEFAULT '17:00'")
+        except:
+            pass  # Column already exists
+        
         # Now create tables if they don't exist (with correct TEXT types)
         conn.execute("""
         CREATE TABLE IF NOT EXISTS authorized_roles (
