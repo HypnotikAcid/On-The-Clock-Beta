@@ -576,6 +576,13 @@ def get_guild_settings(guild_id):
         main_admin_row = main_admin_cursor.fetchone()
         main_admin_role_id = main_admin_row[0] if main_admin_row and main_admin_row[0] else None
         
+        # Get email settings
+        email_settings_cursor = conn.execute(
+            "SELECT auto_send_on_clockout, auto_email_before_delete FROM email_settings WHERE guild_id = ?",
+            (guild_id,)
+        )
+        email_settings_row = email_settings_cursor.fetchone()
+        
         return {
             'admin_roles': admin_roles,
             'employee_roles': employee_roles,
@@ -583,6 +590,8 @@ def get_guild_settings(guild_id):
             'recipient_user_id': settings_row[1] if settings_row else None,
             'name_display_mode': settings_row[2] if settings_row else 'username',
             'main_admin_role_id': main_admin_role_id,
+            'auto_send_on_clockout': bool(email_settings_row[0]) if email_settings_row else False,
+            'auto_email_before_delete': bool(email_settings_row[1]) if email_settings_row else False,
             'emails': []  # TODO: Add email table and fetch emails
         }
 
@@ -1020,6 +1029,56 @@ def api_update_timezone(user_session, guild_id):
         return jsonify({'success': True, 'message': 'Timezone updated successfully', 'timezone': timezone_str})
     except Exception as e:
         app.logger.error(f"Error updating timezone: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/email-settings", methods=["POST"])
+@require_api_auth
+def api_update_email_settings(user_session, guild_id):
+    """API endpoint to update email settings"""
+    try:
+        # Verify user has access
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Get email settings from request
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Missing data'}), 400
+        
+        auto_send_on_clockout = bool(data.get('auto_send_on_clockout', False))
+        auto_email_before_delete = bool(data.get('auto_email_before_delete', False))
+        
+        # Update or insert email settings
+        with get_db() as conn:
+            # Check if settings exist
+            cursor = conn.execute("SELECT guild_id FROM email_settings WHERE guild_id = ?", (guild_id,))
+            exists = cursor.fetchone()
+            
+            if exists:
+                conn.execute(
+                    """UPDATE email_settings 
+                       SET auto_send_on_clockout = ?, auto_email_before_delete = ? 
+                       WHERE guild_id = ?""",
+                    (auto_send_on_clockout, auto_email_before_delete, guild_id)
+                )
+            else:
+                conn.execute(
+                    """INSERT INTO email_settings (guild_id, auto_send_on_clockout, auto_email_before_delete) 
+                       VALUES (?, ?, ?)""",
+                    (guild_id, auto_send_on_clockout, auto_email_before_delete)
+                )
+        
+        app.logger.info(f"Updated email settings for guild {guild_id} by user {user_session.get('username')}")
+        return jsonify({
+            'success': True, 
+            'message': 'Email settings updated successfully',
+            'auto_send_on_clockout': auto_send_on_clockout,
+            'auto_email_before_delete': auto_email_before_delete
+        })
+    except Exception as e:
+        app.logger.error(f"Error updating email settings: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 

@@ -936,35 +936,23 @@
 
                     <div class="toggle-group">
                         <div class="toggle-item">
-                            <span class="toggle-label">Send via Discord DM</span>
+                            <span class="toggle-label">📤 Auto-send report on clock-out</span>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="toggle-dm" checked>
+                                <input type="checkbox" id="toggle-auto-send-clockout" {% if current_settings.auto_send_on_clockout %}checked{% endif %}>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="toggle-item">
-                            <span class="toggle-label">Send via Email</span>
+                            <span class="toggle-label">⏰ Auto-email before data deletion</span>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="toggle-email">
+                                <input type="checkbox" id="toggle-auto-email-delete" {% if current_settings.auto_email_before_delete %}checked{% endif %}>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                     </div>
 
-                    <button class="customize-btn" id="customize-email-btn" style="display: none;">
-                        Customize Email Format
-                    </button>
-                </div>
-
-                <!-- Coming Soon Overlay -->
-                <div class="coming-soon-overlay">
-                    <div class="coming-soon-text">COMING SOON...</div>
-                    <div>
-                        <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="coffee-button">
-                            <span class="coffee-icon">☕</span>
-                            <span>Buy Me a Coffee</span>
-                        </a>
-                        <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+                    <div class="email-note" style="margin-top: 15px; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; color: #9CA3AF; font-size: 13px;">
+                        ℹ️ <strong>Note:</strong> Email functionality requires email addresses to be configured. Add recipient emails above to enable auto-send features.
                     </div>
                 </div>
             </div>
@@ -1197,21 +1185,36 @@
             }
         });
 
-        // Email toggle handling
-        const toggleDM = document.getElementById('toggle-dm');
-        const toggleEmail = document.getElementById('toggle-email');
-        const customizeBtn = document.getElementById('customize-email-btn');
+        // Email settings toggle handling
+        const toggleAutoSendClockout = document.getElementById('toggle-auto-send-clockout');
+        const toggleAutoEmailDelete = document.getElementById('toggle-auto-email-delete');
 
-        function updateCustomizeButton() {
-            if (toggleEmail.checked) {
-                customizeBtn.style.display = 'block';
-            } else {
-                customizeBtn.style.display = 'none';
+        async function updateEmailSettings() {
+            try {
+                const response = await fetch(`/api/server/${guildId}/email-settings`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        auto_send_on_clockout: toggleAutoSendClockout.checked,
+                        auto_email_before_delete: toggleAutoEmailDelete.checked
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    console.log('Email settings updated:', data);
+                } else {
+                    console.error('Error updating email settings:', data.error);
+                    alert('Error updating email settings: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating email settings');
             }
         }
 
-        toggleEmail.addEventListener('change', updateCustomizeButton);
-        updateCustomizeButton();
+        toggleAutoSendClockout.addEventListener('change', updateEmailSettings);
+        toggleAutoEmailDelete.addEventListener('change', updateEmailSettings);
 
         // Initialize
         console.log('Server settings page initialized for guild:', guildId);

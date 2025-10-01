@@ -19,7 +19,7 @@ Preferred communication style: Simple, everyday language.
 - **Event-Driven Design**: Leverages async/await for concurrent event processing.
 - **Timezone Awareness**: Ensures correct time handling using `tzdata`.
 - **UI/UX**: Simple, static landing page; dashboard provides server-specific settings with a tile-based layout for role management, email settings (placeholder), and timezone controls, protected by Discord OAuth and requiring admin access.
-- **Subscription Management**: Three-tier system (Free, Basic, Pro) with varying data retention (0, 7, 30 days).
+- **Subscription Management**: Restructured monetization model with free tier (employee management, /clock access, 24-hour deletion), $5 one-time bot access payment per server, and optional data retention subscriptions ($5/month for 7-day, $10/month for 30-day retention). Dashboard displays subscription status banner with clear upgrade prompts.
 - **Concurrent Safety**: Utilizes guild-level locking, WAL mode for SQLite, and exclusive database migrations.
 - **Ephemeral Interface System**: Resolves interaction timeout issues by providing new interfaces via the `/clock` command.
 - **Custom Jinja2 Permission Filter**: Addresses Jinja2's lack of bitwise operator support for Discord permission checking.
