@@ -2483,6 +2483,78 @@ def set_server_tier(guild_id: int, tier: str, subscription_id: Optional[str] = N
                 VALUES (?, ?, NULL, 'active')
             """, (guild_id, tier))
 
+def check_bot_access(guild_id: int) -> bool:
+    """
+    Check if a server has paid for bot access.
+    Returns True if bot_access_paid=1, False otherwise.
+    Handles missing records gracefully (returns False for free tier).
+    """
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = ?",
+            (guild_id,)
+        )
+        result = cursor.fetchone()
+        if not result:
+            return False  # No record = free tier = no bot access
+        
+        return bool(result[0])
+
+def get_retention_tier(guild_id: int) -> str:
+    """
+    Get data retention tier for a server.
+    Returns 'none', '7day', or '30day'.
+    Defaults to 'none' if no record exists or value is NULL/invalid.
+    """
+    valid_tiers = {'none', '7day', '30day'}
+    
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT retention_tier FROM server_subscriptions WHERE guild_id = ?",
+            (guild_id,)
+        )
+        result = cursor.fetchone()
+        if not result:
+            return 'none'  # Default to no retention
+        
+        tier = result[0] or 'none'  # Normalize NULL to 'none'
+        
+        # Validate tier is in allowed set, default to 'none' if invalid
+        if tier not in valid_tiers:
+            return 'none'
+        
+        return tier
+
+def set_bot_access(guild_id: int, paid: bool):
+    """
+    Update bot_access_paid status for a server.
+    Creates record with default values if doesn't exist.
+    Used when processing bot access payments.
+    """
+    with db() as conn:
+        conn.execute("""
+            INSERT INTO server_subscriptions (guild_id, bot_access_paid)
+            VALUES (?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET bot_access_paid = ?
+        """, (guild_id, int(paid), int(paid)))
+
+def set_retention_tier(guild_id: int, tier: str):
+    """
+    Update retention tier for a server.
+    Validates tier is in ('none', '7day', '30day').
+    Raises ValueError if invalid tier.
+    """
+    valid_tiers = ('none', '7day', '30day')
+    if tier not in valid_tiers:
+        raise ValueError(f"Invalid retention tier: {tier}. Must be one of {valid_tiers}")
+    
+    with db() as conn:
+        conn.execute("""
+            INSERT INTO server_subscriptions (guild_id, retention_tier)
+            VALUES (?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET retention_tier = ?
+        """, (guild_id, tier, tier))
+
 def check_tier_access(guild_id: int, required_tier: str) -> bool:
     """Check if server has access to features requiring a specific tier"""
     tier_hierarchy = {'free': 0, 'basic': 1, 'pro': 2}
@@ -2495,14 +2567,18 @@ def is_server_admin(user: discord.Member) -> bool:
 
 # --- Data Retention Management ---
 def get_retention_days(guild_id: int) -> int:
-    """Get data retention days based on subscription tier"""
-    tier = get_server_tier(guild_id)
-    retention_policy = {
-        'free': 0,       # No retention - test only
-        'basic': 7,      # 1 week  
-        'pro': 30        # 1 month (30 days)
+    """
+    Get data retention days for a server based on retention tier.
+    Returns 0 for 'none', 7 for '7day', 30 for '30day'.
+    This makes it easy to check retention periods.
+    """
+    tier = get_retention_tier(guild_id)
+    retention_map = {
+        'none': 0,
+        '7day': 7,
+        '30day': 30
     }
-    return retention_policy.get(tier, 0)
+    return retention_map.get(tier, 0)
 
 def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
     """Clean up old session data based on retention policy. Returns count of deleted records."""
