@@ -51,8 +51,9 @@ CACHE_DURATION = 300  # 5 minutes cache duration
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 STRIPE_PRICE_IDS = {
-    'basic': 'price_1SAHpL3Jrp0J9Adlfowh5qpr',   # $5/month LIVE
-    'pro': 'price_1SAHqH3Jrp0J9AdlFSJpJ32A'      # $10/month LIVE
+    'bot_access': 'price_1SDH0m3Jrp0J9AdlcP3QvEAt',    # $5 one-time - Full bot access
+    'retention_7day': 'price_1SAHpL3Jrp0J9Adlfowh5qpr',  # $5/month - 7-day data retention
+    'retention_30day': 'price_1SAHqH3Jrp0J9AdlFSJpJ32A'  # $10/month - 30-day data retention
 }
 
 # Session storage - now using database for persistence instead of in-memory dictionaries
