@@ -4706,7 +4706,13 @@ async def set_recipient(interaction: discord.Interaction, user: discord.User):
         await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
         return
     set_guild_setting(guild_id, "recipient_user_id", user.id)
-    await send_reply(interaction, f"✅ Set recipient to {user.mention}.", ephemeral=True)
+    await send_reply(
+        interaction, 
+        f"✅ **Set recipient to {user.mention}**\n\n"
+        f"**Discord DMs:** This user will receive Discord DMs when employees clock out.\n\n"
+        f"**Email Reports:** If email notifications are enabled in the dashboard, emails will be sent to the email addresses you configure there (not to individual Discord users).",
+        ephemeral=True
+    )
 
 @tree.command(name="set_timezone", description="Set display timezone (e.g., America/New_York)")
 @app_commands.default_permissions(administrator=True)
