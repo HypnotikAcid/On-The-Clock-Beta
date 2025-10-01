@@ -5092,13 +5092,12 @@ async def generate_report(
         # If defer failed and interaction isn't done, we can't proceed
         return
     
-    # Check tier access for reports
+    # Check bot access for reports (NEW MONETIZATION MODEL)
     if interaction.guild is None:
         await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
         return
         
     guild_id = interaction.guild.id
-    server_tier = get_server_tier(guild_id)
     
     # Type guard: ensure we have a Member for guild-specific functions
     if not isinstance(interaction.user, discord.Member):
@@ -5108,39 +5107,46 @@ async def generate_report(
         )
         return
     
-    # Free tier: Admin only + fake data
-    if server_tier == "free":
-        if not user_has_admin_access(interaction.user):
-            await interaction.followup.send(
-                "🔒 **Free Tier Limitation**\n"
-                "Only server administrators can test the report feature.\n"
-                "Upgrade to Basic ($5/month) for full team access and CSV reports!",
-                ephemeral=True
-            )
-            return
-        
-        # Return fake CSV for free tier
-        fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
+    # Check if bot access is paid (NEW MODEL: $5 one-time payment)
+    if not check_bot_access(guild_id):
+        # No bot access - show dummy report with upgrade prompt
         user_display_name = get_user_display_name(user, guild_id)
-        filename = f"{user_display_name}_sample_report_{start_date}_to_{end_date}.csv"
+        
+        # Create dummy CSV
+        fake_csv = (
+            "Date,Clock In,Clock Out,Duration\n"
+            "2024-01-01,09:00,17:00,8.0 hours\n"
+            "2024-01-02,09:30,18:00,8.5 hours\n"
+            "2024-01-03,08:45,16:45,8.0 hours\n\n"
+            "This is sample data. Upgrade to unlock real reports!"
+        )
+        filename = f"{user_display_name}_SAMPLE_report_{start_date}_to_{end_date}.csv"
         
         file = discord.File(
             io.BytesIO(fake_csv.encode('utf-8')), 
             filename=filename
         )
+        
         await interaction.followup.send(
-            f"📊 **Free Tier Sample Report** for **{user_display_name}**\n"
-            f"🎯 This is sample data. Upgrade to Basic ($5/month) or Pro ($10/month) for real reports!\n"
-            f"📅 Date Range: {start_date} to {end_date}",
+            f"🔒 **Reports Feature Locked**\n\n"
+            f"📊 This is a **sample report** with dummy data for **{user_display_name}**.\n\n"
+            f"**To unlock real reports:**\n"
+            f"1️⃣ Purchase **Full Bot Access** ($5 one-time per server)\n"
+            f"2️⃣ Get instant access to real CSV exports\n\n"
+            f"**⚠️ Remember:** Free tier has 24-hour data deletion!\n"
+            f"Add a retention plan to keep your data longer.\n\n"
+            f"Use `/upgrade` to unlock full bot access!",
             file=file,
             ephemeral=True
         )
         return
     
-    # Basic and Pro tier: Full reports access with retention limits
-    # Get tier limits
-    tier_limits = {"basic": 7, "pro": 30}
-    max_days = tier_limits.get(server_tier, 30)
+    # Bot access is paid - check retention tier for data availability
+    retention_tier = get_retention_tier(guild_id)
+    
+    # Map retention tiers to day limits (NEW MODEL: 'none', '7day', '30day')
+    tier_limits = {"none": 1, "7day": 7, "30day": 30}
+    max_days = tier_limits.get(retention_tier, 1)
     
     try:
         # Validate date format and order
@@ -5154,13 +5160,20 @@ async def generate_report(
             )
             return
         
-        # Check retention limits for Basic tier
+        # Check retention limits based on retention tier
         days_requested = (end_dt - start_dt).days + 1
         if days_requested > max_days:
+            # Create appropriate upgrade message based on current tier
+            if retention_tier == "none":
+                upgrade_msg = "\n\n💡 Add **7-day** ($5/month) or **30-day** ($10/month) retention via `/upgrade` to access longer reports!"
+            elif retention_tier == "7day":
+                upgrade_msg = "\n\n💡 Upgrade to **30-day retention** ($10/month) via `/upgrade` for extended reports!"
+            else:
+                upgrade_msg = ""
+            
             await interaction.followup.send(
-                f"❌ **{server_tier.title()} tier limitation**: Reports limited to {max_days} days maximum.\n"
-                f"You requested {days_requested} days. Please choose a shorter date range.\n\n"
-                f"💡 Upgrade to Pro for extended 30-day reports!" if server_tier == "basic" else "",
+                f"❌ **Data Retention Limitation**: Your current plan allows reports up to {max_days} day{'s' if max_days != 1 else ''} maximum.\n"
+                f"You requested {days_requested} days. Please choose a shorter date range.{upgrade_msg}",
                 ephemeral=True
             )
             return
