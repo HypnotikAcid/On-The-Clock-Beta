@@ -28,6 +28,7 @@ import hmac
 
 # Import email functionality for report delivery
 from email_utils import send_timeclock_report_email
+from scheduler import start_scheduler, stop_scheduler
 
 # --- Config / Secrets ---
 TOKEN = os.getenv("DISCORD_TOKEN")            # required
@@ -4301,6 +4302,13 @@ class SetupInstructionsView(discord.ui.View):
 async def on_ready():
     # Persistent views are now registered in setup_hook (both new and legacy views)
     # This ensures backward compatibility with existing posted messages
+    
+    # Start email scheduler for automated reports and warnings
+    try:
+        start_scheduler()
+        print("✅ Email scheduler started successfully")
+    except Exception as e:
+        print(f"⚠️ Failed to start email scheduler: {e}")
     
     # Debug: Check what commands are in the tree
     commands = tree.get_commands()
