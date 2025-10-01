@@ -586,6 +586,121 @@ def get_guild_settings(guild_id):
             'emails': []  # TODO: Add email table and fetch emails
         }
 
+@app.route("/upgrade/<guild_id>")
+@require_auth
+def upgrade_info(user_session, guild_id):
+    """Show upgrade information page"""
+    try:
+        import html
+        
+        # Verify user has access to this guild
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return "<h1>Access Denied</h1><p>You don't have admin access to this server.</p><a href='/dashboard'>Back to Dashboard</a>", 403
+        
+        # Get bot access and retention tier status
+        from bot import check_bot_access, get_retention_tier
+        has_bot_access = check_bot_access(int(guild_id))
+        retention_tier = get_retention_tier(int(guild_id))
+        
+        # Escape guild name for XSS protection
+        guild_name_safe = html.escape(guild['name'])
+        
+        # Simple upgrade instructions page
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Upgrade - {guild_name_safe}</title>
+            <style>
+                body {{
+                    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+                    background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+                    color: #C9D1D9;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px;
+                }}
+                .upgrade-card {{
+                    background: rgba(30, 35, 45, 0.8);
+                    border: 2px solid rgba(212, 175, 55, 0.3);
+                    border-radius: 16px;
+                    padding: 40px;
+                    max-width: 600px;
+                    text-align: center;
+                }}
+                h1 {{ color: #D4AF37; margin-bottom: 20px; }}
+                .instructions {{ margin: 30px 0; text-align: left; }}
+                .command {{ 
+                    background: rgba(16, 185, 129, 0.1); 
+                    border: 2px solid rgba(16, 185, 129, 0.3);
+                    padding: 15px;
+                    border-radius: 8px;
+                    font-family: monospace;
+                    font-size: 18px;
+                    color: #10B981;
+                    margin: 20px 0;
+                }}
+                .back-btn {{
+                    background: linear-gradient(135deg, #3B82F6, #2563EB);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    display: inline-block;
+                    margin-top: 20px;
+                }}
+                .status {{ margin: 20px 0; padding: 15px; border-radius: 8px; }}
+                .free {{ background: rgba(239, 68, 68, 0.1); border: 2px solid rgba(239, 68, 68, 0.3); }}
+                .paid {{ background: rgba(16, 185, 129, 0.1); border: 2px solid rgba(16, 185, 129, 0.3); }}
+            </style>
+        </head>
+        <body>
+            <div class="upgrade-card">
+                <h1>💳 Upgrade Your Server</h1>
+                
+                <div class="status {'paid' if has_bot_access else 'free'}">
+                    {'✅ Full Bot Access Active' if has_bot_access else '🔒 Free Tier - Limited Features'}
+                    <br>
+                    {f"📊 {retention_tier.replace('day', '-Day').title()} Retention" if retention_tier != 'none' else '⚠️ 24-Hour Data Deletion'}
+                </div>
+                
+                <div class="instructions">
+                    <h3>📋 How to Upgrade:</h3>
+                    <ol>
+                        <li>Go to your Discord server: <strong>{guild_name_safe}</strong></li>
+                        <li>Run this command in any channel:</li>
+                    </ol>
+                    <div class="command">/upgrade</div>
+                    <p>The bot will show you available upgrade options with secure Stripe checkout links.</p>
+                    
+                    {'''
+                    <h3 style="margin-top: 30px;">💡 What You Get:</h3>
+                    <ul style="text-align: left;">
+                        <li><strong>$5 One-Time:</strong> Full bot access, real reports, dashboard unlocked</li>
+                        <li><strong>$5/Month:</strong> 7-day data retention</li>
+                        <li><strong>$10/Month:</strong> 30-day data retention</li>
+                    </ul>
+                    ''' if not has_bot_access else '''
+                    <h3 style="margin-top: 30px;">📁 Add Data Retention:</h3>
+                    <ul style="text-align: left;">
+                        <li><strong>$5/Month:</strong> 7-day rolling retention</li>
+                        <li><strong>$10/Month:</strong> 30-day rolling retention</li>
+                    </ul>
+                    '''}
+                </div>
+                
+                <a href="/server/{guild_id}/settings" class="back-btn">← Back to Dashboard</a>
+            </div>
+        </body>
+        </html>
+        """
+    except Exception as e:
+        app.logger.error(f"Upgrade info error: {str(e)}")
+        return "<h1>Error</h1><p>Unable to load upgrade information.</p>", 500
+
 @app.route("/server/<guild_id>/settings")
 @require_auth
 def server_settings(user_session, guild_id):
@@ -635,13 +750,20 @@ def server_settings(user_session, guild_id):
                 'emails': []
             }
         
+        # Get bot access and retention tier status (NEW MONETIZATION MODEL)
+        from bot import check_bot_access, get_retention_tier
+        has_bot_access = check_bot_access(int(guild_id))
+        retention_tier = get_retention_tier(int(guild_id))
+        
         # Prepare data for template
         template_data = {
             'user': user_session,
             'guild': guild,
             'guild_id': guild_id,
             'roles': roles,
-            'current_settings': current_settings
+            'current_settings': current_settings,
+            'has_bot_access': has_bot_access,
+            'retention_tier': retention_tier
         }
         
         return render_template('server_settings.html', **template_data)

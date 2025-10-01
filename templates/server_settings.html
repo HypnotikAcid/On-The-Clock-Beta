@@ -748,6 +748,48 @@
             </div>
         </div>
 
+        <!-- Subscription Status Banner (NEW MONETIZATION MODEL) -->
+        <div class="subscription-status" style="background: {% if has_bot_access %}rgba(16, 185, 129, 0.1){% else %}rgba(239, 68, 68, 0.1){% endif %}; border: 2px solid {% if has_bot_access %}rgba(16, 185, 129, 0.3){% else %}rgba(239, 68, 68, 0.3){% endif %}; border-radius: 12px; padding: 20px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="font-size: 32px;">{% if has_bot_access %}🔓{% else %}🔒{% endif %}</div>
+                <div>
+                    <h3 style="margin: 0 0 8px 0; color: {% if has_bot_access %}#10B981{% else %}#EF4444{% endif %}; font-size: 20px;">
+                        {% if has_bot_access %}
+                            ✅ Full Bot Access Active
+                        {% else %}
+                            🚫 Free Tier - Limited Features
+                        {% endif %}
+                    </h3>
+                    <p style="margin: 0; color: #9CA3AF; font-size: 14px;">
+                        {% if has_bot_access %}
+                            {% if retention_tier == '30day' %}
+                                📈 30-Day Data Retention Active - Your data is preserved for 30 days
+                            {% elif retention_tier == '7day' %}
+                                📊 7-Day Data Retention Active - Your data is preserved for 7 days
+                            {% else %}
+                                ⚠️ 24-Hour Data Deletion - Add retention to keep your data longer
+                            {% endif %}
+                        {% else %}
+                            ⚠️ All time entries are deleted after 24 hours. Reports are locked. Upgrade to unlock full access.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% if not has_bot_access %}
+            <div>
+                <a href="/upgrade/{{ guild_id }}" style="background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: all 0.3s ease;">
+                    Unlock for $5 →
+                </a>
+            </div>
+            {% elif retention_tier == 'none' %}
+            <div>
+                <a href="/upgrade/{{ guild_id }}" style="background: linear-gradient(135deg, #3B82F6, #2563EB); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: all 0.3s ease;">
+                    Add Retention →
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
         <div class="tiles-grid">
             <!-- Tile 1: Admin Roles -->
             <div class="tile" id="Tile1">
