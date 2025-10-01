@@ -1387,6 +1387,119 @@ def api_update_work_day_time(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
+@app.route("/api/server/<guild_id>/email-recipients", methods=["GET"])
+@require_api_auth
+def api_get_email_recipients(user_session, guild_id):
+    """API endpoint to fetch email recipients for a server"""
+    try:
+        # Verify user has access
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Fetch email recipients
+        with get_db() as conn:
+            cursor = conn.execute(
+                """SELECT id, email_address, created_at 
+                   FROM report_recipients 
+                   WHERE guild_id = ? AND recipient_type = 'email'
+                   ORDER BY created_at DESC""",
+                (guild_id,)
+            )
+            recipients = cursor.fetchall()
+            
+        emails = [
+            {
+                'id': row[0],
+                'email': row[1],
+                'created_at': row[2]
+            }
+            for row in recipients
+        ]
+        
+        return jsonify({'success': True, 'emails': emails})
+    except Exception as e:
+        app.logger.error(f"Error fetching email recipients: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/email-recipients/add", methods=["POST"])
+@require_api_auth
+def api_add_email_recipient(user_session, guild_id):
+    """API endpoint to add an email recipient"""
+    try:
+        # Verify user has access
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Get email from request
+        data = request.get_json()
+        if not data or 'email' not in data:
+            return jsonify({'success': False, 'error': 'Missing email address'}), 400
+        
+        email = data['email'].strip()
+        
+        # Basic email validation
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            return jsonify({'success': False, 'error': 'Invalid email address format'}), 400
+        
+        # Add to database
+        with get_db() as conn:
+            try:
+                cursor = conn.execute(
+                    """INSERT INTO report_recipients (guild_id, recipient_type, email_address) 
+                       VALUES (?, 'email', ?)""",
+                    (guild_id, email)
+                )
+                recipient_id = cursor.lastrowid
+            except sqlite3.IntegrityError:
+                return jsonify({'success': False, 'error': 'Email address already exists'}), 400
+        
+        app.logger.info(f"Added email recipient {email} for guild {guild_id} by user {user_session.get('username')}")
+        return jsonify({'success': True, 'message': 'Email recipient added successfully', 'id': recipient_id, 'email': email})
+    except Exception as e:
+        app.logger.error(f"Error adding email recipient: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/email-recipients/remove", methods=["POST"])
+@require_api_auth
+def api_remove_email_recipient(user_session, guild_id):
+    """API endpoint to remove an email recipient"""
+    try:
+        # Verify user has access
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Get email ID from request
+        data = request.get_json()
+        if not data or 'id' not in data:
+            return jsonify({'success': False, 'error': 'Missing recipient ID'}), 400
+        
+        recipient_id = data['id']
+        
+        # Remove from database
+        with get_db() as conn:
+            cursor = conn.execute(
+                """DELETE FROM report_recipients 
+                   WHERE id = ? AND guild_id = ? AND recipient_type = 'email'""",
+                (recipient_id, guild_id)
+            )
+            
+            if cursor.rowcount == 0:
+                return jsonify({'success': False, 'error': 'Recipient not found'}), 404
+        
+        app.logger.info(f"Removed email recipient {recipient_id} for guild {guild_id} by user {user_session.get('username')}")
+        return jsonify({'success': True, 'message': 'Email recipient removed successfully'})
+    except Exception as e:
+        app.logger.error(f"Error removing email recipient: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
 @app.route("/api/server/<guild_id>/data", methods=["GET"])
 @require_api_auth
 def api_get_server_data(user_session, guild_id):
