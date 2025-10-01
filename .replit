@@ -29,7 +29,7 @@ outputType = "webview"
 
 [deployment]
 deploymentTarget = "vm"
-run = ["python", "start.py"]
+run = ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120"]
 
 [[ports]]
 localPort = 5000
@@ -38,10 +38,6 @@ externalPort = 80
 [[ports]]
 localPort = 8081
 externalPort = 8081
-
-[[ports]]
-localPort = 33529
-externalPort = 8000
 
 [[ports]]
 localPort = 36881
