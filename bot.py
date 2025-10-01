@@ -143,29 +143,52 @@ def get_domain() -> str:
         return domains.split(',')[0] if domains else 'localhost:5000'
 
 
-def create_secure_checkout_session(guild_id: int, tier: str) -> str:
-    """Create a secure Stripe checkout session with proper validation"""
+def create_secure_checkout_session(guild_id: int, product_type: str, guild_name: str = "") -> str:
+    """Create a secure Stripe checkout session with proper validation
+    
+    Args:
+        guild_id: Discord guild/server ID
+        product_type: One of 'bot_access', 'retention_7day', 'retention_30day'
+        guild_name: Optional guild name for confirmation messages
+    
+    Returns:
+        Checkout session URL
+    
+    Raises:
+        ValueError: If Stripe is not configured, product_type is invalid, or checkout fails
+    """
     if not stripe.api_key:
         raise ValueError("STRIPE_SECRET_KEY not configured")
     
-    if tier not in STRIPE_PRICE_IDS:
-        raise ValueError(f"Invalid tier: {tier}")
+    if product_type not in STRIPE_PRICE_IDS:
+        raise ValueError(f"Invalid product_type: {product_type}. Must be one of: {', '.join(STRIPE_PRICE_IDS.keys())}")
     
     domain = get_domain()
     
+    # Determine mode based on product type
+    # 'bot_access' is a one-time payment, retention products are subscriptions
+    mode = 'payment' if product_type == 'bot_access' else 'subscription'
+    
     try:
+        # Build metadata
+        metadata = {
+            'guild_id': str(guild_id),
+            'product_type': product_type
+        }
+        
+        # Add guild_name to metadata if provided
+        if guild_name:
+            metadata['guild_name'] = guild_name
+        
         checkout_session = stripe.checkout.Session.create(
             line_items=[{
-                'price': STRIPE_PRICE_IDS[tier],
+                'price': STRIPE_PRICE_IDS[product_type],
                 'quantity': 1,
             }],
-            mode='subscription',
+            mode=mode,
             success_url=f'https://{domain}/success?session_id={{CHECKOUT_SESSION_ID}}',
             cancel_url=f'https://{domain}/cancel',
-            metadata={
-                'guild_id': str(guild_id),
-                'tier': tier
-            },
+            metadata=metadata,
             automatic_tax={'enabled': True},
             billing_address_collection='required',
         )
