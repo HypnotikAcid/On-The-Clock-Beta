@@ -12,6 +12,7 @@ Preferred communication style: Simple, everyday language.
 - **Technology**: Discord.py (version 2.3+)
 - **Language**: Python 3.x
 - **Architecture Pattern**: Event-driven bot architecture.
+- **Startup Process**: Gunicorn runs Flask app as main process, Discord bot runs in daemon thread. The bot module's `run_bot_with_api()` function starts both the Discord bot and internal HTTP API server (port 8081) concurrently.
 
 ## Design Decisions
 - **Discord.py**: Chosen for its features, active development, and community support.
