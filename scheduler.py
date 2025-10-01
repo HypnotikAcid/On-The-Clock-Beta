@@ -59,8 +59,13 @@ async def send_work_day_end_reports():
     for guild_id, work_day_end_time, tz_name, auto_send in guilds_with_settings:
         if not work_day_end_time:
             continue
-            
+        
         try:
+            retention_tier = get_retention_tier(guild_id)
+            if retention_tier == 'free':
+                logger.info(f"Skipping work day end report for free tier guild {guild_id}")
+                continue
+            
             guild_tz = pytz.timezone(tz_name or 'America/New_York')
             current_local = current_time.astimezone(guild_tz)
             
@@ -123,7 +128,7 @@ async def send_daily_report_for_guild(guild_id: int):
             csv_content = "\n".join(csv_lines)
             
             cursor = conn.execute(
-                "SELECT email FROM report_recipients WHERE guild_id = ? AND type = 'email'",
+                "SELECT email_address FROM report_recipients WHERE guild_id = ? AND recipient_type = 'email'",
                 (guild_id,)
             )
             recipients = [row[0] for row in cursor.fetchall()]
@@ -198,7 +203,7 @@ async def send_deletion_warning_email(guild_id: int, session_count: int, days_to
             guild_name = guild_row[0] if guild_row else f"Guild {guild_id}"
             
             cursor = conn.execute(
-                "SELECT email FROM report_recipients WHERE guild_id = ? AND type = 'email'",
+                "SELECT email_address FROM report_recipients WHERE guild_id = ? AND recipient_type = 'email'",
                 (guild_id,)
             )
             recipients = [row[0] for row in cursor.fetchall()]

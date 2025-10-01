@@ -2852,18 +2852,9 @@ def get_report_recipients(guild_id: int, recipient_type: Optional[str] = None):
         return cursor.fetchall()
 
 async def send_timeclock_notifications(guild_id: int, interaction: discord.Interaction, start_dt: datetime, end_dt: datetime, elapsed: int, tz_name: str):
-    """Send timeclock notifications to all configured recipients"""
-    # Check if auto-send on clock-out is enabled
-    with db() as conn:
-        cursor = conn.execute(
-            "SELECT auto_send_on_clockout FROM email_settings WHERE guild_id = ?",
-            (guild_id,)
-        )
-        settings_row = cursor.fetchone()
-        auto_send_enabled = bool(settings_row[0]) if settings_row else False
-    
-    # Get all recipients for this guild
-    all_recipients = get_report_recipients(guild_id)
+    """Send timeclock notifications via Discord DM to configured Discord recipients only"""
+    # Get Discord recipients only (email recipients receive scheduled reports, not clock-out notifications)
+    all_recipients = get_report_recipients(guild_id, recipient_type='discord')
     
     # Also check for legacy single recipient
     legacy_recipient_id = get_guild_setting(guild_id, "recipient_user_id")
@@ -2884,7 +2875,7 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
     notification_sent = False
     errors = []
     
-    # Send to new recipients system
+    # Send to Discord recipients only
     for recipient_row in all_recipients:
         recipient_id, recipient_type, discord_user_id, email_address, created_at = recipient_row
         
@@ -2899,46 +2890,6 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
                 errors.append(f"Discord user {discord_user_id} not found")
             except Exception as e:
                 errors.append(f"Failed to notify Discord user {discord_user_id}: {str(e)}")
-        
-        elif recipient_type == 'email' and email_address:
-            # Only send email if auto-send on clock-out is enabled
-            if not auto_send_enabled:
-                continue
-                
-            try:
-                # Send email notification
-                guild_name = interaction.guild.name if interaction.guild else "Unknown Server"
-                # In guild interactions, user is always a Member
-                user_name = get_user_display_name(interaction.user, guild_id)  # type: ignore[arg-type]
-                
-                # Create plain text email content
-                email_text = f"""
-Timeclock Entry Notification
-
-Employee: {user_name} (ID: {interaction.user.id})
-Server: {guild_name}
-
-Clock In: {fmt(start_dt, tz_name)}
-Clock Out: {fmt(end_dt, tz_name)}
-Total Duration: {human_duration(elapsed)}
-
-Timestamp: {end_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC
-""".strip()
-                
-                # Send email using our email utility
-                from email_utils import send_email
-                result = await send_email(
-                    to=email_address,
-                    subject=f"Timeclock Entry - {user_name} ({guild_name})",
-                    text=email_text
-                )
-                
-                notification_sent = True
-                print(f"✅ Email notification sent to {email_address} (auto-send enabled)")
-                
-            except Exception as e:
-                errors.append(f"Failed to send email to {email_address}: {str(e)}")
-                print(f"❌ Email notification failed for {email_address}: {str(e)}")
     
     # Fallback to legacy recipient if no new recipients configured
     if not all_recipients and legacy_recipient_id:
