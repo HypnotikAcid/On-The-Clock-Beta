@@ -8,6 +8,7 @@ import json
 import sqlite3
 import logging
 import traceback
+import threading
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 import requests
@@ -15,6 +16,19 @@ from flask import Flask, render_template, redirect, request, session, jsonify, u
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+
+# Start Discord bot in background daemon thread
+def start_discord_bot():
+    """Start the Discord bot in a background daemon thread."""
+    import bot
+    print("🤖 Starting Discord bot in background thread...")
+    bot.client.run(bot.TOKEN)
+
+# Start bot thread when running under Gunicorn
+if __name__ != '__main__':
+    bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
+    bot_thread.start()
+    print("✅ Discord bot thread started")
 
 # Configure logging to work with Gunicorn
 if __name__ != '__main__':

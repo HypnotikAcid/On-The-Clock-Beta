@@ -21,7 +21,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python start.py"
+args = "gunicorn app:app --bind 0.0.0.0:5000 --workers 2 --timeout 120"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
@@ -34,10 +34,6 @@ run = ["python", "start.py"]
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 8081
-externalPort = 8081
 
 [[ports]]
 localPort = 36881
