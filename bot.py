@@ -3462,7 +3462,19 @@ class TimeClockView(discord.ui.View):
         self.add_item(on_clock_btn)
         
         # Conditional second row buttons
-        if server_tier == "free":
+        # Dashboard button - always visible
+        has_bot_access = check_bot_access(guild_id)
+        dashboard_btn = discord.ui.Button(
+            label="Dashboard", 
+            style=discord.ButtonStyle.primary, 
+            custom_id="timeclock:dashboard", 
+            emoji="📊",
+            row=1
+        )
+        dashboard_btn.callback = self.show_dashboard
+        self.add_item(dashboard_btn)
+        
+        if not has_bot_access:
             # Add upgrade button for free servers
             upgrade_btn = discord.ui.Button(
                 label="Upgrade", 
@@ -4188,6 +4200,57 @@ class TimeClockView(discord.ui.View):
         )
         
         await send_reply(interaction, embed=embed, ephemeral=True)
+
+    async def show_dashboard(self, interaction: discord.Interaction):
+        """Show dashboard link - purchase page for free, normal dashboard for paid"""
+        if not interaction.guild:
+            await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+            return
+            
+        guild_id = interaction.guild.id
+        has_bot_access = check_bot_access(guild_id)
+        domain = get_domain()
+        
+        if has_bot_access:
+            # Paid server - show normal dashboard link
+            dashboard_url = f"https://{domain}/server/{guild_id}"
+            
+            embed = discord.Embed(
+                title="📊 Server Dashboard",
+                description=f"Access your server's dashboard to manage settings and view reports.",
+                color=discord.Color.blue()
+            )
+            
+            embed.add_field(
+                name="🔗 Dashboard Link",
+                value=f"[Open Dashboard]({dashboard_url})",
+                inline=False
+            )
+            
+            await send_reply(interaction, embed=embed, ephemeral=True)
+        else:
+            # Free server - show purchase page link
+            purchase_url = f"https://{domain}/purchase/{guild_id}"
+            
+            embed = discord.Embed(
+                title="🔓 Unlock Dashboard Access",
+                description="The dashboard is available with Bot Access ($5 one-time payment).",
+                color=discord.Color.gold()
+            )
+            
+            embed.add_field(
+                name="What You'll Get",
+                value="• Full team access\n• CSV Reports\n• Role management\n• Dashboard access\n• All bot commands",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🔗 Get Bot Access",
+                value=f"[View Purchase Options]({purchase_url})",
+                inline=False
+            )
+            
+            await send_reply(interaction, embed=embed, ephemeral=True)
 
 
 class SetupInstructionsView(discord.ui.View):
@@ -5900,8 +5963,9 @@ async def subscription_status(interaction: discord.Interaction):
 @tree.command(name="owner_grant", description="[OWNER] Grant subscription tier to current server")
 @app_commands.describe(tier="Subscription tier to grant")
 @app_commands.choices(tier=[
-    app_commands.Choice(name="Basic ($5/month)", value="basic"),
-    app_commands.Choice(name="Pro ($10/month)", value="pro")
+    app_commands.Choice(name="Bot Access ($5 one-time)", value="bot_access"),
+    app_commands.Choice(name="7-Day Retention ($5/month)", value="basic"),
+    app_commands.Choice(name="30-Day Retention ($10/month)", value="pro")
 ])
 async def owner_grant_tier(interaction: discord.Interaction, tier: str):
     """Owner-only command to grant subscription tiers"""
@@ -5923,30 +5987,56 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
     guild_name = interaction.guild.name
     
     try:
-        # Check current tier
-        current_tier = get_server_tier(guild_id)
-        
-        # Grant the new tier (no Stripe subscription - manual owner grant)
-        set_server_tier(guild_id, tier, subscription_id=f"owner_grant_{int(time.time())}", customer_id="owner_manual")
-        
-        embed = discord.Embed(
-            title="👑 Owner Grant Successful",
-            description=f"Manually granted **{tier.title()}** tier to this server",
-            color=discord.Color.gold()
-        )
-        
-        embed.add_field(name="Server", value=guild_name, inline=True)
-        embed.add_field(name="Server ID", value=str(guild_id), inline=True)
-        embed.add_field(name="Previous Tier", value=current_tier.title(), inline=True)
-        embed.add_field(name="New Tier", value=tier.title(), inline=True)
-        embed.add_field(name="Granted By", value="Bot Owner (Manual)", inline=True)
-        embed.add_field(name="Type", value="Owner Override", inline=True)
-        
-        embed.add_field(
-            name="Features Unlocked",
-            value="• Full team access\n• CSV Reports\n• Role management\n• Extended retention" if tier == "pro" else "• Full team access\n• CSV Reports\n• Role management\n• 7-day retention",
-            inline=False
-        )
+        # Handle bot access grant differently
+        if tier == "bot_access":
+            set_bot_access(guild_id, True)
+            
+            embed = discord.Embed(
+                title="👑 Owner Grant Successful",
+                description=f"Manually granted **Bot Access** to this server",
+                color=discord.Color.gold()
+            )
+            
+            embed.add_field(name="Server", value=guild_name, inline=True)
+            embed.add_field(name="Server ID", value=str(guild_id), inline=True)
+            embed.add_field(name="Grant Type", value="Bot Access ($5)", inline=True)
+            embed.add_field(name="Granted By", value="Bot Owner (Manual)", inline=True)
+            
+            embed.add_field(
+                name="Features Unlocked",
+                value="• Full team access\n• CSV Reports\n• Role management\n• Dashboard access",
+                inline=False
+            )
+        else:
+            # Check current tier
+            current_tier = get_server_tier(guild_id)
+            
+            # Grant the new tier (no Stripe subscription - manual owner grant)
+            set_server_tier(guild_id, tier, subscription_id=f"owner_grant_{int(time.time())}", customer_id="owner_manual")
+            
+            # Also ensure bot access is granted (retention requires bot access)
+            set_bot_access(guild_id, True)
+            
+            tier_display = "7-Day Retention" if tier == "basic" else "30-Day Retention"
+            
+            embed = discord.Embed(
+                title="👑 Owner Grant Successful",
+                description=f"Manually granted **{tier_display}** to this server",
+                color=discord.Color.gold()
+            )
+            
+            embed.add_field(name="Server", value=guild_name, inline=True)
+            embed.add_field(name="Server ID", value=str(guild_id), inline=True)
+            embed.add_field(name="Previous Tier", value=current_tier.title(), inline=True)
+            embed.add_field(name="New Tier", value=tier.title(), inline=True)
+            embed.add_field(name="Granted By", value="Bot Owner (Manual)", inline=True)
+            embed.add_field(name="Type", value="Owner Override", inline=True)
+            
+            embed.add_field(
+                name="Features Unlocked",
+                value="• 30-day data retention\n• Advanced reporting\n• Extended history" if tier == "pro" else "• 7-day data retention\n• Extended reporting",
+                inline=False
+            )
         
         await interaction.followup.send(embed=embed, ephemeral=True)
         
@@ -5960,8 +6050,9 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
     tier="Subscription tier to grant"
 )
 @app_commands.choices(tier=[
-    app_commands.Choice(name="Basic ($5/month)", value="basic"),
-    app_commands.Choice(name="Pro ($10/month)", value="pro")
+    app_commands.Choice(name="Bot Access ($5 one-time)", value="bot_access"),
+    app_commands.Choice(name="7-Day Retention ($5/month)", value="basic"),
+    app_commands.Choice(name="30-Day Retention ($10/month)", value="pro")
 ])
 async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: str, tier: str):
     """Owner-only command to grant subscriptions to any server by ID"""
@@ -5991,34 +6082,64 @@ async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: 
         if not guild:
             await interaction.followup.send(f"⚠️ Bot is not in server {guild_id}. Grant will still be applied if server adds bot later.", ephemeral=True)
         
-        # Check current tier
-        current_tier = get_server_tier(guild_id)
-        
-        # Grant the tier
-        set_server_tier(guild_id, tier, subscription_id=f"owner_remote_{int(time.time())}", customer_id="owner_remote")
-        
-        embed = discord.Embed(
-            title="🌐 Remote Server Grant Successful",
-            description=f"Granted **{tier.title()}** tier to remote server",
-            color=discord.Color.purple()
-        )
-        
-        embed.add_field(name="Target Server", value=guild_name, inline=True)
-        embed.add_field(name="Server ID", value=str(guild_id), inline=True)
-        embed.add_field(name="Bot Present", value="✅ Yes" if guild else "❌ No", inline=True)
-        embed.add_field(name="Previous Tier", value=current_tier.title(), inline=True)
-        embed.add_field(name="New Tier", value=tier.title(), inline=True)
-        embed.add_field(name="Grant Type", value="Remote Owner Override", inline=True)
-        
-        if guild:
-            embed.add_field(name="Member Count", value=str(guild.member_count), inline=True)
-            embed.add_field(name="Server Owner", value=str(guild.owner), inline=True)
-        
-        embed.add_field(
-            name="Status",
-            value="✅ Subscription active immediately" if guild else "⏳ Will activate when bot joins server",
-            inline=False
-        )
+        # Handle bot access grant differently
+        if tier == "bot_access":
+            set_bot_access(guild_id, True)
+            
+            embed = discord.Embed(
+                title="🌐 Remote Server Grant Successful",
+                description=f"Granted **Bot Access** to remote server",
+                color=discord.Color.purple()
+            )
+            
+            embed.add_field(name="Target Server", value=guild_name, inline=True)
+            embed.add_field(name="Server ID", value=str(guild_id), inline=True)
+            embed.add_field(name="Bot Present", value="✅ Yes" if guild else "❌ No", inline=True)
+            embed.add_field(name="Grant Type", value="Bot Access ($5)", inline=True)
+            
+            if guild:
+                embed.add_field(name="Member Count", value=str(guild.member_count), inline=True)
+                embed.add_field(name="Server Owner", value=str(guild.owner), inline=True)
+            
+            embed.add_field(
+                name="Features Unlocked",
+                value="• Full team access\n• CSV Reports\n• Role management\n• Dashboard access",
+                inline=False
+            )
+        else:
+            # Check current tier
+            current_tier = get_server_tier(guild_id)
+            
+            # Grant the tier
+            set_server_tier(guild_id, tier, subscription_id=f"owner_remote_{int(time.time())}", customer_id="owner_remote")
+            
+            # Also ensure bot access is granted (retention requires bot access)
+            set_bot_access(guild_id, True)
+            
+            tier_display = "7-Day Retention" if tier == "basic" else "30-Day Retention"
+            
+            embed = discord.Embed(
+                title="🌐 Remote Server Grant Successful",
+                description=f"Granted **{tier_display}** to remote server",
+                color=discord.Color.purple()
+            )
+            
+            embed.add_field(name="Target Server", value=guild_name, inline=True)
+            embed.add_field(name="Server ID", value=str(guild_id), inline=True)
+            embed.add_field(name="Bot Present", value="✅ Yes" if guild else "❌ No", inline=True)
+            embed.add_field(name="Previous Tier", value=current_tier.title(), inline=True)
+            embed.add_field(name="New Tier", value=tier.title(), inline=True)
+            embed.add_field(name="Grant Type", value="Remote Owner Override", inline=True)
+            
+            if guild:
+                embed.add_field(name="Member Count", value=str(guild.member_count), inline=True)
+                embed.add_field(name="Server Owner", value=str(guild.owner), inline=True)
+            
+            embed.add_field(
+                name="Status",
+                value="✅ Subscription active immediately" if guild else "⏳ Will activate when bot joins server",
+                inline=False
+            )
         
         await interaction.followup.send(embed=embed, ephemeral=True)
         
@@ -6048,26 +6169,30 @@ async def owner_server_listings(interaction: discord.Interaction):
         server_data = []
         
         for guild in bot.guilds:
-            # Get server tier
-            tier = get_server_tier(guild.id)
+            # Get bot access and retention tier status
+            has_bot_access = check_bot_access(guild.id)
+            retention_tier = get_retention_tier(guild.id)
             
-            # Note: Without member intents, we can't count individual users by permissions/roles
-            # We can only provide the total member count and role configuration info
-            admin_count = "N/A*"
-            employee_count = "N/A*"
+            # Determine paid/free status
+            paid_status = "Paid" if has_bot_access else "Free"
             
-            # Check if clock roles are configured (indicates employees beyond admins)
-            employee_roles = get_employee_roles(guild.id)
-            employee_setup = "Admin-only" if not employee_roles else f"{len(employee_roles)} employee roles"
+            # Format retention tier for display
+            retention_display = {
+                'none': 'None',
+                '7day': '7-Day',
+                '30day': '30-Day'
+            }.get(retention_tier, 'None')
+            
+            # Get server owner (may be None if owner left)
+            owner_name = str(guild.owner) if guild.owner else "Unknown"
             
             server_data.append({
                 'name': guild.name,
                 'id': guild.id,
+                'owner': owner_name,
                 'member_count': guild.member_count,
-                'admin_count': admin_count,
-                'employee_count': employee_count,
-                'employee_setup': employee_setup,
-                'tier': tier
+                'retention_tier': retention_display,
+                'paid_status': paid_status
             })
         
         # Sort by member count (largest first)
@@ -6075,13 +6200,14 @@ async def owner_server_listings(interaction: discord.Interaction):
         
         # Add server info to embed (limit to prevent message too long)
         for i, server in enumerate(server_data[:15]):  # Show first 15 servers
-            tier_emoji = {"free": "🆓", "basic": "💼", "pro": "⭐"}.get(server['tier'], "❓")
+            status_emoji = "💳" if server['paid_status'] == "Paid" else "🆓"
             
             embed.add_field(
-                name=f"{tier_emoji} {server['name'][:30]}" + ("..." if len(server['name']) > 30 else ""),
-                value=f"**Members:** {server['member_count']}\n"
-                      f"**Access:** {server['employee_setup']}\n"
-                      f"**Tier:** {server['tier'].title()}",
+                name=f"{status_emoji} {server['name'][:30]}" + ("..." if len(server['name']) > 30 else ""),
+                value=f"**Owner:** {server['owner'][:25]}\n"
+                      f"**Users:** {server['member_count']}\n"
+                      f"**Retention:** {server['retention_tier']}\n"
+                      f"**Status:** {server['paid_status']}",
                 inline=True
             )
         
@@ -6094,21 +6220,19 @@ async def owner_server_listings(interaction: discord.Interaction):
         
         # Add summary
         total_members = sum(s['member_count'] for s in server_data)
-        admin_only_count = len([s for s in server_data if s['employee_setup'] == 'Admin-only'])
-        role_configured_count = len([s for s in server_data if s['employee_setup'] != 'Admin-only'])
+        paid_count = len([s for s in server_data if s['paid_status'] == 'Paid'])
+        free_count = len([s for s in server_data if s['paid_status'] == 'Free'])
+        retention_7day = len([s for s in server_data if s['retention_tier'] == '7-Day'])
+        retention_30day = len([s for s in server_data if s['retention_tier'] == '30-Day'])
         
         embed.add_field(
-            name="📈 Totals",
-            value=f"**Servers:** {len(server_data)}\n"
-                  f"**Total Members:** {total_members:,}\n"
-                  f"**Admin-Only Access:** {admin_only_count} servers\n"
-                  f"**Employee Roles Setup:** {role_configured_count} servers",
-            inline=False
-        )
-        
-        embed.add_field(
-            name="ℹ️ Note",
-            value="*Individual admin/employee counts require member intents to be enabled in Discord Developer Portal*",
+            name="📈 Summary",
+            value=f"**Total Servers:** {len(server_data)}\n"
+                  f"**Total Users:** {total_members:,}\n"
+                  f"**Paid Servers:** {paid_count}\n"
+                  f"**Free Servers:** {free_count}\n"
+                  f"**7-Day Retention:** {retention_7day}\n"
+                  f"**30-Day Retention:** {retention_30day}",
             inline=False
         )
         

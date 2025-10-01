@@ -711,6 +711,262 @@ def upgrade_info(user_session, guild_id):
         app.logger.error(f"Upgrade info error: {str(e)}")
         return "<h1>Error</h1><p>Unable to load upgrade information.</p>", 500
 
+@app.route("/purchase/<guild_id>")
+def purchase_page(guild_id):
+    """Public purchase page for $5 bot access - explains what it unlocks"""
+    try:
+        import html
+        from bot import check_bot_access
+        
+        # Check if already has bot access
+        has_bot_access = check_bot_access(int(guild_id))
+        
+        if has_bot_access:
+            # Already purchased - redirect to upgrade page for retention options
+            return f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta http-equiv="refresh" content="3;url=/upgrade/{guild_id}" />
+                <title>Already Purchased</title>
+                <style>
+                    body {{
+                        font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+                        background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+                        color: #C9D1D9;
+                        min-height: 100vh;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        text-align: center;
+                        padding: 20px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div>
+                    <h1>✅ Bot Access Already Active!</h1>
+                    <p>Redirecting to upgrade options...</p>
+                </div>
+            </body>
+            </html>
+            """
+        
+        # Show purchase information page
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Get Bot Access - On the Clock</title>
+            <style>
+                body {{
+                    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+                    background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+                    color: #C9D1D9;
+                    min-height: 100vh;
+                    padding: 40px 20px;
+                }}
+                .container {{
+                    max-width: 800px;
+                    margin: 0 auto;
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 50px;
+                }}
+                .header h1 {{
+                    color: #D4AF37;
+                    font-size: 2.5em;
+                    margin-bottom: 10px;
+                }}
+                .price-tag {{
+                    background: linear-gradient(135deg, #D4AF37, #F4C542);
+                    color: #0A0F1F;
+                    padding: 15px 30px;
+                    border-radius: 12px;
+                    display: inline-block;
+                    font-size: 1.8em;
+                    font-weight: bold;
+                    margin: 20px 0;
+                }}
+                .features-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                    gap: 20px;
+                    margin: 40px 0;
+                }}
+                .feature-card {{
+                    background: rgba(30, 35, 45, 0.8);
+                    border: 2px solid rgba(212, 175, 55, 0.3);
+                    border-radius: 12px;
+                    padding: 25px;
+                }}
+                .feature-card h3 {{
+                    color: #D4AF37;
+                    margin-bottom: 15px;
+                }}
+                .feature-card ul {{
+                    list-style: none;
+                    padding: 0;
+                }}
+                .feature-card li {{
+                    padding: 8px 0;
+                    display: flex;
+                    align-items: center;
+                }}
+                .feature-card li::before {{
+                    content: "✅";
+                    margin-right: 10px;
+                }}
+                .cta-section {{
+                    background: rgba(59, 130, 246, 0.1);
+                    border: 2px solid rgba(59, 130, 246, 0.3);
+                    border-radius: 12px;
+                    padding: 30px;
+                    text-align: center;
+                    margin: 40px 0;
+                }}
+                .command {{
+                    background: rgba(16, 185, 129, 0.1);
+                    border: 2px solid rgba(16, 185, 129, 0.3);
+                    padding: 15px 25px;
+                    border-radius: 8px;
+                    font-family: monospace;
+                    font-size: 1.4em;
+                    color: #10B981;
+                    margin: 20px auto;
+                    display: inline-block;
+                }}
+                .comparison {{
+                    background: rgba(30, 35, 45, 0.6);
+                    border-radius: 12px;
+                    padding: 30px;
+                    margin: 40px 0;
+                }}
+                .comparison table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                }}
+                .comparison th, .comparison td {{
+                    padding: 15px;
+                    text-align: left;
+                    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+                }}
+                .comparison th {{
+                    color: #D4AF37;
+                    font-weight: 600;
+                }}
+                .yes {{ color: #10B981; }}
+                .no {{ color: #EF4444; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🔓 Unlock Full Bot Access</h1>
+                    <p style="font-size: 1.2em;">One-time payment to unlock all features</p>
+                    <div class="price-tag">$5 One-Time</div>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <h3>👥 Full Team Access</h3>
+                        <ul>
+                            <li>Unlimited employees</li>
+                            <li>Role-based access control</li>
+                            <li>Admin management</li>
+                            <li>Employee tracking</li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card">
+                        <h3>📊 Real Reports</h3>
+                        <ul>
+                            <li>CSV timesheet exports</li>
+                            <li>Individual user reports</li>
+                            <li>Team summaries</li>
+                            <li>Email delivery</li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card">
+                        <h3>🎛️ Dashboard Access</h3>
+                        <ul>
+                            <li>Web-based settings</li>
+                            <li>Role management UI</li>
+                            <li>Timezone controls</li>
+                            <li>Email automation</li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card">
+                        <h3>⚙️ All Commands</h3>
+                        <ul>
+                            <li>Clock in/out tracking</li>
+                            <li>Time management</li>
+                            <li>Admin tools</li>
+                            <li>Settings control</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="comparison">
+                    <h2 style="color: #D4AF37; text-align: center; margin-bottom: 25px;">Free vs Bot Access</h2>
+                    <table>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Free Tier</th>
+                            <th>Bot Access ($5)</th>
+                        </tr>
+                        <tr>
+                            <td>Clock In/Out</td>
+                            <td class="yes">✅ Basic</td>
+                            <td class="yes">✅ Full Access</td>
+                        </tr>
+                        <tr>
+                            <td>Team Reports</td>
+                            <td class="no">❌ Dummy Only</td>
+                            <td class="yes">✅ Real CSV Reports</td>
+                        </tr>
+                        <tr>
+                            <td>Dashboard</td>
+                            <td class="no">❌ Locked</td>
+                            <td class="yes">✅ Full Access</td>
+                        </tr>
+                        <tr>
+                            <td>Role Management</td>
+                            <td class="no">❌ Admin Only</td>
+                            <td class="yes">✅ Full Control</td>
+                        </tr>
+                        <tr>
+                            <td>Data Retention</td>
+                            <td class="no">⚠️ 24 Hours</td>
+                            <td class="yes">⚠️ 24 Hours*</td>
+                        </tr>
+                    </table>
+                    <p style="margin-top: 20px; color: #9CA3AF; font-size: 0.9em;">
+                        *Add retention subscriptions for 7-day ($5/mo) or 30-day ($10/mo) data storage
+                    </p>
+                </div>
+
+                <div class="cta-section">
+                    <h2 style="color: #D4AF37; margin-bottom: 20px;">How to Purchase</h2>
+                    <p style="font-size: 1.1em; margin-bottom: 20px;">
+                        Go to your Discord server and run this command:
+                    </p>
+                    <div class="command">/upgrade</div>
+                    <p style="margin-top: 20px; color: #9CA3AF;">
+                        The bot will provide a secure Stripe checkout link for the $5 bot access payment.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+    except Exception as e:
+        app.logger.error(f"Purchase page error: {str(e)}")
+        return "<h1>Error</h1><p>Unable to load purchase page.</p>", 500
+
 @app.route("/server/<guild_id>/settings")
 @require_auth
 def server_settings(user_session, guild_id):
