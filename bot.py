@@ -4214,7 +4214,7 @@ class TimeClockView(discord.ui.View):
         
         if has_bot_access:
             # Paid server - show normal dashboard link
-            dashboard_url = f"https://{domain}/server/{guild_id}"
+            dashboard_url = f"https://{domain}/server/{guild_id}/settings"
             
             embed = discord.Embed(
                 title="📊 Server Dashboard",
