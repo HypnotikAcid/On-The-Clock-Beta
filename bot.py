@@ -2550,12 +2550,14 @@ def init_db():
         )
         """)
         
-        # Banned users table for spam/abuse prevention
+        # Banned users table for spam/abuse prevention (24hr bans)
         conn.execute("""
         CREATE TABLE IF NOT EXISTS banned_users (
             guild_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             banned_at TEXT NOT NULL DEFAULT (datetime('now')),
+            ban_expires_at TEXT,
+            warning_count INTEGER DEFAULT 0,
             reason TEXT DEFAULT 'spam_detection',
             PRIMARY KEY (guild_id, user_id)
         )
@@ -2565,6 +2567,21 @@ def init_db():
         conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_banned_users_guild 
         ON banned_users(guild_id)
+        """)
+        
+        # Server ban tracking for abuse detection
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS server_ban_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            banned_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """)
+        
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_server_ban_log_guild_time 
+        ON server_ban_log(guild_id, banned_at)
         """)
 
 
@@ -2614,34 +2631,109 @@ def set_server_tier(guild_id: int, tier: str, subscription_id: Optional[str] = N
             """, (guild_id, tier))
 
 def is_user_banned(guild_id: int, user_id: int) -> bool:
-    """Check if a user is banned from using the bot in this guild"""
+    """Check if a user is currently banned (checks if ban expired)"""
     with db() as conn:
         cursor = conn.execute(
-            "SELECT 1 FROM banned_users WHERE guild_id = ? AND user_id = ?",
+            """SELECT ban_expires_at FROM banned_users 
+               WHERE guild_id = ? AND user_id = ?""",
             (guild_id, user_id)
         )
-        return cursor.fetchone() is not None
+        result = cursor.fetchone()
+        if not result:
+            return False
+        
+        ban_expires_at = result[0]
+        if not ban_expires_at:
+            # No expiration = permanent ban (shouldn't happen with new system)
+            return True
+        
+        # Check if ban has expired
+        from datetime import datetime, timezone
+        expiry = datetime.fromisoformat(ban_expires_at.replace('Z', '+00:00'))
+        if datetime.now(timezone.utc) > expiry:
+            # Ban expired, remove it
+            conn.execute(
+                "DELETE FROM banned_users WHERE guild_id = ? AND user_id = ?",
+                (guild_id, user_id)
+            )
+            return False
+        
+        return True
 
-def ban_user(guild_id: int, user_id: int, reason: str = "spam_detection"):
-    """Ban a user from using the bot in a specific guild"""
+def get_user_warning_count(guild_id: int, user_id: int) -> int:
+    """Get the number of warnings a user has received"""
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT warning_count FROM banned_users WHERE guild_id = ? AND user_id = ?",
+            (guild_id, user_id)
+        )
+        result = cursor.fetchone()
+        return result[0] if result else 0
+
+def issue_warning(guild_id: int, user_id: int):
+    """Issue a warning to a user (first offense)"""
     with db() as conn:
         conn.execute(
-            "INSERT OR IGNORE INTO banned_users (guild_id, user_id, reason) VALUES (?, ?, ?)",
-            (guild_id, user_id, reason)
+            """INSERT INTO banned_users (guild_id, user_id, warning_count, reason) 
+               VALUES (?, ?, 1, 'spam_warning')
+               ON CONFLICT(guild_id, user_id) 
+               DO UPDATE SET warning_count = warning_count + 1""",
+            (guild_id, user_id)
         )
-    print(f"🚫 Banned user {user_id} from guild {guild_id} - Reason: {reason}")
+    print(f"⚠️ Warning issued to user {user_id} in guild {guild_id}")
 
-def check_rate_limit(guild_id: int, user_id: int) -> tuple[bool, int]:
+def ban_user_24h(guild_id: int, user_id: int, reason: str = "rate_limit_exceeded"):
+    """Ban a user for 24 hours"""
+    from datetime import datetime, timezone, timedelta
+    
+    ban_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    
+    with db() as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO banned_users 
+               (guild_id, user_id, banned_at, ban_expires_at, warning_count, reason) 
+               VALUES (?, ?, datetime('now'), ?, 
+                      COALESCE((SELECT warning_count FROM banned_users WHERE guild_id = ? AND user_id = ?), 0),
+                      ?)""",
+            (guild_id, user_id, ban_expires.isoformat(), guild_id, user_id, reason)
+        )
+        
+        # Log to server ban tracking
+        conn.execute(
+            "INSERT INTO server_ban_log (guild_id, user_id) VALUES (?, ?)",
+            (guild_id, user_id)
+        )
+    
+    print(f"🚫 24-hour ban issued to user {user_id} in guild {guild_id} - Expires: {ban_expires.isoformat()}")
+
+def check_server_abuse(guild_id: int) -> bool:
+    """Check if server has excessive bans (5+ in last hour) = abuse"""
+    from datetime import datetime, timezone, timedelta
+    
+    one_hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    
+    with db() as conn:
+        cursor = conn.execute(
+            """SELECT COUNT(*) FROM server_ban_log 
+               WHERE guild_id = ? AND banned_at >= ?""",
+            (guild_id, one_hour_ago)
+        )
+        ban_count = cursor.fetchone()[0]
+    
+    return ban_count >= 5
+
+def check_rate_limit(guild_id: int, user_id: int) -> tuple[bool, int, str]:
     """
     Check if user has exceeded rate limits.
-    Returns (is_allowed, requests_in_window)
+    Returns (is_allowed, requests_in_window, action_taken)
     
     Rate limit: 3 requests per 30 seconds
-    If exceeded: User is automatically banned
+    - First violation: Warning
+    - Second violation: 24-hour ban
     """
     # Check if user is already banned
     if is_user_banned(guild_id, user_id):
-        return (False, 999)  # Banned users always fail rate limit
+        return (False, 999, "banned")  # Banned users always fail rate limit
     
     current_time = time.time()
     key = (guild_id, user_id)
@@ -2662,15 +2754,67 @@ def check_rate_limit(guild_id: int, user_id: int) -> tuple[bool, int]:
     
     # Check if limit exceeded
     if requests_in_window >= RATE_LIMIT_MAX_REQUESTS:
-        # BAN THE USER
-        ban_user(guild_id, user_id, reason="rate_limit_exceeded")
-        print(f"⚠️ SPAM DETECTED: User {user_id} in guild {guild_id} exceeded rate limit ({requests_in_window} requests in {RATE_LIMIT_WINDOW}s) - USER BANNED")
-        return (False, requests_in_window)
+        # Get warning count to determine action
+        warning_count = get_user_warning_count(guild_id, user_id)
+        
+        if warning_count == 0:
+            # FIRST OFFENSE: Issue warning
+            issue_warning(guild_id, user_id)
+            print(f"⚠️ SPAM WARNING: User {user_id} in guild {guild_id} exceeded rate limit ({requests_in_window} requests in {RATE_LIMIT_WINDOW}s) - WARNING ISSUED")
+            return (False, requests_in_window, "warning")
+        else:
+            # SECOND OFFENSE: 24-hour ban
+            ban_user_24h(guild_id, user_id, reason="rate_limit_exceeded")
+            print(f"🚫 SPAM BAN: User {user_id} in guild {guild_id} exceeded rate limit again - 24 HOUR BAN")
+            
+            # Check if this server is abusing the bot (too many bans)
+            if check_server_abuse(guild_id):
+                print(f"🚨 SERVER ABUSE DETECTED: Guild {guild_id} has 5+ bans in 1 hour - BOT WILL LEAVE")
+                return (False, requests_in_window, "server_abuse")
+            
+            return (False, requests_in_window, "banned")
     
     # Add current timestamp
     user_interaction_timestamps[key].append(current_time)
     
-    return (True, requests_in_window + 1)
+    return (True, requests_in_window + 1, "allowed")
+
+async def handle_rate_limit_response(interaction: discord.Interaction, action: str) -> bool:
+    """
+    Handle rate limit response messages and server abuse.
+    Returns True if should leave server (abuse detected), False otherwise.
+    """
+    if action == "warning":
+        await interaction.followup.send(
+            "⚠️ **Spam Detection Warning**\n\n"
+            "You're clicking buttons too quickly (3+ clicks in 30 seconds).\n"
+            "Please slow down.\n\n"
+            "**⛔ Next violation will result in a 24-hour ban.**",
+            ephemeral=True
+        )
+    elif action == "server_abuse":
+        # Bot will leave server
+        await interaction.followup.send(
+            "🚨 **Server Abuse Detected**\n\n"
+            "This server has excessive spam activity. The bot is leaving this server.",
+            ephemeral=True
+        )
+        try:
+            await interaction.guild.leave()
+            print(f"🚨 Bot left guild {interaction.guild.id} due to abuse (5+ bans in 1 hour)")
+        except Exception as e:
+            print(f"❌ Failed to leave guild {interaction.guild.id}: {e}")
+        return True
+    else:  # banned
+        await interaction.followup.send(
+            "🚫 **24-Hour Ban**\n\n"
+            "Your access to this bot has been temporarily suspended due to spam/abuse.\n"
+            "You exceeded the rate limit (3 requests per 30 seconds) after receiving a warning.\n\n"
+            "**Ban Duration:** 24 hours\n"
+            "**Contact:** Server administrator for assistance",
+            ephemeral=True
+        )
+    return False
 
 def check_bot_access(guild_id: int) -> bool:
     """
@@ -3809,15 +3953,9 @@ class TimeClockView(discord.ui.View):
             user_id = interaction.user.id
             
             # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count = check_rate_limit(guild_id, user_id)
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
             if not is_allowed:
-                await interaction.followup.send(
-                    "🚫 **Account Suspended**\n\n"
-                    "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
-                    "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
-                    "Contact the server administrator for more information.",
-                    ephemeral=True
-                )
+                await handle_rate_limit_response(interaction, action)
                 return
             
             # Check clock access permissions
@@ -3884,15 +4022,9 @@ class TimeClockView(discord.ui.View):
             user_id = interaction.user.id
             
             # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count = check_rate_limit(guild_id, user_id)
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
             if not is_allowed:
-                await interaction.followup.send(
-                    "🚫 **Account Suspended**\n\n"
-                    "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
-                    "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
-                    "Contact the server administrator for more information.",
-                    ephemeral=True
-                )
+                await handle_rate_limit_response(interaction, action)
                 return
             
             # Check clock access permissions
@@ -3966,15 +4098,29 @@ class TimeClockView(discord.ui.View):
             user_id = interaction.user.id
             
             # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count = check_rate_limit(guild_id, user_id)
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
             if not is_allowed:
-                await send_reply(interaction,
-                    "🚫 **Account Suspended**\n\n"
-                    "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
-                    "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
-                    "Contact the server administrator for more information.",
-                    ephemeral=True
-                )
+                # Use send_reply for show_help, but still need to handle server abuse
+                if action == "server_abuse":
+                    await send_reply(interaction,
+                        "🚨 **Server Abuse Detected**\n\nThis server has excessive spam activity. The bot is leaving this server.",
+                        ephemeral=True
+                    )
+                    try:
+                        await interaction.guild.leave()
+                        print(f"🚨 Bot left guild {guild_id} due to abuse")
+                    except Exception as e:
+                        print(f"❌ Failed to leave guild {guild_id}: {e}")
+                elif action == "warning":
+                    await send_reply(interaction,
+                        "⚠️ **Spam Detection Warning**\n\nYou're clicking buttons too quickly (3+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
+                        ephemeral=True
+                    )
+                else:  # banned
+                    await send_reply(interaction,
+                        "🚫 **24-Hour Ban**\n\nYour access has been temporarily suspended due to spam/abuse.\n**Ban Duration:** 24 hours",
+                        ephemeral=True
+                    )
                 return
             
             # Check clock access permissions
@@ -4126,15 +4272,9 @@ class TimeClockView(discord.ui.View):
             user_id = interaction.user.id
             
             # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count = check_rate_limit(guild_id, user_id)
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
             if not is_allowed:
-                await interaction.followup.send(
-                    "🚫 **Account Suspended**\n\n"
-                    "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
-                    "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
-                    "Contact the server administrator for more information.",
-                    ephemeral=True
-                )
+                await handle_rate_limit_response(interaction, action)
                 return
             
             # Check if user has admin access (Discord admin OR custom admin role)
