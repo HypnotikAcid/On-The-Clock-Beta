@@ -51,8 +51,8 @@ CACHE_DURATION = 300  # 5 minutes cache duration
 # --- Rate Limiting / Spam Detection ---
 # Track user interactions to prevent spam/abuse
 RATE_LIMIT_WINDOW = 30  # 30 seconds
-RATE_LIMIT_MAX_REQUESTS = 3  # Max 3 requests per window
-user_interaction_timestamps = {}  # {(guild_id, user_id): [timestamp1, timestamp2, ...]}
+RATE_LIMIT_MAX_REQUESTS = 5  # Max 5 requests per window per button
+user_interaction_timestamps = {}  # {(guild_id, user_id, button_name): [timestamp1, timestamp2, ...]}
 
 # --- Stripe Configuration ---
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -2722,12 +2722,12 @@ def check_server_abuse(guild_id: int) -> bool:
     
     return ban_count >= 5
 
-def check_rate_limit(guild_id: int, user_id: int) -> tuple[bool, int, str]:
+def check_rate_limit(guild_id: int, user_id: int, button_name: str = "unknown") -> tuple[bool, int, str]:
     """
-    Check if user has exceeded rate limits.
+    Check if user has exceeded rate limits for a specific button.
     Returns (is_allowed, requests_in_window, action_taken)
     
-    Rate limit: 3 requests per 30 seconds
+    Rate limit: 5 requests per 30 seconds PER BUTTON
     - First violation: Warning
     - Second violation: 24-hour ban
     
@@ -2747,7 +2747,7 @@ def check_rate_limit(guild_id: int, user_id: int) -> tuple[bool, int, str]:
     # Rate limiting logic - fails-open for availability
     try:
         current_time = time.time()
-        key = (guild_id, user_id)
+        key = (guild_id, user_id, button_name)
         
         # Initialize if not exists
         if key not in user_interaction_timestamps:
@@ -2825,7 +2825,7 @@ async def handle_rate_limit_response(interaction: discord.Interaction, action: s
         if action == "warning":
             await interaction.followup.send(
                 "⚠️ **Spam Detection Warning**\n\n"
-                "You're clicking buttons too quickly (3+ clicks in 30 seconds).\n"
+                "You're clicking the same button too quickly (5+ clicks in 30 seconds).\n"
                 "Please slow down.\n\n"
                 "**⛔ Next violation will result in a 24-hour ban.**",
                 ephemeral=True
@@ -2847,7 +2847,7 @@ async def handle_rate_limit_response(interaction: discord.Interaction, action: s
             await interaction.followup.send(
                 "🚫 **24-Hour Ban**\n\n"
                 "Your access to this bot has been temporarily suspended due to spam/abuse.\n"
-                "You exceeded the rate limit (3 requests per 30 seconds) after receiving a warning.\n\n"
+                "You exceeded the rate limit (5 requests per 30 seconds on the same button) after receiving a warning.\n\n"
                 "**Ban Duration:** 24 hours\n"
                 "**Contact:** Server administrator for assistance",
                 ephemeral=True
@@ -3781,15 +3781,9 @@ class TimeClockView(discord.ui.View):
         user_id = interaction.user.id
         
         # RATE LIMITING: Check for spam/abuse
-        is_allowed, request_count = check_rate_limit(guild_id, user_id)
+        is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "on_the_clock")
         if not is_allowed:
-            await interaction.followup.send(
-                "🚫 **Account Suspended**\n\n"
-                "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
-                "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
-                "Contact the server administrator for more information.",
-                ephemeral=True
-            )
+            await handle_rate_limit_response(interaction, action)
             return
         
         # Check clock access permissions
@@ -3995,7 +3989,7 @@ class TimeClockView(discord.ui.View):
             user_id = interaction.user.id
             
             # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "clock_in")
             if not is_allowed:
                 await handle_rate_limit_response(interaction, action)
                 return
@@ -4064,7 +4058,7 @@ class TimeClockView(discord.ui.View):
             user_id = interaction.user.id
             
             # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "clock_out")
             if not is_allowed:
                 await handle_rate_limit_response(interaction, action)
                 return
@@ -4140,7 +4134,7 @@ class TimeClockView(discord.ui.View):
             user_id = interaction.user.id
             
             # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "help")
             if not is_allowed:
                 # Use send_reply for show_help, but still need to handle server abuse
                 if action == "server_abuse":
@@ -4155,7 +4149,7 @@ class TimeClockView(discord.ui.View):
                         print(f"❌ Failed to leave guild {guild_id}: {e}")
                 elif action == "warning":
                     await send_reply(interaction,
-                        "⚠️ **Spam Detection Warning**\n\nYou're clicking buttons too quickly (3+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
+                        "⚠️ **Spam Detection Warning**\n\nYou're clicking the same button too quickly (5+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
                         ephemeral=True
                     )
                 else:  # banned
@@ -4314,7 +4308,7 @@ class TimeClockView(discord.ui.View):
             user_id = interaction.user.id
             
             # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "reports")
             if not is_allowed:
                 await handle_rate_limit_response(interaction, action)
                 return
@@ -4495,7 +4489,7 @@ class TimeClockView(discord.ui.View):
         user_id = interaction.user.id
         
         # RATE LIMITING: Check for spam/abuse
-        is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
+        is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "upgrade")
         if not is_allowed:
             # Handle rate limit response
             if action == "server_abuse":
@@ -4510,7 +4504,7 @@ class TimeClockView(discord.ui.View):
                     print(f"❌ Failed to leave guild {guild_id}: {e}")
             elif action == "warning":
                 await send_reply(interaction,
-                    "⚠️ **Spam Detection Warning**\n\nYou're clicking buttons too quickly (3+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
+                    "⚠️ **Spam Detection Warning**\n\nYou're clicking the same button too quickly (5+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
                     ephemeral=True
                 )
             else:  # banned
@@ -4571,15 +4565,29 @@ class TimeClockView(discord.ui.View):
         user_id = interaction.user.id
         
         # RATE LIMITING: Check for spam/abuse
-        is_allowed, request_count = check_rate_limit(guild_id, user_id)
+        is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "dashboard")
         if not is_allowed:
-            await send_reply(interaction,
-                "🚫 **Account Suspended**\n\n"
-                "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
-                "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
-                "Contact the server administrator for more information.",
-                ephemeral=True
-            )
+            # Handle rate limit response
+            if action == "server_abuse":
+                await send_reply(interaction,
+                    "🚨 **Server Abuse Detected**\n\nThis server has excessive spam activity. The bot is leaving this server.",
+                    ephemeral=True
+                )
+                try:
+                    await interaction.guild.leave()
+                    print(f"🚨 Bot left guild {guild_id} due to abuse")
+                except Exception as e:
+                    print(f"❌ Failed to leave guild {guild_id}: {e}")
+            elif action == "warning":
+                await send_reply(interaction,
+                    "⚠️ **Spam Detection Warning**\n\nYou're clicking the same button too quickly (5+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
+                    ephemeral=True
+                )
+            else:  # banned
+                await send_reply(interaction,
+                    "🚫 **24-Hour Ban**\n\nYour access has been temporarily suspended due to spam/abuse.\n**Ban Duration:** 24 hours",
+                    ephemeral=True
+                )
             return
         
         has_bot_access = check_bot_access(guild_id)
