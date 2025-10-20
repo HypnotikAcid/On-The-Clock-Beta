@@ -2730,90 +2730,132 @@ def check_rate_limit(guild_id: int, user_id: int) -> tuple[bool, int, str]:
     Rate limit: 3 requests per 30 seconds
     - First violation: Warning
     - Second violation: 24-hour ban
+    
+    NOTE: Ban check fails-closed (blocks on error) for security
+          Rate limiting fails-open (allows on error) for availability
     """
-    # Check if user is already banned
-    if is_user_banned(guild_id, user_id):
-        return (False, 999, "banned")  # Banned users always fail rate limit
+    # CRITICAL: Ban check fails-closed to prevent banned users bypassing bans
+    try:
+        if is_user_banned(guild_id, user_id):
+            return (False, 999, "banned")
+    except Exception as e:
+        # FAIL-CLOSED for security: If ban check fails, treat as banned
+        print(f"❌ Ban check failed for user {user_id} in guild {guild_id}: {e}")
+        print(f"   Blocking request (fail-closed security policy)")
+        return (False, 999, "banned")
     
-    current_time = time.time()
-    key = (guild_id, user_id)
-    
-    # Initialize if not exists
-    if key not in user_interaction_timestamps:
-        user_interaction_timestamps[key] = []
-    
-    # Remove timestamps older than the rate limit window
-    cutoff_time = current_time - RATE_LIMIT_WINDOW
-    user_interaction_timestamps[key] = [
-        ts for ts in user_interaction_timestamps[key] 
-        if ts > cutoff_time
-    ]
-    
-    # Count requests in current window
-    requests_in_window = len(user_interaction_timestamps[key])
-    
-    # Check if limit exceeded
-    if requests_in_window >= RATE_LIMIT_MAX_REQUESTS:
-        # Get warning count to determine action
-        warning_count = get_user_warning_count(guild_id, user_id)
+    # Rate limiting logic - fails-open for availability
+    try:
+        current_time = time.time()
+        key = (guild_id, user_id)
         
-        if warning_count == 0:
-            # FIRST OFFENSE: Issue warning
-            issue_warning(guild_id, user_id)
-            print(f"⚠️ SPAM WARNING: User {user_id} in guild {guild_id} exceeded rate limit ({requests_in_window} requests in {RATE_LIMIT_WINDOW}s) - WARNING ISSUED")
-            return (False, requests_in_window, "warning")
-        else:
-            # SECOND OFFENSE: 24-hour ban
-            ban_user_24h(guild_id, user_id, reason="rate_limit_exceeded")
-            print(f"🚫 SPAM BAN: User {user_id} in guild {guild_id} exceeded rate limit again - 24 HOUR BAN")
-            
-            # Check if this server is abusing the bot (too many bans)
-            if check_server_abuse(guild_id):
-                print(f"🚨 SERVER ABUSE DETECTED: Guild {guild_id} has 5+ bans in 1 hour - BOT WILL LEAVE")
-                return (False, requests_in_window, "server_abuse")
-            
-            return (False, requests_in_window, "banned")
+        # Initialize if not exists
+        if key not in user_interaction_timestamps:
+            user_interaction_timestamps[key] = []
+        
+        # Remove timestamps older than the rate limit window
+        cutoff_time = current_time - RATE_LIMIT_WINDOW
+        user_interaction_timestamps[key] = [
+            ts for ts in user_interaction_timestamps[key] 
+            if ts > cutoff_time
+        ]
+        
+        # Count requests in current window
+        requests_in_window = len(user_interaction_timestamps[key])
+        
+        # Check if limit exceeded
+        if requests_in_window >= RATE_LIMIT_MAX_REQUESTS:
+            try:
+                # Get warning count to determine action
+                warning_count = get_user_warning_count(guild_id, user_id)
+                
+                if warning_count == 0:
+                    # FIRST OFFENSE: Issue warning
+                    try:
+                        issue_warning(guild_id, user_id)
+                        print(f"⚠️ SPAM WARNING: User {user_id} in guild {guild_id} exceeded rate limit ({requests_in_window} requests in {RATE_LIMIT_WINDOW}s) - WARNING ISSUED")
+                        return (False, requests_in_window, "warning")
+                    except Exception as e:
+                        print(f"❌ Failed to issue warning for user {user_id} in guild {guild_id}: {e}")
+                        # Still block the request even if warning fails
+                        return (False, requests_in_window, "warning")
+                else:
+                    # SECOND OFFENSE: 24-hour ban
+                    try:
+                        ban_user_24h(guild_id, user_id, reason="rate_limit_exceeded")
+                        print(f"🚫 SPAM BAN: User {user_id} in guild {guild_id} exceeded rate limit again - 24 HOUR BAN")
+                        
+                        # Check if this server is abusing the bot (too many bans)
+                        try:
+                            if check_server_abuse(guild_id):
+                                print(f"🚨 SERVER ABUSE DETECTED: Guild {guild_id} has 5+ bans in 1 hour - BOT WILL LEAVE")
+                                return (False, requests_in_window, "server_abuse")
+                        except Exception as e:
+                            print(f"❌ Server abuse check failed for guild {guild_id}: {e}")
+                        
+                        return (False, requests_in_window, "banned")
+                    except Exception as e:
+                        print(f"❌ Failed to ban user {user_id} in guild {guild_id}: {e}")
+                        # Still block the request even if ban fails
+                        return (False, requests_in_window, "banned")
+            except Exception as e:
+                print(f"❌ Warning count check failed for user {user_id} in guild {guild_id}: {e}")
+                # Block the rate-limited request even if warning check fails
+                return (False, requests_in_window, "warning")
+        
+        # Add current timestamp
+        user_interaction_timestamps[key].append(current_time)
+        
+        return (True, requests_in_window + 1, "allowed")
     
-    # Add current timestamp
-    user_interaction_timestamps[key].append(current_time)
-    
-    return (True, requests_in_window + 1, "allowed")
+    except Exception as e:
+        # FAIL-OPEN: If rate limiting logic fails, allow the request to proceed
+        # This prevents database errors from breaking all button interactions
+        # But bans are still enforced (checked above with fail-closed)
+        print(f"❌ Rate limit logic failed for user {user_id} in guild {guild_id}: {e}")
+        print(f"   Allowing request to proceed (fail-open availability policy)")
+        return (True, 0, "allowed")
 
 async def handle_rate_limit_response(interaction: discord.Interaction, action: str) -> bool:
     """
     Handle rate limit response messages and server abuse.
     Returns True if should leave server (abuse detected), False otherwise.
     """
-    if action == "warning":
-        await interaction.followup.send(
-            "⚠️ **Spam Detection Warning**\n\n"
-            "You're clicking buttons too quickly (3+ clicks in 30 seconds).\n"
-            "Please slow down.\n\n"
-            "**⛔ Next violation will result in a 24-hour ban.**",
-            ephemeral=True
-        )
-    elif action == "server_abuse":
-        # Bot will leave server
-        await interaction.followup.send(
-            "🚨 **Server Abuse Detected**\n\n"
-            "This server has excessive spam activity. The bot is leaving this server.",
-            ephemeral=True
-        )
-        try:
-            await interaction.guild.leave()
-            print(f"🚨 Bot left guild {interaction.guild.id} due to abuse (5+ bans in 1 hour)")
-        except Exception as e:
-            print(f"❌ Failed to leave guild {interaction.guild.id}: {e}")
-        return True
-    else:  # banned
-        await interaction.followup.send(
-            "🚫 **24-Hour Ban**\n\n"
-            "Your access to this bot has been temporarily suspended due to spam/abuse.\n"
-            "You exceeded the rate limit (3 requests per 30 seconds) after receiving a warning.\n\n"
-            "**Ban Duration:** 24 hours\n"
-            "**Contact:** Server administrator for assistance",
-            ephemeral=True
-        )
+    try:
+        if action == "warning":
+            await interaction.followup.send(
+                "⚠️ **Spam Detection Warning**\n\n"
+                "You're clicking buttons too quickly (3+ clicks in 30 seconds).\n"
+                "Please slow down.\n\n"
+                "**⛔ Next violation will result in a 24-hour ban.**",
+                ephemeral=True
+            )
+        elif action == "server_abuse":
+            # Bot will leave server
+            await interaction.followup.send(
+                "🚨 **Server Abuse Detected**\n\n"
+                "This server has excessive spam activity. The bot is leaving this server.",
+                ephemeral=True
+            )
+            try:
+                await interaction.guild.leave()
+                print(f"🚨 Bot left guild {interaction.guild.id} due to abuse (5+ bans in 1 hour)")
+            except Exception as e:
+                print(f"❌ Failed to leave guild {interaction.guild.id}: {e}")
+            return True
+        else:  # banned
+            await interaction.followup.send(
+                "🚫 **24-Hour Ban**\n\n"
+                "Your access to this bot has been temporarily suspended due to spam/abuse.\n"
+                "You exceeded the rate limit (3 requests per 30 seconds) after receiving a warning.\n\n"
+                "**Ban Duration:** 24 hours\n"
+                "**Contact:** Server administrator for assistance",
+                ephemeral=True
+            )
+    except Exception as e:
+        # If sending rate limit message fails, log it but don't break the flow
+        print(f"❌ Failed to send rate limit response: {e}")
+    
     return False
 
 def check_bot_access(guild_id: int) -> bool:
