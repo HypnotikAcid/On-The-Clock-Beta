@@ -48,6 +48,12 @@ DISCORD_CACHE = {
 }
 CACHE_DURATION = 300  # 5 minutes cache duration
 
+# --- Rate Limiting / Spam Detection ---
+# Track user interactions to prevent spam/abuse
+RATE_LIMIT_WINDOW = 30  # 30 seconds
+RATE_LIMIT_MAX_REQUESTS = 3  # Max 3 requests per window
+user_interaction_timestamps = {}  # {(guild_id, user_id): [timestamp1, timestamp2, ...]}
+
 # --- Stripe Configuration ---
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
@@ -2543,6 +2549,23 @@ def init_db():
             joined_at TEXT NOT NULL
         )
         """)
+        
+        # Banned users table for spam/abuse prevention
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS banned_users (
+            guild_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            banned_at TEXT NOT NULL DEFAULT (datetime('now')),
+            reason TEXT DEFAULT 'spam_detection',
+            PRIMARY KEY (guild_id, user_id)
+        )
+        """)
+        
+        # Index for performance
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_banned_users_guild 
+        ON banned_users(guild_id)
+        """)
 
 
 
@@ -2589,6 +2612,65 @@ def set_server_tier(guild_id: int, tier: str, subscription_id: Optional[str] = N
                 (guild_id, tier, expires_at, status) 
                 VALUES (?, ?, NULL, 'active')
             """, (guild_id, tier))
+
+def is_user_banned(guild_id: int, user_id: int) -> bool:
+    """Check if a user is banned from using the bot in this guild"""
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT 1 FROM banned_users WHERE guild_id = ? AND user_id = ?",
+            (guild_id, user_id)
+        )
+        return cursor.fetchone() is not None
+
+def ban_user(guild_id: int, user_id: int, reason: str = "spam_detection"):
+    """Ban a user from using the bot in a specific guild"""
+    with db() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO banned_users (guild_id, user_id, reason) VALUES (?, ?, ?)",
+            (guild_id, user_id, reason)
+        )
+    print(f"🚫 Banned user {user_id} from guild {guild_id} - Reason: {reason}")
+
+def check_rate_limit(guild_id: int, user_id: int) -> tuple[bool, int]:
+    """
+    Check if user has exceeded rate limits.
+    Returns (is_allowed, requests_in_window)
+    
+    Rate limit: 3 requests per 30 seconds
+    If exceeded: User is automatically banned
+    """
+    # Check if user is already banned
+    if is_user_banned(guild_id, user_id):
+        return (False, 999)  # Banned users always fail rate limit
+    
+    current_time = time.time()
+    key = (guild_id, user_id)
+    
+    # Initialize if not exists
+    if key not in user_interaction_timestamps:
+        user_interaction_timestamps[key] = []
+    
+    # Remove timestamps older than the rate limit window
+    cutoff_time = current_time - RATE_LIMIT_WINDOW
+    user_interaction_timestamps[key] = [
+        ts for ts in user_interaction_timestamps[key] 
+        if ts > cutoff_time
+    ]
+    
+    # Count requests in current window
+    requests_in_window = len(user_interaction_timestamps[key])
+    
+    # Check if limit exceeded
+    if requests_in_window >= RATE_LIMIT_MAX_REQUESTS:
+        # BAN THE USER
+        ban_user(guild_id, user_id, reason="rate_limit_exceeded")
+        print(f"⚠️ SPAM DETECTED: User {user_id} in guild {guild_id} exceeded rate limit ({requests_in_window} requests in {RATE_LIMIT_WINDOW}s) - USER BANNED")
+        return (False, requests_in_window)
+    
+    # Add current timestamp
+    user_interaction_timestamps[key].append(current_time)
+    
+    return (True, requests_in_window + 1)
 
 def check_bot_access(guild_id: int) -> bool:
     """
@@ -3510,6 +3592,19 @@ class TimeClockView(discord.ui.View):
             return
             
         guild_id = interaction.guild.id
+        user_id = interaction.user.id
+        
+        # RATE LIMITING: Check for spam/abuse
+        is_allowed, request_count = check_rate_limit(guild_id, user_id)
+        if not is_allowed:
+            await interaction.followup.send(
+                "🚫 **Account Suspended**\n\n"
+                "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
+                "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
+                "Contact the server administrator for more information.",
+                ephemeral=True
+            )
+            return
         
         # Check clock access permissions
         server_tier = get_server_tier(guild_id)
@@ -3713,6 +3808,18 @@ class TimeClockView(discord.ui.View):
             guild_id = interaction.guild.id
             user_id = interaction.user.id
             
+            # RATE LIMITING: Check for spam/abuse
+            is_allowed, request_count = check_rate_limit(guild_id, user_id)
+            if not is_allowed:
+                await interaction.followup.send(
+                    "🚫 **Account Suspended**\n\n"
+                    "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
+                    "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
+                    "Contact the server administrator for more information.",
+                    ephemeral=True
+                )
+                return
+            
             # Check clock access permissions
             server_tier = get_server_tier(guild_id)
             # Type guard: ensure we have a Member for guild-specific functions
@@ -3775,6 +3882,18 @@ class TimeClockView(discord.ui.View):
                 
             guild_id = interaction.guild.id
             user_id = interaction.user.id
+            
+            # RATE LIMITING: Check for spam/abuse
+            is_allowed, request_count = check_rate_limit(guild_id, user_id)
+            if not is_allowed:
+                await interaction.followup.send(
+                    "🚫 **Account Suspended**\n\n"
+                    "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
+                    "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
+                    "Contact the server administrator for more information.",
+                    ephemeral=True
+                )
+                return
             
             # Check clock access permissions
             server_tier = get_server_tier(guild_id)
@@ -3841,6 +3960,21 @@ class TimeClockView(discord.ui.View):
         try:
             if interaction.guild is None:
                 await send_reply(interaction, "Use this in a server.", ephemeral=True)
+                return
+            
+            guild_id = interaction.guild.id
+            user_id = interaction.user.id
+            
+            # RATE LIMITING: Check for spam/abuse
+            is_allowed, request_count = check_rate_limit(guild_id, user_id)
+            if not is_allowed:
+                await send_reply(interaction,
+                    "🚫 **Account Suspended**\n\n"
+                    "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
+                    "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
+                    "Contact the server administrator for more information.",
+                    ephemeral=True
+                )
                 return
             
             # Check clock access permissions
@@ -3986,6 +4120,21 @@ class TimeClockView(discord.ui.View):
             
             if interaction.guild is None:
                 await interaction.followup.send("Use this in a server.", ephemeral=True)
+                return
+            
+            guild_id = interaction.guild.id
+            user_id = interaction.user.id
+            
+            # RATE LIMITING: Check for spam/abuse
+            is_allowed, request_count = check_rate_limit(guild_id, user_id)
+            if not is_allowed:
+                await interaction.followup.send(
+                    "🚫 **Account Suspended**\n\n"
+                    "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
+                    "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
+                    "Contact the server administrator for more information.",
+                    ephemeral=True
+                )
                 return
             
             # Check if user has admin access (Discord admin OR custom admin role)
@@ -4161,6 +4310,20 @@ class TimeClockView(discord.ui.View):
             return
             
         guild_id = interaction.guild.id
+        user_id = interaction.user.id
+        
+        # RATE LIMITING: Check for spam/abuse
+        is_allowed, request_count = check_rate_limit(guild_id, user_id)
+        if not is_allowed:
+            await send_reply(interaction,
+                "🚫 **Account Suspended**\n\n"
+                "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
+                "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
+                "Contact the server administrator for more information.",
+                ephemeral=True
+            )
+            return
+        
         server_tier = get_server_tier(guild_id)
         
         # Only show for free tier
@@ -4209,6 +4372,20 @@ class TimeClockView(discord.ui.View):
             return
             
         guild_id = interaction.guild.id
+        user_id = interaction.user.id
+        
+        # RATE LIMITING: Check for spam/abuse
+        is_allowed, request_count = check_rate_limit(guild_id, user_id)
+        if not is_allowed:
+            await send_reply(interaction,
+                "🚫 **Account Suspended**\n\n"
+                "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
+                "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
+                "Contact the server administrator for more information.",
+                ephemeral=True
+            )
+            return
+        
         has_bot_access = check_bot_access(guild_id)
         domain = get_domain()
         
