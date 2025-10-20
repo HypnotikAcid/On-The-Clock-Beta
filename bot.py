@@ -4853,8 +4853,8 @@ async def on_guild_remove(guild):
 @app_commands.guild_only()
 async def setup(interaction: discord.Interaction):
     """
-    Display timeclock setup information and instructions.
-    Shows how to use the universal /clock command system.
+    Display comprehensive onboarding guide for new users.
+    Shows role management, dashboard features, and pricing information.
     """
     # Robust defer with proper fallback
     defer_success = await robust_defer(interaction, ephemeral=True)
@@ -4867,43 +4867,86 @@ async def setup(interaction: discord.Interaction):
         return
     
     try:
-        # Get server information
-        server_tier = get_server_tier(guild_id)
-        
-        if server_tier == "free":
-            access_info = "**Free Tier:** Only administrators can use the timeclock\n• Upgrade to Basic/Pro for full team access"
-        else:
-            access_info = "**Team Access:** All configured employee roles can use the timeclock"
-        
         # Use the same domain detection as other functions
         dashboard_url = f"https://{get_domain()}"
+        payment_url = f"https://{get_domain()}/upgrade"
         
-        setup_message = (
-            f"⏰ **Timeclock Setup Complete!**\n\n"
-            f"**How to Use:**\n"
-            f"• Type `/clock` anywhere in the server to access timeclock\n"
-            f"• No channel setup needed - works from any channel!\n"
-            f"• Fresh interface every time - no timeout issues\n"
-            f"• All responses are private (only you see them)\n\n"
-            f"**Current Access Level:**\n"
-            f"{access_info}\n\n"
-            f"**📊 Web Dashboard:**\n"
-            f"• Visit **{dashboard_url}** for advanced management\n"
-            f"• Login with Discord to view reports and settings\n"
-            f"• Access real-time server statistics and admin tools\n\n"
-            f"**Available Commands:**\n"
-            f"• `/clock` - Access your timeclock interface\n"
-            f"• `/help` - View all available commands\n"
-            f"• `/upgrade` - Upgrade your server plan\n\n"
-            f"**🎉 Setup Benefits:**\n"
-            f"• **Universal Access:** Works from any channel\n"
-            f"• **No Maintenance:** No buttons to refresh or manage\n"
-            f"• **Always Reliable:** Zero interaction failures\n"
-            f"• **Professional Experience:** Clean, private workflow\n\n"
-            f"**🆘 Need Help?** Join support: https://discord.gg/KdTRTqdPcj"
+        embed = discord.Embed(
+            title="⏰ Welcome to On the Clock!",
+            description="Complete onboarding guide for setting up your timeclock bot",
+            color=discord.Color.blue()
         )
         
-        await interaction.edit_original_response(content=setup_message)
+        embed.add_field(
+            name="👥 Step 1: Configure Roles",
+            value=(
+                "**Admin Roles** (can view reports and manage settings):\n"
+                "`/add_admin_role @role` - Grant admin access\n"
+                "`/list_admin_roles` - View configured admin roles\n\n"
+                "**Employee Roles** (can use timeclock functions):\n"
+                "`/add_employee_role @role` - Grant timeclock access\n"
+                "`/list_employee_roles` - View configured employee roles\n\n"
+                "💡 Discord administrators always have full access"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🌐 Step 2: Explore the Dashboard",
+            value=(
+                f"Visit **{dashboard_url}** to access:\n"
+                "• **Settings** - Configure server preferences\n"
+                "• **Role Management** - Manage admin and employee roles\n"
+                "• **Email Configuration** - Set up report delivery\n"
+                "• **Timezone Settings** - Customize display timezone\n"
+                "• **Reports & Analytics** - View team activity\n\n"
+                "Login with Discord for full access to your server settings"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="💰 Step 3: Understand Pricing",
+            value=(
+                "**Bot Access** - $5 one-time payment per server\n"
+                "• Unlocks full bot functionality for your entire team\n"
+                "• One-time payment, no recurring charges for basic access\n\n"
+                "**Optional Data Retention** (subscriptions):\n"
+                "• **7-Day Retention** - $5/month\n"
+                "• **30-Day Retention** - $10/month\n\n"
+                "💡 Free tier available for testing (admin-only access)\n"
+                f"🛒 Purchase: {payment_url}"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🚀 Getting Started",
+            value=(
+                "**For Employees:**\n"
+                "• Type `/clock` to access your personal timeclock\n"
+                "• Use the buttons to clock in/out\n\n"
+                "**For Admins:**\n"
+                "• Type `/help` for a full command reference\n"
+                "• Use `/report` to generate timesheet reports\n"
+                "• Configure roles using commands above"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🆘 Need Help?",
+            value=(
+                "Join our Discord support server:\n"
+                "https://discord.gg/KdTRTqdPcj\n\n"
+                "Get assistance with setup, billing, and troubleshooting"
+            ),
+            inline=False
+        )
+        
+        embed.set_footer(text="On the Clock • Professional Time Tracking for Discord")
+        
+        await interaction.edit_original_response(embed=embed)
         print(f"✅ Displayed setup information for guild {guild_id}")
         
     except Exception as e:
@@ -5354,138 +5397,75 @@ async def help_command(interaction: discord.Interaction):
     if interaction.guild_id is None:
         await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
         return
-    # Get current server tier
-    server_tier = get_server_tier(interaction.guild_id)
-    tier_color = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
     
     embed = discord.Embed(
-        title="📋 Complete Command Reference",
-        description=f"**Current Plan:** {server_tier.title()}\n\n**All available slash commands organized by function:**",
-        color=tier_color.get(server_tier, discord.Color.green())
+        title="📋 Command Reference",
+        description="All available slash commands organized by category:",
+        color=discord.Color.blue()
     )
     
-    # Version 1.1 Update Notice
-    embed.add_field(
-        name="🎉 Version 1.1 - No More Timeouts!",
-        value=(
-            "**New `/clock` Command:** Access your timeclock interface with fresh buttons every time!\n"
-            "**No More Issues:** Say goodbye to timeout errors and refresh commands\n"
-            "**Easy to Use:** Just type `/clock` whenever you need to punch in or out"
-        ),
-        inline=False
-    )
-    
-    # Core Timeclock Commands (new section)
     embed.add_field(
         name="⏰ Timeclock Commands",
         value=(
-            "`/clock` - Access your personal timeclock interface (fresh buttons, never times out!)\n"
-            "`/setup` - View timeclock setup information and instructions"
+            "`/clock` - Access your personal timeclock interface\n"
+            "`/setup` - View onboarding and setup information"
         ),
         inline=False
     )
     
-    # Setup & Configuration Commands
     embed.add_field(
         name="⚙️ Setup & Configuration",
         value=(
-            "`/set_recipient <user>` - Set who receives private time entries (DMs)\n"
-            "`/set_timezone <timezone>` - Set display timezone (e.g., America/New_York)\n"
-            "`/toggle_name_display` - Toggle between username and nickname display\n"
-            "`/help` - List all available slash commands"
+            "`/set_recipient <user>` - Set who receives private time entries\n"
+            "`/set_timezone <timezone>` - Set display timezone\n"
+            "`/toggle_name_display` - Toggle username/nickname display\n"
+            "`/help` - Show this command list"
         ),
         inline=False
     )
     
-    # Admin Role Management Commands
     embed.add_field(
         name="👤 Admin Role Management",
         value=(
-            "`/add_admin_role <role>` - Add a role that can access Reports and Upgrade buttons\n"
-            "`/remove_admin_role <role>` - Remove a role's admin access to Reports and Upgrade buttons\n"
+            "`/add_admin_role <role>` - Grant admin access to a role\n"
+            "`/remove_admin_role <role>` - Remove admin access from a role\n"
             "`/list_admin_roles` - List all roles with admin access\n"
-            "`/set_main_role <role>` - Set the primary admin role (gets all admin functions)\n"
+            "`/set_main_role <role>` - Set the primary admin role\n"
             "`/show_main_role` - View the current main admin role\n"
-            "`/clear_main_role` - Remove the main admin role designation"
+            "`/clear_main_role` - Remove main admin role designation"
         ),
         inline=False
     )
     
-    # Employee Role Management Commands
     embed.add_field(
         name="👥 Employee Role Management",
         value=(
-            "`/add_employee_role <role>` - Add a role that can use timeclock functions\n"
-            "`/remove_employee_role <role>` - Remove a role's access to timeclock functions\n"
-            "`/list_employee_roles` - List all roles that can use timeclock functions"
+            "`/add_employee_role <role>` - Grant timeclock access to a role\n"
+            "`/remove_employee_role <role>` - Remove timeclock access from a role\n"
+            "`/list_employee_roles` - List all roles with timeclock access"
         ),
         inline=False
     )
     
-    # Reports & Data Management Commands
     embed.add_field(
         name="📊 Reports & Data Management",
         value=(
-            "`/report <user> <start_date> <end_date>` - Generate CSV timesheet report for individual user\n"
-            "`/data_cleanup` - Manually trigger data cleanup (Admin only)\n"
-            "`/purge` - Permanently delete timeclock data (preserves subscription)"
+            "`/report <user> <start_date> <end_date>` - Generate CSV timesheet report\n"
+            "`/data_cleanup` - Manually trigger data cleanup\n"
+            "`/purge` - Permanently delete timeclock data"
         ),
         inline=False
     )
     
-    # Subscription Management Commands
     embed.add_field(
         name="💳 Subscription Management",
         value=(
-            "`/upgrade` - Upgrade your server to Basic or Pro plan\n"
-            "`/cancel_subscription` - Learn how to cancel your subscription\n"
-            "`/subscription_status` - View current subscription status"
+            "`/upgrade` - Upgrade your server plan\n"
+            "`/cancel_subscription` - Learn how to cancel subscription\n"
+            "`/subscription_status` - View subscription status"
         ),
         inline=False
     )
-    
-    # Tier Information & Features
-    tier_info = "\n\n**Plan Features:**\n"
-    if server_tier == "free":
-        tier_info += (
-            "🆓 **Free Tier:** Admin-only testing • Sample reports • Employee roles configured but inactive\n"
-            "💡 **Upgrade Benefits:** Basic ($5/mo) unlocks full team access & real CSV reports"
-        )
-    elif server_tier == "basic":
-        tier_info += (
-            "💙 **Basic Tier:** Full team access • Real CSV reports • 7-day data retention\n"
-            "💡 **Pro Benefits:** 30-day retention • Multiple manager notifications • Extended features"
-        )
-    else:  # pro tier
-        tier_info += "💜 **Pro Tier:** All features unlocked • 30-day retention • Multiple managers • Priority support"
-    
-    embed.add_field(
-        name="🔘 How to Use Your Timeclock",
-        value=(
-            "**Step 1:** Type `/clock` to access your personal timeclock\n"
-            "**Step 2:** Use the fresh buttons that appear (only you see them)\n"
-            "• 🟢 **Clock In** - Start tracking your time\n"
-            "• 🔴 **Clock Out** - Stop tracking and log your shift\n"
-            "• 📊 **Reports** - Generate timesheet reports (admin access)\n"
-            "• ⬆️ **Upgrade** - Upgrade to Basic/Pro plans\n" + 
-            tier_info
-        ),
-        inline=False
-    )
-    
-    # Version 1.1 Benefits & Info
-    embed.add_field(
-        name="✨ Version 1.1 Benefits",
-        value=(
-            "🚫 **No More Timeouts:** Fresh buttons every time you use `/clock`\n"
-            "⚡ **Always Works:** Zero maintenance, no refresh commands needed\n"
-            "🔒 **Private Interface:** Only you see your timeclock responses\n"
-            "🎯 **Reliable:** Never fails, never times out, always available"
-        ),
-        inline=False
-    )
-    
-    embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | Type /clock to access your timeclock!")
     
     await send_reply(interaction, embed=embed, ephemeral=True)
 
