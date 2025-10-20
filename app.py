@@ -1552,6 +1552,96 @@ def api_get_server_data(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
+@app.route("/api/server/<guild_id>/bans", methods=["GET"])
+@require_api_auth
+def api_get_bans(user_session, guild_id):
+    """API endpoint to fetch all banned users for a server"""
+    try:
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT user_id, banned_at, ban_expires_at, warning_count, reason 
+                FROM banned_users 
+                WHERE guild_id = ?
+                ORDER BY banned_at DESC
+            """, (guild_id,))
+            
+            bans = []
+            for row in cursor.fetchall():
+                bans.append({
+                    'user_id': str(row[0]),
+                    'banned_at': row[1],
+                    'ban_expires_at': row[2],
+                    'warning_count': row[3],
+                    'reason': row[4]
+                })
+        
+        return jsonify({'success': True, 'bans': bans})
+    except Exception as e:
+        app.logger.error(f"Error fetching bans: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/bans/unban", methods=["POST"])
+@require_api_auth
+def api_unban_user(user_session, guild_id):
+    """API endpoint to unban a user"""
+    try:
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        if not data or 'user_id' not in data:
+            return jsonify({'success': False, 'error': 'Missing user_id'}), 400
+        
+        user_id = str(data['user_id'])
+        
+        with get_db() as conn:
+            conn.execute(
+                "DELETE FROM banned_users WHERE guild_id = ? AND user_id = ?",
+                (guild_id, user_id)
+            )
+        
+        app.logger.info(f"Unbanned user {user_id} from guild {guild_id} by {user_session.get('username')}")
+        return jsonify({'success': True, 'message': 'User unbanned successfully'})
+    except Exception as e:
+        app.logger.error(f"Error unbanning user: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/bans/permanent", methods=["POST"])
+@require_api_auth
+def api_make_ban_permanent(user_session, guild_id):
+    """API endpoint to make a ban permanent"""
+    try:
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        if not data or 'user_id' not in data:
+            return jsonify({'success': False, 'error': 'Missing user_id'}), 400
+        
+        user_id = str(data['user_id'])
+        
+        with get_db() as conn:
+            conn.execute("""
+                UPDATE banned_users 
+                SET ban_expires_at = NULL, reason = 'permanent_ban'
+                WHERE guild_id = ? AND user_id = ?
+            """, (guild_id, user_id))
+        
+        app.logger.info(f"Made ban permanent for user {user_id} in guild {guild_id} by {user_session.get('username')}")
+        return jsonify({'success': True, 'message': 'Ban made permanent'})
+    except Exception as e:
+        app.logger.error(f"Error making ban permanent: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
 @app.route("/invite")
 def invite():
     """Redirect to Discord bot invite link."""

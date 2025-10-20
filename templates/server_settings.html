@@ -1069,8 +1069,32 @@
                 </div>
             </div>
 
-            <!-- Tile 4: Custom Email Formatting (COMING SOON) -->
+            <!-- Tile 4: Ban Management -->
             <div class="tile" id="Tile4">
+                <h2>🚫 Ban Management</h2>
+                <p class="tile-description">Manage banned users and spam/abuse infractions. Monitor user warnings and control access.</p>
+                
+                <div class="ban-warning-box" style="background: rgba(239, 68, 68, 0.1); border: 2px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span style="font-size: 24px;">⚠️</span>
+                        <strong style="color: #EF4444; font-size: 16px;">Important Reminder</strong>
+                    </div>
+                    <p style="color: #C9D1D9; font-size: 13px; margin: 0;">
+                        Excessive spam or abuse may result in the bot being removed from Discord. Use permanent bans carefully and ensure your server moderates bot usage appropriately.
+                    </p>
+                </div>
+                
+                <div id="ban-list-container" style="margin-top: 20px;">
+                    <div id="ban-list" style="background: rgba(10, 15, 31, 0.5); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 8px; padding: 15px; min-height: 200px; max-height: 400px; overflow-y: auto;">
+                        <div class="empty-state" style="text-align: center; color: #8B949E; padding: 40px 20px;">
+                            Loading banned users...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tile 5: Custom Email Formatting (COMING SOON) -->
+            <div class="tile" id="Tile5">
                 <h2>✉️ Custom Email Formatting</h2>
                 <p class="tile-description">Customize the format and appearance of automated email reports</p>
                 
@@ -1092,8 +1116,8 @@
                 </div>
             </div>
 
-            <!-- Tile 5: Timezone -->
-            <div class="tile" id="Tile5">
+            <!-- Tile 6: Timezone -->
+            <div class="tile" id="Tile6">
                 <h2>🌍 Timezone Settings</h2>
                 <p class="tile-description">Set the timezone for displaying clock in/out times</p>
                 
@@ -1471,6 +1495,135 @@
 
         // Load email recipients on page load
         loadEmailRecipients();
+
+        // Ban Management Functions
+        async function loadBannedUsers() {
+            try {
+                const response = await fetch(`/api/server/${guildId}/bans`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    renderBanList(data.bans);
+                } else {
+                    document.getElementById('ban-list').innerHTML = '<div class="empty-state" style="text-align: center; color: #EF4444; padding: 40px 20px;">Error loading bans</div>';
+                }
+            } catch (error) {
+                console.error('Error loading bans:', error);
+                document.getElementById('ban-list').innerHTML = '<div class="empty-state" style="text-align: center; color: #EF4444; padding: 40px 20px;">Error loading bans</div>';
+            }
+        }
+
+        function renderBanList(bans) {
+            const banList = document.getElementById('ban-list');
+            
+            if (!bans || bans.length === 0) {
+                banList.innerHTML = '<div class="empty-state" style="text-align: center; color: #8B949E; padding: 40px 20px;">✅ No banned users</div>';
+                return;
+            }
+            
+            banList.innerHTML = bans.map(ban => {
+                const bannedAt = new Date(ban.banned_at);
+                const expiresAt = ban.ban_expires_at ? new Date(ban.ban_expires_at) : null;
+                const isPermanent = !ban.ban_expires_at;
+                const isExpired = expiresAt && new Date() > expiresAt;
+                
+                let statusBadge = '';
+                if (isPermanent) {
+                    statusBadge = '<span style="background: rgba(239, 68, 68, 0.2); color: #EF4444; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">PERMANENT</span>';
+                } else if (isExpired) {
+                    statusBadge = '<span style="background: rgba(16, 185, 129, 0.2); color: #10B981; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">EXPIRED</span>';
+                } else {
+                    const timeLeft = Math.ceil((expiresAt - new Date()) / (1000 * 60 * 60));
+                    statusBadge = `<span style="background: rgba(251, 191, 36, 0.2); color: #FBB936; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">${timeLeft}h LEFT</span>`;
+                }
+                
+                return `
+                    <div style="background: rgba(30, 35, 45, 0.6); padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(212, 175, 55, 0.2);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <div>
+                                <div style="color: #C9D1D9; font-weight: 600; margin-bottom: 5px;">
+                                    User ID: ${ban.user_id}
+                                </div>
+                                <div style="color: #8B949E; font-size: 12px; margin-bottom: 3px;">
+                                    ⏰ Banned: ${bannedAt.toLocaleString()}
+                                </div>
+                                ${!isPermanent ? `<div style="color: #8B949E; font-size: 12px; margin-bottom: 3px;">⌛ Expires: ${expiresAt.toLocaleString()}</div>` : ''}
+                                <div style="color: #8B949E; font-size: 12px; margin-bottom: 3px;">
+                                    ⚠️ Warnings: ${ban.warning_count}
+                                </div>
+                                <div style="color: #8B949E; font-size: 12px;">
+                                    📝 Reason: ${ban.reason.replace('_', ' ')}
+                                </div>
+                            </div>
+                            <div>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button onclick="unbanUser('${ban.user_id}')" style="background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.3s ease;">
+                                ✅ Unban
+                            </button>
+                            ${!isPermanent ? `
+                                <button onclick="makeBanPermanent('${ban.user_id}')" style="background: linear-gradient(135deg, #EF4444, #DC2626); color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.3s ease;">
+                                    🔒 Make Permanent
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function unbanUser(userId) {
+            if (!confirm(`Are you sure you want to unban user ${userId}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/bans/unban`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user_id: userId })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    await loadBannedUsers();
+                } else {
+                    alert(data.error || 'Error unbanning user');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error unbanning user');
+            }
+        }
+
+        async function makeBanPermanent(userId) {
+            if (!confirm(`⚠️ WARNING: Make ban PERMANENT for user ${userId}?\n\nReminder: Too much spam/abuse may result in the bot being removed from Discord.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/server/${guildId}/bans/permanent`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user_id: userId })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    await loadBannedUsers();
+                } else {
+                    alert(data.error || 'Error making ban permanent');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error making ban permanent');
+            }
+        }
+
+        // Load banned users on page load
+        loadBannedUsers();
 
         // Initialize
         console.log('Server settings page initialized for guild:', guildId);
