@@ -4453,53 +4453,67 @@ class TimeClockView(discord.ui.View):
         user_id = interaction.user.id
         
         # RATE LIMITING: Check for spam/abuse
-        is_allowed, request_count = check_rate_limit(guild_id, user_id)
+        is_allowed, request_count, action = check_rate_limit(guild_id, user_id)
         if not is_allowed:
-            await send_reply(interaction,
-                "🚫 **Account Suspended**\n\n"
-                "Your access to this bot has been permanently restricted due to spam/abuse detection.\n"
-                "You exceeded the rate limit (3 requests per 30 seconds).\n\n"
-                "Contact the server administrator for more information.",
-                ephemeral=True
-            )
+            # Handle rate limit response
+            if action == "server_abuse":
+                await send_reply(interaction,
+                    "🚨 **Server Abuse Detected**\n\nThis server has excessive spam activity. The bot is leaving this server.",
+                    ephemeral=True
+                )
+                try:
+                    await interaction.guild.leave()
+                    print(f"🚨 Bot left guild {guild_id} due to abuse")
+                except Exception as e:
+                    print(f"❌ Failed to leave guild {guild_id}: {e}")
+            elif action == "warning":
+                await send_reply(interaction,
+                    "⚠️ **Spam Detection Warning**\n\nYou're clicking buttons too quickly (3+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
+                    ephemeral=True
+                )
+            else:  # banned
+                await send_reply(interaction,
+                    "🚫 **24-Hour Ban**\n\nYour access has been temporarily suspended due to spam/abuse.\n**Ban Duration:** 24 hours",
+                    ephemeral=True
+                )
             return
         
         server_tier = get_server_tier(guild_id)
+        has_bot_access = check_bot_access(guild_id)
         
-        # Only show for free tier
-        if server_tier != "free":
-            await send_reply(interaction, "This server already has a subscription!", ephemeral=True)
+        # Show appropriate message based on current status
+        if has_bot_access:
+            await send_reply(interaction, "✅ This server already has bot access! Use `/upgrade` to add data retention if needed.", ephemeral=True)
             return
         
         embed = discord.Embed(
-            title="🚀 Upgrade Your Server",
-            description="Choose a plan that fits your team's needs:",
-            color=discord.Color.orange()
+            title="🚀 Unlock Full Bot Access",
+            description="Get complete control of your team's time tracking:",
+            color=discord.Color.gold()
         )
         
         embed.add_field(
-            name="💼 Basic Plan - $5/month",
-            value="• Full team access to timeclock\n"
-                  "• All admin commands\n"
-                  "• CSV Reports\n"
-                  "• Role management\n"
-                  "• 7 days data retention",
-            inline=True
+            name="💎 Bot Access - $5 One-Time Payment",
+            value="• **Unlimited team members** can use timeclock\n"
+                  "• **All admin commands** unlocked\n"
+                  "• **CSV Reports** for tracking\n"
+                  "• **Role management** features\n"
+                  "• **Dashboard access** for settings\n"
+                  "• **24-hour data retention** (default)",
+            inline=False
         )
         
         embed.add_field(
-            name="⭐ Pro Plan - $10/month",
-            value="• Everything in Basic\n"
-                  "• Extended CSV reports\n"
-                  "• Multiple manager notifications\n"
-                  "• 30 days data retention\n"
-                  "• Priority support",
-            inline=True
+            name="📦 Optional Add-Ons (Monthly Subscriptions)",
+            value="**7-Day Retention:** $5/month - Keep data for 7 days\n"
+                  "**30-Day Retention:** $10/month - Keep data for 30 days\n\n"
+                  "*These are optional and can be added after bot access purchase*",
+            inline=False
         )
         
         embed.add_field(
-            name="🔗 How to Upgrade",
-            value="Use `/upgrade basic` or `/upgrade pro` commands to get started with secure Stripe checkout!",
+            name="🔗 Get Started",
+            value="Use `/upgrade` command to purchase bot access via secure Stripe checkout!",
             inline=False
         )
         
