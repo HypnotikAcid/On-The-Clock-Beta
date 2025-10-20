@@ -34,6 +34,7 @@ Preferred communication style: Simple, everyday language.
 - **Data Privacy**: Automated data purging based on subscription tier and cancellation.
 - **Input Validation**: Robust validation for roles and timezones.
 - **Authorization Checks**: Bot presence and user admin access verified before operations.
+- **Rate Limiting & Spam Detection**: In-memory tracking with 30-second windows (max 3 button presses per user per 30 seconds). Users exceeding rate limits are automatically and permanently banned from using the bot. Banned users stored in database for persistence across restarts. All TimeClockView button callbacks protected (clock in/out, help, on the clock, dashboard, reports, upgrade).
 
 # External Dependencies
 
