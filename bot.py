@@ -6561,13 +6561,22 @@ async def owner_server_listings(interaction: discord.Interaction):
             # Get server owner (may be None if owner left)
             owner_name = str(guild.owner) if guild.owner else "Unknown"
             
+            # Get bot join date
+            joined_at = guild.me.joined_at if guild.me else None
+            if joined_at:
+                # Format as MM/DD/YY HH:MM AM/PM
+                joined_date_str = joined_at.strftime("%m/%d/%y %I:%M %p")
+            else:
+                joined_date_str = "Unknown"
+            
             server_data.append({
                 'name': guild.name,
                 'id': guild.id,
                 'owner': owner_name,
                 'member_count': guild.member_count,
                 'retention_tier': retention_display,
-                'paid_status': paid_status
+                'paid_status': paid_status,
+                'joined_at': joined_date_str
             })
         
         # Sort by member count (largest first)
@@ -6579,7 +6588,9 @@ async def owner_server_listings(interaction: discord.Interaction):
             
             embed.add_field(
                 name=f"{status_emoji} {server['name'][:30]}" + ("..." if len(server['name']) > 30 else ""),
-                value=f"**Owner:** {server['owner'][:25]}\n"
+                value=f"**ID:** {server['id']}\n"
+                      f"**Joined:** {server['joined_at']}\n"
+                      f"**Owner:** {server['owner'][:25]}\n"
                       f"**Users:** {server['member_count']}\n"
                       f"**Retention:** {server['retention_tier']}\n"
                       f"**Status:** {server['paid_status']}",
