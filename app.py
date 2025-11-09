@@ -14,8 +14,19 @@ from urllib.parse import urlencode
 import requests
 from flask import Flask, render_template, redirect, request, session, jsonify, url_for, make_response
 from werkzeug.middleware.proxy_fix import ProxyFix
+import stripe
+from stripe import SignatureVerificationError
 
 app = Flask(__name__)
+
+# Import helper functions from bot.py for Stripe webhook handling
+from bot import (
+    check_bot_access,
+    set_bot_access,
+    set_retention_tier,
+    purge_timeclock_data_only,
+    db as bot_db
+)
 
 # Start Discord bot in background daemon thread
 def start_discord_bot():
@@ -72,6 +83,19 @@ DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
 DISCORD_API_BASE = 'https://discord.com/api/v10'
 DISCORD_OAUTH_SCOPES = 'identify guilds'
+
+# Stripe Configuration
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+STRIPE_PRICE_IDS = {
+    'bot_access': os.environ.get('STRIPE_PRICE_BOT_ACCESS'),
+    'retention_7day': os.environ.get('STRIPE_PRICE_RETENTION_7DAY'),
+    'retention_30day': os.environ.get('STRIPE_PRICE_RETENTION_30DAY')
+}
+
+# Initialize Stripe
+if STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
 
 def get_redirect_uri():
     """Get redirect URI dynamically based on current request or environment"""
@@ -401,6 +425,249 @@ def filter_user_guilds(user_session):
     return filtered_guilds
 
 # Routes
+
+@app.route("/webhook", methods=["POST"])
+def stripe_webhook():
+    """Handle Stripe webhook events"""
+    payload = request.data
+    sig_header = request.headers.get('stripe-signature')
+    
+    if not STRIPE_WEBHOOK_SECRET:
+        app.logger.error("❌ STRIPE_WEBHOOK_SECRET not configured")
+        return jsonify({'error': 'Webhook secret not configured'}), 400
+    
+    if not sig_header:
+        app.logger.error("❌ Missing Stripe signature header")
+        return jsonify({'error': 'Missing signature'}), 400
+    
+    try:
+        # Verify webhook signature
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+        
+        event_type = event.get('type')
+        app.logger.info(f"🔔 Processing Stripe webhook: {event_type}")
+        
+        # Handle different event types
+        if event_type == 'checkout.session.completed':
+            handle_checkout_completed(event['data']['object'])
+        elif event_type == 'customer.subscription.updated':
+            handle_subscription_change(event['data']['object'])
+        elif event_type == 'customer.subscription.deleted':
+            handle_subscription_cancellation(event['data']['object'])
+        elif event_type == 'invoice.payment_failed':
+            handle_payment_failure(event['data']['object'])
+        else:
+            app.logger.info(f"ℹ️ Unhandled Stripe event type: {event_type}")
+        
+        return jsonify({'received': True}), 200
+        
+    except SignatureVerificationError as e:
+        app.logger.error(f"❌ Invalid webhook signature: {e}")
+        return jsonify({'error': 'Invalid signature'}), 400
+    except ValueError as e:
+        app.logger.error(f"❌ Invalid webhook payload: {e}")
+        return jsonify({'error': 'Invalid payload'}), 400
+    except Exception as e:
+        app.logger.error(f"❌ Error processing webhook: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'error': 'Internal error'}), 500
+
+def handle_checkout_completed(session):
+    """Process a completed checkout session"""
+    try:
+        # Retrieve full session with line items to verify pricing
+        full_session = stripe.checkout.Session.retrieve(
+            session['id'],
+            expand=['line_items']
+        )
+        
+        # Extract price_id from session
+        price_id = None
+        if full_session.line_items and full_session.line_items.data:
+            line_item = full_session.line_items.data[0]
+            if line_item.price:
+                price_id = line_item.price.id
+        
+        if not price_id:
+            app.logger.error("❌ No price ID found in checkout session")
+            return
+        
+        # Match price_id against STRIPE_PRICE_IDS to determine product_type
+        product_type = None
+        for ptype, pid in STRIPE_PRICE_IDS.items():
+            if pid == price_id:
+                product_type = ptype
+                break
+        
+        if not product_type:
+            app.logger.error(f"❌ Unknown price ID in checkout: {price_id}")
+            return
+        
+        guild_id = session.get('metadata', {}).get('guild_id')
+        
+        if not guild_id:
+            app.logger.error("❌ No guild_id found in session metadata")
+            return
+        
+        guild_id = int(guild_id)
+        
+        # Process based on product type
+        if product_type == 'bot_access':
+            # One-time bot access payment
+            set_bot_access(guild_id, True)
+            app.logger.info(f"✅ Bot access granted for server {guild_id}")
+            
+        elif product_type == 'retention_7day':
+            # 7-day retention subscription
+            if not check_bot_access(guild_id):
+                app.logger.error(f"❌ SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
+                return
+            
+            subscription_id = session.get('subscription')
+            customer_id = session.get('customer')
+            set_retention_tier(guild_id, '7day')
+            
+            # Store subscription_id and customer_id in database
+            with bot_db() as conn:
+                conn.execute("""
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
+                    VALUES (?, ?, ?, 'active')
+                    ON CONFLICT(guild_id) DO UPDATE SET 
+                        subscription_id = ?,
+                        customer_id = ?,
+                        status = 'active'
+                """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
+            
+            app.logger.info(f"✅ 7-day retention granted for server {guild_id}")
+            
+        elif product_type == 'retention_30day':
+            # 30-day retention subscription
+            if not check_bot_access(guild_id):
+                app.logger.error(f"❌ SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
+                return
+            
+            subscription_id = session.get('subscription')
+            customer_id = session.get('customer')
+            set_retention_tier(guild_id, '30day')
+            
+            # Store subscription_id and customer_id in database
+            with bot_db() as conn:
+                conn.execute("""
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
+                    VALUES (?, ?, ?, 'active')
+                    ON CONFLICT(guild_id) DO UPDATE SET 
+                        subscription_id = ?,
+                        customer_id = ?,
+                        status = 'active'
+                """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
+            
+            app.logger.info(f"✅ 30-day retention granted for server {guild_id}")
+            
+    except Exception as e:
+        app.logger.error(f"❌ Error processing checkout session: {e}")
+        app.logger.error(traceback.format_exc())
+
+def handle_subscription_change(subscription):
+    """Handle subscription change events"""
+    try:
+        subscription_id = subscription.get('id')
+        status = subscription.get('status')
+        
+        if not subscription_id:
+            app.logger.error("❌ No subscription ID in subscription change event")
+            return
+        
+        with bot_db() as conn:
+            conn.execute("""
+                UPDATE server_subscriptions 
+                SET status = ?
+                WHERE subscription_id = ?
+            """, (status, subscription_id))
+        
+        app.logger.info(f"✅ Subscription {subscription_id} status updated to {status}")
+        
+    except Exception as e:
+        app.logger.error(f"❌ Error processing subscription change: {e}")
+        app.logger.error(traceback.format_exc())
+
+def handle_subscription_cancellation(subscription):
+    """Handle subscription cancellation events"""
+    try:
+        subscription_id = subscription.get('id')
+        customer_id = subscription.get('customer')
+        
+        if not subscription_id:
+            app.logger.error("❌ No subscription ID in cancellation event")
+            return
+        
+        with bot_db() as conn:
+            cursor = conn.execute("""
+                SELECT guild_id FROM server_subscriptions 
+                WHERE subscription_id = ? OR customer_id = ?
+            """, (subscription_id, customer_id))
+            result = cursor.fetchone()
+            
+            if result:
+                guild_id = result[0]
+                
+                # Set retention tier to 'none'
+                set_retention_tier(guild_id, 'none')
+                
+                # Update subscription status to canceled
+                conn.execute("""
+                    UPDATE server_subscriptions 
+                    SET status = 'canceled', subscription_id = NULL
+                    WHERE guild_id = ?
+                """, (guild_id,))
+                
+                # Trigger immediate data deletion
+                purge_timeclock_data_only(guild_id)
+                
+                app.logger.info(f"✅ Retention subscription canceled for server {guild_id}")
+            else:
+                app.logger.error(f"❌ No guild found for subscription {subscription_id}")
+                
+    except Exception as e:
+        app.logger.error(f"❌ Error processing subscription cancellation: {e}")
+        app.logger.error(traceback.format_exc())
+
+def handle_payment_failure(invoice):
+    """Handle payment failure events"""
+    try:
+        customer_id = invoice.get('customer')
+        subscription_id = invoice.get('subscription')
+        
+        if not customer_id and not subscription_id:
+            app.logger.error("❌ No customer or subscription ID in payment failure event")
+            return
+        
+        with bot_db() as conn:
+            cursor = conn.execute("""
+                SELECT guild_id FROM server_subscriptions 
+                WHERE subscription_id = ? OR customer_id = ?
+            """, (subscription_id, customer_id))
+            result = cursor.fetchone()
+            
+            if result:
+                guild_id = result[0]
+                
+                # Update subscription status to past_due
+                conn.execute("""
+                    UPDATE server_subscriptions 
+                    SET status = 'past_due'
+                    WHERE guild_id = ?
+                """, (guild_id,))
+                
+                app.logger.info(f"⚠️ Payment failed: Guild {guild_id} marked as past_due")
+            else:
+                app.logger.error(f"❌ No guild found for customer {customer_id}")
+                
+    except Exception as e:
+        app.logger.error(f"❌ Error processing payment failure: {e}")
+        app.logger.error(traceback.format_exc())
+
 @app.route("/")
 def index():
     """Landing page with bot info, features, and upgrade links."""
