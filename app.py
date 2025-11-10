@@ -735,6 +735,11 @@ def auth_callback():
         session['session_id'] = session_id
         app.logger.info(f"Session created: {session_id[:8]}...")
         
+        # Check if this is a purchase flow
+        if session.get('purchase_intent'):
+            app.logger.info("Redirecting to server selection for purchase")
+            return redirect('/purchase/select_server')
+        
         return redirect('/dashboard')
         
     except Exception as e:
@@ -1908,6 +1913,292 @@ def api_make_ban_permanent(user_session, guild_id):
         app.logger.error(f"Error making ban permanent: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/purchase/<product_type>")
+def purchase_init(product_type):
+    """Initialize purchase flow - store intent and redirect to OAuth"""
+    # Validate product type
+    valid_products = ['bot_access', 'retention_7day', 'retention_30day']
+    if product_type not in valid_products:
+        return "<h1>Invalid Product</h1><p>Unknown product type.</p><a href='/'>Return Home</a>", 400
+    
+    # Store purchase intent in session
+    session['purchase_intent'] = {
+        'product_type': product_type,
+        'initiated_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Redirect to OAuth login
+    state = create_oauth_state()
+    redirect_uri = get_redirect_uri()
+    
+    params = {
+        'client_id': DISCORD_CLIENT_ID,
+        'redirect_uri': redirect_uri,
+        'response_type': 'code',
+        'scope': DISCORD_OAUTH_SCOPES,
+        'state': state
+    }
+    
+    auth_url = f'https://discord.com/oauth2/authorize?{urlencode(params)}'
+    app.logger.info(f"Purchase flow initiated for {product_type}")
+    return redirect(auth_url)
+
+@app.route("/purchase/select_server")
+@require_auth
+def purchase_select_server(user_session):
+    """Show server selection page after OAuth"""
+    try:
+        # Check for purchase intent
+        purchase_intent = session.get('purchase_intent')
+        if not purchase_intent:
+            app.logger.warning("No purchase intent found in session")
+            return redirect('/')
+        
+        product_type = purchase_intent.get('product_type')
+        
+        # Get bot guild IDs and user's guilds
+        bot_guild_ids = get_bot_guild_ids()
+        all_guilds = user_session.get('guilds', [])
+        
+        # Separate servers into with bot and without bot
+        servers_with_bot = []
+        servers_without_bot = []
+        
+        for guild in all_guilds:
+            guild_id = guild.get('id')
+            
+            # Only include servers where user has admin access
+            if not user_has_admin_access(user_session['user_id'], guild_id, guild):
+                continue
+            
+            if guild_id in bot_guild_ids:
+                servers_with_bot.append(guild)
+            else:
+                servers_without_bot.append(guild)
+        
+        # Bot invite URL
+        bot_id = "1418446753379913809"
+        permissions = "2048"
+        invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions={permissions}&scope=bot%20applications.commands"
+        
+        return render_template(
+            'server_selection.html',
+            product_type=product_type,
+            servers_with_bot=servers_with_bot,
+            servers_without_bot=servers_without_bot,
+            invite_url=invite_url
+        )
+    except Exception as e:
+        app.logger.error(f"Server selection error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        # Clear purchase intent on error
+        session.pop('purchase_intent', None)
+        return "<h1>Error</h1><p>Unable to load servers. Please try again.</p><a href='/'>Return Home</a>", 500
+
+@app.route("/purchase/checkout")
+@require_auth
+def purchase_checkout(user_session):
+    """Create Stripe checkout session - SECURITY: Verify admin access before proceeding"""
+    try:
+        # Check for purchase intent
+        purchase_intent = session.get('purchase_intent')
+        if not purchase_intent:
+            app.logger.warning("No purchase intent found")
+            return "<h1>Error</h1><p>Invalid purchase session.</p><a href='/'>Return Home</a>", 400
+        
+        product_type = purchase_intent.get('product_type')
+        guild_id = request.args.get('guild_id')
+        
+        if not guild_id:
+            return "<h1>Error</h1><p>No server selected.</p><a href='/purchase/select_server'>Go Back</a>", 400
+        
+        # CRITICAL SECURITY: Verify user has admin access to this guild
+        all_guilds = user_session.get('guilds', [])
+        authorized_guild = None
+        
+        for guild in all_guilds:
+            if guild.get('id') == guild_id:
+                # Check admin permissions
+                if user_has_admin_access(user_session['user_id'], guild_id, guild):
+                    authorized_guild = guild
+                    break
+        
+        if not authorized_guild:
+            app.logger.error(f"Unauthorized checkout attempt for guild {guild_id} by user {user_session.get('user_id')}")
+            return "<h1>Access Denied</h1><p>You do not have admin permissions for this server.</p><a href='/purchase/select_server'>Go Back</a>", 403
+        
+        # SECURITY: Verify bot is present in the guild
+        bot_guild_ids = get_bot_guild_ids()
+        if guild_id not in bot_guild_ids:
+            app.logger.error(f"Bot not present in guild {guild_id}")
+            return "<h1>Error</h1><p>Bot must be added to the server before purchasing.</p><a href='/purchase/select_server'>Go Back</a>", 400
+        
+        # Import function from bot.py
+        from bot import create_secure_checkout_session
+        
+        # Create checkout session
+        checkout_url = create_secure_checkout_session(
+            guild_id=int(guild_id),
+            product_type=product_type,
+            guild_name=authorized_guild.get('name', '')
+        )
+        
+        # Clear purchase intent after successful checkout creation
+        session.pop('purchase_intent', None)
+        
+        app.logger.info(f"Checkout created for guild {guild_id}, product {product_type}, by user {user_session.get('username')}")
+        return redirect(checkout_url)
+        
+    except ValueError as e:
+        app.logger.error(f"Checkout error: {str(e)}")
+        session.pop('purchase_intent', None)
+        return f"<h1>Checkout Error</h1><p>{str(e)}</p><a href='/'>Return Home</a>", 400
+    except Exception as e:
+        app.logger.error(f"Checkout error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        session.pop('purchase_intent', None)
+        return "<h1>Error</h1><p>Unable to create checkout session.</p><a href='/'>Return Home</a>", 500
+
+@app.route("/success")
+def purchase_success():
+    """Purchase success page"""
+    # Clear any remaining purchase intent
+    session.pop('purchase_intent', None)
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Purchase Successful - On the Clock</title>
+        <style>
+            body {
+                font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+                background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+                color: #C9D1D9;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+            }
+            .container {
+                max-width: 500px;
+                text-align: center;
+                background: rgba(30, 35, 45, 0.8);
+                border: 2px solid #10B981;
+                border-radius: 16px;
+                padding: 3rem 2rem;
+            }
+            h1 {
+                font-size: 2.5rem;
+                color: #10B981;
+                margin-bottom: 1rem;
+            }
+            p {
+                font-size: 1.1rem;
+                color: #8B949E;
+                line-height: 1.6;
+                margin-bottom: 2rem;
+            }
+            a {
+                display: inline-block;
+                background: linear-gradient(135deg, #D4AF37, #C19A2E);
+                color: #0D1117;
+                padding: 12px 28px;
+                border-radius: 8px;
+                font-weight: 600;
+                text-decoration: none;
+                transition: all 0.3s ease;
+            }
+            a:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 30px rgba(212, 175, 55, 0.5);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>✅ Purchase Successful!</h1>
+            <p>Your payment has been processed. Your server's access has been automatically updated.</p>
+            <p>You can now use all premium features in Discord!</p>
+            <a href="/">Return to Home</a>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.route("/cancel")
+def purchase_cancel():
+    """Purchase cancelled page"""
+    # Clear purchase intent
+    session.pop('purchase_intent', None)
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Purchase Cancelled - On the Clock</title>
+        <style>
+            body {
+                font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+                background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+                color: #C9D1D9;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+            }
+            .container {
+                max-width: 500px;
+                text-align: center;
+                background: rgba(30, 35, 45, 0.8);
+                border: 2px solid rgba(239, 68, 68, 0.5);
+                border-radius: 16px;
+                padding: 3rem 2rem;
+            }
+            h1 {
+                font-size: 2.5rem;
+                color: #EF4444;
+                margin-bottom: 1rem;
+            }
+            p {
+                font-size: 1.1rem;
+                color: #8B949E;
+                line-height: 1.6;
+                margin-bottom: 2rem;
+            }
+            a {
+                display: inline-block;
+                background: linear-gradient(135deg, #D4AF37, #C19A2E);
+                color: #0D1117;
+                padding: 12px 28px;
+                border-radius: 8px;
+                font-weight: 600;
+                text-decoration: none;
+                transition: all 0.3s ease;
+                margin: 0.5rem;
+            }
+            a:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 30px rgba(212, 175, 55, 0.5);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>❌ Purchase Cancelled</h1>
+            <p>Your purchase was cancelled. No charges were made.</p>
+            <p>You can try again anytime!</p>
+            <a href="/">Return to Home</a>
+            <a href="/purchase/bot_access">Try Again</a>
+        </div>
+    </body>
+    </html>
+    """
 
 @app.route("/invite")
 def invite():
