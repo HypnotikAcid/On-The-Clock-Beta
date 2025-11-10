@@ -25,6 +25,7 @@ from bot import (
     set_bot_access,
     set_retention_tier,
     purge_timeclock_data_only,
+    create_secure_checkout_session,
     db as bot_db
 )
 
@@ -2033,9 +2034,6 @@ def purchase_checkout(user_session):
         if guild_id not in bot_guild_ids:
             app.logger.error(f"Bot not present in guild {guild_id}")
             return "<h1>Error</h1><p>Bot must be added to the server before purchasing.</p><a href='/purchase/select_server'>Go Back</a>", 400
-        
-        # Import function from bot.py
-        from bot import create_secure_checkout_session
         
         # Create checkout session
         checkout_url = create_secure_checkout_session(
