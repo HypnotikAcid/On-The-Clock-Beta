@@ -997,7 +997,7 @@ def upgrade_info(user_session, guild_id):
         app.logger.error(f"Upgrade info error: {str(e)}")
         return "<h1>Error</h1><p>Unable to load upgrade information.</p>", 500
 
-@app.route("/purchase/<guild_id>")
+@app.route("/purchase/<int:guild_id>")
 def purchase_page(guild_id):
     """Public purchase page for $5 bot access - explains what it unlocks"""
     try:
@@ -1005,7 +1005,7 @@ def purchase_page(guild_id):
         from bot import check_bot_access
         
         # Check if already has bot access
-        has_bot_access = check_bot_access(int(guild_id))
+        has_bot_access = check_bot_access(guild_id)
         
         if has_bot_access:
             # Already purchased - redirect to upgrade page for retention options
