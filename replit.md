@@ -35,6 +35,8 @@ Preferred communication style: Simple, everyday language.
 - **Input Validation**: Robust validation for roles and timezones.
 - **Authorization Checks**: Bot presence and user admin access verified before operations.
 - **Rate Limiting & Spam Detection**: In-memory tracking with 30-second windows (max 3 button presses per user per 30 seconds). Users exceeding rate limits receive a warning on first offense, then a 24-hour ban on second offense. Banned users stored in database for persistence across restarts. All TimeClockView button callbacks protected (clock in/out, help, on the clock, dashboard, reports, upgrade). Error handling uses fail-closed approach for ban checks (security) and fail-open for rate limiting logic (availability) to prevent button interaction failures.
+- **Purge Command Security**: `/purge` command restricted to server OWNERS only (not just admins) via explicit `interaction.user.id == interaction.guild.owner_id` check. The safe purge function (`purge_timeclock_data_only()`) deletes only session data while preserving settings and roles. The dangerous purge function (`purge_all_guild_data_DANGEROUS()`) exists but is not exposed via any command - it would delete ALL settings, roles, and data if called.
+- **Employee Role Persistence**: Dashboard role changes flow through bot's HTTP API with comprehensive logging at both API and database layers to track all add/remove operations. Bot API requires `BOT_API_SECRET` for authentication, ensuring only authenticated dashboard requests can modify role configurations.
 
 # External Dependencies
 
