@@ -5875,9 +5875,13 @@ class PurgeConfirmationView(discord.ui.View):
             # If defer failed and interaction isn't done, we can't proceed
             return
         
-        # Check if user is a Member (should be in guild context) and has admin access
-        if not isinstance(interaction.user, discord.Member) or not user_has_admin_access(interaction.user):
-            await interaction.followup.send("❌ Only administrators can use this command.", ephemeral=True)
+        # OWNER-ONLY CHECK: Only server owner can confirm purge
+        if not isinstance(interaction.user, discord.Member):
+            await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
+            return
+        
+        if interaction.user.id != interaction.guild.owner_id:
+            await interaction.followup.send("❌ Only the **server owner** can purge data.", ephemeral=True)
             return
         
         try:
@@ -5938,7 +5942,7 @@ class PurgeConfirmationView(discord.ui.View):
 @app_commands.default_permissions(administrator=True)  
 @app_commands.guild_only()
 async def purge_data(interaction: discord.Interaction):
-    """Allow admins to manually purge timeclock data only"""
+    """Allow SERVER OWNERS ONLY to manually purge timeclock data"""
     # Robust defer with proper fallback
     defer_success = await robust_defer(interaction, ephemeral=True)
     if not defer_success and not interaction.response.is_done():
@@ -5954,14 +5958,17 @@ async def purge_data(interaction: discord.Interaction):
     # Type guard: ensure we have a Member for guild-specific functions
     if not isinstance(interaction.user, discord.Member):
         await interaction.followup.send(
-            "❌ Unable to verify admin permissions. Please try again.",
+            "❌ Unable to verify permissions. Please try again.",
             ephemeral=True
         )
         return
     
-    # Double-check admin status
-    if not is_server_admin(interaction.user):
-        await interaction.followup.send("❌ Only server administrators can use this command.", ephemeral=True)
+    # OWNER-ONLY CHECK: Only server owner can purge data
+    if interaction.user.id != interaction.guild.owner_id:
+        await interaction.followup.send(
+            "❌ Only the **server owner** can use this command. This is a destructive operation that permanently deletes all timeclock data.",
+            ephemeral=True
+        )
         return
     
     # Create warning embed
