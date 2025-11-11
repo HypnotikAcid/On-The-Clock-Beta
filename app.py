@@ -1467,12 +1467,16 @@ def api_add_employee_role(user_session, guild_id):
         # Forward request to bot API (Bot as Boss)
         bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/employee-roles/add"
         
+        app.logger.info(f"🔗 Flask calling bot API: {bot_api_url} with role_id={role_id}")
+        
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
             headers={'Authorization': f'Bearer {bot_api_secret}'},
             timeout=5
         )
+        
+        app.logger.info(f"🔗 Bot API response: status={response.status_code}, ok={response.ok}")
         
         if response.ok:
             app.logger.info(f"Added employee role {role_id} to guild {guild_id} by user {user_session.get('username')}")
