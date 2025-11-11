@@ -2062,8 +2062,22 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         pass
 
 
-def purge_guild_data_for_testing(guild_id: int):
-    """Standalone function to purge guild data for testing purposes"""
+def purge_all_guild_data_DANGEROUS(guild_id: int):
+    """⚠️ DANGEROUS: Complete data wipe - deletes ALL settings, roles, and timeclock data.
+    
+    WARNING: This function destroys:
+    - All timeclock sessions
+    - Guild settings (timezone, display mode, etc.)
+    - All authorized roles
+    - All admin roles
+    - All employee roles
+    - Resets subscription to free tier
+    
+    ⚠️ SECURITY: This should ONLY be called by server OWNERS (not just admins)
+    ⚠️ USE WITH EXTREME CAUTION - This is NOT reversible
+    
+    For normal data cleanup, use purge_timeclock_data_only() instead.
+    """
     try:
         with db() as conn:
             # Set timeout for database operations
@@ -2097,11 +2111,11 @@ def purge_guild_data_for_testing(guild_id: int):
                 WHERE guild_id = ?
             """, (guild_id,))
             
-            print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {employee_roles_deleted} clock roles")
+            print(f"⚠️ COMPLETE DATA WIPE for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {employee_roles_deleted} clock roles")
             return sessions_deleted + settings_deleted + auth_roles_deleted + admin_roles_deleted + employee_roles_deleted
             
     except Exception as e:
-        print(f"❌ Error purging guild data for {guild_id}: {e}")
+        print(f"❌ Error purging all guild data for {guild_id}: {e}")
         raise
     
     def do_HEAD(self):
@@ -3349,15 +3363,23 @@ def add_employee_role(guild_id: int, role_id: int):
     """Add a role that can use timeclock functions."""
     with db() as conn:
         # Convert IDs to strings for database storage (Discord snowflakes)
-        conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (?, ?)", 
+        cursor = conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (?, ?)", 
                      (str(guild_id), str(role_id)))
+        if cursor.rowcount > 0:
+            print(f"✅ Added employee role {role_id} to guild {guild_id}")
+        else:
+            print(f"ℹ️ Employee role {role_id} already exists for guild {guild_id}")
 
 def remove_employee_role(guild_id: int, role_id: int):
     """Remove a role from timeclock functions access."""
     with db() as conn:
         # Convert IDs to strings for database storage (Discord snowflakes)
-        conn.execute("DELETE FROM employee_roles WHERE guild_id=? AND role_id=?", 
+        cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id=? AND role_id=?", 
                      (str(guild_id), str(role_id)))
+        if cursor.rowcount > 0:
+            print(f"✅ Removed employee role {role_id} from guild {guild_id}")
+        else:
+            print(f"⚠️ Employee role {role_id} not found for guild {guild_id}")
 
 def get_employee_roles(guild_id: int):
     """Get all clock role IDs for a guild. Returns integers for Discord.py compatibility."""
@@ -6687,6 +6709,7 @@ async def handle_remove_admin_role(request: web.Request):
 async def handle_add_employee_role(request: web.Request):
     """HTTP endpoint: Add employee role"""
     if not verify_api_request(request):
+        print(f"⚠️ Unauthorized employee role add attempt")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
     
     try:
@@ -6694,8 +6717,12 @@ async def handle_add_employee_role(request: web.Request):
         guild_id = int(request.match_info['guild_id'])
         role_id = int(data.get('role_id'))
         
+        print(f"📥 API: Adding employee role {role_id} to guild {guild_id}")
+        
         # Use existing bot function
         add_employee_role(guild_id, role_id)
+        
+        print(f"✅ API: Successfully added employee role {role_id} to guild {guild_id}")
         
         return web.json_response({
             'success': True,
@@ -6703,12 +6730,13 @@ async def handle_add_employee_role(request: web.Request):
             'role_id': str(role_id)
         })
     except Exception as e:
-        print(f"❌ Error adding employee role via API: {e}")
+        print(f"❌ Error adding employee role via API (guild {request.match_info.get('guild_id')}): {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def handle_remove_employee_role(request: web.Request):
     """HTTP endpoint: Remove employee role"""
     if not verify_api_request(request):
+        print(f"⚠️ Unauthorized employee role remove attempt")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
     
     try:
@@ -6716,8 +6744,12 @@ async def handle_remove_employee_role(request: web.Request):
         guild_id = int(request.match_info['guild_id'])
         role_id = int(data.get('role_id'))
         
+        print(f"📥 API: Removing employee role {role_id} from guild {guild_id}")
+        
         # Use existing bot function
         remove_employee_role(guild_id, role_id)
+        
+        print(f"✅ API: Successfully removed employee role {role_id} from guild {guild_id}")
         
         return web.json_response({
             'success': True,
@@ -6725,7 +6757,7 @@ async def handle_remove_employee_role(request: web.Request):
             'role_id': str(role_id)
         })
     except Exception as e:
-        print(f"❌ Error removing employee role via API: {e}")
+        print(f"❌ Error removing employee role via API (guild {request.match_info.get('guild_id')}): {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def start_bot_api_server():
