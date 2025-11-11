@@ -851,6 +851,7 @@ def get_guild_settings(guild_id):
             (guild_id,)
         )
         employee_roles = [str(row[0]) for row in employee_cursor.fetchall()]
+        app.logger.info(f"📋 Fetched {len(employee_roles)} employee roles for guild {guild_id}: {employee_roles}")
         
         # Get guild settings (timezone, recipient_user_id, work_day_end_time, etc.)
         settings_cursor = conn.execute(
