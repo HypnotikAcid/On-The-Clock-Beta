@@ -938,7 +938,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             with db() as conn:
                 cursor = conn.execute("""
                     SELECT guild_id FROM server_subscriptions 
-                    WHERE subscription_id = ? OR customer_id = ?
+                    WHERE subscription_id = %s OR customer_id = %s
                 """, (subscription_id, customer_id))
                 result = cursor.fetchone()
                 
@@ -955,7 +955,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     conn.execute("""
                         UPDATE server_subscriptions 
                         SET status = 'canceled', subscription_id = NULL
-                        WHERE guild_id = ?
+                        WHERE guild_id = %s
                     """, (guild_id,))
                     
                     # Trigger immediate data deletion for that guild
@@ -1015,7 +1015,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             with db() as conn:
                 cursor = conn.execute("""
                     SELECT guild_id FROM server_subscriptions 
-                    WHERE subscription_id = ? OR customer_id = ?
+                    WHERE subscription_id = %s OR customer_id = %s
                 """, (subscription_id, customer_id))
                 result = cursor.fetchone()
                 
@@ -1025,8 +1025,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     # Update subscription status in database
                     conn.execute("""
                         UPDATE server_subscriptions 
-                        SET status = ?
-                        WHERE guild_id = ?
+                        SET status = %s
+                        WHERE guild_id = %s
                     """, (status, guild_id))
                     
                     # Handle retention tier based on subscription status
@@ -1048,8 +1048,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         expires_at = datetime.fromtimestamp(current_period_end, tz=timezone.utc)
                         conn.execute("""
                             UPDATE server_subscriptions 
-                            SET expires_at = ?
-                            WHERE guild_id = ?
+                            SET expires_at = %s
+                            WHERE guild_id = %s
                         """, (expires_at.isoformat(), guild_id))
                         print(f"📅 Subscription expires_at updated for Guild {guild_id}: {expires_at.isoformat()}")
                         
@@ -1082,7 +1082,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             with db() as conn:
                 cursor = conn.execute("""
                     SELECT guild_id FROM server_subscriptions 
-                    WHERE subscription_id = ? OR customer_id = ?
+                    WHERE subscription_id = %s OR customer_id = %s
                 """, (subscription_id, customer_id))
                 result = cursor.fetchone()
                 
@@ -1095,7 +1095,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     conn.execute("""
                         UPDATE server_subscriptions 
                         SET status = 'past_due'
-                        WHERE guild_id = ?
+                        WHERE guild_id = %s
                     """, (guild_id,))
                     
                     print(f"✅ WEBHOOK SUCCESS: Payment failure processed for server {guild_id}")
@@ -1244,23 +1244,23 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             with db() as conn:
                 # Set timeout for database operations
                                 # Delete all sessions data
-                sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
+                sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = %s", (guild_id,))
                 sessions_deleted = sessions_cursor.rowcount
                 
                 # Delete guild settings
-                settings_cursor = conn.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))
+                settings_cursor = conn.execute("DELETE FROM guild_settings WHERE guild_id = %s", (guild_id,))
                 settings_deleted = settings_cursor.rowcount
                 
                 # Delete authorized roles
-                auth_roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
+                auth_roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = %s", (guild_id,))
                 auth_roles_deleted = auth_roles_cursor.rowcount
                 
                 # Delete admin roles
-                admin_roles_cursor = conn.execute("DELETE FROM admin_roles WHERE guild_id = ?", (guild_id,))
+                admin_roles_cursor = conn.execute("DELETE FROM admin_roles WHERE guild_id = %s", (guild_id,))
                 admin_roles_deleted = admin_roles_cursor.rowcount
                 
                 # Delete clock roles
-                employee_roles_cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id = ?", (guild_id,))
+                employee_roles_cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id = %s", (guild_id,))
                 employee_roles_deleted = employee_roles_cursor.rowcount
                 
                 # Reset subscription to free tier (don't delete subscription record)
@@ -1268,7 +1268,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     UPDATE server_subscriptions 
                     SET tier = 'free', subscription_id = NULL, customer_id = NULL, 
                         expires_at = NULL, status = 'cancelled'
-                    WHERE guild_id = ?
+                    WHERE guild_id = %s
                 """, (guild_id,))
                 
                 print(f"🗑️ Data purged for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {employee_roles_deleted} clock roles")
@@ -2361,7 +2361,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             with db() as conn:
                 cursor = conn.execute("""
                     SELECT COUNT(*) FROM sessions 
-                    WHERE guild_id = ? AND clock_out IS NULL
+                    WHERE guild_id = %s AND clock_out IS NULL
                 """, (guild_id,))
                 clocked_in_count = cursor.fetchone()[0]
                 
@@ -2371,11 +2371,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             
             with db() as conn:
                 # Get admin roles
-                cursor = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id = ?", (guild_id,))
+                cursor = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id = %s", (guild_id,))
                 admin_role_ids = [row[0] for row in cursor.fetchall()]
                 
                 # Get employee roles  
-                cursor = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id = ?", (guild_id,))
+                cursor = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id = %s", (guild_id,))
                 employee_role_ids = [row[0] for row in cursor.fetchall()]
                 
             # Get role names from Discord
@@ -2436,23 +2436,23 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
         with db() as conn:
             # Set timeout for database operations
                         # Delete all sessions data
-            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
+            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = %s", (guild_id,))
             sessions_deleted = sessions_cursor.rowcount
             
             # Delete guild settings
-            settings_cursor = conn.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))
+            settings_cursor = conn.execute("DELETE FROM guild_settings WHERE guild_id = %s", (guild_id,))
             settings_deleted = settings_cursor.rowcount
             
             # Delete authorized roles
-            auth_roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = ?", (guild_id,))
+            auth_roles_cursor = conn.execute("DELETE FROM authorized_roles WHERE guild_id = %s", (guild_id,))
             auth_roles_deleted = auth_roles_cursor.rowcount
             
             # Delete admin roles
-            admin_roles_cursor = conn.execute("DELETE FROM admin_roles WHERE guild_id = ?", (guild_id,))
+            admin_roles_cursor = conn.execute("DELETE FROM admin_roles WHERE guild_id = %s", (guild_id,))
             admin_roles_deleted = admin_roles_cursor.rowcount
             
             # Delete clock roles
-            employee_roles_cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id = ?", (guild_id,))
+            employee_roles_cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id = %s", (guild_id,))
             employee_roles_deleted = employee_roles_cursor.rowcount
             
             # Reset subscription to free tier (don't delete subscription record)
@@ -2460,7 +2460,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
                 UPDATE server_subscriptions 
                 SET tier = 'free', subscription_id = NULL, customer_id = NULL, 
                     expires_at = NULL, status = 'cancelled'
-                WHERE guild_id = ?
+                WHERE guild_id = %s
             """, (guild_id,))
             
             print(f"⚠️ COMPLETE DATA WIPE for Guild {guild_id}: {sessions_deleted} sessions, {settings_deleted} settings, {auth_roles_deleted} auth roles, {admin_roles_deleted} admin roles, {employee_roles_deleted} clock roles")
@@ -2489,7 +2489,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
             with db() as conn:
                 cursor = conn.execute("""
                     SELECT guild_id FROM server_subscriptions 
-                    WHERE subscription_id = ? OR customer_id = ?
+                    WHERE subscription_id = %s OR customer_id = %s
                 """, (subscription['id'], subscription['customer']))
                 result = cursor.fetchone()
                 
@@ -2501,8 +2501,8 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
                     # Update subscription status
                     conn.execute("""
                         UPDATE server_subscriptions 
-                        SET status = %s, expires_at = ?
-                        WHERE guild_id = ?
+                        SET status = %s, expires_at = %s
+                        WHERE guild_id = %s
                     """, (status, datetime.fromtimestamp(current_period_end, timezone.utc).isoformat(), guild_id))
                     
                     print(f"🔄 Subscription updated: Guild {guild_id} -> {status}")
@@ -2518,7 +2518,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
             with db() as conn:
                 cursor = conn.execute("""
                     SELECT guild_id FROM server_subscriptions 
-                    WHERE customer_id = ?
+                    WHERE customer_id = %s
                 """, (customer_id,))
                 result = cursor.fetchone()
                 
@@ -2529,7 +2529,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
                     conn.execute("""
                         UPDATE server_subscriptions 
                         SET status = 'past_due'
-                        WHERE guild_id = ?
+                        WHERE guild_id = %s
                     """, (guild_id,))
                     
                     print(f"⚠️ Payment failed: Guild {guild_id} marked as past_due")
@@ -2768,7 +2768,7 @@ def get_server_tier(guild_id: int) -> str:
     """Get subscription tier for a server (free/basic/pro)"""
     with db() as conn:
         cursor = conn.execute(
-            "SELECT tier, status FROM server_subscriptions WHERE guild_id = ?",
+            "SELECT tier, status FROM server_subscriptions WHERE guild_id = %s",
             (guild_id,)
         )
         result = cursor.fetchone()
@@ -2788,23 +2788,30 @@ def set_server_tier(guild_id: int, tier: str, subscription_id: Optional[str] = N
         if subscription_id and customer_id:
             # Full subscription with customer info
             conn.execute("""
-                INSERT OR REPLACE INTO server_subscriptions 
+                INSERT INTO server_subscriptions 
                 (guild_id, tier, subscription_id, expires_at, status, customer_id) 
                 VALUES (%s, %s, %s, NULL, 'active', %s)
+                ON CONFLICT (guild_id) DO UPDATE 
+                SET tier = EXCLUDED.tier, subscription_id = EXCLUDED.subscription_id, 
+                    status = EXCLUDED.status, customer_id = EXCLUDED.customer_id
             """, (guild_id, tier, subscription_id, customer_id))
         elif subscription_id:
             # Subscription without customer (legacy)
             conn.execute("""
-                INSERT OR REPLACE INTO server_subscriptions 
+                INSERT INTO server_subscriptions 
                 (guild_id, tier, subscription_id, expires_at, status) 
                 VALUES (%s, %s, %s, NULL, 'active')
+                ON CONFLICT (guild_id) DO UPDATE 
+                SET tier = EXCLUDED.tier, subscription_id = EXCLUDED.subscription_id, status = EXCLUDED.status
             """, (guild_id, tier, subscription_id))
         else:
             # Free tier or manual assignment
             conn.execute("""
-                INSERT OR REPLACE INTO server_subscriptions 
+                INSERT INTO server_subscriptions 
                 (guild_id, tier, expires_at, status) 
                 VALUES (%s, %s, NULL, 'active')
+                ON CONFLICT (guild_id) DO UPDATE 
+                SET tier = EXCLUDED.tier, status = EXCLUDED.status
             """, (guild_id, tier))
 
 def is_user_banned(guild_id: int, user_id: int) -> bool:
@@ -2812,7 +2819,7 @@ def is_user_banned(guild_id: int, user_id: int) -> bool:
     with db() as conn:
         cursor = conn.execute(
             """SELECT ban_expires_at FROM banned_users 
-               WHERE guild_id = ? AND user_id = ?""",
+               WHERE guild_id = %s AND user_id = %s""",
             (guild_id, user_id)
         )
         result = cursor.fetchone()
@@ -2830,7 +2837,7 @@ def is_user_banned(guild_id: int, user_id: int) -> bool:
         if datetime.now(timezone.utc) > expiry:
             # Ban expired, remove it
             conn.execute(
-                "DELETE FROM banned_users WHERE guild_id = ? AND user_id = ?",
+                "DELETE FROM banned_users WHERE guild_id = %s AND user_id = %s",
                 (guild_id, user_id)
             )
             return False
@@ -2841,7 +2848,7 @@ def get_user_warning_count(guild_id: int, user_id: int) -> int:
     """Get the number of warnings a user has received"""
     with db() as conn:
         cursor = conn.execute(
-            "SELECT warning_count FROM banned_users WHERE guild_id = ? AND user_id = ?",
+            "SELECT warning_count FROM banned_users WHERE guild_id = %s AND user_id = %s",
             (guild_id, user_id)
         )
         result = cursor.fetchone()
@@ -2866,13 +2873,23 @@ def ban_user_24h(guild_id: int, user_id: int, reason: str = "rate_limit_exceeded
     ban_expires = datetime.now(timezone.utc) + timedelta(hours=24)
     
     with db() as conn:
+        # Get current warning count for this user
+        cursor = conn.execute(
+            "SELECT warning_count FROM banned_users WHERE guild_id = %s AND user_id = %s",
+            (guild_id, user_id)
+        )
+        result = cursor.fetchone()
+        current_warnings = result[0] if result else 0
+        
+        # Insert or update ban record
         conn.execute(
-            """INSERT OR REPLACE INTO banned_users 
+            """INSERT INTO banned_users 
                (guild_id, user_id, banned_at, ban_expires_at, warning_count, reason) 
-               VALUES (%s, %s, datetime('now'), %s, 
-                      COALESCE((SELECT warning_count FROM banned_users WHERE guild_id = ? AND user_id = %s), 0),
-                      %s)""",
-            (guild_id, user_id, ban_expires.isoformat(), guild_id, user_id, reason)
+               VALUES (%s, %s, NOW(), %s, %s, %s)
+               ON CONFLICT (guild_id, user_id) DO UPDATE 
+               SET banned_at = NOW(), ban_expires_at = EXCLUDED.ban_expires_at, 
+                   warning_count = EXCLUDED.warning_count, reason = EXCLUDED.reason""",
+            (guild_id, user_id, ban_expires.isoformat(), current_warnings, reason)
         )
         
         # Log to server ban tracking
@@ -2892,7 +2909,7 @@ def check_server_abuse(guild_id: int) -> bool:
     with db() as conn:
         cursor = conn.execute(
             """SELECT COUNT(*) FROM server_ban_log 
-               WHERE guild_id = ? AND banned_at >= ?""",
+               WHERE guild_id = %s AND banned_at >= %s""",
             (guild_id, one_hour_ago)
         )
         ban_count = cursor.fetchone()[0]
@@ -3043,7 +3060,7 @@ def check_bot_access(guild_id: int) -> bool:
     """
     with db() as conn:
         cursor = conn.execute(
-            "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = ?",
+            "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = %s",
             (guild_id,)
         )
         result = cursor.fetchone()
@@ -3062,7 +3079,7 @@ def get_retention_tier(guild_id: int) -> str:
     
     with db() as conn:
         cursor = conn.execute(
-            "SELECT retention_tier FROM server_subscriptions WHERE guild_id = ?",
+            "SELECT retention_tier FROM server_subscriptions WHERE guild_id = %s",
             (guild_id,)
         )
         result = cursor.fetchone()
@@ -3085,7 +3102,7 @@ def is_mobile_restricted(guild_id: int) -> bool:
     """
     with db() as conn:
         cursor = conn.execute(
-            "SELECT restrict_mobile_clockin FROM server_subscriptions WHERE guild_id = ?",
+            "SELECT restrict_mobile_clockin FROM server_subscriptions WHERE guild_id = %s",
             (guild_id,)
         )
         result = cursor.fetchone()
@@ -3180,7 +3197,7 @@ def set_bot_access(guild_id: int, paid: bool):
         conn.execute("""
             INSERT INTO server_subscriptions (guild_id, bot_access_paid)
             VALUES (%s, %s)
-            ON CONFLICT(guild_id) DO UPDATE SET bot_access_paid = ?
+            ON CONFLICT(guild_id) DO UPDATE SET bot_access_paid = %s
         """, (guild_id, int(paid), int(paid)))
 
 def set_retention_tier(guild_id: int, tier: str):
@@ -3197,7 +3214,7 @@ def set_retention_tier(guild_id: int, tier: str):
         conn.execute("""
             INSERT INTO server_subscriptions (guild_id, retention_tier)
             VALUES (%s, %s)
-            ON CONFLICT(guild_id) DO UPDATE SET retention_tier = ?
+            ON CONFLICT(guild_id) DO UPDATE SET retention_tier = %s
         """, (guild_id, tier, tier))
 
 def check_tier_access(guild_id: int, required_tier: str) -> bool:
@@ -3241,7 +3258,7 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
                     
                     cursor = conn.execute("""
                         DELETE FROM sessions 
-                        WHERE guild_id = ? AND clock_out IS NOT NULL AND clock_out < ?
+                        WHERE guild_id = %s AND clock_out IS NOT NULL AND clock_out < %s
                     """, (guild_id, cutoff_date.isoformat()))
                     deleted_count = cursor.rowcount
                 else:
@@ -3257,13 +3274,14 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
                         
                         cursor = conn.execute("""
                             DELETE FROM sessions 
-                            WHERE guild_id = ? AND clock_out IS NOT NULL AND clock_out < ?
+                            WHERE guild_id = %s AND clock_out IS NOT NULL AND clock_out < %s
                         """, (guild_id, cutoff_date.isoformat()))
                         deleted_count += cursor.rowcount
                 
                 # Optimize database after cleanup (only if we deleted something)
                 if deleted_count > 0:
-                                        # Skip VACUUM in background cleanup to avoid long locks
+                    # Skip VACUUM in background cleanup to avoid long locks
+                    pass
                     
             # Success - exit retry loop
             break
@@ -3286,17 +3304,19 @@ def cleanup_user_sessions(guild_id: int, user_id: int) -> int:
     for attempt in range(max_retries):
         try:
             with db() as conn:
-                # Set timeout for database operations
-                                # Delete all sessions for the specific user in this guild
+                # Delete all sessions for the specific user in this guild
                 cursor = conn.execute("""
                     DELETE FROM sessions 
-                    WHERE guild_id = ? AND user_id = ?
+                    WHERE guild_id = %s AND user_id = %s
                 """, (guild_id, user_id))
                 deleted_count = cursor.rowcount
                 
                 # Optimize database after cleanup (only if we deleted something)
                 if deleted_count > 0:
-                                # Success - exit retry loop
+                    # Skip VACUUM for PostgreSQL to avoid long locks
+                    pass
+                    
+            # Success - exit retry loop
             break
             
         except psycopg2.OperationalError as e:
@@ -3312,10 +3332,10 @@ def cleanup_user_sessions(guild_id: int, user_id: int) -> int:
 def get_guild_setting(guild_id: int, key: str, default=None):
     # Map of allowed keys to their SQL column queries
     column_queries = {
-        'recipient_user_id': "SELECT recipient_user_id FROM guild_settings WHERE guild_id=?",
-        'timezone': "SELECT timezone FROM guild_settings WHERE guild_id=?",
-        'name_display_mode': "SELECT name_display_mode FROM guild_settings WHERE guild_id=?",
-        'main_admin_role_id': "SELECT main_admin_role_id FROM guild_settings WHERE guild_id=?"
+        'recipient_user_id': "SELECT recipient_user_id FROM guild_settings WHERE guild_id=%s",
+        'timezone': "SELECT timezone FROM guild_settings WHERE guild_id=%s",
+        'name_display_mode': "SELECT name_display_mode FROM guild_settings WHERE guild_id=%s",
+        'main_admin_role_id': "SELECT main_admin_role_id FROM guild_settings WHERE guild_id=%s"
     }
     
     if key not in column_queries:
@@ -3356,12 +3376,12 @@ def remove_report_recipient(guild_id: int, recipient_type: str, recipient_id: Op
         if recipient_type == 'discord':
             conn.execute("""
                 DELETE FROM report_recipients 
-                WHERE guild_id = ? AND recipient_type = ? AND recipient_id = ?
+                WHERE guild_id = %s AND recipient_type = %s AND recipient_id = %s
             """, (guild_id, recipient_type, recipient_id))
         else:  # email
             conn.execute("""
                 DELETE FROM report_recipients 
-                WHERE guild_id = ? AND recipient_type = ? AND email_address = ?
+                WHERE guild_id = %s AND recipient_type = %s AND email_address = %s
             """, (guild_id, recipient_type, email_address))
 
 def get_report_recipients(guild_id: int, recipient_type: Optional[str] = None):
@@ -3371,14 +3391,14 @@ def get_report_recipients(guild_id: int, recipient_type: Optional[str] = None):
             cursor = conn.execute("""
                 SELECT id, recipient_type, recipient_id, email_address, created_at
                 FROM report_recipients 
-                WHERE guild_id = ? AND recipient_type = ?
+                WHERE guild_id = %s AND recipient_type = %s
                 ORDER BY created_at ASC
             """, (guild_id, recipient_type))
         else:
             cursor = conn.execute("""
                 SELECT id, recipient_type, recipient_id, email_address, created_at
                 FROM report_recipients 
-                WHERE guild_id = ?
+                WHERE guild_id = %s
                 ORDER BY recipient_type, created_at ASC
             """, (guild_id,))
         
@@ -3389,7 +3409,7 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
     # Check if auto-send on clock-out is enabled
     with db() as conn:
         cursor = conn.execute(
-            "SELECT auto_send_on_clockout FROM email_settings WHERE guild_id = ?",
+            "SELECT auto_send_on_clockout FROM email_settings WHERE guild_id = %s",
             (guild_id,)
         )
         settings_row = cursor.fetchone()
@@ -3494,10 +3514,10 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
 def set_guild_setting(guild_id: int, key: str, value):
     # Map of allowed keys to their SQL update queries
     update_queries = {
-        'recipient_user_id': "UPDATE guild_settings SET recipient_user_id=? WHERE guild_id=?",
-        'timezone': "UPDATE guild_settings SET timezone=? WHERE guild_id=?",
-        'name_display_mode': "UPDATE guild_settings SET name_display_mode=? WHERE guild_id=?",
-        'main_admin_role_id': "UPDATE guild_settings SET main_admin_role_id=? WHERE guild_id=?"
+        'recipient_user_id': "UPDATE guild_settings SET recipient_user_id=%s WHERE guild_id=%s",
+        'timezone': "UPDATE guild_settings SET timezone=%s WHERE guild_id=%s",
+        'name_display_mode': "UPDATE guild_settings SET name_display_mode=%s WHERE guild_id=%s",
+        'main_admin_role_id': "UPDATE guild_settings SET main_admin_role_id=%s WHERE guild_id=%s"
     }
     
     if key not in update_queries:
@@ -3520,7 +3540,7 @@ def get_active_session(guild_id: int, user_id: int):
     with db() as conn:
         cur = conn.execute("""
             SELECT id, clock_in FROM sessions
-            WHERE guild_id=? AND user_id=? AND clock_out IS NULL
+            WHERE guild_id=%s AND user_id=%s AND clock_out IS NULL
             ORDER BY id DESC LIMIT 1
         """, (guild_id, user_id))
         return cur.fetchone()
@@ -3535,7 +3555,7 @@ def start_session(guild_id: int, user_id: int, clock_in_iso: str):
 def close_session(session_id: int, clock_out_iso: str, duration_s: int):
     with db() as conn:
         conn.execute("""
-            UPDATE sessions SET clock_out=%s, duration_seconds=? WHERE id=?
+            UPDATE sessions SET clock_out=%s, duration_seconds=%s WHERE id=%s
         """, (clock_out_iso, duration_s, session_id))
 
 def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, end_utc: str):
@@ -3546,10 +3566,10 @@ def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, e
             cur = conn.execute("""
                 SELECT user_id, clock_in, clock_out, duration_seconds
                 FROM sessions
-                WHERE guild_id=? AND user_id=? 
+                WHERE guild_id=%s AND user_id=%s 
                 AND clock_out IS NOT NULL
-                AND clock_in < ?
-                AND clock_out >= ?
+                AND clock_in < %s
+                AND clock_out >= %s
                 ORDER BY clock_in
             """, (guild_id, user_id, end_utc, start_utc))
         else:
@@ -3557,10 +3577,10 @@ def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, e
             cur = conn.execute("""
                 SELECT user_id, clock_in, clock_out, duration_seconds
                 FROM sessions
-                WHERE guild_id=? 
+                WHERE guild_id=%s 
                 AND clock_out IS NOT NULL
-                AND clock_in < ?
-                AND clock_out >= ?
+                AND clock_in < %s
+                AND clock_out >= %s
                 ORDER BY user_id, clock_in
             """, (guild_id, end_utc, start_utc))
         return cur.fetchall()
@@ -3578,13 +3598,13 @@ def remove_admin_role(guild_id: int, role_id: int):
     """Remove a role from admin Reports/Upgrade button access."""
     with db() as conn:
         # Convert IDs to strings for database storage (Discord snowflakes)
-        conn.execute("DELETE FROM admin_roles WHERE guild_id=? AND role_id=?", 
+        conn.execute("DELETE FROM admin_roles WHERE guild_id=%s AND role_id=%s", 
                      (str(guild_id), str(role_id)))
 
 def get_admin_roles(guild_id: int):
     """Get all admin role IDs for a guild. Returns integers for Discord.py compatibility."""
     with db() as conn:
-        cur = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id=?", (str(guild_id),))
+        cur = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id=%s", (str(guild_id),))
         # Convert back to int for Discord.py (role.id is an int)
         return [int(row[0]) for row in cur.fetchall()]
 
@@ -3625,7 +3645,7 @@ def remove_employee_role(guild_id: int, role_id: int):
     """Remove a role from timeclock functions access."""
     with db() as conn:
         # Convert IDs to strings for database storage (Discord snowflakes)
-        cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id=? AND role_id=?", 
+        cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id=%s AND role_id=%s", 
                      (str(guild_id), str(role_id)))
         if cursor.rowcount > 0:
             print(f"✅ Removed employee role {role_id} from guild {guild_id}")
@@ -3635,7 +3655,7 @@ def remove_employee_role(guild_id: int, role_id: int):
 def get_employee_roles(guild_id: int):
     """Get all clock role IDs for a guild. Returns integers for Discord.py compatibility."""
     with db() as conn:
-        cur = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id=?", (str(guild_id),))
+        cur = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id=%s", (str(guild_id),))
         # Convert back to int for Discord.py (role.id is an int)
         return [int(row[0]) for row in cur.fetchall()]
 
@@ -3694,8 +3714,8 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
         # Daily hours (sessions that overlap with today)
         daily_cur = conn.execute("""
             SELECT clock_in, clock_out FROM sessions
-            WHERE guild_id=? AND user_id=? AND clock_out IS NOT NULL
-            AND clock_in < ? AND clock_out >= ?
+            WHERE guild_id=%s AND user_id=%s AND clock_out IS NOT NULL
+            AND clock_in < %s AND clock_out >= %s
         """, (guild_id, user_id, now_utc, today_start_utc))
         daily_sessions = daily_cur.fetchall()
         
@@ -3715,8 +3735,8 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
         # Weekly hours (sessions that overlap with this week)
         weekly_cur = conn.execute("""
             SELECT clock_in, clock_out FROM sessions
-            WHERE guild_id=? AND user_id=? AND clock_out IS NOT NULL
-            AND clock_in < ? AND clock_out >= ?
+            WHERE guild_id=%s AND user_id=%s AND clock_out IS NOT NULL
+            AND clock_in < %s AND clock_out >= %s
         """, (guild_id, user_id, now_utc, week_start_utc))
         weekly_sessions = weekly_cur.fetchall()
         
@@ -3881,7 +3901,7 @@ def purge_timeclock_data_only(guild_id: int):
         with db() as conn:
             # Set timeout for database operations
                         # Delete all sessions data only
-            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
+            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = %s", (guild_id,))
             sessions_deleted = sessions_cursor.rowcount
             
             print(f"🗑️ Timeclock data purged for Guild {guild_id}: {sessions_deleted} sessions deleted (subscription preserved)")
@@ -4086,7 +4106,7 @@ class TimeClockView(discord.ui.View):
                 cursor = conn.execute("""
                     SELECT user_id, clock_in 
                     FROM sessions 
-                    WHERE guild_id = ? AND clock_out IS NULL
+                    WHERE guild_id = %s AND clock_out IS NULL
                     ORDER BY clock_in ASC
                 """, (guild_id,))
                 active_sessions = cursor.fetchall()
@@ -4164,8 +4184,8 @@ class TimeClockView(discord.ui.View):
                         cursor = conn.execute("""
                             SELECT clock_in, clock_out 
                             FROM sessions 
-                            WHERE guild_id = ? AND user_id = ? 
-                            AND clock_in >= ? AND clock_in <= ?
+                            WHERE guild_id = %s AND user_id = %s 
+                            AND clock_in >= %s AND clock_in <= %s
                         """, (guild_id, user_id, day_start_utc, day_end_utc))
                         day_sessions = cursor.fetchall()
                     
@@ -5032,8 +5052,10 @@ async def on_ready():
         with db() as conn:
             for guild in bot.guilds:
                 conn.execute("""
-                    INSERT OR REPLACE INTO bot_guilds (guild_id, guild_name, joined_at)
-                    VALUES (%s, %s, datetime('now'))
+                    INSERT INTO bot_guilds (guild_id, guild_name, joined_at)
+                    VALUES (%s, %s, NOW())
+                    ON CONFLICT (guild_id) DO UPDATE 
+                    SET guild_name = EXCLUDED.guild_name, joined_at = NOW()
                 """, (str(guild.id), guild.name))
         print(f"✅ Updated bot_guilds table with {len(bot.guilds)} guilds")
     except Exception as e:
@@ -5188,8 +5210,10 @@ async def on_guild_join(guild):
     try:
         with db() as conn:
             conn.execute("""
-                INSERT OR REPLACE INTO bot_guilds (guild_id, guild_name, joined_at)
-                VALUES (%s, %s, datetime('now'))
+                INSERT INTO bot_guilds (guild_id, guild_name, joined_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (guild_id) DO UPDATE 
+                SET guild_name = EXCLUDED.guild_name, joined_at = NOW()
             """, (str(guild.id), guild.name))
         print(f"✅ Added {guild.name} to bot_guilds table")
     except Exception as e:
@@ -5202,7 +5226,7 @@ async def on_guild_remove(guild):
     
     try:
         with db() as conn:
-            conn.execute("DELETE FROM bot_guilds WHERE guild_id = ?", (str(guild.id),))
+            conn.execute("DELETE FROM bot_guilds WHERE guild_id = %s", (str(guild.id),))
         print(f"✅ Removed {guild.name} from bot_guilds table")
     except Exception as e:
         print(f"❌ Error removing guild from bot_guilds table: {e}")
@@ -5373,7 +5397,7 @@ async def clock_interface(interaction: discord.Interaction):
         
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.execute(
-                "SELECT clock_in FROM sessions WHERE user_id = ? AND guild_id = ? AND clock_out IS NULL",
+                "SELECT clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
                 (user_id, guild_id)
             )
             active_session = cursor.fetchone()
@@ -5492,12 +5516,12 @@ async def mobile_restriction_cmd(interaction: discord.Interaction, enabled: app_
     
     with db() as conn:
         # Ensure a record exists
-        cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+        cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
         exists = cursor.fetchone()
         
         if exists:
             conn.execute(
-                "UPDATE server_subscriptions SET restrict_mobile_clockin = ? WHERE guild_id = ?",
+                "UPDATE server_subscriptions SET restrict_mobile_clockin = %s WHERE guild_id = %s",
                 (int(restrict), guild_id)
             )
         else:
@@ -6623,7 +6647,7 @@ async def subscription_status(interaction: discord.Interaction):
             cursor = conn.execute("""
                 SELECT tier, subscription_id, customer_id, expires_at, status
                 FROM server_subscriptions 
-                WHERE guild_id = ?
+                WHERE guild_id = %s
             """, (guild_id,))
             result = cursor.fetchone()
             
