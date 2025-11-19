@@ -7327,6 +7327,75 @@ async def handle_remove_employee_role(request: web.Request):
         print(f"❌ Error removing employee role via API (guild {request.match_info.get('guild_id')}): {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+async def handle_check_user_admin(request: web.Request):
+    """HTTP endpoint: Check if user has admin permissions in a guild (real-time check)"""
+    if not verify_api_request(request):
+        print(f"⚠️ Unauthorized admin check attempt")
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        guild_id = int(request.match_info['guild_id'])
+        user_id = int(request.match_info['user_id'])
+        
+        # Get the guild from bot's cache
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            return web.json_response({
+                'success': True,
+                'is_member': False,
+                'is_admin': False,
+                'reason': 'guild_not_found'
+            })
+        
+        # Get the member from guild
+        member = guild.get_member(user_id)
+        if not member:
+            return web.json_response({
+                'success': True,
+                'is_member': False,
+                'is_admin': False,
+                'reason': 'not_member'
+            })
+        
+        # Check if user is owner
+        if guild.owner_id == user_id:
+            return web.json_response({
+                'success': True,
+                'is_member': True,
+                'is_admin': True,
+                'is_owner': True,
+                'reason': 'owner'
+            })
+        
+        # Check if user has administrator permission
+        if member.guild_permissions.administrator:
+            return web.json_response({
+                'success': True,
+                'is_member': True,
+                'is_admin': True,
+                'is_owner': False,
+                'reason': 'has_admin_permission'
+            })
+        
+        # Check if user has any admin roles from database
+        admin_roles = get_admin_roles(guild_id)
+        user_role_ids = {role.id for role in member.roles}
+        has_admin_role = any(role_id in user_role_ids for role_id in admin_roles)
+        
+        return web.json_response({
+            'success': True,
+            'is_member': True,
+            'is_admin': has_admin_role,
+            'is_owner': False,
+            'reason': 'has_admin_role' if has_admin_role else 'no_admin_access'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error checking user admin status (guild {request.match_info.get('guild_id')}, user {request.match_info.get('user_id')}): {e}")
+        import traceback
+        traceback.print_exc()
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
 async def start_bot_api_server():
     """Start aiohttp server for bot API endpoints"""
     app = web.Application()
@@ -7334,6 +7403,7 @@ async def start_bot_api_server():
     app.router.add_post('/api/guild/{guild_id}/admin-roles/remove', handle_remove_admin_role)
     app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
     app.router.add_post('/api/guild/{guild_id}/employee-roles/remove', handle_remove_employee_role)
+    app.router.add_get('/api/guild/{guild_id}/user/{user_id}/check-admin', handle_check_user_admin)
     
     runner = web.AppRunner(app)
     await runner.setup()

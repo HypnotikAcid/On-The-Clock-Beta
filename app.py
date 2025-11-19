@@ -373,6 +373,46 @@ def check_guild_paid_access(guild_id):
             'bot_access_paid': False
         }
 
+def check_user_admin_realtime(user_id, guild_id):
+    """
+    Check if user has admin permissions in guild via bot API (real-time check).
+    This replaces cached OAuth session data with live guild membership/permissions.
+    Returns dict with: {'is_member': bool, 'is_admin': bool, 'reason': str}
+    Performs fresh lookup via bot's Discord cache on every call (no caching).
+    """
+    try:
+        import requests
+        
+        bot_api_secret = os.getenv('BOT_API_SECRET')
+        if not bot_api_secret:
+            app.logger.error("BOT_API_SECRET not set - cannot verify admin status")
+            # Fail closed - deny access if we can't verify
+            return {'is_member': False, 'is_admin': False, 'reason': 'api_secret_missing'}
+        
+        # Call bot API to check admin status
+        url = f'http://localhost:8081/api/guild/{guild_id}/user/{user_id}/check-admin'
+        headers = {'Authorization': f'Bearer {bot_api_secret}'}
+        
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return {
+                    'is_member': data.get('is_member', False),
+                    'is_admin': data.get('is_admin', False),
+                    'reason': data.get('reason', 'unknown')
+                }
+        
+        app.logger.error(f"Bot API check failed for user {user_id} in guild {guild_id}: {response.status_code}")
+        # Fail closed - deny access if bot API fails
+        return {'is_member': False, 'is_admin': False, 'reason': 'bot_api_error'}
+        
+    except Exception as e:
+        app.logger.error(f"Error checking user admin status (user {user_id}, guild {guild_id}): {e}")
+        app.logger.error(traceback.format_exc())
+        # Fail closed - deny access on error
+        return {'is_member': False, 'is_admin': False, 'reason': 'check_error'}
+
 def require_paid_access(f):
     """
     Decorator to require both authentication AND paid bot access for dashboard routes.
@@ -414,15 +454,20 @@ def require_paid_access(f):
             # Check bot access status (fresh DB lookup every time)
             access_status = check_guild_paid_access(guild_id)
             
-            # Check if user is admin in this guild
-            user_guilds = user_session.get('guilds', [])
-            user_guild = next((g for g in user_guilds if str(g['id']) == str(guild_id)), None)
+            # Check if user is admin in this guild (real-time via bot API - ONLY source of truth)
+            admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
+            is_admin = admin_status.get('is_admin', False)
+            is_member = admin_status.get('is_member', False)
+            reason = admin_status.get('reason', 'unknown')
             
-            if not user_guild:
-                app.logger.warning(f"User {user_session.get('username')} not in guild {guild_id}")
-                return redirect('/dashboard?error=not_in_guild')
+            # Log the check for debugging
+            app.logger.info(f"Real-time admin check for user {user_session.get('username')} in guild {guild_id}: is_member={is_member}, is_admin={is_admin}, reason={reason}")
             
-            is_admin = user_has_admin_access(user_session['user_id'], guild_id, user_guild)
+            # Fail closed on bot API errors
+            if reason in ['api_secret_missing', 'bot_api_error', 'check_error']:
+                app.logger.error(f"Bot API check failed for user {user_session.get('username')} in guild {guild_id}, denying access (fail closed)")
+                session.clear()
+                return redirect('/auth/login?error=api_check_failed')
             
             # Validate access requirements
             if not access_status['bot_invited']:
@@ -433,8 +478,14 @@ def require_paid_access(f):
                 app.logger.info(f"Guild {guild_id} does not have paid access, redirecting to purchase page")
                 return redirect(f'/dashboard/purchase?guild_id={guild_id}')
             
+            # Check guild membership (real-time from bot)
+            if not is_member:
+                app.logger.warning(f"User {user_session.get('username')} not member of guild {guild_id} (reason: {reason})")
+                return redirect(f'/dashboard/no-access?guild_id={guild_id}')
+            
+            # Check admin permissions (real-time from bot)
             if not is_admin:
-                app.logger.warning(f"User {user_session.get('username')} not admin in guild {guild_id}")
+                app.logger.warning(f"User {user_session.get('username')} not admin in guild {guild_id} (reason: {reason})")
                 return redirect(f'/dashboard/no-access?guild_id={guild_id}')
             
             # All checks passed - allow access
@@ -473,14 +524,23 @@ def require_paid_api_access(f):
             # Check bot access status (fresh DB lookup every time)
             access_status = check_guild_paid_access(guild_id)
             
-            # Check if user is admin in this guild
-            user_guilds = user_session.get('guilds', [])
-            user_guild = next((g for g in user_guilds if str(g['id']) == str(guild_id)), None)
+            # Check if user is admin in this guild (real-time via bot API - ONLY source of truth)
+            admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
+            is_admin = admin_status.get('is_admin', False)
+            is_member = admin_status.get('is_member', False)
+            reason = admin_status.get('reason', 'unknown')
             
-            if not user_guild:
-                return jsonify({'success': False, 'error': 'Not in guild', 'code': 'NOT_IN_GUILD'}), 403
+            # Log the check for debugging
+            app.logger.info(f"Real-time admin check (API) for user {user_session.get('username')} in guild {guild_id}: is_member={is_member}, is_admin={is_admin}, reason={reason}")
             
-            is_admin = user_has_admin_access(user_session['user_id'], guild_id, user_guild)
+            # Fail closed on bot API errors
+            if reason in ['api_secret_missing', 'bot_api_error', 'check_error']:
+                app.logger.error(f"Bot API check failed for user {user_session.get('username')} in guild {guild_id}, denying access (fail closed)")
+                return jsonify({
+                    'success': False,
+                    'error': 'Access check failed',
+                    'code': 'API_CHECK_FAILED'
+                }), 500
             
             # Validate access requirements
             if not access_status['bot_invited']:
@@ -499,6 +559,16 @@ def require_paid_api_access(f):
                     'redirect': f'/dashboard/purchase?guild_id={guild_id}'
                 }), 403
             
+            # Check guild membership (real-time from bot)
+            if not is_member:
+                return jsonify({
+                    'success': False,
+                    'error': 'Not a member of this server',
+                    'code': 'NOT_MEMBER',
+                    'redirect': f'/dashboard/no-access?guild_id={guild_id}'
+                }), 403
+            
+            # Check admin permissions (real-time from bot)
             if not is_admin:
                 return jsonify({
                     'success': False,
