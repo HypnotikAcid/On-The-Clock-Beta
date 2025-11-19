@@ -1,6 +1,6 @@
 # Overview
 
-"On the Clock 1.5" is a professional Discord timeclock bot designed for businesses, offering subscription management, robust error handling, and enterprise-grade reliability. The project provides an easy-to-use time tracking solution for Discord communities, featuring a three-tier subscription model (Free/Basic/Pro), Stripe payment integration, role-based access control, and a simple, unauthenticated landing page.
+"On the Clock 1.5" is a professional Discord timeclock bot designed for businesses, offering subscription management, robust error handling, and enterprise-grade reliability. The project provides an easy-to-use time tracking solution for Discord communities, featuring a three-tier subscription model (Free/Basic/Pro), Stripe payment integration, role-based access control, and a simple, unauthenticated landing page. Its purpose is to streamline time tracking within Discord, providing a valuable tool for businesses.
 
 # User Preferences
 
@@ -12,33 +12,35 @@ Preferred communication style: Simple, everyday language.
 - **Technology**: Discord.py (version 2.3+)
 - **Language**: Python 3.x
 - **Architecture Pattern**: Event-driven bot architecture.
-- **Startup Process**: Gunicorn runs Flask app as main process, Discord bot runs in daemon thread. The bot module's `run_bot_with_api()` function starts both the Discord bot and internal HTTP API server (port 8081) concurrently.
+- **Startup Process**: Gunicorn runs Flask app, Discord bot runs in a daemon thread, starting both the Discord bot and an internal HTTP API server.
 
 ## Design Decisions
 - **Discord.py**: Chosen for its features, active development, and community support.
 - **Event-Driven Design**: Leverages async/await for concurrent event processing.
 - **Timezone Awareness**: Ensures correct time handling using `tzdata`.
-- **UI/UX**: Simple, static landing page; dashboard provides server-specific settings with a tile-based layout for role management, email settings, and timezone controls, protected by Discord OAuth and requiring admin access.
-- **Subscription Management**: Restructured monetization model with free tier (employee management, /clock access, 24-hour deletion), $5 one-time bot access payment per server, and optional data retention subscriptions ($5/month for 7-day, $10/month for 30-day retention). Dashboard displays subscription status banner with clear upgrade prompts.
+- **UI/UX**: Static landing page; dashboard provides server-specific settings with a tile-based layout, protected by Discord OAuth and requiring admin access.
+- **Subscription Management**: Three-tier model (Free, 7-day retention, 30-day retention) with a $5 one-time bot access payment per server. Dashboard displays subscription status and upgrade prompts.
 - **Concurrent Safety**: Utilizes guild-level locking, WAL mode for SQLite, and exclusive database migrations.
 - **Ephemeral Interface System**: Resolves interaction timeout issues by providing new interfaces via the `/clock` command.
 - **Custom Jinja2 Permission Filter**: Addresses Jinja2's lack of bitwise operator support for Discord permission checking.
 - **Secure Error Handling**: Generic user-facing messages, detailed server-side logging, and redaction of sensitive information.
 - **Database-Backed Sessions**: Ensures session persistence across restarts.
-- **Bot as Boss Architecture**: All role management changes flow through the bot's HTTP API, making the bot the single source of truth for both dashboard and Discord command operations, ensuring perfect synchronization and consistency.
-- **Email Automation**: APScheduler handles automated email tasks including auto-send on clock-out, scheduled work day end reports, and pre-deletion warnings. Scheduler runs in bot's event loop without circular imports.
-- **Webhook Monitoring & Owner Notifications**: Comprehensive webhook event logging system tracks all Stripe payment events (checkouts, subscriptions, cancellations, payment failures) with detailed step-by-step logging and automatic DM notifications to bot owner (Discord ID: 107103438139056128). All webhook outcomes including failures are logged to `webhook_events` database table for troubleshooting and audit trail.
-- **Owner Dashboard**: Web-based owner-only dashboard (`/owner` route) provides complete visibility into all servers, subscription statuses, active sessions, and recent webhook events. Features include: real-time stats (total servers, paid servers, retention tiers, past due count, active sessions), searchable server list with filters (All, Paid, Unpaid, Free Tier, 7-Day, 30-Day, Past Due), webhook event history (last 100 events) with search/filter by type and status. Access restricted to bot owner via Discord OAuth check.
+- **Bot as Boss Architecture**: All role management changes flow through the bot's HTTP API, making the bot the single source of truth.
+- **Email Automation**: APScheduler handles automated email tasks (clock-out, scheduled reports, pre-deletion warnings).
+- **Webhook Monitoring & Owner Notifications**: Comprehensive webhook event logging (Stripe payments, cancellations, failures) with automatic DM notifications to the bot owner.
+- **Owner Dashboard**: Web-based owner-only dashboard (`/owner` route) provides visibility into servers, subscriptions, active sessions, and webhook events, with manual subscription management capabilities.
+- **Mobile Device Restriction**: Server admins can restrict clock-in/out to desktop/web browser only via dashboard toggle or `/mobile` command.
+- **Persistent Button Architecture**: Uses `@discord.ui.button` decorators for persistent buttons with `timeout=None` and registration in `setup_hook()` for 100% button reliability across bot restarts.
 
 ## Security Configuration
 - **Code Analysis**: Semgrep rules for static analysis and secret management.
 - **Stripe Security**: Webhook signature verification and secure API key management.
 - **Data Privacy**: Automated data purging based on subscription tier and cancellation.
 - **Input Validation**: Robust validation for roles and timezones.
-- **Authorization Checks**: Bot presence and user admin access verified before operations.
-- **Rate Limiting & Spam Detection**: In-memory tracking with 30-second windows (max 3 button presses per user per 30 seconds). Users exceeding rate limits receive a warning on first offense, then a 24-hour ban on second offense. Banned users stored in database for persistence across restarts. All TimeClockView button callbacks protected (clock in/out, help, on the clock, dashboard, reports, upgrade). Error handling uses fail-closed approach for ban checks (security) and fail-open for rate limiting logic (availability) to prevent button interaction failures.
-- **Purge Command Security**: `/purge` command restricted to server OWNERS only (not just admins) via explicit `interaction.user.id == interaction.guild.owner_id` check. The safe purge function (`purge_timeclock_data_only()`) deletes only session data while preserving settings and roles. The dangerous purge function (`purge_all_guild_data_DANGEROUS()`) exists but is not exposed via any command - it would delete ALL settings, roles, and data if called.
-- **Employee Role Persistence**: Dashboard role changes flow through bot's HTTP API with comprehensive logging at both API and database layers to track all add/remove operations. Bot API requires `BOT_API_SECRET` for authentication, ensuring only authenticated dashboard requests can modify role configurations.
+- **Authorization Checks**: Bot presence and user admin access verified.
+- **Rate Limiting & Spam Detection**: In-memory tracking with 30-second windows and 24-hour bans for repeat offenders.
+- **Purge Command Security**: `/purge` command restricted to server OWNERS only; safe purge function deletes only session data.
+- **Employee Role Persistence**: Dashboard role changes through bot's HTTP API with `BOT_API_SECRET` authentication.
 
 # External Dependencies
 
@@ -47,8 +49,8 @@ Preferred communication style: Simple, everyday language.
 - **tzdata**: Provides timezone data for Python.
 - **aiosqlite**: Asynchronous SQLite database interface.
 - **aiohttp**: Used for the bot's internal HTTP API server.
-- **APScheduler**: Asynchronous job scheduler for automated email tasks.
-- **pytz**: Timezone library used by APScheduler for scheduling tasks.
+- **APScheduler**: Asynchronous job scheduler.
+- **pytz**: Timezone library used by APScheduler.
 
 ## Development Tools
 - **Semgrep**: Static analysis security scanner.
@@ -61,52 +63,4 @@ Preferred communication style: Simple, everyday language.
 - **Stripe**: Handles subscriptions and payments, processing `checkout.session.completed` and `customer.subscription.deleted` webhooks.
 
 ## Database
-- **SQLite**: Used for data storage with WAL mode enabled. `bot.py` and `app.py` connect to the same `timeclock.db` file defined by `TIMECLOCK_DB` environment variable.
-
-# Recent Updates (November 2025)
-
-## Webhook Monitoring & Owner Notification System
-- **Comprehensive Event Logging**: All Stripe webhook events are logged with detailed step-by-step information throughout checkout, subscription, and payment failure handlers. Each webhook creates a record in the `webhook_events` table (event_type, event_id, guild_id, status, timestamp, details JSON).
-- **Owner DM Notifications**: Bot owner receives Discord DM notifications for all webhook events (purchases, cancellations, payment failures, rejection scenarios) with complete customer details (Discord ID, username, email, server name, product purchased, error messages). Notifications run asynchronously to avoid blocking webhook responses.
-- **Retention Purchase Enforcement**: Retention subscription purchases are validated server-side to ensure bot access is paid first. Failed purchases are logged and owner-notified.
-
-## Owner Dashboard
-- **Route**: `/owner` - Accessible only to bot owner (Discord ID: 107103438139056128) via Discord OAuth authentication.
-- **Summary Statistics**: Total Servers, Paid Servers, 7-Day Retention, 30-Day Retention, Past Due, Active Sessions.
-- **Server Source of Truth**: Dashboard uses `bot_guilds` table as authoritative source (shows all servers where bot is currently present), LEFT JOINing `server_subscriptions` for billing data. This ensures dashboard always reflects actual bot presence with correct server names.
-- **Database Reconciliation**: Non-destructive reconciliation on dashboard load automatically inserts placeholder rows in `server_subscriptions` for new guilds where bot is present but no billing record exists. Never deletes paid subscription records, preserving billing continuity even if bot temporarily leaves a guild.
-- **Mobile-Responsive Card Layout**: Replaced table with expandable server cards for mobile-friendliness. Cards show server icon, name, and subscription badges by default. Tap to expand reveals Stripe customer/subscription IDs, active sessions count, manual grant/revoke buttons.
-- **Manual Subscription Management**: Owner can manually grant AND revoke bot access ($5 one-time) and retention tiers (7-day/$5, 30-day/$10) to any server via dashboard buttons. Grant buttons disable after granting; revoke buttons (red/danger style) disable when nothing to revoke. Revoke actions require confirmation dialog. All manual grants tracked in database with granted_by user ID and granted_at timestamp. API endpoints `/api/owner/grant-access` and `/api/owner/revoke-access` enforce owner-only access and auto-create missing subscription rows if needed. Revoking bot access also clears retention tier and sets status to 'cancelled'.
-- **Server Management**: View all servers where bot is present with subscription details, active session counts, Stripe customer/subscription IDs, and server names populated from `bot_guilds` table. Search by name or ID. Filter by: All, Paid, Unpaid, Free Tier, 7-Day, 30-Day, Past Due.
-- **Webhook Event History**: Last 100 webhook events (filtered to show only events for servers where bot is present) with server names, event types, statuses, timestamps, and detailed information (customer email, product type, session IDs, error messages). Search by any field. Filter by: All, Success, Failed, Checkout, Subscriptions, Payments.
-- **Database Schema**: Uses `bot_guilds` table (guild_id TEXT) as source of truth, joined with `server_subscriptions` table (guild_id INTEGER) using `CAST(bg.guild_id AS INTEGER)` to avoid Discord snowflake ID overflow in SQLite signed 64-bit INTEGER range. Added `manually_granted`, `granted_by`, and `granted_at` columns to track manual subscription grants.
-
-## Mobile Dashboard Navigation (November 2025)
-- **Fixed Mobile Sidebar**: Overlay positioned at `left: 280px` to not cover sidebar, allowing tap interactions with menu items without obstruction.
-- **Persistent Navigation**: Removed auto-close behavior when tapping navigation items - sidebar now stays open for easy navigation between settings pages. Closes only when tapping overlay or back button.
-
-## Transaction Commit Fix (November 19, 2025)
-- **Root Cause**: Multiple API endpoints used `with get_db() as conn:` context manager without calling `conn.commit()`, causing all INSERT and UPDATE operations to be rolled back when connections closed.
-- **Affected Endpoints**: Owner grant/revoke access, email settings save, work day time save, email recipient add/remove.
-- **Fix Applied**: Restructured all affected endpoints with explicit transaction handling:
-  - Removed `with get_db() as conn:` pattern
-  - Added `conn = get_db()` with try/except/finally blocks
-  - `conn.commit()` called before success responses (inside try block)
-  - `conn.rollback()` on all error paths and exceptions
-  - `conn.close()` in finally block for guaranteed cleanup
-  - Added logging: "✅ Transaction committed successfully for guild {guild_id}"
-- **Database Schema**: Added missing columns to `server_subscriptions` table: `manually_granted` (INTEGER), `granted_by` (TEXT), `granted_at` (TEXT) to track manual subscription grants by owner.
-
-## Server Owner Welcome Notifications (November 19, 2025)
-- **Auto-Send DM**: When bot access is granted (via Stripe purchase or manual grant), server owner receives fancy welcome DM with setup instructions, dashboard link, and retention upgrade info.
-- **Dual Triggers**: Notification sent for both Stripe purchases and manual grants via owner dashboard.
-- **Error Handling**: Gracefully handles if owner has DMs disabled with console logging.
-
-## Mobile Device Restriction Feature (November 19, 2025)
-- **Purpose**: Allow server admins to restrict clock-in/out to desktop/web browser only, blocking mobile and tablet devices.
-- **Dashboard Control**: Server Overview page has "Mobile Device Restrictions" tile with toggle and warning notice about Discord's device detection limitations (can't distinguish phones from tablets, multi-device users may bypass, invisible users undetectable).
-- **Discord Command**: `/mobile` command lets admins toggle restriction on/off with clear success messages and limitation warnings.
-- **Enforcement**: Both clock-in and clock-out button handlers check `member.is_on_mobile()` if restriction is enabled, showing ephemeral error message to mobile users.
-- **Database Schema**: Added `restrict_mobile_clockin` (INTEGER default 0) column to `server_subscriptions` table.
-- **API Endpoint**: `/api/server/<guild_id>/mobile-restriction` POST endpoint with proper transaction handling (commit/rollback/close pattern).
-- **Default Behavior**: Mobile/tablet access is allowed by default (restrict_mobile_clockin=0).
+- **SQLite**: Used for data storage with WAL mode enabled. `timeclock.db` is shared between bot and Flask app.
