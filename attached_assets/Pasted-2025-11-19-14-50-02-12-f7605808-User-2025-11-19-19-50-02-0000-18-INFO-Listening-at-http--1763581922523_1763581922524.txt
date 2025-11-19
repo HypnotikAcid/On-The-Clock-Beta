@@ -1,0 +1,89 @@
+2025-11-19 14:50:02.12
+f7605808
+User
+[2025-11-19 19:50:02 +0000] [18] [INFO] Listening at: http://0.0.0.0:5000 (18)
+
+2025-11-19 14:50:02.12
+f7605808
+User
+[2025-11-19 19:50:02 +0000] [18] [INFO] Using worker: sync
+2025-11-19 14:50:02.13
+f7605808
+User
+[2025-11-19 19:50:02 +0000] [22] [INFO] Booting worker with pid: 22
+2025-11-19 14:50:10.08
+f7605808
+User
+warnings.warn("Can not find any timezone configuration, defaulting to UTC.")
+2025-11-19 14:50:10.08
+f7605808
+User
+/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/tzlocal/unix.py:207: UserWarning: Can not find any timezone configuration, defaulting to UTC.
+2025-11-19 14:50:23.71
+f7605808
+User
+[2025-11-19 19:50:23 +0000] [22] [INFO] OAuth login initiated - Redirect URI: https://on-the-clock.replit.app/auth/callback
+2025-11-19 14:50:27.61
+f7605808
+User
+[2025-11-19 19:50:27 +0000] [22] [INFO] OAuth callback received - code: present, state: present, error: None
+2025-11-19 14:50:27.61
+f7605808
+User
+[2025-11-19 19:50:27 +0000] [22] [INFO] Exchanging code for token with redirect_uri: https://on-the-clock.replit.app/auth/callback
+2025-11-19 14:50:27.86
+f7605808
+User
+[2025-11-19 19:50:27 +0000] [22] [INFO] Fetching user info from Discord
+2025-11-19 14:50:28.01
+f7605808
+User
+[2025-11-19 19:50:28 +0000] [22] [INFO] User authenticated: hypnotikacid
+2025-11-19 14:50:28.01
+f7605808
+User
+[2025-11-19 19:50:28 +0000] [22] [INFO] Fetching user guilds
+2025-11-19 14:50:28.54
+f7605808
+User
+[2025-11-19 19:50:28 +0000] [22] [INFO] Found 17 guilds
+2025-11-19 14:50:28.54
+f7605808
+User
+[2025-11-19 19:50:28 +0000] [22] [INFO] Session created: aDgot0nP...
+2025-11-19 14:50:28.72
+f7605808
+User
+[2025-11-19 19:50:28 +0000] [22] [INFO] Dashboard accessed by user: hypnotikacid
+2025-11-19 14:50:28.72
+f7605808
+User
+[2025-11-19 19:50:28 +0000] [22] [INFO] Showing 4 of 17 guilds
+2025-11-19 14:50:36.26
+f7605808
+User
+[2025-11-19 19:50:36 +0000] [22] [INFO] Owner dashboard accessed by hypnotikacid
+2025-11-19 14:50:36.27
+f7605808
+User
+[2025-11-19 19:50:36 +0000] [22] [INFO] Added 15 placeholder server_subscriptions rows for new guilds
+2025-11-19 14:50:40.86
+f7605808
+User
+[2025-11-19 19:50:40 +0000] [22] [INFO] Owner hypnotikacid granting bot_access to guild 1154554523793236040
+2025-11-19 14:50:40.86
+f7605808
+User
+[2025-11-19 19:50:40 +0000] [22] [INFO] ✅ Transaction committed successfully for guild 1154554523793236040
+2025-11-19 14:50:40.86
+f7605808
+User
+[2025-11-19 19:50:40 +0000] [22] [INFO] ✅ Granted bot access to guild 1154554523793236040
+2025-11-19 14:50:42.06
+f7605808
+User
+[2025-11-19 19:50:42 +0000] [22] [INFO] Owner dashboard accessed by hypnotikacid
+2025-11-19 14:50:42.06
+f7605808
+User
+[2025-11-19 19:50:42 +0000] [22] [INFO] Owner dashboard accessed by hypnotikacid
