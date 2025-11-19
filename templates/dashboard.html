@@ -223,17 +223,15 @@
             display: none;
             position: fixed;
             top: 0;
-            left: 0;
+            left: 280px;
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.5);
             z-index: 99;
-            pointer-events: none;
         }
 
         .mobile-overlay.active {
             display: block;
-            pointer-events: auto;
         }
 
         /* Right Content Area */
@@ -1478,9 +1476,8 @@
                         loadEmailRecipients();
                     }
 
-                    if (window.innerWidth <= 768) {
-                        closeMobileSidebar();
-                    }
+                    // Don't auto-close sidebar on mobile - let user navigate freely
+                    // They can close it by tapping the overlay or back button
                 });
             });
         }
