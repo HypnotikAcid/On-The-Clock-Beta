@@ -168,13 +168,44 @@ def get_db():
     if app_db_pool is None:
         init_app_db_pool()
     
-    conn = app_db_pool.getconn()
+    conn = None
+    max_retries = 2
+    for attempt in range(max_retries):
+        try:
+            conn = app_db_pool.getconn()
+            
+            # Validate connection is alive by executing a simple query
+            # This catches stale/closed SSL connections before they cause errors
+            test_cursor = conn.cursor()
+            test_cursor.execute("SELECT 1")
+            test_cursor.close()
+            
+            # Connection is good, proceed
+            break
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            # Connection is stale/dead, close it and get a new one
+            if conn:
+                try:
+                    conn.close()
+                except:
+                    pass
+                app_db_pool.putconn(conn, close=True)  # Mark as bad
+            
+            if attempt < max_retries - 1:
+                # Try again with a fresh connection
+                continue
+            else:
+                # Last attempt failed, re-raise
+                raise
+    
     wrapper = FlaskConnectionWrapper(conn)
     try:
         yield wrapper
         # Auto-commit on successful exit
+        conn.commit()
     except Exception as e:
         # Auto-rollback on exception
+        conn.rollback()
         raise
     finally:
         # Always return connection to pool
@@ -335,14 +366,14 @@ def get_user_session(session_id):
         
         if row:
             return {
-                'session_id': row[0],
-                'user_id': row[1],
-                'username': row[2],
-                'discriminator': row[3] or '0',
-                'avatar': row[4],
-                'access_token': row[5],
-                'guilds': json.loads(row[6]) if row[6] else [],
-                'expires_at': row[7]
+                'session_id': row['session_id'],
+                'user_id': row['user_id'],
+                'username': row['username'],
+                'discriminator': row['discriminator'] or '0',
+                'avatar': row['avatar'],
+                'access_token': row['access_token'],
+                'guilds': json.loads(row['guilds_data']) if row['guilds_data'] else [],
+                'expires_at': row['expires_at']
             }
     return None
 
@@ -416,7 +447,7 @@ def check_guild_paid_access(guild_id):
                 (int(guild_id),)
             )
             result = cursor.fetchone()
-            bot_access_paid = bool(result[0]) if result else False
+            bot_access_paid = bool(result['bot_access_paid']) if result else False
             
             return {
                 'bot_invited': bot_invited,
@@ -649,7 +680,7 @@ def get_bot_guild_ids():
         with get_db() as conn:
             cursor = conn.execute("SELECT guild_id FROM bot_guilds")
             # Cast to string to match Discord OAuth guild IDs (which are strings)
-            return set(str(row[0]) for row in cursor.fetchall())
+            return set(str(row['guild_id']) for row in cursor.fetchall())
     except Exception as e:
         app.logger.error(f"Error fetching bot guild IDs: {e}")
         # Return empty set to avoid 500 errors if table missing or locked
@@ -705,9 +736,9 @@ def filter_user_guilds(user_session):
             "SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions"
         )
         for row in cursor.fetchall():
-            subscription_data[str(row[0])] = {
-                'bot_access_paid': bool(row[1]),
-                'retention_tier': row[2]
+            subscription_data[str(row['guild_id'])] = {
+                'bot_access_paid': bool(row['bot_access_paid']),
+                'retention_tier': row['retention_tier']
             }
     
     for guild in all_guilds:
@@ -923,7 +954,7 @@ def handle_subscription_cancellation(subscription):
             result = cursor.fetchone()
             
             if result:
-                guild_id = result[0]
+                guild_id = result['guild_id']
                 
                 # Set retention tier to 'none'
                 set_retention_tier(guild_id, 'none')
@@ -964,7 +995,7 @@ def handle_payment_failure(invoice):
             result = cursor.fetchone()
             
             if result:
-                guild_id = result[0]
+                guild_id = result['guild_id']
                 
                 # Update subscription status to past_due
                 conn.execute("""
@@ -1235,20 +1266,20 @@ def owner_dashboard(user_session):
             """)
             servers = []
             for row in cursor.fetchall():
-                guild_id = row[0]
-                guild_name = row[1]
-                bot_is_present = bool(row[8])  # New column for bot presence
+                guild_id = row['guild_id']
+                guild_name = row['guild_name']
+                bot_is_present = bool(row['bot_is_present'])
                 
                 servers.append({
                     'guild_id': guild_id,
                     'guild_name': guild_name or f'Unknown Server (ID: {guild_id})',
-                    'bot_access': bool(row[2]),
-                    'retention_tier': row[3] if row[3] != 'none' else None,
-                    'status': row[4],
-                    'subscription_id': row[5],
-                    'customer_id': row[6],
-                    'active_sessions': row[7],
-                    'bot_is_present': bot_is_present  # Add bot presence indicator
+                    'bot_access': bool(row['bot_access_paid']),
+                    'retention_tier': row['retention_tier'] if row['retention_tier'] != 'none' else None,
+                    'status': row['status'],
+                    'subscription_id': row['subscription_id'],
+                    'customer_id': row['customer_id'],
+                    'active_sessions': row['active_sessions'],
+                    'bot_is_present': bot_is_present
                 })
             
             # Get recent webhook events (last 100) - only for servers where bot is present
@@ -1270,21 +1301,21 @@ def owner_dashboard(user_session):
             for row in cursor.fetchall():
                 # Safely parse JSON details with error handling
                 details = {}
-                if row[5]:
+                if row['details']:
                     try:
-                        details = json.loads(row[5])
+                        details = json.loads(row['details'])
                     except (json.JSONDecodeError, TypeError) as e:
                         app.logger.warning(f"Failed to parse webhook event details: {e}")
                         details = {'error': 'Failed to parse details'}
                 
                 webhook_events.append({
-                    'event_id': row[0],
-                    'event_type': row[1],
-                    'guild_id': row[2],
-                    'status': row[3],
-                    'timestamp': row[4],
+                    'event_id': row['event_id'],
+                    'event_type': row['event_type'],
+                    'guild_id': row['guild_id'],
+                    'status': row['status'],
+                    'timestamp': row['timestamp'],
                     'details': details,
-                    'guild_name': row[6] or 'Unknown'
+                    'guild_name': row['guild_name'] or 'Unknown'
                 })
             
             # Get summary stats (counting from bot_guilds - source of truth)
@@ -1300,20 +1331,20 @@ def owner_dashboard(user_session):
             """)
             stats_row = cursor.fetchone()
             stats = {
-                'total_servers': stats_row[0],
-                'paid_servers': stats_row[1],
-                'retention_7day_count': stats_row[2],
-                'retention_30day_count': stats_row[3],
-                'past_due_count': stats_row[4]
+                'total_servers': stats_row['total_servers'],
+                'paid_servers': stats_row['paid_servers'],
+                'retention_7day_count': stats_row['retention_7day_count'],
+                'retention_30day_count': stats_row['retention_30day_count'],
+                'past_due_count': stats_row['past_due_count']
             }
             
             # Get total active sessions across all servers
             cursor = conn.execute("""
-                SELECT COUNT(*) 
+                SELECT COUNT(*) as total_active_sessions
                 FROM timeclock_sessions 
                 WHERE clock_out_time IS NULL
             """)
-            stats['total_active_sessions'] = cursor.fetchone()[0]
+            stats['total_active_sessions'] = cursor.fetchone()['total_active_sessions']
         
         return render_template('owner_dashboard.html', 
                              user=user_session,
@@ -1593,14 +1624,14 @@ def get_guild_settings(guild_id):
             "SELECT role_id FROM admin_roles WHERE guild_id = %s",
             (guild_id,)
         )
-        admin_roles = [str(row[0]) for row in admin_cursor.fetchall()]
+        admin_roles = [str(row['role_id']) for row in admin_cursor.fetchall()]
         
         # Get employee roles (convert to strings to match Discord API format)
         employee_cursor = conn.execute(
             "SELECT role_id FROM employee_roles WHERE guild_id = %s",
             (guild_id,)
         )
-        employee_roles = [str(row[0]) for row in employee_cursor.fetchall()]
+        employee_roles = [str(row['role_id']) for row in employee_cursor.fetchall()]
         app.logger.info(f"📋 Fetched {len(employee_roles)} employee roles for guild {guild_id}: {employee_roles}")
         
         # Get guild settings (timezone, recipient_user_id, work_day_end_time, etc.)
@@ -1633,14 +1664,14 @@ def get_guild_settings(guild_id):
         return {
             'admin_roles': admin_roles,
             'employee_roles': employee_roles,
-            'timezone': (settings_row[0] if settings_row else None) or 'America/New_York',
-            'recipient_user_id': settings_row[1] if settings_row else None,
-            'name_display_mode': (settings_row[2] if settings_row else None) or 'username',
-            'main_admin_role_id': settings_row[3] if settings_row and len(settings_row) > 3 else None,
-            'work_day_end_time': (settings_row[4] if settings_row and len(settings_row) > 4 else None) or '17:00',
-            'auto_send_on_clockout': bool(email_settings_row[0]) if email_settings_row else False,
-            'auto_email_before_delete': bool(email_settings_row[1]) if email_settings_row else False,
-            'restrict_mobile_clockin': bool(mobile_restriction_row[0]) if mobile_restriction_row else False,
+            'timezone': (settings_row['timezone'] if settings_row else None) or 'America/New_York',
+            'recipient_user_id': settings_row['recipient_user_id'] if settings_row else None,
+            'name_display_mode': (settings_row['name_display_mode'] if settings_row else None) or 'username',
+            'main_admin_role_id': settings_row['main_admin_role_id'] if settings_row else None,
+            'work_day_end_time': (settings_row['work_day_end_time'] if settings_row else None) or '17:00',
+            'auto_send_on_clockout': bool(email_settings_row['auto_send_on_clockout']) if email_settings_row else False,
+            'auto_email_before_delete': bool(email_settings_row['auto_email_before_delete']) if email_settings_row else False,
+            'restrict_mobile_clockin': bool(mobile_restriction_row['restrict_mobile_clockin']) if mobile_restriction_row else False,
             'emails': []  # TODO: Add email table and fetch emails
         }
 
@@ -2518,9 +2549,9 @@ def api_get_email_recipients(user_session, guild_id):
             
         emails = [
             {
-                'id': row[0],
-                'email': row[1],
-                'created_at': row[2]
+                'id': row['id'],
+                'email': row['email_address'],
+                'created_at': row['created_at']
             }
             for row in recipients
         ]
@@ -2669,11 +2700,11 @@ def api_get_bans(user_session, guild_id):
             bans = []
             for row in cursor.fetchall():
                 bans.append({
-                    'user_id': str(row[0]),
-                    'banned_at': row[1],
-                    'ban_expires_at': row[2],
-                    'warning_count': row[3],
-                    'reason': row[4]
+                    'user_id': str(row['user_id']),
+                    'banned_at': row['banned_at'],
+                    'ban_expires_at': row['ban_expires_at'],
+                    'warning_count': row['warning_count'],
+                    'reason': row['reason']
                 })
         
         return jsonify({'success': True, 'bans': bans})

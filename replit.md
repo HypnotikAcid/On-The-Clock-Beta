@@ -20,7 +20,7 @@ Preferred communication style: Simple, everyday language.
 - **Timezone Awareness**: Ensures correct time handling using `tzdata`.
 - **UI/UX**: Static landing page; dashboard provides server-specific settings with a tile-based layout, protected by Discord OAuth and requiring admin access.
 - **Subscription Management**: Three-tier model (Free, 7-day retention, 30-day retention) with a $5 one-time bot access payment per server. Dashboard displays subscription status and upgrade prompts.
-- **Concurrent Safety**: Utilizes guild-level locking, WAL mode for SQLite, and exclusive database migrations.
+- **Concurrent Safety**: Utilizes guild-level locking, PostgreSQL connection pooling with SSL validation, and automatic transaction management.
 - **Ephemeral Interface System**: Resolves interaction timeout issues by providing new interfaces via the `/clock` command.
 - **Custom Jinja2 Permission Filter**: Addresses Jinja2's lack of bitwise operator support for Discord permission checking.
 - **Secure Error Handling**: Generic user-facing messages, detailed server-side logging, and redaction of sensitive information.
@@ -47,7 +47,7 @@ Preferred communication style: Simple, everyday language.
 ## Core Libraries
 - **discord.py**: Primary library for Discord API interaction.
 - **tzdata**: Provides timezone data for Python.
-- **aiosqlite**: Asynchronous SQLite database interface.
+- **psycopg2-binary**: PostgreSQL database adapter with connection pooling.
 - **aiohttp**: Used for the bot's internal HTTP API server.
 - **APScheduler**: Asynchronous job scheduler.
 - **pytz**: Timezone library used by APScheduler.
@@ -63,4 +63,8 @@ Preferred communication style: Simple, everyday language.
 - **Stripe**: Handles subscriptions and payments, processing `checkout.session.completed` and `customer.subscription.deleted` webhooks.
 
 ## Database
-- **SQLite**: Used for data storage with WAL mode enabled. `timeclock.db` is shared between bot and Flask app.
+- **PostgreSQL**: Production database with persistent connection pooling (ThreadedConnectionPool with minconn=1, maxconn=10)
+- **Connection Management**: Uses @contextmanager pattern with FlaskConnectionWrapper for automatic commit/rollback
+- **Row Access**: All queries use RealDictCursor with named column access (row['column']) instead of positional access (row[0])
+- **SSL Connection Handling**: Built-in validation and retry logic for stale SSL connections (up to 2 attempts)
+- **Query Syntax**: PostgreSQL-specific features including %s placeholders, INSERT ... ON CONFLICT DO UPDATE, and NOW() for timestamps
