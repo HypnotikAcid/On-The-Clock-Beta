@@ -1045,6 +1045,9 @@ def api_owner_grant_access(user_session):
                     WHERE guild_id = ?
                 """, (access_type, user_session['user_id'], guild_id))
                 app.logger.info(f"✅ Granted {access_type} retention to guild {guild_id}")
+            
+            # Commit the transaction
+            conn.commit()
         
         return jsonify({
             'success': True,
