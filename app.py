@@ -847,32 +847,47 @@ def owner_dashboard(user_session):
         
         # Get all servers with bot access
         with get_db() as conn:
-            # Get guilds where: bot is paid OR bot is currently in the server
+            # Database reconciliation: Ensure all bot guilds have rows (non-destructive)
+            try:
+                # Insert placeholder rows for new guilds where bot is present but no row exists
+                # Use INSERT OR IGNORE to safely handle existing rows
+                cursor = conn.execute("""
+                    INSERT OR IGNORE INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
+                    SELECT CAST(guild_id AS INTEGER), 0, 'none', 'free'
+                    FROM bot_guilds
+                    WHERE CAST(guild_id AS INTEGER) NOT IN (SELECT guild_id FROM server_subscriptions)
+                """)
+                inserted_count = cursor.rowcount
+                if inserted_count > 0:
+                    app.logger.info(f"Added {inserted_count} placeholder server_subscriptions rows for new guilds")
+                
+                conn.commit()
+            except Exception as reconcile_error:
+                app.logger.error(f"Database reconciliation error: {reconcile_error}")
+                conn.rollback()
+                # Continue anyway - reconciliation failure shouldn't block dashboard
+            # Get all guilds where bot is present (bot_guilds is source of truth)
+            # LEFT JOIN server_subscriptions to add billing info where it exists
             cursor = conn.execute("""
                 SELECT 
-                    ss.guild_id,
+                    CAST(bg.guild_id AS INTEGER) as guild_id,
                     bg.guild_name,
-                    ss.bot_access_paid,
-                    ss.retention_tier,
-                    ss.status,
+                    COALESCE(ss.bot_access_paid, 0) as bot_access_paid,
+                    COALESCE(ss.retention_tier, 'none') as retention_tier,
+                    COALESCE(ss.status, 'free') as status,
                     ss.subscription_id,
                     ss.customer_id,
                     COUNT(DISTINCT ts.session_id) as active_sessions
-                FROM server_subscriptions ss
-                LEFT JOIN bot_guilds bg ON bg.guild_id = CAST(ss.guild_id AS TEXT)
-                LEFT JOIN timeclock_sessions ts ON ss.guild_id = ts.guild_id AND ts.clock_out_time IS NULL
-                WHERE ss.bot_access_paid = 1 OR bg.guild_id IS NOT NULL
-                GROUP BY ss.guild_id
+                FROM bot_guilds bg
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS INTEGER)
+                LEFT JOIN timeclock_sessions ts ON CAST(bg.guild_id AS INTEGER) = ts.guild_id AND ts.clock_out_time IS NULL
+                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id
                 ORDER BY bg.guild_name
             """)
             servers = []
             for row in cursor.fetchall():
                 guild_id = row[0]
-                guild_name = row[1]
-                
-                # If guild_name is missing, try to fetch from Discord API
-                if not guild_name:
-                    guild_name = fetch_guild_name_from_discord(guild_id, conn)
+                guild_name = row[1]  # Already populated from bot_guilds
                 
                 servers.append({
                     'guild_id': guild_id,
@@ -885,7 +900,7 @@ def owner_dashboard(user_session):
                     'active_sessions': row[7]
                 })
             
-            # Get recent webhook events (last 100) - only for visible servers
+            # Get recent webhook events (last 100) - only for servers where bot is present
             cursor = conn.execute("""
                 SELECT 
                     we.event_id,
@@ -896,9 +911,7 @@ def owner_dashboard(user_session):
                     we.details,
                     bg.guild_name
                 FROM webhook_events we
-                LEFT JOIN bot_guilds bg ON bg.guild_id = CAST(we.guild_id AS TEXT)
-                LEFT JOIN server_subscriptions ss ON ss.guild_id = we.guild_id
-                WHERE ss.bot_access_paid = 1 OR bg.guild_id IS NOT NULL
+                INNER JOIN bot_guilds bg ON bg.guild_id = CAST(we.guild_id AS TEXT)
                 ORDER BY we.timestamp DESC
                 LIMIT 100
             """)
@@ -923,17 +936,16 @@ def owner_dashboard(user_session):
                     'guild_name': row[6] or 'Unknown'
                 })
             
-            # Get summary stats (only for servers where bot is paid OR bot is present)
+            # Get summary stats (counting from bot_guilds - source of truth)
             cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total_servers,
-                    SUM(CASE WHEN ss.bot_access_paid = 1 THEN 1 ELSE 0 END) as paid_servers,
+                    SUM(CASE WHEN COALESCE(ss.bot_access_paid, 0) = 1 THEN 1 ELSE 0 END) as paid_servers,
                     SUM(CASE WHEN ss.retention_tier = '7day' THEN 1 ELSE 0 END) as retention_7day_count,
                     SUM(CASE WHEN ss.retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
                     SUM(CASE WHEN ss.status = 'past_due' THEN 1 ELSE 0 END) as past_due_count
-                FROM server_subscriptions ss
-                LEFT JOIN bot_guilds bg ON bg.guild_id = CAST(ss.guild_id AS TEXT)
-                WHERE ss.bot_access_paid = 1 OR bg.guild_id IS NOT NULL
+                FROM bot_guilds bg
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS INTEGER)
             """)
             stats_row = cursor.fetchone()
             stats = {
@@ -1076,7 +1088,21 @@ def api_owner_revoke_access(user_session):
             server = cursor.fetchone()
             
             if not server:
-                return jsonify({'success': False, 'error': 'Server not found in subscriptions'}), 404
+                app.logger.warning(f"Guild {guild_id} not found in server_subscriptions. Creating placeholder row.")
+                # Auto-create placeholder row for this guild
+                try:
+                    conn.execute("""
+                        INSERT INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
+                        VALUES (?, 0, 'none', 'free')
+                    """, (guild_id,))
+                    conn.commit()
+                    app.logger.info(f"Created placeholder server_subscriptions row for guild {guild_id}")
+                    # Re-fetch the server
+                    cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+                    server = cursor.fetchone()
+                except Exception as insert_error:
+                    app.logger.error(f"Failed to create placeholder row for guild {guild_id}: {insert_error}")
+                    return jsonify({'success': False, 'error': f'Server not found and could not create placeholder: {str(insert_error)}'}), 500
             
             # Revoke the appropriate access
             if access_type == 'bot_access':
