@@ -943,7 +943,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 result = cursor.fetchone()
                 
                 if result:
-                    guild_id = result[0]
+                    guild_id = result['guild_id']
                     print(f"   🏰 Found server: ID {guild_id}")
                     
                     # Set retention tier to 'none' (user keeps bot access if they paid for it)
@@ -1020,7 +1020,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 result = cursor.fetchone()
                 
                 if result:
-                    guild_id = result[0]
+                    guild_id = result['guild_id']
                     
                     # Update subscription status in database
                     conn.execute("""
@@ -1087,7 +1087,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 result = cursor.fetchone()
                 
                 if result:
-                    guild_id = result[0]
+                    guild_id = result['guild_id']
                     print(f"   🏰 Found server: ID {guild_id}")
                     
                     # Update subscription status to past_due
@@ -2494,7 +2494,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
                 result = cursor.fetchone()
                 
                 if result:
-                    guild_id = result[0]
+                    guild_id = result['guild_id']
                     status = subscription['status']
                     current_period_end = subscription['current_period_end']
                     
@@ -2523,7 +2523,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
                 result = cursor.fetchone()
                 
                 if result:
-                    guild_id = result[0]
+                    guild_id = result['guild_id']
                     
                     # Mark as past_due but don't downgrade immediately
                     conn.execute("""
@@ -2625,7 +2625,7 @@ class ConnectionWrapper:
     
     def execute(self, query, params=None):
         """Execute a query and return a cursor (mimics sqlite3 behavior)"""
-        self._cursor = self._conn.cursor()
+        self._cursor = self._conn.cursor(cursor_factory=RealDictCursor)
         if params:
             self._cursor.execute(query, params)
         else:
@@ -2634,13 +2634,13 @@ class ConnectionWrapper:
     
     def executemany(self, query, params_list):
         """Execute a query with multiple parameter sets"""
-        self._cursor = self._conn.cursor()
+        self._cursor = self._conn.cursor(cursor_factory=RealDictCursor)
         self._cursor.executemany(query, params_list)
         return self._cursor
     
     def cursor(self):
-        """Get a new cursor"""
-        return self._conn.cursor()
+        """Get a new cursor with RealDictCursor"""
+        return self._conn.cursor(cursor_factory=RealDictCursor)
     
     def commit(self):
         """Commit the transaction"""
@@ -2695,7 +2695,8 @@ def run_migrations_old_sqlite():
                 cursor.execute("BEGIN")
                 
                 # Check if customer_id column exists
-                cursor =                 columns = {row[1] for row in cursor.fetchall()}
+                cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'server_subscriptions'")
+                columns = {row['column_name'] for row in cursor.fetchall()}
                 
                 if 'customer_id' not in columns:
                     print("🔧 Adding missing customer_id column to server_subscriptions table...")
@@ -2705,7 +2706,8 @@ def run_migrations_old_sqlite():
                     print("✅ Migration check: customer_id column already exists")
                 
                 # Check if bot_access_paid column exists
-                cursor =                 columns = {row[1] for row in cursor.fetchall()}
+                cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'server_subscriptions'")
+                columns = {row['column_name'] for row in cursor.fetchall()}
                 
                 if 'bot_access_paid' not in columns:
                     print("🔧 Adding bot_access_paid column to server_subscriptions table...")
@@ -2721,7 +2723,8 @@ def run_migrations_old_sqlite():
                     print("✅ Migration check: bot_access_paid column already exists")
                 
                 # Check if retention_tier column exists
-                cursor =                 columns = {row[1] for row in cursor.fetchall()}
+                cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'server_subscriptions'")
+                columns = {row['column_name'] for row in cursor.fetchall()}
                 
                 if 'retention_tier' not in columns:
                     print("🔧 Adding retention_tier column to server_subscriptions table...")
@@ -2826,7 +2829,7 @@ def is_user_banned(guild_id: int, user_id: int) -> bool:
         if not result:
             return False
         
-        ban_expires_at = result[0]
+        ban_expires_at = result['ban_expires_at']
         if not ban_expires_at:
             # No expiration = permanent ban (shouldn't happen with new system)
             return True
@@ -2852,7 +2855,7 @@ def get_user_warning_count(guild_id: int, user_id: int) -> int:
             (guild_id, user_id)
         )
         result = cursor.fetchone()
-        return result[0] if result else 0
+        return result['warning_count'] if result else 0
 
 def issue_warning(guild_id: int, user_id: int):
     """Issue a warning to a user (first offense)"""
@@ -2879,7 +2882,7 @@ def ban_user_24h(guild_id: int, user_id: int, reason: str = "rate_limit_exceeded
             (guild_id, user_id)
         )
         result = cursor.fetchone()
-        current_warnings = result[0] if result else 0
+        current_warnings = result['warning_count'] if result else 0
         
         # Insert or update ban record
         conn.execute(
@@ -3067,7 +3070,7 @@ def check_bot_access(guild_id: int) -> bool:
         if not result:
             return False  # No record = free tier = no bot access
         
-        return bool(result[0])
+        return bool(result['bot_access_paid'])
 
 def get_retention_tier(guild_id: int) -> str:
     """
@@ -3086,7 +3089,7 @@ def get_retention_tier(guild_id: int) -> str:
         if not result:
             return 'none'  # Default to no retention
         
-        tier = result[0] or 'none'  # Normalize NULL to 'none'
+        tier = result['retention_tier'] or 'none'  # Normalize NULL to 'none'
         
         # Validate tier is in allowed set, default to 'none' if invalid
         if tier not in valid_tiers:
@@ -3109,7 +3112,7 @@ def is_mobile_restricted(guild_id: int) -> bool:
         if not result:
             return False  # Default to allowing mobile
         
-        return bool(result[0])
+        return bool(result['restrict_mobile_clockin'])
 
 async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purchase"):
     """
