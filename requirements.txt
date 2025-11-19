@@ -10,3 +10,5 @@ werkzeug
 aiohttp
 apscheduler
 pytz
+psycopg2-binary
+asyncpg
