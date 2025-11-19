@@ -596,20 +596,21 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 )
                 
                 event_type = event.get('type')
-                print(f"🔔 Processing Stripe webhook: {event_type}")
+                event_id = event.get('id', 'unknown')
+                print(f"🔔 Processing Stripe webhook: {event_type} (ID: {event_id})")
                 
                 if event_type == 'checkout.session.completed':
                     session = event['data']['object']
-                    self.process_checkout_completed(session)
+                    self.process_checkout_completed(session, event_id)
                 elif event_type == 'customer.subscription.updated':
                     subscription = event['data']['object']
-                    self.handle_subscription_change(subscription)
+                    self.handle_subscription_change(subscription, event_id)
                 elif event_type == 'customer.subscription.deleted':
                     subscription = event['data']['object']
-                    self.handle_subscription_cancellation(subscription)
+                    self.handle_subscription_cancellation(subscription, event_id)
                 elif event_type == 'invoice.payment_failed':
                     invoice = event['data']['object']
-                    self.handle_payment_failure(invoice)
+                    self.handle_payment_failure(invoice, event_id)
                 else:
                     print(f"ℹ️ Unhandled Stripe event type: {event_type}")
                     
@@ -638,10 +639,18 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.send_response(400)
             self.end_headers()
     
-    def process_checkout_completed(self, session):
+    def process_checkout_completed(self, session, event_id='unknown'):
         """Process a completed checkout session"""
         try:
+            session_id = session.get('id', 'unknown')
+            payment_status = session.get('payment_status', 'unknown')
+            status = session.get('status', 'unknown')
+            
+            print(f"💳 WEBHOOK: Processing checkout session {session_id}")
+            print(f"   Payment Status: {payment_status}, Session Status: {status}")
+            
             # Retrieve full session with line items to verify pricing
+            print(f"   📥 Retrieving full session details from Stripe...")
             full_session = stripe.checkout.Session.retrieve(
                 session['id'],
                 expand=['line_items']
@@ -653,9 +662,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 line_item = full_session.line_items.data[0]
                 if line_item.price:
                     price_id = line_item.price.id
+                    print(f"   🏷️  Price ID extracted: {price_id}")
             
             if not price_id:
-                print("❌ No price ID found in checkout session")
+                print(f"❌ WEBHOOK FAILED: No price ID found in checkout session {session_id}")
+                self.log_webhook_event('checkout.session.completed', event_id, None, 'failed', {
+                    'session_id': session_id,
+                    'error': 'No price ID found'
+                })
                 return
             
             # Match price_id against STRIPE_PRICE_IDS to determine product_type
@@ -666,33 +680,109 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     break
             
             if not product_type:
-                print(f"❌ Unknown price ID in checkout: {price_id}")
+                print(f"❌ WEBHOOK FAILED: Unknown price ID {price_id} in checkout session {session_id}")
+                print(f"   Known price IDs: {STRIPE_PRICE_IDS}")
+                self.log_webhook_event('checkout.session.completed', event_id, None, 'failed', {
+                    'session_id': session_id,
+                    'price_id': price_id,
+                    'error': 'Unknown price ID'
+                })
                 return
             
+            print(f"   📦 Product type identified: {product_type}")
+            
             guild_id = session.get('metadata', {}).get('guild_id')
+            guild_name = session.get('metadata', {}).get('guild_name', 'Unknown Server')
             
             if not guild_id:
-                print("❌ No guild_id found in session metadata")
+                print(f"❌ WEBHOOK FAILED: No guild_id in session {session_id} metadata")
+                self.log_webhook_event('checkout.session.completed', event_id, None, 'failed', {
+                    'session_id': session_id,
+                    'error': 'No guild_id in metadata'
+                })
                 return
             
             guild_id = int(guild_id)
+            print(f"   🏰 Server: {guild_name} (ID: {guild_id})")
+            
+            # Extract customer details for logging
+            customer_email = full_session.customer_details.get('email', 'N/A') if full_session.customer_details else 'N/A'
+            customer_id = session.get('customer', 'N/A')
+            
+            print(f"   👤 Customer: {customer_email} (Stripe ID: {customer_id})")
             
             # Process based on product type
             if product_type == 'bot_access':
                 # One-time bot access payment
+                print(f"   🔧 Granting bot access to server {guild_id}...")
                 set_bot_access(guild_id, True)
-                print(f"✅ Bot access granted for server {guild_id}")
+                print(f"✅ WEBHOOK SUCCESS: Bot access granted to {guild_name} (ID: {guild_id})")
+                print(f"   Customer: {customer_email}, Session: {session_id}")
+                
+                # Log webhook event
+                self.log_webhook_event('checkout.session.completed', event_id, guild_id, 'success', {
+                    'session_id': session_id,
+                    'product_type': product_type,
+                    'guild_name': guild_name,
+                    'customer_email': customer_email,
+                    'customer_id': customer_id
+                })
+                
+                # Notify owner
+                bot_instance = getattr(type(self), 'bot', None)
+                if bot_instance and bot_instance.loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.notify_owner("purchase", True, {
+                            'guild_id': guild_id,
+                            'guild_name': guild_name,
+                            'product_type': product_type,
+                            'customer_email': customer_email,
+                            'customer_id': customer_id,
+                            'session_id': session_id
+                        }),
+                        bot_instance.loop
+                    )
                 
             elif product_type == 'retention_7day':
                 # 7-day retention subscription
+                print(f"   🔍 Verifying bot access before granting retention...")
                 # CRITICAL: Server-side enforcement - verify bot access before granting retention
                 if not check_bot_access(guild_id):
-                    print(f"❌ SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
+                    print(f"❌ WEBHOOK FAILED: Retention purchase blocked - bot access not paid for server {guild_id}")
+                    print(f"   Customer {customer_email} must purchase bot access first")
+                    
+                    # Log webhook event as failed
+                    self.log_webhook_event('checkout.session.completed', event_id, guild_id, 'failed', {
+                        'session_id': session_id,
+                        'product_type': product_type,
+                        'guild_name': guild_name,
+                        'customer_email': customer_email,
+                        'error': 'Bot access not paid - retention purchase blocked'
+                    })
+                    
+                    # Notify owner of blocked purchase
+                    bot_instance = getattr(type(self), 'bot', None)
+                    if bot_instance and bot_instance.loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self.notify_owner("purchase", False, {
+                                'guild_id': guild_id,
+                                'guild_name': guild_name,
+                                'product_type': product_type,
+                                'customer_email': customer_email,
+                                'customer_id': customer_id,
+                                'session_id': session_id,
+                                'error': 'Retention purchase blocked - bot access required first'
+                            }),
+                            bot_instance.loop
+                        )
+                    
                     # TODO: Consider refunding the payment automatically here
                     return
                 
+                print(f"   ✓ Bot access verified")
                 subscription_id = session.get('subscription')
                 customer_id = session.get('customer')
+                print(f"   🔧 Setting 7-day retention tier...")
                 set_retention_tier(guild_id, '7day')
                 
                 # Store subscription_id and customer_id in database
@@ -706,18 +796,73 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             status = 'active'
                     """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
                 
-                print(f"✅ 7-day retention granted for server {guild_id}")
+                print(f"✅ WEBHOOK SUCCESS: 7-day retention granted to {guild_name} (ID: {guild_id})")
+                print(f"   Customer: {customer_email}, Subscription: {subscription_id}")
+                
+                # Log webhook event
+                self.log_webhook_event('checkout.session.completed', event_id, guild_id, 'success', {
+                    'session_id': session_id,
+                    'product_type': product_type,
+                    'guild_name': guild_name,
+                    'customer_email': customer_email,
+                    'subscription_id': subscription_id
+                })
+                
+                # Notify owner
+                bot_instance = getattr(type(self), 'bot', None)
+                if bot_instance and bot_instance.loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.notify_owner("purchase", True, {
+                            'guild_id': guild_id,
+                            'guild_name': guild_name,
+                            'product_type': product_type,
+                            'customer_email': customer_email,
+                            'customer_id': customer_id,
+                            'session_id': session_id
+                        }),
+                        bot_instance.loop
+                    )
                 
             elif product_type == 'retention_30day':
                 # 30-day retention subscription
+                print(f"   🔍 Verifying bot access before granting retention...")
                 # CRITICAL: Server-side enforcement - verify bot access before granting retention
                 if not check_bot_access(guild_id):
-                    print(f"❌ SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
+                    print(f"❌ WEBHOOK FAILED: Retention purchase blocked - bot access not paid for server {guild_id}")
+                    print(f"   Customer {customer_email} must purchase bot access first")
+                    
+                    # Log webhook event as failed
+                    self.log_webhook_event('checkout.session.completed', event_id, guild_id, 'failed', {
+                        'session_id': session_id,
+                        'product_type': product_type,
+                        'guild_name': guild_name,
+                        'customer_email': customer_email,
+                        'error': 'Bot access not paid - retention purchase blocked'
+                    })
+                    
+                    # Notify owner of blocked purchase
+                    bot_instance = getattr(type(self), 'bot', None)
+                    if bot_instance and bot_instance.loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self.notify_owner("purchase", False, {
+                                'guild_id': guild_id,
+                                'guild_name': guild_name,
+                                'product_type': product_type,
+                                'customer_email': customer_email,
+                                'customer_id': customer_id,
+                                'session_id': session_id,
+                                'error': 'Retention purchase blocked - bot access required first'
+                            }),
+                            bot_instance.loop
+                        )
+                    
                     # TODO: Consider refunding the payment automatically here
                     return
                 
+                print(f"   ✓ Bot access verified")
                 subscription_id = session.get('subscription')
                 customer_id = session.get('customer')
+                print(f"   🔧 Setting 30-day retention tier...")
                 set_retention_tier(guild_id, '30day')
                 
                 # Store subscription_id and customer_id in database
@@ -731,22 +876,51 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             status = 'active'
                     """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
                 
-                print(f"✅ 30-day retention granted for server {guild_id}")
+                print(f"✅ WEBHOOK SUCCESS: 30-day retention granted to {guild_name} (ID: {guild_id})")
+                print(f"   Customer: {customer_email}, Subscription: {subscription_id}")
+                
+                # Log webhook event
+                self.log_webhook_event('checkout.session.completed', event_id, guild_id, 'success', {
+                    'session_id': session_id,
+                    'product_type': product_type,
+                    'guild_name': guild_name,
+                    'customer_email': customer_email,
+                    'subscription_id': subscription_id
+                })
+                
+                # Notify owner
+                bot_instance = getattr(type(self), 'bot', None)
+                if bot_instance and bot_instance.loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.notify_owner("purchase", True, {
+                            'guild_id': guild_id,
+                            'guild_name': guild_name,
+                            'product_type': product_type,
+                            'customer_email': customer_email,
+                            'customer_id': customer_id,
+                            'session_id': session_id
+                        }),
+                        bot_instance.loop
+                    )
                 
         except Exception as e:
-            print(f"❌ Error processing checkout session: {e}")
+            print(f"❌ WEBHOOK ERROR: Exception processing checkout session: {e}")
             import traceback
             traceback.print_exc()
     
-    def handle_subscription_cancellation(self, subscription):
+    def handle_subscription_cancellation(self, subscription, event_id='unknown'):
         """Handle subscription cancellation events"""
         try:
             # Find guild by subscription_id or customer_id
             subscription_id = subscription.get('id')
             customer_id = subscription.get('customer')
             
+            print(f"🚫 WEBHOOK: Processing subscription cancellation")
+            print(f"   Subscription ID: {subscription_id}")
+            print(f"   Customer ID: {customer_id}")
+            
             if not subscription_id:
-                print("❌ No subscription ID in cancellation event")
+                print("❌ WEBHOOK FAILED: No subscription ID in cancellation event")
                 return
                 
             with db() as conn:
@@ -758,11 +932,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
                 if result:
                     guild_id = result[0]
+                    print(f"   🏰 Found server: ID {guild_id}")
                     
                     # Set retention tier to 'none' (user keeps bot access if they paid for it)
+                    print(f"   🔧 Removing retention tier (setting to 'none')...")
                     set_retention_tier(guild_id, 'none')
                     
                     # Update subscription status to canceled in database
+                    print(f"   💾 Updating database: marking subscription as canceled...")
                     conn.execute("""
                         UPDATE server_subscriptions 
                         SET status = 'canceled', subscription_id = NULL
@@ -770,18 +947,48 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     """, (guild_id,))
                     
                     # Trigger immediate data deletion for that guild
+                    print(f"   🗑️  Purging timeclock data...")
                     purge_timeclock_data_only(guild_id)
                     
-                    print(f"✅ Retention subscription canceled for server {guild_id}, data will be deleted")
+                    print(f"✅ WEBHOOK SUCCESS: Subscription canceled for server {guild_id}")
+                    print(f"   Retention removed, data purged, bot access retained")
+                    
+                    # Log webhook event
+                    self.log_webhook_event('customer.subscription.deleted', event_id, guild_id, 'success', {
+                        'subscription_id': subscription_id,
+                        'customer_id': customer_id
+                    })
+                    
+                    # Notify owner
+                    bot_instance = getattr(type(self), 'bot', None)
+                    if bot_instance and bot_instance.loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self.notify_owner("cancellation", True, {
+                                'guild_id': guild_id,
+                                'subscription_id': subscription_id
+                            }),
+                            bot_instance.loop
+                        )
                 else:
-                    print(f"❌ No guild found for subscription {subscription_id}")
+                    print(f"❌ WEBHOOK FAILED: No guild found for subscription {subscription_id}")
+                    
+                    # Notify owner of failure
+                    bot_instance = getattr(type(self), 'bot', None)
+                    if bot_instance and bot_instance.loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self.notify_owner("cancellation", False, {
+                                'subscription_id': subscription_id,
+                                'error': 'No guild found for subscription'
+                            }),
+                            bot_instance.loop
+                        )
                     
         except Exception as e:
-            print(f"❌ Error processing subscription cancellation: {e}")
+            print(f"❌ WEBHOOK ERROR: Exception processing subscription cancellation: {e}")
             import traceback
             traceback.print_exc()
     
-    def handle_subscription_change(self, subscription):
+    def handle_subscription_change(self, subscription, event_id='unknown'):
         """Handle subscription change events (updates, renewals, etc.)"""
         try:
             subscription_id = subscription.get('id')
@@ -842,14 +1049,22 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             import traceback
             traceback.print_exc()
     
-    def handle_payment_failure(self, invoice):
+    def handle_payment_failure(self, invoice, event_id='unknown'):
         """Handle payment failure events"""
         try:
             customer_id = invoice.get('customer')
             subscription_id = invoice.get('subscription')
+            amount_due = invoice.get('amount_due', 0) / 100  # Convert cents to dollars
+            attempt_count = invoice.get('attempt_count', 0)
+            
+            print(f"⚠️ WEBHOOK: Processing payment failure")
+            print(f"   Customer ID: {customer_id}")
+            print(f"   Subscription ID: {subscription_id}")
+            print(f"   Amount Due: ${amount_due:.2f}")
+            print(f"   Attempt Count: {attempt_count}")
             
             if not customer_id and not subscription_id:
-                print("❌ No customer or subscription ID in payment failure event")
+                print("❌ WEBHOOK FAILED: No customer or subscription ID in payment failure event")
                 return
                 
             with db() as conn:
@@ -861,26 +1076,155 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
                 if result:
                     guild_id = result[0]
+                    print(f"   🏰 Found server: ID {guild_id}")
                     
                     # Update subscription status to past_due
+                    print(f"   💾 Marking subscription as past_due in database...")
                     conn.execute("""
                         UPDATE server_subscriptions 
                         SET status = 'past_due'
                         WHERE guild_id = ?
                     """, (guild_id,))
                     
-                    print(f"⚠️ Payment failed: Guild {guild_id} marked as past_due")
+                    print(f"✅ WEBHOOK SUCCESS: Payment failure processed for server {guild_id}")
+                    print(f"   Status set to 'past_due' - awaiting Stripe retry or cancellation")
+                    
+                    # Log webhook event
+                    self.log_webhook_event('invoice.payment_failed', event_id, guild_id, 'success', {
+                        'subscription_id': subscription_id,
+                        'amount_due': amount_due,
+                        'attempt_count': attempt_count
+                    })
+                    
+                    # Notify owner
+                    bot_instance = getattr(type(self), 'bot', None)
+                    if bot_instance and bot_instance.loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self.notify_owner("payment_failure", True, {
+                                'guild_id': guild_id,
+                                'subscription_id': subscription_id,
+                                'amount_due': amount_due,
+                                'attempt_count': attempt_count
+                            }),
+                            bot_instance.loop
+                        )
                     
                     # Note: We don't immediately downgrade on payment failure
                     # Stripe usually allows a grace period before cancellation
                     
                 else:
-                    print(f"❌ No guild found for customer {customer_id} or subscription {subscription_id}")
+                    print(f"❌ WEBHOOK FAILED: No guild found for customer {customer_id} or subscription {subscription_id}")
                     
         except Exception as e:
-            print(f"❌ Error processing payment failure: {e}")
+            print(f"❌ WEBHOOK ERROR: Exception processing payment failure: {e}")
             import traceback
             traceback.print_exc()
+    
+    def log_webhook_event(self, event_type: str, event_id: str, guild_id: int, status: str, details: dict):
+        """
+        Log webhook event to database for owner dashboard.
+        
+        Args:
+            event_type: Type of Stripe event (checkout.session.completed, etc.)
+            event_id: Stripe event ID
+            guild_id: Guild ID (None if not applicable)
+            status: 'success' or 'failed'
+            details: Dictionary with event details (will be stored as JSON)
+        """
+        try:
+            import json
+            details_json = json.dumps(details)
+            
+            with db() as conn:
+                conn.execute("""
+                    INSERT INTO webhook_events (event_type, event_id, guild_id, status, details)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (event_type, event_id, guild_id, status, details_json))
+            
+            print(f"📝 Webhook event logged: {event_type} - {status}")
+        except Exception as e:
+            print(f"⚠️ Failed to log webhook event: {e}")
+    
+    async def notify_owner(self, event_type: str, success: bool, details: dict):
+        """
+        Send DM to bot owner about webhook events.
+        
+        Args:
+            event_type: Type of event (purchase, cancellation, payment_failure)
+            success: Whether the webhook processing succeeded
+            details: Dictionary with event details
+        """
+        try:
+            bot_instance = getattr(type(self), 'bot', None)
+            if not bot_instance or not bot_instance.is_ready():
+                print(f"⚠️ Owner notification skipped: Bot not ready")
+                return
+            
+            owner = await bot_instance.fetch_user(BOT_OWNER_ID)
+            if not owner:
+                print(f"⚠️ Owner notification skipped: Owner user not found")
+                return
+            
+            # Build the notification message
+            status_emoji = "✅" if success else "❌"
+            status_text = "SUCCESS" if success else "FAILED"
+            
+            if event_type == "purchase":
+                embed = discord.Embed(
+                    title=f"{status_emoji} Purchase {status_text}",
+                    color=discord.Color.green() if success else discord.Color.red(),
+                    timestamp=datetime.now(timezone.utc)
+                )
+                embed.add_field(name="Server", value=f"{details.get('guild_name', 'Unknown')} (ID: {details.get('guild_id', 'N/A')})", inline=False)
+                embed.add_field(name="Product", value=details.get('product_type', 'Unknown'), inline=True)
+                embed.add_field(name="Customer Email", value=details.get('customer_email', 'N/A'), inline=True)
+                embed.add_field(name="Stripe Customer", value=details.get('customer_id', 'N/A'), inline=False)
+                embed.add_field(name="Session ID", value=details.get('session_id', 'N/A'), inline=False)
+                
+                if not success and 'error' in details:
+                    embed.add_field(name="Error", value=details['error'], inline=False)
+                
+            elif event_type == "cancellation":
+                embed = discord.Embed(
+                    title=f"{status_emoji} Subscription Cancellation {status_text}",
+                    color=discord.Color.orange() if success else discord.Color.red(),
+                    timestamp=datetime.now(timezone.utc)
+                )
+                embed.add_field(name="Server ID", value=details.get('guild_id', 'N/A'), inline=True)
+                embed.add_field(name="Subscription ID", value=details.get('subscription_id', 'N/A'), inline=False)
+                
+                if not success and 'error' in details:
+                    embed.add_field(name="Error", value=details['error'], inline=False)
+                    
+            elif event_type == "payment_failure":
+                embed = discord.Embed(
+                    title=f"⚠️ Payment Failure",
+                    color=discord.Color.yellow(),
+                    timestamp=datetime.now(timezone.utc)
+                )
+                embed.add_field(name="Server ID", value=details.get('guild_id', 'N/A'), inline=True)
+                embed.add_field(name="Amount Due", value=f"${details.get('amount_due', 0):.2f}", inline=True)
+                embed.add_field(name="Attempt Count", value=details.get('attempt_count', 'N/A'), inline=True)
+                embed.add_field(name="Subscription ID", value=details.get('subscription_id', 'N/A'), inline=False)
+                
+            else:
+                # Generic notification
+                embed = discord.Embed(
+                    title=f"{status_emoji} Webhook Event {status_text}",
+                    description=f"Event Type: {event_type}",
+                    color=discord.Color.blue(),
+                    timestamp=datetime.now(timezone.utc)
+                )
+                for key, value in details.items():
+                    embed.add_field(name=key.replace('_', ' ').title(), value=str(value), inline=True)
+            
+            await owner.send(embed=embed)
+            print(f"📧 Owner notification sent: {event_type} - {status_text}")
+            
+        except discord.Forbidden:
+            print(f"⚠️ Owner notification failed: Owner has DMs disabled")
+        except Exception as e:
+            print(f"⚠️ Owner notification error: {e}")
     
     def purge_all_guild_data(self, guild_id: int):
         """Purge all data for a guild when subscription lapses"""
@@ -2591,6 +2935,25 @@ def init_db():
             user_id INTEGER NOT NULL,
             banned_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
+        """)
+        
+        # Webhook events tracking for owner dashboard
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS webhook_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            event_id TEXT,
+            guild_id INTEGER,
+            status TEXT NOT NULL CHECK(status IN ('success', 'failed')),
+            timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+            details TEXT
+        )
+        """)
+        
+        # Create index on timestamp for faster queries on recent events
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_webhook_events_timestamp 
+        ON webhook_events(timestamp DESC)
         """)
         
         conn.execute("""
