@@ -1055,12 +1055,20 @@ def api_owner_grant_access(user_session):
             app.logger.info(f"✅ Transaction committed successfully for guild {guild_id}")
             
             # Send notification to server owner if granting bot access
-            if access_type == 'bot_access' and bot and bot.loop:
-                import asyncio
-                asyncio.run_coroutine_threadsafe(
-                    notify_server_owner_bot_access(int(guild_id), granted_by="manual"),
-                    bot.loop
-                )
+            if access_type == 'bot_access':
+                app.logger.info(f"📧 Attempting to send welcome notification to server owner for guild {guild_id}")
+                if bot and bot.loop:
+                    import asyncio
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            notify_server_owner_bot_access(int(guild_id), granted_by="manual"),
+                            bot.loop
+                        )
+                        app.logger.info(f"✅ Welcome notification queued successfully for guild {guild_id}")
+                    except Exception as notify_error:
+                        app.logger.error(f"❌ Failed to queue welcome notification for guild {guild_id}: {notify_error}")
+                else:
+                    app.logger.warning(f"⚠️ Cannot send welcome notification - bot instance or loop not available")
             
             return jsonify({
                 'success': True,
