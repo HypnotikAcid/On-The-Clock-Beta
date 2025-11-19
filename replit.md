@@ -73,6 +73,12 @@ Preferred communication style: Simple, everyday language.
 ## Owner Dashboard
 - **Route**: `/owner` - Accessible only to bot owner (Discord ID: 107103438139056128) via Discord OAuth authentication.
 - **Summary Statistics**: Total Servers, Paid Servers, 7-Day Retention, 30-Day Retention, Past Due, Active Sessions.
+- **Mobile-Responsive Card Layout**: Replaced table with expandable server cards for mobile-friendliness. Cards show server icon, name, and subscription badges by default. Tap to expand reveals Stripe customer/subscription IDs, active sessions count, and manual grant buttons.
+- **Manual Subscription Granting**: Owner can manually grant bot access ($5 one-time) and retention tiers (7-day/$5, 30-day/$10) to any server via dashboard buttons. All manual grants tracked in database with granted_by user ID and granted_at timestamp. API endpoint `/api/owner/grant-access` enforces owner-only access and validates bot access must be paid before retention tiers.
 - **Server Management**: View all servers (paid and unpaid) with subscription details, active session counts, Stripe customer/subscription IDs. Search by name or ID. Filter by: All, Paid, Unpaid, Free Tier, 7-Day, 30-Day, Past Due.
 - **Webhook Event History**: Last 100 webhook events with server names, event types, statuses, timestamps, and detailed information (customer email, product type, session IDs, error messages). Search by any field. Filter by: All, Success, Failed, Checkout, Subscriptions, Payments.
-- **Database Schema**: Uses `server_subscriptions` table (guild_id INTEGER) joined with `bot_guilds` table (guild_id TEXT) using `CAST(ss.guild_id AS TEXT)` to avoid Discord snowflake ID overflow in SQLite signed 64-bit INTEGER range.
+- **Database Schema**: Uses `server_subscriptions` table (guild_id INTEGER) joined with `bot_guilds` table (guild_id TEXT) using `CAST(ss.guild_id AS TEXT)` to avoid Discord snowflake ID overflow in SQLite signed 64-bit INTEGER range. Added `manually_granted`, `granted_by`, and `granted_at` columns to track manual subscription grants.
+
+## Mobile Dashboard Navigation (November 2025)
+- **Fixed Mobile Sidebar**: Overlay positioned at `left: 280px` to not cover sidebar, allowing tap interactions with menu items without obstruction.
+- **Persistent Navigation**: Removed auto-close behavior when tapping navigation items - sidebar now stays open for easy navigation between settings pages. Closes only when tapping overlay or back button.
