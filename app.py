@@ -1010,8 +1010,8 @@ def api_owner_grant_access(user_session):
             if not server_exists:
                 # Create server subscription entry if it doesn't exist
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
-                    VALUES (?, 0, 'none', 'active')
+                    INSERT INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
+                    VALUES (?, 'free', 0, 'none', 'active')
                 """, (guild_id,))
                 app.logger.info(f"Created new server_subscriptions entry for guild {guild_id}")
             
@@ -1114,8 +1114,8 @@ def api_owner_revoke_access(user_session):
                 app.logger.warning(f"Guild {guild_id} not found in server_subscriptions. Creating placeholder row.")
                 # Auto-create placeholder row for this guild
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
-                    VALUES (?, 0, 'none', 'free')
+                    INSERT INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
+                    VALUES (?, 'free', 0, 'none', 'free')
                 """, (guild_id,))
                 app.logger.info(f"Created placeholder server_subscriptions row for guild {guild_id}")
                 # Re-fetch the server
