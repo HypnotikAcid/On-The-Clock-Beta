@@ -5,7 +5,10 @@ Flask app for On the Clock - landing page and OAuth dashboard.
 import os
 import secrets
 import json
-import sqlite3
+import psycopg2
+import psycopg2.pool
+from psycopg2.extras import RealDictCursor
+from contextlib import contextmanager
 import logging
 import traceback
 import threading
@@ -78,8 +81,11 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Fix for Replit reverse proxy - ensures correct scheme/host detection and client IP
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 
-# Database Configuration - MUST match bot.py for proper synchronization
-DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
+# Database Configuration - PostgreSQL (shared with bot.py)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# PostgreSQL connection pool for Flask app
+app_db_pool = None
 
 # Discord OAuth2 Configuration
 DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
@@ -110,18 +116,71 @@ def get_redirect_uri():
     return url_for('auth_callback', _external=True, _scheme='https')
 
 # Database connection
+def init_app_db_pool():
+    """Initialize PostgreSQL connection pool for Flask app"""
+    global app_db_pool
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is not set")
+    app_db_pool = psycopg2.pool.ThreadedConnectionPool(
+        minconn=1,
+        maxconn=10,
+        dsn=DATABASE_URL
+    )
+    app.logger.info("✅ PostgreSQL connection pool initialized for Flask")
+
+class FlaskConnectionWrapper:
+    """Wrapper to make psycopg2 connection behave like sqlite3 connection with Row factory"""
+    def __init__(self, conn):
+        self._conn = conn
+        self._cursor = None
+    
+    def execute(self, query, params=None):
+        """Execute a query and return a cursor (mimics sqlite3 behavior)"""
+        # Use RealDictCursor for dict-like row access (like RealDictCursor)
+        self._cursor = self._conn.cursor(cursor_factory=RealDictCursor)
+        if params:
+            self._cursor.execute(query, params)
+        else:
+            self._cursor.execute(query)
+        return self._cursor
+    
+    def executemany(self, query, params_list):
+        """Execute a query with multiple parameter sets"""
+        self._cursor = self._conn.cursor(cursor_factory=RealDictCursor)
+        self._cursor.executemany(query, params_list)
+        return self._cursor
+    
+    def cursor(self):
+        """Get a new cursor with dict-like rows"""
+        return self._conn.cursor(cursor_factory=RealDictCursor)
+    
+    def commit(self):
+        """Commit the transaction"""
+        self._conn.commit()
+    
+    def rollback(self):
+        """Rollback the transaction"""
+        self._conn.rollback()
+
+@contextmanager
 def get_db():
-    """
-    Get database connection with same PRAGMA settings as bot.py
-    for proper synchronization between Discord bot and web dashboard
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")
-    conn.execute("PRAGMA busy_timeout = 5000")
-    conn.execute("PRAGMA synchronous = NORMAL")
-    return conn
+    """Context manager for PostgreSQL database connections (Flask app)"""
+    if app_db_pool is None:
+        init_app_db_pool()
+    
+    conn = app_db_pool.getconn()
+    wrapper = FlaskConnectionWrapper(conn)
+    try:
+        yield wrapper
+        # Auto-commit on successful exit
+        conn.commit()
+    except Exception as e:
+        # Auto-rollback on exception
+        conn.rollback()
+        raise
+    finally:
+        # Always return connection to pool
+        app_db_pool.putconn(conn)
 
 def init_dashboard_tables():
     """Initialize database tables for OAuth and user sessions"""
@@ -154,19 +213,19 @@ def init_dashboard_tables():
         # Migration: Add refresh_token column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN refresh_token TEXT")
-        except sqlite3.OperationalError:
+        except psycopg2.OperationalError:
             pass
         
         # Migration: Add created_at column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now'))")
-        except sqlite3.OperationalError:
+        except psycopg2.OperationalError:
             pass
         
         # Migration: Add ip_address column if it doesn't exist
         try:
             conn.execute("ALTER TABLE user_sessions ADD COLUMN ip_address TEXT NOT NULL DEFAULT 'unknown'")
-        except sqlite3.OperationalError:
+        except psycopg2.OperationalError:
             pass
         
         # Clean up expired sessions and states
@@ -190,7 +249,7 @@ def create_oauth_state():
     
     with get_db() as conn:
         conn.execute(
-            "INSERT INTO oauth_states (state, expires_at) VALUES (?, ?)",
+            "INSERT INTO oauth_states (state, expires_at) VALUES (%s, %s)",
             (state, expires_at.isoformat())
         )
     return state
@@ -250,7 +309,7 @@ def create_user_session(user_data, access_token, refresh_token, guilds_data):
         conn.execute("""
             INSERT INTO user_sessions 
             (session_id, user_id, username, discriminator, avatar, access_token, refresh_token, guilds_data, created_at, expires_at, ip_address)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             session_id,
             user_data['id'],
@@ -631,9 +690,11 @@ def user_has_admin_access(user_id, guild_id, user_guild):
 def filter_user_guilds(user_session):
     """
     Filter user's guilds to show only those where:
-    1. The bot is present (in bot_guilds table), AND
-    2. The user has admin access (owner, administrator, or custom admin role)
-    Also adds subscription information to each guild.
+    1. The user has admin access (owner, administrator, or custom admin role), AND
+    2. EITHER the bot is present OR the server has paid/granted access
+    
+    This allows admins to see servers where access was manually granted even if bot hasn't joined yet.
+    Also adds subscription information and bot presence flag to each guild.
     """
     all_guilds = user_session.get('guilds', [])
     bot_guild_ids = get_bot_guild_ids()
@@ -654,20 +715,26 @@ def filter_user_guilds(user_session):
     for guild in all_guilds:
         guild_id = guild.get('id')
         
-        # Check if bot is in this guild
-        if guild_id not in bot_guild_ids:
-            continue
-        
-        # Check if user has admin access
+        # Check if user has admin access first
         if not user_has_admin_access(user_session['user_id'], guild_id, guild):
             continue
         
-        # Add subscription info to guild
+        # Check bot presence and payment status
+        bot_is_present = guild_id in bot_guild_ids
         sub_info = subscription_data.get(guild_id, {'bot_access_paid': False, 'retention_tier': 'none'})
-        guild['bot_access_paid'] = sub_info['bot_access_paid']
-        guild['retention_tier'] = sub_info['retention_tier']
+        has_paid_access = sub_info['bot_access_paid']
         
-        # Guild passes both filters
+        # Show guild if EITHER bot is present OR they have paid access
+        # This allows admins to see their dashboard even if bot hasn't joined yet after manual grant
+        if not bot_is_present and not has_paid_access:
+            continue
+        
+        # Add subscription info and bot presence to guild
+        guild['bot_access_paid'] = has_paid_access
+        guild['retention_tier'] = sub_info['retention_tier']
+        guild['bot_is_present'] = bot_is_present
+        
+        # Guild passes filters
         filtered_guilds.append(guild)
     
     return filtered_guilds
@@ -781,10 +848,10 @@ def handle_checkout_completed(session):
             with bot_db() as conn:
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
-                    VALUES (?, ?, ?, 'active')
+                    VALUES (%s, %s, %s, 'active')
                     ON CONFLICT(guild_id) DO UPDATE SET 
-                        subscription_id = ?,
-                        customer_id = ?,
+                        subscription_id = %s,
+                        customer_id = %s,
                         status = 'active'
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
             
@@ -804,10 +871,10 @@ def handle_checkout_completed(session):
             with bot_db() as conn:
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
-                    VALUES (?, ?, ?, 'active')
+                    VALUES (%s, %s, %s, 'active')
                     ON CONFLICT(guild_id) DO UPDATE SET 
-                        subscription_id = ?,
-                        customer_id = ?,
+                        subscription_id = %s,
+                        customer_id = %s,
                         status = 'active'
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
             
@@ -1072,7 +1139,7 @@ def fetch_guild_name_from_discord(guild_id, db_conn=None):
             try:
                 db_conn.execute("""
                     INSERT INTO bot_guilds (guild_id, guild_name) 
-                    VALUES (?, ?)
+                    VALUES (%s, %s)
                     ON CONFLICT(guild_id) DO UPDATE SET guild_name = ?
                 """, (str(guild_id), guild_name, guild_name))
                 app.logger.info(f"Cached guild name for {guild_id}: {guild_name}")
@@ -1112,12 +1179,13 @@ def owner_dashboard(user_session):
             # Database reconciliation: Ensure all bot guilds have rows (non-destructive)
             try:
                 # Insert placeholder rows for new guilds where bot is present but no row exists
-                # Use INSERT OR IGNORE to safely handle existing rows
+                # Use ON CONFLICT DO NOTHING for PostgreSQL (equivalent to INSERT OR IGNORE)
                 cursor = conn.execute("""
-                    INSERT OR IGNORE INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
-                    SELECT CAST(guild_id AS INTEGER), 'free', 0, 'none', 'free'
+                    INSERT INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
+                    SELECT CAST(guild_id AS BIGINT), 'free', FALSE, 'none', 'free'
                     FROM bot_guilds
-                    WHERE CAST(guild_id AS INTEGER) NOT IN (SELECT guild_id FROM server_subscriptions)
+                    WHERE CAST(guild_id AS BIGINT) NOT IN (SELECT guild_id FROM server_subscriptions)
+                    ON CONFLICT (guild_id) DO NOTHING
                 """)
                 inserted_count = cursor.rowcount
                 if inserted_count > 0:
@@ -1296,7 +1364,7 @@ def api_owner_grant_access(user_session):
                 # Create server subscription entry if it doesn't exist
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
-                    VALUES (?, 'free', 0, 'none', 'active')
+                    VALUES (%s, 'free', 0, 'none', 'active')
                 """, (guild_id,))
                 app.logger.info(f"Created new server_subscriptions entry for guild {guild_id}")
             
@@ -1306,7 +1374,7 @@ def api_owner_grant_access(user_session):
                     UPDATE server_subscriptions 
                     SET bot_access_paid = 1,
                         manually_granted = 1,
-                        granted_by = ?,
+                        granted_by = %s,
                         granted_at = datetime('now')
                     WHERE guild_id = ?
                 """, (user_session['user_id'], guild_id))
@@ -1326,9 +1394,9 @@ def api_owner_grant_access(user_session):
                 
                 conn.execute("""
                     UPDATE server_subscriptions 
-                    SET retention_tier = ?,
+                    SET retention_tier = %s,
                         manually_granted = 1,
-                        granted_by = ?,
+                        granted_by = %s,
                         granted_at = datetime('now'),
                         status = 'active'
                     WHERE guild_id = ?
@@ -1424,7 +1492,7 @@ def api_owner_revoke_access(user_session):
                 # Auto-create placeholder row for this guild
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
-                    VALUES (?, 'free', 0, 'none', 'free')
+                    VALUES (%s, 'free', 0, 'none', 'free')
                 """, (guild_id,))
                 app.logger.info(f"Created placeholder server_subscriptions row for guild {guild_id}")
                 # Re-fetch the server
@@ -2287,7 +2355,7 @@ def api_update_timezone(user_session, guild_id):
                 )
             else:
                 conn.execute(
-                    "INSERT INTO guild_settings (guild_id, timezone) VALUES (?, ?)",
+                    "INSERT INTO guild_settings (guild_id, timezone) VALUES (%s, %s)",
                     (guild_id, timezone_str)
                 )
         
@@ -2326,14 +2394,14 @@ def api_update_email_settings(user_session, guild_id):
             if exists:
                 conn.execute(
                     """UPDATE email_settings 
-                       SET auto_send_on_clockout = ?, auto_email_before_delete = ? 
+                       SET auto_send_on_clockout = %s, auto_email_before_delete = ? 
                        WHERE guild_id = ?""",
                     (auto_send_on_clockout, auto_email_before_delete, guild_id)
                 )
             else:
                 conn.execute(
                     """INSERT INTO email_settings (guild_id, auto_send_on_clockout, auto_email_before_delete) 
-                       VALUES (?, ?, ?)""",
+                       VALUES (%s, %s, %s)""",
                     (guild_id, auto_send_on_clockout, auto_email_before_delete)
                 )
             
@@ -2395,7 +2463,7 @@ def api_update_work_day_time(user_session, guild_id):
                 # Insert with proper defaults for all columns
                 conn.execute(
                     """INSERT INTO guild_settings (guild_id, timezone, name_display_mode, work_day_end_time) 
-                       VALUES (?, 'America/New_York', 'username', ?)""",
+                       VALUES (%s, 'America/New_York', 'username', %s)""",
                     (guild_id, work_day_end_time)
                 )
             
@@ -2448,7 +2516,7 @@ def api_update_mobile_restriction(user_session, guild_id):
                 conn.execute(
                     """INSERT INTO server_subscriptions 
                        (guild_id, tier, bot_access_paid, retention_tier, restrict_mobile_clockin) 
-                       VALUES (?, 'free', 0, 'none', ?)""",
+                       VALUES (%s, 'free', 0, 'none', %s)""",
                     (int(guild_id), int(restrict_mobile))
                 )
             
@@ -2535,7 +2603,7 @@ def api_add_email_recipient(user_session, guild_id):
         try:
             cursor = conn.execute(
                 """INSERT INTO report_recipients (guild_id, recipient_type, email_address) 
-                   VALUES (?, 'email', ?)""",
+                   VALUES (%s, 'email', %s)""",
                 (guild_id, email)
             )
             recipient_id = cursor.lastrowid
