@@ -999,7 +999,8 @@ def api_owner_grant_access(user_session):
         
         app.logger.info(f"Owner {user_session.get('username')} granting {access_type} to guild {guild_id}")
         
-        with get_db() as conn:
+        conn = get_db()
+        try:
             # Check if server exists in server_subscriptions
             cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
             server_exists = cursor.fetchone()
@@ -1010,7 +1011,6 @@ def api_owner_grant_access(user_session):
                     INSERT INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
                     VALUES (?, 0, 'none', 'active')
                 """, (guild_id,))
-                conn.commit()
                 app.logger.info(f"Created new server_subscriptions entry for guild {guild_id}")
             
             # Grant the appropriate access
@@ -1031,6 +1031,7 @@ def api_owner_grant_access(user_session):
                 bot_access = cursor.fetchone()
                 
                 if not bot_access or not bot_access[0]:
+                    conn.rollback()
                     return jsonify({
                         'success': False, 
                         'error': 'Bot access must be granted before retention tiers. Grant bot access first.'
@@ -1047,15 +1048,22 @@ def api_owner_grant_access(user_session):
                 """, (access_type, user_session['user_id'], guild_id))
                 app.logger.info(f"✅ Granted {access_type} retention to guild {guild_id}")
             
-            # Commit the transaction
+            # Commit all changes
             conn.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Successfully granted {access_type} to server',
-            'guild_id': guild_id,
-            'access_type': access_type
-        })
+            app.logger.info(f"✅ Transaction committed successfully for guild {guild_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Successfully granted {access_type} to server',
+                'guild_id': guild_id,
+                'access_type': access_type
+            })
+        except Exception as db_error:
+            conn.rollback()
+            app.logger.error(f"Database error during grant, rolled back: {db_error}")
+            raise
+        finally:
+            conn.close()
     
     except Exception as e:
         app.logger.error(f"Grant access error: {str(e)}")
@@ -1086,7 +1094,8 @@ def api_owner_revoke_access(user_session):
         
         app.logger.info(f"Owner {user_session.get('username')} revoking {access_type} from guild {guild_id}")
         
-        with get_db() as conn:
+        conn = get_db()
+        try:
             # Check if server exists in server_subscriptions
             cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
             server = cursor.fetchone()
@@ -1094,19 +1103,14 @@ def api_owner_revoke_access(user_session):
             if not server:
                 app.logger.warning(f"Guild {guild_id} not found in server_subscriptions. Creating placeholder row.")
                 # Auto-create placeholder row for this guild
-                try:
-                    conn.execute("""
-                        INSERT INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
-                        VALUES (?, 0, 'none', 'free')
-                    """, (guild_id,))
-                    conn.commit()
-                    app.logger.info(f"Created placeholder server_subscriptions row for guild {guild_id}")
-                    # Re-fetch the server
-                    cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
-                    server = cursor.fetchone()
-                except Exception as insert_error:
-                    app.logger.error(f"Failed to create placeholder row for guild {guild_id}: {insert_error}")
-                    return jsonify({'success': False, 'error': f'Server not found and could not create placeholder: {str(insert_error)}'}), 500
+                conn.execute("""
+                    INSERT INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
+                    VALUES (?, 0, 'none', 'free')
+                """, (guild_id,))
+                app.logger.info(f"Created placeholder server_subscriptions row for guild {guild_id}")
+                # Re-fetch the server
+                cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+                server = cursor.fetchone()
             
             # Revoke the appropriate access
             if access_type == 'bot_access':
@@ -1134,20 +1138,28 @@ def api_owner_revoke_access(user_session):
                     """, (guild_id,))
                     app.logger.info(f"❌ Revoked {access_type} retention from guild {guild_id}")
                 else:
+                    conn.rollback()
                     return jsonify({
                         'success': False, 
                         'error': f'Server does not have {access_type} retention active'
                     }), 400
             
-            # Commit the transaction
+            # Commit all changes
             conn.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Successfully revoked {access_type} from server',
-            'guild_id': guild_id,
-            'access_type': access_type
-        })
+            app.logger.info(f"✅ Transaction committed successfully for guild {guild_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Successfully revoked {access_type} from server',
+                'guild_id': guild_id,
+                'access_type': access_type
+            })
+        except Exception as db_error:
+            conn.rollback()
+            app.logger.error(f"Database error during revoke, rolled back: {db_error}")
+            raise
+        finally:
+            conn.close()
     
     except Exception as e:
         app.logger.error(f"Revoke access error: {str(e)}")
