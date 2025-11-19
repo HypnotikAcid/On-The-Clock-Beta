@@ -1857,7 +1857,7 @@ def purchase_page(guild_id):
         return "<h1>Error</h1><p>Unable to load purchase page.</p>", 500
 
 @app.route("/server/<guild_id>/settings")
-@require_auth
+@require_paid_access
 def server_settings(user_session, guild_id):
     """Server-specific settings page with admin/employee management, email, and timezone"""
     try:
@@ -1946,7 +1946,7 @@ def validate_role_in_guild(guild_id, role_id):
         return False
 
 @app.route("/api/server/<guild_id>/admin-roles/add", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_add_admin_role(user_session, guild_id):
     """API endpoint to add an admin role - Proxies to bot API"""
     try:
@@ -1995,7 +1995,7 @@ def api_add_admin_role(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/admin-roles/remove", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_remove_admin_role(user_session, guild_id):
     """API endpoint to remove an admin role - Proxies to bot API"""
     try:
@@ -2040,7 +2040,7 @@ def api_remove_admin_role(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/employee-roles/add", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_add_employee_role(user_session, guild_id):
     """API endpoint to add an employee role - Proxies to bot API"""
     try:
@@ -2093,7 +2093,7 @@ def api_add_employee_role(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/employee-roles/remove", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_remove_employee_role(user_session, guild_id):
     """API endpoint to remove an employee role - Proxies to bot API"""
     try:
@@ -2138,7 +2138,7 @@ def api_remove_employee_role(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/timezone", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_update_timezone(user_session, guild_id):
     """API endpoint to update timezone"""
     try:
@@ -2188,7 +2188,7 @@ def api_update_timezone(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/email-settings", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_update_email_settings(user_session, guild_id):
     """API endpoint to update email settings"""
     try:
@@ -2247,7 +2247,7 @@ def api_update_email_settings(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/work-day-time", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_update_work_day_time(user_session, guild_id):
     """API endpoint to update work day end time"""
     try:
@@ -2304,7 +2304,7 @@ def api_update_work_day_time(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/mobile-restriction", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_update_mobile_restriction(user_session, guild_id):
     """API endpoint to update mobile device restriction setting"""
     try:
@@ -2361,7 +2361,7 @@ def api_update_mobile_restriction(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/email-recipients", methods=["GET"])
-@require_api_auth
+@require_paid_api_access
 def api_get_email_recipients(user_session, guild_id):
     """API endpoint to fetch email recipients for a server"""
     try:
@@ -2397,7 +2397,7 @@ def api_get_email_recipients(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/email-recipients/add", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_add_email_recipient(user_session, guild_id):
     """API endpoint to add an email recipient"""
     try:
@@ -2448,7 +2448,7 @@ def api_add_email_recipient(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/email-recipients/remove", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_remove_email_recipient(user_session, guild_id):
     """API endpoint to remove an email recipient"""
     try:
@@ -2493,7 +2493,7 @@ def api_remove_email_recipient(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/data", methods=["GET"])
-@require_api_auth
+@require_paid_api_access
 def api_get_server_data(user_session, guild_id):
     """API endpoint to fetch server roles and settings for dashboard integration"""
     try:
@@ -2527,7 +2527,7 @@ def api_get_server_data(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/bans", methods=["GET"])
-@require_api_auth
+@require_paid_api_access
 def api_get_bans(user_session, guild_id):
     """API endpoint to fetch all banned users for a server"""
     try:
@@ -2560,7 +2560,7 @@ def api_get_bans(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/bans/unban", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_unban_user(user_session, guild_id):
     """API endpoint to unban a user"""
     try:
@@ -2588,7 +2588,7 @@ def api_unban_user(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/bans/permanent", methods=["POST"])
-@require_api_auth
+@require_paid_api_access
 def api_make_ban_permanent(user_session, guild_id):
     """API endpoint to make a ban permanent"""
     try:
