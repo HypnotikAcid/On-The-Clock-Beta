@@ -341,6 +341,181 @@ def require_api_auth(f):
             return jsonify({'success': False, 'error': 'Authentication error'}), 500
     return decorated_function
 
+def check_guild_paid_access(guild_id):
+    """
+    Check if a guild has paid bot access.
+    Returns dict with: {'bot_invited': bool, 'bot_access_paid': bool}
+    Performs fresh database lookup on every call (no caching).
+    """
+    try:
+        with get_db() as conn:
+            # Check if bot is in the guild (bot_guilds table)
+            cursor = conn.execute("SELECT guild_id FROM bot_guilds WHERE guild_id = ?", (str(guild_id),))
+            bot_invited = cursor.fetchone() is not None
+            
+            # Check if guild has paid bot access (server_subscriptions table)
+            cursor = conn.execute(
+                "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = ?",
+                (int(guild_id),)
+            )
+            result = cursor.fetchone()
+            bot_access_paid = bool(result[0]) if result else False
+            
+            return {
+                'bot_invited': bot_invited,
+                'bot_access_paid': bot_access_paid
+            }
+    except Exception as e:
+        app.logger.error(f"Error checking guild {guild_id} paid access: {e}")
+        # Fail closed - deny access on error
+        return {
+            'bot_invited': False,
+            'bot_access_paid': False
+        }
+
+def require_paid_access(f):
+    """
+    Decorator to require both authentication AND paid bot access for dashboard routes.
+    Checks on every request (no caching) for real-time access control.
+    
+    Extracts guild_id from route parameters and validates:
+    1. User is authenticated
+    2. Bot is invited to the guild
+    3. Guild has paid bot access
+    4. User is admin in the guild
+    
+    Redirects to appropriate pages based on access state:
+    - Not invited: /dashboard/invite
+    - Invited but not paid: /dashboard/purchase
+    - Paid but not admin: /dashboard/no-access
+    """
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            # First check authentication
+            session_id = session.get('session_id')
+            if not session_id:
+                app.logger.info("No session_id found, redirecting to login")
+                return redirect('/auth/login')
+            
+            user_session = get_user_session(session_id)
+            if not user_session:
+                app.logger.warning(f"Invalid or expired session: {session_id[:8]}...")
+                session.clear()
+                return redirect('/auth/login')
+            
+            # Extract guild_id from route parameters
+            guild_id = kwargs.get('guild_id')
+            if not guild_id:
+                # For routes without guild_id (like /dashboard), just require auth
+                return f(user_session, *args, **kwargs)
+            
+            # Check bot access status (fresh DB lookup every time)
+            access_status = check_guild_paid_access(guild_id)
+            
+            # Check if user is admin in this guild
+            user_guilds = user_session.get('guilds', [])
+            user_guild = next((g for g in user_guilds if str(g['id']) == str(guild_id)), None)
+            
+            if not user_guild:
+                app.logger.warning(f"User {user_session.get('username')} not in guild {guild_id}")
+                return redirect('/dashboard?error=not_in_guild')
+            
+            is_admin = user_has_admin_access(user_session['user_id'], guild_id, user_guild)
+            
+            # Validate access requirements
+            if not access_status['bot_invited']:
+                app.logger.info(f"Bot not invited to guild {guild_id}, redirecting to invite page")
+                return redirect(f'/dashboard/invite?guild_id={guild_id}')
+            
+            if not access_status['bot_access_paid']:
+                app.logger.info(f"Guild {guild_id} does not have paid access, redirecting to purchase page")
+                return redirect(f'/dashboard/purchase?guild_id={guild_id}')
+            
+            if not is_admin:
+                app.logger.warning(f"User {user_session.get('username')} not admin in guild {guild_id}")
+                return redirect(f'/dashboard/no-access?guild_id={guild_id}')
+            
+            # All checks passed - allow access
+            return f(user_session, *args, **kwargs)
+            
+        except Exception as e:
+            app.logger.error(f"Paid access check error: {str(e)}")
+            app.logger.error(traceback.format_exc())
+            session.clear()
+            return redirect('/auth/login')
+    return decorated_function
+
+def require_paid_api_access(f):
+    """
+    API version of require_paid_access - returns JSON errors instead of redirects.
+    """
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            # First check authentication
+            session_id = session.get('session_id')
+            if not session_id:
+                return jsonify({'success': False, 'error': 'Unauthorized', 'code': 'NO_SESSION'}), 401
+            
+            user_session = get_user_session(session_id)
+            if not user_session:
+                session.clear()
+                return jsonify({'success': False, 'error': 'Session expired', 'code': 'EXPIRED_SESSION'}), 401
+            
+            # Extract guild_id from route parameters
+            guild_id = kwargs.get('guild_id')
+            if not guild_id:
+                return jsonify({'success': False, 'error': 'Missing guild_id', 'code': 'MISSING_GUILD'}), 400
+            
+            # Check bot access status (fresh DB lookup every time)
+            access_status = check_guild_paid_access(guild_id)
+            
+            # Check if user is admin in this guild
+            user_guilds = user_session.get('guilds', [])
+            user_guild = next((g for g in user_guilds if str(g['id']) == str(guild_id)), None)
+            
+            if not user_guild:
+                return jsonify({'success': False, 'error': 'Not in guild', 'code': 'NOT_IN_GUILD'}), 403
+            
+            is_admin = user_has_admin_access(user_session['user_id'], guild_id, user_guild)
+            
+            # Validate access requirements
+            if not access_status['bot_invited']:
+                return jsonify({
+                    'success': False,
+                    'error': 'Bot not invited to server',
+                    'code': 'BOT_NOT_INVITED',
+                    'redirect': f'/dashboard/invite?guild_id={guild_id}'
+                }), 403
+            
+            if not access_status['bot_access_paid']:
+                return jsonify({
+                    'success': False,
+                    'error': 'Server does not have paid bot access',
+                    'code': 'NO_PAID_ACCESS',
+                    'redirect': f'/dashboard/purchase?guild_id={guild_id}'
+                }), 403
+            
+            if not is_admin:
+                return jsonify({
+                    'success': False,
+                    'error': 'Admin access required',
+                    'code': 'NOT_ADMIN',
+                    'redirect': f'/dashboard/no-access?guild_id={guild_id}'
+                }), 403
+            
+            # All checks passed - allow access
+            return f(user_session, *args, **kwargs)
+            
+        except Exception as e:
+            app.logger.error(f"API paid access check error: {str(e)}")
+            app.logger.error(traceback.format_exc())
+            return jsonify({'success': False, 'error': 'Access check error', 'code': 'CHECK_ERROR'}), 500
+    return decorated_function
+
 def get_bot_guild_ids():
     """Get list of guild IDs where the bot is present (as strings for OAuth comparison)"""
     try:
