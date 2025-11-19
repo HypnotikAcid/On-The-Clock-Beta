@@ -783,6 +783,126 @@ def dashboard(user_session):
         app.logger.error(traceback.format_exc())
         return "<h1>Error</h1><p>Unable to load dashboard. Please try again later.</p><a href='/auth/logout'>Logout</a>", 500
 
+@app.route("/owner")
+@require_auth
+def owner_dashboard(user_session):
+    """Owner-only dashboard showing all servers, subscriptions, webhook events, and active sessions"""
+    try:
+        BOT_OWNER_ID = '107103438139056128'
+        
+        # Security check: Only allow bot owner
+        if user_session['user_id'] != BOT_OWNER_ID:
+            app.logger.warning(f"Unauthorized owner dashboard access attempt by user {user_session['user_id']}")
+            return "<h1>403 Forbidden</h1><p>You do not have permission to access this page.</p><a href='/dashboard'>Return to Dashboard</a>", 403
+        
+        app.logger.info(f"Owner dashboard accessed by {user_session.get('username')}")
+        
+        # Get all servers with bot access
+        with get_db() as conn:
+            # Get all guilds with subscriptions and settings (show ALL servers, not just paid)
+            cursor = conn.execute("""
+                SELECT 
+                    ss.guild_id,
+                    bg.guild_name,
+                    ss.bot_access_paid,
+                    ss.retention_tier,
+                    ss.status,
+                    ss.subscription_id,
+                    ss.customer_id,
+                    COUNT(DISTINCT ts.session_id) as active_sessions
+                FROM server_subscriptions ss
+                LEFT JOIN bot_guilds bg ON bg.guild_id = CAST(ss.guild_id AS TEXT)
+                LEFT JOIN timeclock_sessions ts ON ss.guild_id = ts.guild_id AND ts.clock_out_time IS NULL
+                GROUP BY ss.guild_id
+                ORDER BY bg.guild_name
+            """)
+            servers = []
+            for row in cursor.fetchall():
+                servers.append({
+                    'guild_id': row[0],
+                    'guild_name': row[1] or 'Unknown Server',
+                    'bot_access': bool(row[2]),
+                    'retention_tier': row[3] if row[3] != 'none' else None,
+                    'status': row[4],
+                    'subscription_id': row[5],
+                    'customer_id': row[6],
+                    'active_sessions': row[7]
+                })
+            
+            # Get recent webhook events (last 100)
+            cursor = conn.execute("""
+                SELECT 
+                    we.event_id,
+                    we.event_type,
+                    we.guild_id,
+                    we.status,
+                    we.timestamp,
+                    we.details,
+                    bg.guild_name
+                FROM webhook_events we
+                LEFT JOIN bot_guilds bg ON bg.guild_id = CAST(we.guild_id AS TEXT)
+                ORDER BY we.timestamp DESC
+                LIMIT 100
+            """)
+            webhook_events = []
+            for row in cursor.fetchall():
+                # Safely parse JSON details with error handling
+                details = {}
+                if row[5]:
+                    try:
+                        details = json.loads(row[5])
+                    except (json.JSONDecodeError, TypeError) as e:
+                        app.logger.warning(f"Failed to parse webhook event details: {e}")
+                        details = {'error': 'Failed to parse details'}
+                
+                webhook_events.append({
+                    'event_id': row[0],
+                    'event_type': row[1],
+                    'guild_id': row[2],
+                    'status': row[3],
+                    'timestamp': row[4],
+                    'details': details,
+                    'guild_name': row[6] or 'Unknown'
+                })
+            
+            # Get summary stats (across ALL servers, not just paid)
+            cursor = conn.execute("""
+                SELECT 
+                    COUNT(*) as total_servers,
+                    SUM(CASE WHEN bot_access_paid = 1 THEN 1 ELSE 0 END) as paid_servers,
+                    SUM(CASE WHEN retention_tier = '7day' THEN 1 ELSE 0 END) as retention_7day_count,
+                    SUM(CASE WHEN retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
+                    SUM(CASE WHEN status = 'past_due' THEN 1 ELSE 0 END) as past_due_count
+                FROM server_subscriptions
+            """)
+            stats_row = cursor.fetchone()
+            stats = {
+                'total_servers': stats_row[0],
+                'paid_servers': stats_row[1],
+                'retention_7day_count': stats_row[2],
+                'retention_30day_count': stats_row[3],
+                'past_due_count': stats_row[4]
+            }
+            
+            # Get total active sessions across all servers
+            cursor = conn.execute("""
+                SELECT COUNT(*) 
+                FROM timeclock_sessions 
+                WHERE clock_out_time IS NULL
+            """)
+            stats['total_active_sessions'] = cursor.fetchone()[0]
+        
+        return render_template('owner_dashboard.html', 
+                             user=user_session,
+                             servers=servers,
+                             webhook_events=webhook_events,
+                             stats=stats)
+    
+    except Exception as e:
+        app.logger.error(f"Owner dashboard error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return "<h1>Error</h1><p>Unable to load owner dashboard. Please try again later.</p><a href='/dashboard'>Return to Dashboard</a>", 500
+
 def verify_guild_access(user_session, guild_id):
     """
     Verify user has access to a specific guild.
