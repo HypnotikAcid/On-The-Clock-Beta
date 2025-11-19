@@ -851,6 +851,21 @@ def index():
     """Landing page with bot info, features, and upgrade links."""
     return render_template('landing.html')
 
+@app.route("/dashboard/invite")
+def dashboard_invite():
+    """Page shown when user tries to access dashboard but bot is not invited to their server."""
+    return render_template('dashboard_invite.html')
+
+@app.route("/dashboard/purchase")
+def dashboard_purchase():
+    """Page shown when user tries to access dashboard but server doesn't have paid bot access."""
+    return render_template('dashboard_purchase.html')
+
+@app.route("/dashboard/no-access")
+def dashboard_no_access():
+    """Page shown when user tries to access dashboard but doesn't have admin permissions."""
+    return render_template('dashboard_no_access.html')
+
 @app.route("/auth/login")
 def auth_login():
     """Redirect user to Discord OAuth"""
