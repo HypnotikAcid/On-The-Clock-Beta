@@ -854,8 +854,8 @@ def owner_dashboard(user_session):
                 # Insert placeholder rows for new guilds where bot is present but no row exists
                 # Use INSERT OR IGNORE to safely handle existing rows
                 cursor = conn.execute("""
-                    INSERT OR IGNORE INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
-                    SELECT CAST(guild_id AS INTEGER), 0, 'none', 'free'
+                    INSERT OR IGNORE INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
+                    SELECT CAST(guild_id AS INTEGER), 'free', 0, 'none', 'free'
                     FROM bot_guilds
                     WHERE CAST(guild_id AS INTEGER) NOT IN (SELECT guild_id FROM server_subscriptions)
                 """)
