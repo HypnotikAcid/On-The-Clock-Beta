@@ -26,7 +26,9 @@ from bot import (
     set_retention_tier,
     purge_timeclock_data_only,
     create_secure_checkout_session,
-    db as bot_db
+    notify_server_owner_bot_access,
+    db as bot_db,
+    bot
 )
 
 # Start Discord bot in background daemon thread
@@ -1051,6 +1053,14 @@ def api_owner_grant_access(user_session):
             # Commit all changes
             conn.commit()
             app.logger.info(f"✅ Transaction committed successfully for guild {guild_id}")
+            
+            # Send notification to server owner if granting bot access
+            if access_type == 'bot_access' and bot and bot.loop:
+                import asyncio
+                asyncio.run_coroutine_threadsafe(
+                    notify_server_owner_bot_access(int(guild_id), granted_by="manual"),
+                    bot.loop
+                )
             
             return jsonify({
                 'success': True,

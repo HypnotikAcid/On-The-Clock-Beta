@@ -728,7 +728,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     'customer_id': customer_id
                 })
                 
-                # Notify owner
+                # Notify bot owner
                 bot_instance = getattr(type(self), 'bot', None)
                 if bot_instance and bot_instance.loop:
                     asyncio.run_coroutine_threadsafe(
@@ -740,6 +740,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             'customer_id': customer_id,
                             'session_id': session_id
                         }),
+                        bot_instance.loop
+                    )
+                    
+                    # Notify server owner about successful activation
+                    asyncio.run_coroutine_threadsafe(
+                        notify_server_owner_bot_access(guild_id, granted_by="purchase"),
                         bot_instance.loop
                     )
                 
@@ -3296,6 +3302,82 @@ def get_retention_tier(guild_id: int) -> str:
             return 'none'
         
         return tier
+
+async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purchase"):
+    """
+    Send a welcome message to the server owner when they get bot access.
+    
+    Args:
+        guild_id: The Discord guild ID
+        granted_by: Either "purchase" (Stripe) or "manual" (bot owner grant)
+    """
+    try:
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            print(f"⚠️ Cannot notify owner - guild {guild_id} not found")
+            return
+        
+        owner = guild.owner
+        if not owner:
+            print(f"⚠️ Cannot notify owner - guild {guild_id} has no owner")
+            return
+        
+        # Create a fancy embed
+        embed = discord.Embed(
+            title="🎉 Bot Access Activated!",
+            description=f"**{guild.name}** now has full access to On the Clock!",
+            color=discord.Color.green(),
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+        if granted_by == "purchase":
+            embed.add_field(
+                name="✅ Payment Confirmed",
+                value="Thank you for your purchase! Your server is now activated.",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="✅ Access Granted",
+                value="Your server has been granted bot access by the bot owner.",
+                inline=False
+            )
+        
+        embed.add_field(
+            name="🚀 What's Next?",
+            value=(
+                "• Use `/setup` to get started\n"
+                "• Add employee roles with `/add_employee_role`\n"
+                "• Employees can use `/clock` to track time\n"
+                "• Admins can generate reports with `/report`\n"
+                "• Configure email settings in the dashboard"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="📊 Dashboard Access",
+            value=f"Visit your [server dashboard]({os.environ.get('REPLIT_DEV_DOMAIN', 'your-app.replit.app')}/dashboard) to configure settings",
+            inline=False
+        )
+        
+        embed.add_field(
+            name="💾 Data Retention",
+            value="Currently using **24-hour** deletion. Upgrade to 7-day or 30-day retention for longer data storage.",
+            inline=False
+        )
+        
+        embed.set_footer(text=f"Server ID: {guild_id}")
+        embed.set_thumbnail(url=guild.icon.url if guild.icon else None)
+        
+        # Send DM to owner
+        await owner.send(embed=embed)
+        print(f"✅ Sent bot access notification to owner of {guild.name} (ID: {guild_id})")
+        
+    except discord.Forbidden:
+        print(f"⚠️ Cannot DM owner of guild {guild_id} - DMs disabled")
+    except Exception as e:
+        print(f"❌ Error notifying owner of guild {guild_id}: {e}")
 
 def set_bot_access(guild_id: int, paid: bool):
     """
