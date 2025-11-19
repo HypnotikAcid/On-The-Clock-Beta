@@ -534,6 +534,12 @@
                                     <span class="badge failed">Unpaid</span>
                                 {% endif %}
                                 
+                                {% if server.bot_is_present %}
+                                    <span class="badge" style="background: #28a745; color: white;">🟢 Bot Active</span>
+                                {% else %}
+                                    <span class="badge" style="background: #dc3545; color: white;">🔴 Bot Left</span>
+                                {% endif %}
+                                
                                 {% if server.retention_tier == '7day' %}
                                     <span class="badge retention-7">7-Day</span>
                                 {% elif server.retention_tier == '30day' %}

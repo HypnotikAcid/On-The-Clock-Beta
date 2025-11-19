@@ -1128,9 +1128,29 @@ def owner_dashboard(user_session):
                 app.logger.error(f"Database reconciliation error: {reconcile_error}")
                 conn.rollback()
                 # Continue anyway - reconciliation failure shouldn't block dashboard
-            # Get all guilds where bot is present (bot_guilds is source of truth)
-            # LEFT JOIN server_subscriptions to add billing info where it exists
+            # Get servers with smart filtering:
+            # - ALWAYS show paid servers (even if bot left)
+            # - ONLY show unpaid servers if bot is still present
+            # Use UNION to combine: paid servers + unpaid servers where bot is present
             cursor = conn.execute("""
+                SELECT 
+                    ss.guild_id,
+                    COALESCE(bg.guild_name, 'Server (Bot Left)') as guild_name,
+                    ss.bot_access_paid,
+                    COALESCE(ss.retention_tier, 'none') as retention_tier,
+                    COALESCE(ss.status, 'free') as status,
+                    ss.subscription_id,
+                    ss.customer_id,
+                    COUNT(DISTINCT ts.session_id) as active_sessions,
+                    CASE WHEN bg.guild_id IS NOT NULL THEN 1 ELSE 0 END as bot_is_present
+                FROM server_subscriptions ss
+                LEFT JOIN bot_guilds bg ON CAST(bg.guild_id AS INTEGER) = ss.guild_id
+                LEFT JOIN timeclock_sessions ts ON ss.guild_id = ts.guild_id AND ts.clock_out_time IS NULL
+                WHERE ss.bot_access_paid = 1
+                GROUP BY ss.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, bg.guild_id
+                
+                UNION
+                
                 SELECT 
                     CAST(bg.guild_id AS INTEGER) as guild_id,
                     bg.guild_name,
@@ -1139,17 +1159,21 @@ def owner_dashboard(user_session):
                     COALESCE(ss.status, 'free') as status,
                     ss.subscription_id,
                     ss.customer_id,
-                    COUNT(DISTINCT ts.session_id) as active_sessions
+                    COUNT(DISTINCT ts.session_id) as active_sessions,
+                    1 as bot_is_present
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS INTEGER)
                 LEFT JOIN timeclock_sessions ts ON CAST(bg.guild_id AS INTEGER) = ts.guild_id AND ts.clock_out_time IS NULL
+                WHERE COALESCE(ss.bot_access_paid, 0) = 0
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id
-                ORDER BY bg.guild_name
+                
+                ORDER BY guild_name
             """)
             servers = []
             for row in cursor.fetchall():
                 guild_id = row[0]
-                guild_name = row[1]  # Already populated from bot_guilds
+                guild_name = row[1]
+                bot_is_present = bool(row[8])  # New column for bot presence
                 
                 servers.append({
                     'guild_id': guild_id,
@@ -1159,7 +1183,8 @@ def owner_dashboard(user_session):
                     'status': row[4],
                     'subscription_id': row[5],
                     'customer_id': row[6],
-                    'active_sessions': row[7]
+                    'active_sessions': row[7],
+                    'bot_is_present': bot_is_present  # Add bot presence indicator
                 })
             
             # Get recent webhook events (last 100) - only for servers where bot is present
@@ -1317,18 +1342,34 @@ def api_owner_grant_access(user_session):
             # Send notification to server owner if granting bot access
             if access_type == 'bot_access':
                 app.logger.info(f"📧 Attempting to send welcome notification to server owner for guild {guild_id}")
-                if bot and bot.loop:
+                
+                # Check bot availability with detailed logging
+                if not bot:
+                    app.logger.error(f"❌ Bot instance is None - cannot send notification")
+                elif not hasattr(bot, 'loop'):
+                    app.logger.error(f"❌ Bot instance has no 'loop' attribute - bot may not be started yet")
+                elif not bot.loop:
+                    app.logger.error(f"❌ Bot loop is None - bot may not be fully connected")
+                else:
                     import asyncio
                     try:
-                        asyncio.run_coroutine_threadsafe(
+                        # Queue the notification in the bot's event loop
+                        future = asyncio.run_coroutine_threadsafe(
                             notify_server_owner_bot_access(int(guild_id), granted_by="manual"),
                             bot.loop
                         )
                         app.logger.info(f"✅ Welcome notification queued successfully for guild {guild_id}")
+                        
+                        # Optional: Wait briefly for result (max 2 seconds) to catch immediate errors
+                        try:
+                            future.result(timeout=2.0)
+                            app.logger.info(f"✅ Welcome notification completed for guild {guild_id}")
+                        except Exception as result_error:
+                            app.logger.warning(f"⚠️ Welcome notification may have failed (check bot logs): {result_error}")
+                            
                     except Exception as notify_error:
                         app.logger.error(f"❌ Failed to queue welcome notification for guild {guild_id}: {notify_error}")
-                else:
-                    app.logger.warning(f"⚠️ Cannot send welcome notification - bot instance or loop not available")
+                        app.logger.error(traceback.format_exc())
             
             return jsonify({
                 'success': True,
