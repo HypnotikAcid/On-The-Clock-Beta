@@ -2911,11 +2911,12 @@ def check_server_abuse(guild_id: int) -> bool:
     
     with db() as conn:
         cursor = conn.execute(
-            """SELECT COUNT(*) FROM server_ban_log 
+            """SELECT COUNT(*) as count FROM server_ban_log 
                WHERE guild_id = %s AND banned_at >= %s""",
             (guild_id, one_hour_ago)
         )
-        ban_count = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        ban_count = result['count'] if result else 0
     
     return ban_count >= 5
 
@@ -7146,15 +7147,22 @@ async def handle_check_user_admin(request: web.Request):
                 'reason': 'guild_not_found'
             })
         
-        # Get the member from guild
-        member = guild.get_member(user_id)
-        if not member:
+        # Fetch the member from Discord API (not just cache)
+        try:
+            member = await guild.fetch_member(user_id)
+        except discord.NotFound:
             return web.json_response({
                 'success': True,
                 'is_member': False,
                 'is_admin': False,
                 'reason': 'not_member'
             })
+        except discord.HTTPException as e:
+            print(f"❌ Discord API error fetching member {user_id} in guild {guild_id}: {e}")
+            return web.json_response({
+                'success': False,
+                'error': f'Discord API error: {str(e)}'
+            }, status=500)
         
         # Check if user is owner
         if guild.owner_id == user_id:

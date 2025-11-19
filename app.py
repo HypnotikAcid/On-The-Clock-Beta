@@ -1411,7 +1411,7 @@ def api_owner_grant_access(user_session):
                 cursor = conn.execute("SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
                 bot_access = cursor.fetchone()
                 
-                if not bot_access or not bot_access[0]:
+                if not bot_access or not bot_access['bot_access_paid']:
                     # Raise exception to trigger rollback via context manager
                     raise ValueError('Bot access must be granted before retention tiers. Grant bot access first.')
                 
