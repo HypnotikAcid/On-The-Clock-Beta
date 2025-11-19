@@ -96,3 +96,17 @@ Preferred communication style: Simple, everyday language.
   - `conn.close()` in finally block for guaranteed cleanup
   - Added logging: "✅ Transaction committed successfully for guild {guild_id}"
 - **Database Schema**: Added missing columns to `server_subscriptions` table: `manually_granted` (INTEGER), `granted_by` (TEXT), `granted_at` (TEXT) to track manual subscription grants by owner.
+
+## Server Owner Welcome Notifications (November 19, 2025)
+- **Auto-Send DM**: When bot access is granted (via Stripe purchase or manual grant), server owner receives fancy welcome DM with setup instructions, dashboard link, and retention upgrade info.
+- **Dual Triggers**: Notification sent for both Stripe purchases and manual grants via owner dashboard.
+- **Error Handling**: Gracefully handles if owner has DMs disabled with console logging.
+
+## Mobile Device Restriction Feature (November 19, 2025)
+- **Purpose**: Allow server admins to restrict clock-in/out to desktop/web browser only, blocking mobile and tablet devices.
+- **Dashboard Control**: Server Overview page has "Mobile Device Restrictions" tile with toggle and warning notice about Discord's device detection limitations (can't distinguish phones from tablets, multi-device users may bypass, invisible users undetectable).
+- **Discord Command**: `/mobile` command lets admins toggle restriction on/off with clear success messages and limitation warnings.
+- **Enforcement**: Both clock-in and clock-out button handlers check `member.is_on_mobile()` if restriction is enabled, showing ephemeral error message to mobile users.
+- **Database Schema**: Added `restrict_mobile_clockin` (INTEGER default 0) column to `server_subscriptions` table.
+- **API Endpoint**: `/api/server/<guild_id>/mobile-restriction` POST endpoint with proper transaction handling (commit/rollback/close pattern).
+- **Default Behavior**: Mobile/tablet access is allowed by default (restrict_mobile_clockin=0).

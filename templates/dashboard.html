@@ -1098,6 +1098,41 @@
                         <p class="tile-description">Quick overview of your server configuration and active settings.</p>
                         <p style="color: #C9D1D9; margin-top: 15px;">Select a setting from the sidebar to manage your server.</p>
                     </div>
+
+                    <!-- Mobile Device Restriction Tile -->
+                    <div class="tile">
+                        <h2><span class="tile-icon">📱</span>Mobile Device Restrictions</h2>
+                        <p class="tile-description">Control whether employees can clock in/out from mobile or tablet devices.</p>
+                        
+                        <!-- Warning Notice -->
+                        <div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; padding: 12px; margin: 15px 0; border-radius: 6px;">
+                            <div style="display: flex; align-items: start; gap: 10px;">
+                                <span style="font-size: 18px; flex-shrink: 0;">⚠️</span>
+                                <div style="font-size: 12px; color: #FCD34D; line-height: 1.6;">
+                                    <strong style="display: block; margin-bottom: 6px;">Device Detection Limitations:</strong>
+                                    <ul style="margin: 0; padding-left: 18px;">
+                                        <li>Discord doesn't distinguish between phones and tablets (both appear as "mobile")</li>
+                                        <li>Users on multiple devices simultaneously (e.g., desktop + phone) may bypass this restriction</li>
+                                        <li>Users set to invisible/offline cannot be detected</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Toggle -->
+                        <div class="setting-row" style="margin-top: 20px;">
+                            <div class="setting-label">
+                                <span style="font-weight: 500; color: #C9D1D9;">Restrict Mobile/Tablet Clock-ins</span>
+                                <span class="setting-description" style="display: block; margin-top: 4px; font-size: 12px; color: #8B949E;">
+                                    When enabled, employees must use desktop or web browser to clock in/out
+                                </span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="restrict-mobile-toggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Action Buttons -->
@@ -1883,6 +1918,12 @@
                 if (workDayEndTime && settings.work_day_end_time) {
                     workDayEndTime.value = settings.work_day_end_time;
                 }
+                
+                // Set mobile restriction toggle
+                const restrictMobileToggle = document.getElementById('restrict-mobile-toggle');
+                if (restrictMobileToggle) {
+                    restrictMobileToggle.checked = settings.restrict_mobile_clockin || false;
+                }
             }
         }
 
@@ -2029,6 +2070,37 @@
 
         // Work day end time save button
         document.getElementById('save-workday-time-btn').addEventListener('click', saveWorkDayTime);
+
+        // Mobile restriction toggle handling
+        async function updateMobileRestriction() {
+            if (!currentGuildId) return;
+            
+            const restrictMobileToggle = document.getElementById('restrict-mobile-toggle');
+            
+            try {
+                const response = await fetch(`/api/server/${currentGuildId}/mobile-restriction`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        restrict_mobile: restrictMobileToggle.checked
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    console.log('Mobile restriction updated:', data);
+                } else {
+                    console.error('Error updating mobile restriction:', data.error);
+                    alert('Error updating mobile restriction: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating mobile restriction');
+            }
+        }
+
+        // Mobile restriction toggle event listener
+        document.getElementById('restrict-mobile-toggle').addEventListener('change', updateMobileRestriction);
 
         // Mobile menu functionality
         const mobileHamburger = document.getElementById('mobileHamburger');

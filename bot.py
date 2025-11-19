@@ -2984,6 +2984,10 @@ def init_db():
             if 'granted_at' not in columns:
                 conn.execute("ALTER TABLE server_subscriptions ADD COLUMN granted_at TEXT")
                 print("✅ Added granted_at column to server_subscriptions")
+            
+            if 'restrict_mobile_clockin' not in columns:
+                conn.execute("ALTER TABLE server_subscriptions ADD COLUMN restrict_mobile_clockin INTEGER DEFAULT 0")
+                print("✅ Added restrict_mobile_clockin column to server_subscriptions")
         except Exception as e:
             print(f"⚠️ Migration error (may be expected if columns already exist): {e}")
 
@@ -3302,6 +3306,23 @@ def get_retention_tier(guild_id: int) -> str:
             return 'none'
         
         return tier
+
+def is_mobile_restricted(guild_id: int) -> bool:
+    """
+    Check if mobile device clock-in/out is restricted for a server.
+    Returns True if restriction is enabled, False otherwise.
+    Defaults to False (mobile allowed) if no record exists.
+    """
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT restrict_mobile_clockin FROM server_subscriptions WHERE guild_id = ?",
+            (guild_id,)
+        )
+        result = cursor.fetchone()
+        if not result:
+            return False  # Default to allowing mobile
+        
+        return bool(result[0])
 
 async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purchase"):
     """
@@ -4500,6 +4521,16 @@ class TimeClockView(discord.ui.View):
                 )
                 return
             
+            # Check mobile device restriction
+            if is_mobile_restricted(guild_id) and interaction.user.is_on_mobile():
+                await interaction.followup.send(
+                    "📱 **Mobile Clock-In Restricted**\n"
+                    "Your server administrator has disabled mobile/tablet clock-ins.\n"
+                    "Please use a desktop or web browser to clock in.",
+                    ephemeral=True
+                )
+                return
+            
             if get_active_session(guild_id, user_id):
                 await interaction.followup.send("You're already clocked in.", ephemeral=True)
                 return
@@ -4565,6 +4596,16 @@ class TimeClockView(discord.ui.View):
                     "🔒 **Access Restricted**\n"
                     "You need an employee role to use the timeclock.\n"
                     "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                    ephemeral=True
+                )
+                return
+            
+            # Check mobile device restriction
+            if is_mobile_restricted(guild_id) and interaction.user.is_on_mobile():
+                await interaction.followup.send(
+                    "📱 **Mobile Clock-Out Restricted**\n"
+                    "Your server administrator has disabled mobile/tablet clock-outs.\n"
+                    "Please use a desktop or web browser to clock out.",
                     ephemeral=True
                 )
                 return
@@ -5661,6 +5702,60 @@ async def toggle_name_display(interaction: discord.Interaction, mode: app_comman
         await send_reply(interaction,
             "✅ **Name Display Set to Nickname**\n"
             "The bot will now show server display names (e.g., `John D.`) in reports and messages.",
+            ephemeral=True
+        )
+
+@tree.command(name="mobile", description="Toggle mobile/tablet clock-in restrictions")
+@app_commands.describe(enabled="Enable (block mobile) or disable (allow mobile) restriction")
+@app_commands.choices(enabled=[
+    app_commands.Choice(name="Restrict mobile/tablet devices (employees must use desktop)", value="on"),
+    app_commands.Choice(name="Allow mobile/tablet devices (default)", value="off")
+])
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def mobile_restriction_cmd(interaction: discord.Interaction, enabled: app_commands.Choice[str]):
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    # Update mobile restriction setting
+    restrict = (enabled.value == "on")
+    
+    with db() as conn:
+        # Ensure a record exists
+        cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+        exists = cursor.fetchone()
+        
+        if exists:
+            conn.execute(
+                "UPDATE server_subscriptions SET restrict_mobile_clockin = ? WHERE guild_id = ?",
+                (int(restrict), guild_id)
+            )
+        else:
+            # Insert new record with all required default values
+            conn.execute(
+                """INSERT INTO server_subscriptions 
+                   (guild_id, tier, bot_access_paid, retention_tier, restrict_mobile_clockin) 
+                   VALUES (?, 'free', 0, 'none', ?)""",
+                (guild_id, int(restrict))
+            )
+    
+    if restrict:
+        await send_reply(interaction,
+            "📱 **Mobile Clock-In Restricted**\n\n"
+            "Employees can now **only** clock in/out from desktop or web browser.\n"
+            "Mobile and tablet devices are blocked.\n\n"
+            "⚠️ **Limitations:**\n"
+            "• Discord can't distinguish phones from tablets\n"
+            "• Users on multiple devices (desktop + phone) may bypass this\n"
+            "• Invisible/offline users can't be detected",
+            ephemeral=True
+        )
+    else:
+        await send_reply(interaction,
+            "✅ **Mobile Clock-In Allowed**\n\n"
+            "Employees can now clock in/out from any device (desktop, mobile, or tablet).",
             ephemeral=True
         )
 

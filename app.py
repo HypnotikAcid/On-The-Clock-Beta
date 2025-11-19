@@ -1263,6 +1263,16 @@ def get_guild_settings(guild_id):
         except:
             email_settings_row = None
         
+        # Get mobile restriction setting
+        try:
+            mobile_restriction_cursor = conn.execute(
+                "SELECT restrict_mobile_clockin FROM server_subscriptions WHERE guild_id = ?",
+                (int(guild_id),)
+            )
+            mobile_restriction_row = mobile_restriction_cursor.fetchone()
+        except:
+            mobile_restriction_row = None
+        
         return {
             'admin_roles': admin_roles,
             'employee_roles': employee_roles,
@@ -1273,6 +1283,7 @@ def get_guild_settings(guild_id):
             'work_day_end_time': (settings_row[4] if settings_row and len(settings_row) > 4 else None) or '17:00',
             'auto_send_on_clockout': bool(email_settings_row[0]) if email_settings_row else False,
             'auto_email_before_delete': bool(email_settings_row[1]) if email_settings_row else False,
+            'restrict_mobile_clockin': bool(mobile_restriction_row[0]) if mobile_restriction_row else False,
             'emails': []  # TODO: Add email table and fetch emails
         }
 
@@ -2091,6 +2102,63 @@ def api_update_work_day_time(user_session, guild_id):
             conn.close()
     except Exception as e:
         app.logger.error(f"Error updating work day end time: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/mobile-restriction", methods=["POST"])
+@require_api_auth
+def api_update_mobile_restriction(user_session, guild_id):
+    """API endpoint to update mobile device restriction setting"""
+    try:
+        # Verify user has access
+        guild = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Get mobile restriction setting from request
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'Missing data'}), 400
+        
+        restrict_mobile = bool(data.get('restrict_mobile', False))
+        
+        # Update or insert mobile restriction setting
+        conn = get_db()
+        try:
+            # Ensure a record exists in server_subscriptions
+            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = ?", (int(guild_id),))
+            exists = cursor.fetchone()
+            
+            if exists:
+                conn.execute(
+                    "UPDATE server_subscriptions SET restrict_mobile_clockin = ? WHERE guild_id = ?",
+                    (int(restrict_mobile), int(guild_id))
+                )
+            else:
+                # Insert new record with all required default values
+                conn.execute(
+                    """INSERT INTO server_subscriptions 
+                       (guild_id, tier, bot_access_paid, retention_tier, restrict_mobile_clockin) 
+                       VALUES (?, 'free', 0, 'none', ?)""",
+                    (int(guild_id), int(restrict_mobile))
+                )
+            
+            conn.commit()
+            app.logger.info(f"✅ Mobile restriction setting committed: {restrict_mobile} for guild {guild_id}")
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Mobile restriction setting updated successfully',
+                'restrict_mobile': restrict_mobile
+            })
+        except Exception as db_error:
+            conn.rollback()
+            app.logger.error(f"Database error saving mobile restriction, rolled back: {db_error}")
+            raise
+        finally:
+            conn.close()
+    except Exception as e:
+        app.logger.error(f"Error updating mobile restriction: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
