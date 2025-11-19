@@ -783,6 +783,54 @@ def dashboard(user_session):
         app.logger.error(traceback.format_exc())
         return "<h1>Error</h1><p>Unable to load dashboard. Please try again later.</p><a href='/auth/logout'>Logout</a>", 500
 
+def fetch_guild_name_from_discord(guild_id, db_conn=None):
+    """
+    Fetch guild name from Discord API and cache it in bot_guilds table.
+    Returns guild name or None if not found/accessible.
+    """
+    bot_token = os.environ.get('DISCORD_TOKEN')
+    if not bot_token:
+        app.logger.error("DISCORD_TOKEN not found in environment")
+        return None
+    
+    headers = {'Authorization': f'Bot {bot_token}'}
+    try:
+        # Fetch guild info from Discord API
+        response = requests.get(
+            f'{DISCORD_API_BASE}/guilds/{guild_id}',
+            headers=headers,
+            timeout=5
+        )
+        response.raise_for_status()
+        guild_data = response.json()
+        guild_name = guild_data.get('name', 'Unknown Server')
+        
+        # Cache in bot_guilds table for future use
+        if db_conn:
+            try:
+                db_conn.execute("""
+                    INSERT INTO bot_guilds (guild_id, guild_name) 
+                    VALUES (?, ?)
+                    ON CONFLICT(guild_id) DO UPDATE SET guild_name = ?
+                """, (str(guild_id), guild_name, guild_name))
+                app.logger.info(f"Cached guild name for {guild_id}: {guild_name}")
+            except Exception as db_error:
+                app.logger.error(f"Failed to cache guild name: {db_error}")
+        
+        return guild_name
+        
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            app.logger.warning(f"Bot lacks access to guild {guild_id} (403 Forbidden - bot likely not in server)")
+        elif e.response.status_code == 404:
+            app.logger.warning(f"Guild {guild_id} not found (404 - may have been deleted)")
+        else:
+            app.logger.error(f"HTTP error fetching guild {guild_id}: {e}")
+        return None
+    except Exception as e:
+        app.logger.error(f"Error fetching guild {guild_id} from Discord: {e}")
+        return None
+
 @app.route("/owner")
 @require_auth
 def owner_dashboard(user_session):
@@ -818,9 +866,16 @@ def owner_dashboard(user_session):
             """)
             servers = []
             for row in cursor.fetchall():
+                guild_id = row[0]
+                guild_name = row[1]
+                
+                # If guild_name is missing, try to fetch from Discord API
+                if not guild_name:
+                    guild_name = fetch_guild_name_from_discord(guild_id, conn)
+                
                 servers.append({
-                    'guild_id': row[0],
-                    'guild_name': row[1] or 'Unknown Server',
+                    'guild_id': guild_id,
+                    'guild_name': guild_name or f'Unknown Server (ID: {guild_id})',
                     'bot_access': bool(row[2]),
                     'retention_tier': row[3] if row[3] != 'none' else None,
                     'status': row[4],
@@ -983,6 +1038,81 @@ def api_owner_grant_access(user_session):
     
     except Exception as e:
         app.logger.error(f"Grant access error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route("/api/owner/revoke-access", methods=["POST"])
+@require_api_auth
+def api_owner_revoke_access(user_session):
+    """Owner-only API endpoint to manually revoke bot access or retention tiers from servers"""
+    try:
+        BOT_OWNER_ID = '107103438139056128'
+        
+        # Security check: Only allow bot owner
+        if user_session['user_id'] != BOT_OWNER_ID:
+            app.logger.warning(f"Unauthorized revoke access attempt by user {user_session['user_id']}")
+            return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
+        
+        data = request.get_json()
+        guild_id = data.get('guild_id')
+        access_type = data.get('access_type')
+        
+        if not guild_id or not access_type:
+            return jsonify({'success': False, 'error': 'Missing guild_id or access_type'}), 400
+        
+        if access_type not in ['bot_access', '7day', '30day']:
+            return jsonify({'success': False, 'error': 'Invalid access_type. Must be bot_access, 7day, or 30day'}), 400
+        
+        app.logger.info(f"Owner {user_session.get('username')} revoking {access_type} from guild {guild_id}")
+        
+        with get_db() as conn:
+            # Check if server exists in server_subscriptions
+            cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+            server = cursor.fetchone()
+            
+            if not server:
+                return jsonify({'success': False, 'error': 'Server not found in subscriptions'}), 404
+            
+            # Revoke the appropriate access
+            if access_type == 'bot_access':
+                # Revoke bot access and also clear retention tier
+                conn.execute("""
+                    UPDATE server_subscriptions 
+                    SET bot_access_paid = 0,
+                        retention_tier = 'none',
+                        status = 'cancelled',
+                        manually_granted = 0,
+                        granted_by = NULL,
+                        granted_at = NULL
+                    WHERE guild_id = ?
+                """, (guild_id,))
+                app.logger.info(f"❌ Revoked bot access from guild {guild_id} (also cleared retention tier)")
+                
+            elif access_type in ['7day', '30day']:
+                # Only revoke if this is the current retention tier
+                if server[2] == access_type:
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET retention_tier = 'none',
+                            status = 'active'
+                        WHERE guild_id = ?
+                    """, (guild_id,))
+                    app.logger.info(f"❌ Revoked {access_type} retention from guild {guild_id}")
+                else:
+                    return jsonify({
+                        'success': False, 
+                        'error': f'Server does not have {access_type} retention active'
+                    }), 400
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully revoked {access_type} from server',
+            'guild_id': guild_id,
+            'access_type': access_type
+        })
+    
+    except Exception as e:
+        app.logger.error(f"Revoke access error: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
