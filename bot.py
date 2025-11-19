@@ -4175,10 +4175,11 @@ async def setup_hook():
     """Setup hook to register persistent views when bot starts"""
     print("🔧 Registering persistent views...")
     
-    # Register ONLY empty TimeClockView for handling interactions
-    # This prevents old buttons from appearing in channels
+    # Register TimeClockView with ALL button callbacks defined
+    # This ensures buttons work after bot reboots (2025 Discord best practices)
+    # All 7 buttons are registered here so Discord can match interactions to callbacks
     bot.add_view(TimeClockView())
-    print("✅ TimeClockView registered")
+    print("✅ TimeClockView registered with all 7 persistent buttons")
     
     # Register SetupInstructionsView for welcome messages
     bot.add_view(SetupInstructionsView())
@@ -4189,89 +4190,92 @@ async def setup_hook():
 bot.setup_hook = setup_hook
 
 class TimeClockView(discord.ui.View):
-    def __init__(self, guild_id: Optional[int] = None):
-        super().__init__(timeout=None)  # persistent view
-        self.guild_id = guild_id
-        
-        # If guild_id is provided, build conditional view
-        if guild_id:
-            self._build_conditional_view(guild_id)
-
-    def _build_conditional_view(self, guild_id: int):
-        """Build view with conditional buttons based on server tier"""
-        server_tier = get_server_tier(guild_id)
-        
-        # Add core buttons (row 0) - Clock In first, On the Clock last
-        clock_in_btn = discord.ui.Button(
-            label="Clock In", 
-            style=discord.ButtonStyle.success, 
-            custom_id="timeclock:clock_in", 
-            row=0
-        )
-        clock_in_btn.callback = self.clock_in
-        self.add_item(clock_in_btn)
-        
-        clock_out_btn = discord.ui.Button(
-            label="Clock Out", 
-            style=discord.ButtonStyle.danger, 
-            custom_id="timeclock:clock_out", 
-            row=0
-        )
-        clock_out_btn.callback = self.clock_out
-        self.add_item(clock_out_btn)
-        
-        help_btn = discord.ui.Button(
-            label="Help", 
-            style=discord.ButtonStyle.primary, 
-            custom_id="timeclock:help", 
-            row=0
-        )
-        help_btn.callback = self.show_help
-        self.add_item(help_btn)
-        
-        on_clock_btn = discord.ui.Button(
-            label="On the Clock", 
-            style=discord.ButtonStyle.secondary, 
-            custom_id="timeclock:onclock", 
-            row=0
-        )
-        on_clock_btn.callback = self.on_the_clock
-        self.add_item(on_clock_btn)
-        
-        # Conditional second row buttons
-        # Dashboard button - always visible
-        has_bot_access = check_bot_access(guild_id)
-        dashboard_btn = discord.ui.Button(
-            label="Dashboard", 
-            style=discord.ButtonStyle.primary, 
-            custom_id="timeclock:dashboard", 
-            emoji="📊",
-            row=1
-        )
-        dashboard_btn.callback = self.show_dashboard
-        self.add_item(dashboard_btn)
-        
-        if not has_bot_access:
-            # Add upgrade button for free servers
-            upgrade_btn = discord.ui.Button(
-                label="Upgrade", 
-                style=discord.ButtonStyle.secondary, 
-                custom_id="timeclock:upgrade", 
-                emoji="🚀",
-                row=1
-            )
-            upgrade_btn.callback = self.show_upgrade
-            self.add_item(upgrade_btn)
-        else:
-            # Add reports button for paid servers
-            reports_btn = discord.ui.Button(
-                label="Reports", 
-                style=discord.ButtonStyle.success, 
-                custom_id="timeclock:reports", 
-                row=1
-            )
-            reports_btn.callback = self.generate_reports
-            self.add_item(reports_btn)
+    """
+    Persistent timeclock view following 2025 Discord best practices.
+    
+    All buttons are defined using @discord.ui.button decorators with unique custom_id values.
+    This ensures buttons work correctly after bot reboots - Discord can match button clicks
+    to the registered view callbacks even when the bot restarts.
+    
+    Tier-specific logic is handled in the callback functions, not by conditionally
+    showing/hiding buttons. This is required for proper persistence.
+    """
+    def __init__(self):
+        super().__init__(timeout=None)  # REQUIRED for persistence
+    
+    # Row 0: Core timeclock buttons
+    @discord.ui.button(
+        label="Clock In",
+        style=discord.ButtonStyle.success,
+        custom_id="timeclock:clock_in",
+        row=0
+    )
+    async def clock_in_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Clock in button callback"""
+        await self.clock_in(interaction)
+    
+    @discord.ui.button(
+        label="Clock Out",
+        style=discord.ButtonStyle.danger,
+        custom_id="timeclock:clock_out",
+        row=0
+    )
+    async def clock_out_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Clock out button callback"""
+        await self.clock_out(interaction)
+    
+    @discord.ui.button(
+        label="Help",
+        style=discord.ButtonStyle.primary,
+        custom_id="timeclock:help",
+        row=0
+    )
+    async def help_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Help button callback"""
+        await self.show_help(interaction)
+    
+    @discord.ui.button(
+        label="On the Clock",
+        style=discord.ButtonStyle.secondary,
+        custom_id="timeclock:onclock",
+        row=0
+    )
+    async def onclock_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """On the clock button callback"""
+        await self.on_the_clock(interaction)
+    
+    # Row 1: Dashboard and conditional buttons (Reports/Upgrade)
+    @discord.ui.button(
+        label="Dashboard",
+        style=discord.ButtonStyle.primary,
+        custom_id="timeclock:dashboard",
+        emoji="📊",
+        row=1
+    )
+    async def dashboard_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Dashboard button callback"""
+        await self.show_dashboard(interaction)
+    
+    @discord.ui.button(
+        label="Reports",
+        style=discord.ButtonStyle.success,
+        custom_id="timeclock:reports",
+        row=1
+    )
+    async def reports_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Reports button callback - handles tier check internally"""
+        await self.generate_reports(interaction)
+    
+    @discord.ui.button(
+        label="Upgrade",
+        style=discord.ButtonStyle.secondary,
+        custom_id="timeclock:upgrade",
+        emoji="🚀",
+        row=1
+    )
+    async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Upgrade button callback"""
+        await self.show_upgrade(interaction)
 
     async def on_the_clock(self, interaction: discord.Interaction):
         """Show all currently clocked in users with their times"""
@@ -5596,8 +5600,9 @@ async def clock_interface(interaction: discord.Interaction):
     
     # Create fresh timeclock interface for this user
     try:
-        # Create a non-persistent view with fresh buttons (no timeout issues!)
-        view = TimeClockView(guild_id=guild_id)
+        # Create persistent view instance - all buttons are always available
+        # Tier-specific logic is handled in the callback functions
+        view = TimeClockView()
         
         # Get current clock status for user
         user_id = interaction.user.id
