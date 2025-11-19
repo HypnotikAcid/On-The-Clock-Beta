@@ -1987,7 +1987,8 @@ def api_update_email_settings(user_session, guild_id):
         auto_email_before_delete = bool(data.get('auto_email_before_delete', False))
         
         # Update or insert email settings
-        with get_db() as conn:
+        conn = get_db()
+        try:
             # Check if settings exist
             cursor = conn.execute("SELECT guild_id FROM email_settings WHERE guild_id = ?", (guild_id,))
             exists = cursor.fetchone()
@@ -2005,14 +2006,22 @@ def api_update_email_settings(user_session, guild_id):
                        VALUES (?, ?, ?)""",
                     (guild_id, auto_send_on_clockout, auto_email_before_delete)
                 )
-        
-        app.logger.info(f"Updated email settings for guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({
-            'success': True, 
-            'message': 'Email settings updated successfully',
-            'auto_send_on_clockout': auto_send_on_clockout,
-            'auto_email_before_delete': auto_email_before_delete
-        })
+            
+            conn.commit()
+            app.logger.info(f"✅ Email settings committed for guild {guild_id} by user {user_session.get('username')}")
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Email settings updated successfully',
+                'auto_send_on_clockout': auto_send_on_clockout,
+                'auto_email_before_delete': auto_email_before_delete
+            })
+        except Exception as db_error:
+            conn.rollback()
+            app.logger.error(f"Database error saving email settings, rolled back: {db_error}")
+            raise
+        finally:
+            conn.close()
     except Exception as e:
         app.logger.error(f"Error updating email settings: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -2041,7 +2050,8 @@ def api_update_work_day_time(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
         
         # Update or insert guild settings
-        with get_db() as conn:
+        conn = get_db()
+        try:
             # Check if settings exist
             cursor = conn.execute("SELECT guild_id FROM guild_settings WHERE guild_id = ?", (guild_id,))
             exists = cursor.fetchone()
@@ -2058,9 +2068,17 @@ def api_update_work_day_time(user_session, guild_id):
                        VALUES (?, 'America/New_York', 'username', ?)""",
                     (guild_id, work_day_end_time)
                 )
-        
-        app.logger.info(f"Updated work day end time to {work_day_end_time} for guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'message': 'Work day end time updated successfully', 'work_day_end_time': work_day_end_time})
+            
+            conn.commit()
+            app.logger.info(f"✅ Work day end time committed: {work_day_end_time} for guild {guild_id}")
+            
+            return jsonify({'success': True, 'message': 'Work day end time updated successfully', 'work_day_end_time': work_day_end_time})
+        except Exception as db_error:
+            conn.rollback()
+            app.logger.error(f"Database error saving work day time, rolled back: {db_error}")
+            raise
+        finally:
+            conn.close()
     except Exception as e:
         app.logger.error(f"Error updating work day end time: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -2126,19 +2144,28 @@ def api_add_email_recipient(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid email address format'}), 400
         
         # Add to database
-        with get_db() as conn:
-            try:
-                cursor = conn.execute(
-                    """INSERT INTO report_recipients (guild_id, recipient_type, email_address) 
-                       VALUES (?, 'email', ?)""",
-                    (guild_id, email)
-                )
-                recipient_id = cursor.lastrowid
-            except sqlite3.IntegrityError:
-                return jsonify({'success': False, 'error': 'Email address already exists'}), 400
-        
-        app.logger.info(f"Added email recipient {email} for guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'message': 'Email recipient added successfully', 'id': recipient_id, 'email': email})
+        conn = get_db()
+        try:
+            cursor = conn.execute(
+                """INSERT INTO report_recipients (guild_id, recipient_type, email_address) 
+                   VALUES (?, 'email', ?)""",
+                (guild_id, email)
+            )
+            recipient_id = cursor.lastrowid
+            
+            conn.commit()
+            app.logger.info(f"✅ Email recipient committed: {email} for guild {guild_id}")
+            
+            return jsonify({'success': True, 'message': 'Email recipient added successfully', 'id': recipient_id, 'email': email})
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            return jsonify({'success': False, 'error': 'Email address already exists'}), 400
+        except Exception as db_error:
+            conn.rollback()
+            app.logger.error(f"Database error adding email recipient, rolled back: {db_error}")
+            raise
+        finally:
+            conn.close()
     except Exception as e:
         app.logger.error(f"Error adding email recipient: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -2162,7 +2189,8 @@ def api_remove_email_recipient(user_session, guild_id):
         recipient_id = data['id']
         
         # Remove from database
-        with get_db() as conn:
+        conn = get_db()
+        try:
             cursor = conn.execute(
                 """DELETE FROM report_recipients 
                    WHERE id = ? AND guild_id = ? AND recipient_type = 'email'""",
@@ -2170,10 +2198,19 @@ def api_remove_email_recipient(user_session, guild_id):
             )
             
             if cursor.rowcount == 0:
+                conn.rollback()
                 return jsonify({'success': False, 'error': 'Recipient not found'}), 404
-        
-        app.logger.info(f"Removed email recipient {recipient_id} for guild {guild_id} by user {user_session.get('username')}")
-        return jsonify({'success': True, 'message': 'Email recipient removed successfully'})
+            
+            conn.commit()
+            app.logger.info(f"✅ Email recipient removed: {recipient_id} for guild {guild_id}")
+            
+            return jsonify({'success': True, 'message': 'Email recipient removed successfully'})
+        except Exception as db_error:
+            conn.rollback()
+            app.logger.error(f"Database error removing email recipient, rolled back: {db_error}")
+            raise
+        finally:
+            conn.close()
     except Exception as e:
         app.logger.error(f"Error removing email recipient: {str(e)}")
         app.logger.error(traceback.format_exc())
