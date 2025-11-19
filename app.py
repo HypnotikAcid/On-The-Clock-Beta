@@ -1010,6 +1010,7 @@ def api_owner_grant_access(user_session):
                     INSERT INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
                     VALUES (?, 0, 'none', 'active')
                 """, (guild_id,))
+                conn.commit()
                 app.logger.info(f"Created new server_subscriptions entry for guild {guild_id}")
             
             # Grant the appropriate access
@@ -1137,6 +1138,9 @@ def api_owner_revoke_access(user_session):
                         'success': False, 
                         'error': f'Server does not have {access_type} retention active'
                     }), 400
+            
+            # Commit the transaction
+            conn.commit()
         
         return jsonify({
             'success': True,
