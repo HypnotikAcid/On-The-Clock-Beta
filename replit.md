@@ -84,3 +84,15 @@ Preferred communication style: Simple, everyday language.
 ## Mobile Dashboard Navigation (November 2025)
 - **Fixed Mobile Sidebar**: Overlay positioned at `left: 280px` to not cover sidebar, allowing tap interactions with menu items without obstruction.
 - **Persistent Navigation**: Removed auto-close behavior when tapping navigation items - sidebar now stays open for easy navigation between settings pages. Closes only when tapping overlay or back button.
+
+## Transaction Commit Fix (November 19, 2025)
+- **Root Cause**: Multiple API endpoints used `with get_db() as conn:` context manager without calling `conn.commit()`, causing all INSERT and UPDATE operations to be rolled back when connections closed.
+- **Affected Endpoints**: Owner grant/revoke access, email settings save, work day time save, email recipient add/remove.
+- **Fix Applied**: Restructured all affected endpoints with explicit transaction handling:
+  - Removed `with get_db() as conn:` pattern
+  - Added `conn = get_db()` with try/except/finally blocks
+  - `conn.commit()` called before success responses (inside try block)
+  - `conn.rollback()` on all error paths and exceptions
+  - `conn.close()` in finally block for guaranteed cleanup
+  - Added logging: "✅ Transaction committed successfully for guild {guild_id}"
+- **Database Schema**: Added missing columns to `server_subscriptions` table: `manually_granted` (INTEGER), `granted_by` (TEXT), `granted_at` (TEXT) to track manual subscription grants by owner.
