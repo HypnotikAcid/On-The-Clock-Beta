@@ -1,5 +1,8 @@
 import os
-import sqlite3
+import psycopg2
+import psycopg2.pool
+from psycopg2.extras import RealDictCursor
+from contextlib import contextmanager
 import csv
 import io
 import zipfile
@@ -32,10 +35,13 @@ from scheduler import start_scheduler, stop_scheduler
 
 # --- Config / Secrets ---
 TOKEN = os.getenv("DISCORD_TOKEN")            # required
-DB_PATH = os.getenv("TIMECLOCK_DB", "timeclock.db")
+DATABASE_URL = os.getenv("DATABASE_URL")      # PostgreSQL connection string
 GUILD_ID = os.getenv("GUILD_ID")              # optional but makes commands appear instantly (guild sync)
 DEFAULT_TZ = "America/New_York"
 HTTP_PORT = int(os.getenv("HEALTH_PORT", "8080"))     # Health check server port (Flask uses 5000)
+
+# PostgreSQL connection pool for better performance
+db_pool = None
 
 # --- Bot Owner Configuration ---
 BOT_OWNER_ID = 107103438139056128  # Your Discord user ID for super admin access
@@ -795,10 +801,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 with db() as conn:
                     conn.execute("""
                         INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
-                        VALUES (?, ?, ?, 'active')
+                        VALUES (%s, %s, %s, 'active')
                         ON CONFLICT(guild_id) DO UPDATE SET 
-                            subscription_id = ?,
-                            customer_id = ?,
+                            subscription_id = %s,
+                            customer_id = %s,
                             status = 'active'
                     """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
                 
@@ -875,10 +881,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 with db() as conn:
                     conn.execute("""
                         INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
-                        VALUES (?, ?, ?, 'active')
+                        VALUES (%s, %s, %s, 'active')
                         ON CONFLICT(guild_id) DO UPDATE SET 
-                            subscription_id = ?,
-                            customer_id = ?,
+                            subscription_id = %s,
+                            customer_id = %s,
                             status = 'active'
                     """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
                 
@@ -1144,7 +1150,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             with db() as conn:
                 conn.execute("""
                     INSERT INTO webhook_events (event_type, event_id, guild_id, status, details)
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (%s, %s, %s, %s, %s)
                 """, (event_type, event_id, guild_id, status, details_json))
             
             print(f"📝 Webhook event logged: {event_type} - {status}")
@@ -1237,9 +1243,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             with db() as conn:
                 # Set timeout for database operations
-                conn.execute("PRAGMA busy_timeout = 5000")
-                
-                # Delete all sessions data
+                                # Delete all sessions data
                 sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
                 sessions_deleted = sessions_cursor.rowcount
                 
@@ -2431,9 +2435,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
     try:
         with db() as conn:
             # Set timeout for database operations
-            conn.execute("PRAGMA busy_timeout = 5000")
-            
-            # Delete all sessions data
+                        # Delete all sessions data
             sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
             sessions_deleted = sessions_cursor.rowcount
             
@@ -2499,7 +2501,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
                     # Update subscription status
                     conn.execute("""
                         UPDATE server_subscriptions 
-                        SET status = ?, expires_at = ?
+                        SET status = %s, expires_at = ?
                         WHERE guild_id = ?
                     """, (status, datetime.fromtimestamp(current_period_end, timezone.utc).isoformat(), guild_id))
                     
@@ -2603,16 +2605,84 @@ def start_health_server():
     print(f"🔧 Health check server starting on http://0.0.0.0:{HTTP_PORT}")
     httpd.serve_forever()
 
+def init_db_pool():
+    """Initialize PostgreSQL connection pool"""
+    global db_pool
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is not set")
+    db_pool = psycopg2.pool.ThreadedConnectionPool(
+        minconn=1,
+        maxconn=10,
+        dsn=DATABASE_URL
+    )
+    print("✅ PostgreSQL connection pool initialized")
+
+class ConnectionWrapper:
+    """Wrapper to make psycopg2 connection behave like sqlite3 connection"""
+    def __init__(self, conn):
+        self._conn = conn
+        self._cursor = None
+    
+    def execute(self, query, params=None):
+        """Execute a query and return a cursor (mimics sqlite3 behavior)"""
+        self._cursor = self._conn.cursor()
+        if params:
+            self._cursor.execute(query, params)
+        else:
+            self._cursor.execute(query)
+        return self._cursor
+    
+    def executemany(self, query, params_list):
+        """Execute a query with multiple parameter sets"""
+        self._cursor = self._conn.cursor()
+        self._cursor.executemany(query, params_list)
+        return self._cursor
+    
+    def cursor(self):
+        """Get a new cursor"""
+        return self._conn.cursor()
+    
+    def commit(self):
+        """Commit the transaction"""
+        self._conn.commit()
+    
+    def rollback(self):
+        """Rollback the transaction"""
+        self._conn.rollback()
+
+@contextmanager
 def db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")  # Write-Ahead Logging for better concurrency
-    conn.execute("PRAGMA busy_timeout = 5000")  # 5 second timeout globally
-    conn.execute("PRAGMA synchronous = NORMAL")  # Balance between safety and performance
-    return conn
+    """Context manager for PostgreSQL database connections"""
+    if db_pool is None:
+        init_db_pool()
+    
+    conn = db_pool.getconn()
+    wrapper = ConnectionWrapper(conn)
+    try:
+        yield wrapper
+        # Auto-commit on successful exit
+        conn.commit()
+    except Exception as e:
+        # Auto-rollback on exception
+        conn.rollback()
+        raise
+    finally:
+        # Always return connection to pool
+        db_pool.putconn(conn)
 
 def run_migrations():
-    """Run database migrations with exclusive locking before any other operations"""
+    """PostgreSQL migrations - schema already exists, just verify connection"""
+    try:
+        with db() as conn:
+            conn.execute("SELECT 1")
+        print("✅ PostgreSQL connection verified")
+        return True
+    except Exception as e:
+        print(f"❌ PostgreSQL connection failed: {e}")
+        return False
+
+def run_migrations_old_sqlite():
+    """OLD SQLite migrations - no longer used"""
     import time
     import random
     
@@ -2621,11 +2691,11 @@ def run_migrations():
         try:
             with db() as conn:
                 # Begin exclusive transaction
-                conn.execute("BEGIN IMMEDIATE")
+                cursor = conn.cursor()
+                cursor.execute("BEGIN")
                 
                 # Check if customer_id column exists
-                cursor = conn.execute("PRAGMA table_info(server_subscriptions)")
-                columns = {row[1] for row in cursor.fetchall()}
+                cursor =                 columns = {row[1] for row in cursor.fetchall()}
                 
                 if 'customer_id' not in columns:
                     print("🔧 Adding missing customer_id column to server_subscriptions table...")
@@ -2635,8 +2705,7 @@ def run_migrations():
                     print("✅ Migration check: customer_id column already exists")
                 
                 # Check if bot_access_paid column exists
-                cursor = conn.execute("PRAGMA table_info(server_subscriptions)")
-                columns = {row[1] for row in cursor.fetchall()}
+                cursor =                 columns = {row[1] for row in cursor.fetchall()}
                 
                 if 'bot_access_paid' not in columns:
                     print("🔧 Adding bot_access_paid column to server_subscriptions table...")
@@ -2652,8 +2721,7 @@ def run_migrations():
                     print("✅ Migration check: bot_access_paid column already exists")
                 
                 # Check if retention_tier column exists
-                cursor = conn.execute("PRAGMA table_info(server_subscriptions)")
-                columns = {row[1] for row in cursor.fetchall()}
+                cursor =                 columns = {row[1] for row in cursor.fetchall()}
                 
                 if 'retention_tier' not in columns:
                     print("🔧 Adding retention_tier column to server_subscriptions table...")
@@ -2676,7 +2744,7 @@ def run_migrations():
                 conn.commit()
                 return True
                 
-        except sqlite3.OperationalError as e:
+        except psycopg2.OperationalError as e:
             if "locked" in str(e).lower() and attempt < max_retries - 1:
                 wait_time = (2 ** attempt) + random.uniform(0, 1)
                 print(f"⏳ Database locked on migration attempt {attempt + 1}, retrying in {wait_time:.1f}s...")
@@ -2692,308 +2760,10 @@ def run_migrations():
     return False
 
 def init_db():
-    with db() as conn:
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS guild_settings (
-            guild_id INTEGER PRIMARY KEY,
-            recipient_user_id INTEGER,
-            button_channel_id INTEGER,
-            button_message_id INTEGER,
-            timezone TEXT DEFAULT 'America/New_York',
-            name_display_mode TEXT DEFAULT 'username'
-        )
-        """)
-        
-        # Add name_display_mode column if it doesn't exist (for existing databases)
-        try:
-            conn.execute("ALTER TABLE guild_settings ADD COLUMN name_display_mode TEXT DEFAULT 'username'")
-        except:
-            pass  # Column already exists
-        
-        # Migration 1: Convert role_id from INTEGER to TEXT for Discord snowflakes
-        # Run BEFORE table creation to migrate existing data
-        try:
-            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='admin_roles'")
-            if cursor.fetchone():
-                # Table exists, check if it needs migration
-                cursor = conn.execute("PRAGMA table_info(admin_roles)")
-                columns = cursor.fetchall()
-                role_id_col = next((col for col in columns if col[1] == 'role_id'), None)
-                if role_id_col and 'INTEGER' in role_id_col[2].upper():
-                    print("🔧 Migrating admin_roles: Converting role_id from INTEGER to TEXT...")
-                    conn.execute("""
-                    CREATE TABLE admin_roles_new (
-                        guild_id TEXT,
-                        role_id TEXT,
-                        PRIMARY KEY (guild_id, role_id)
-                    )
-                    """)
-                    conn.execute("""
-                    INSERT INTO admin_roles_new (guild_id, role_id)
-                    SELECT CAST(guild_id AS TEXT), CAST(role_id AS TEXT) FROM admin_roles
-                    """)
-                    conn.execute("DROP TABLE admin_roles")
-                    conn.execute("ALTER TABLE admin_roles_new RENAME TO admin_roles")
-                    print("✅ admin_roles migration completed")
-        except Exception as e:
-            print(f"⚠️ admin_roles migration skipped or failed: {e}")
-        
-        try:
-            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='employee_roles'")
-            if cursor.fetchone():
-                # Table exists, check if it needs migration
-                cursor = conn.execute("PRAGMA table_info(employee_roles)")
-                columns = cursor.fetchall()
-                role_id_col = next((col for col in columns if col[1] == 'role_id'), None)
-                if role_id_col and 'INTEGER' in role_id_col[2].upper():
-                    print("🔧 Migrating employee_roles: Converting role_id from INTEGER to TEXT...")
-                    conn.execute("""
-                    CREATE TABLE employee_roles_new (
-                        guild_id TEXT,
-                        role_id TEXT,
-                        PRIMARY KEY (guild_id, role_id)
-                    )
-                    """)
-                    conn.execute("""
-                    INSERT INTO employee_roles_new (guild_id, role_id)
-                    SELECT CAST(guild_id AS TEXT), CAST(role_id AS TEXT) FROM employee_roles
-                    """)
-                    conn.execute("DROP TABLE employee_roles")
-                    conn.execute("ALTER TABLE employee_roles_new RENAME TO employee_roles")
-                    print("✅ employee_roles migration completed")
-        except Exception as e:
-            print(f"⚠️ employee_roles migration skipped or failed: {e}")
-        
-        # Migration 2: Convert main_admin_role_id from INTEGER to TEXT
-        try:
-            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='guild_settings'")
-            if cursor.fetchone():
-                cursor = conn.execute("PRAGMA table_info(guild_settings)")
-                columns = cursor.fetchall()
-                main_admin_col = next((col for col in columns if col[1] == 'main_admin_role_id'), None)
-                if main_admin_col and 'INTEGER' in main_admin_col[2].upper():
-                    print("🔧 Migrating guild_settings: Converting main_admin_role_id from INTEGER to TEXT...")
-                    conn.execute("ALTER TABLE guild_settings ADD COLUMN main_admin_role_id_new TEXT")
-                    conn.execute("UPDATE guild_settings SET main_admin_role_id_new = CAST(main_admin_role_id AS TEXT) WHERE main_admin_role_id IS NOT NULL")
-                    conn.execute("""
-                    CREATE TABLE guild_settings_new (
-                        guild_id INTEGER PRIMARY KEY,
-                        recipient_user_id INTEGER,
-                        button_channel_id INTEGER,
-                        button_message_id INTEGER,
-                        timezone TEXT DEFAULT 'America/New_York',
-                        name_display_mode TEXT DEFAULT 'username',
-                        main_admin_role_id TEXT
-                    )
-                    """)
-                    conn.execute("""
-                    INSERT INTO guild_settings_new 
-                    SELECT guild_id, recipient_user_id, button_channel_id, button_message_id, 
-                           timezone, name_display_mode, main_admin_role_id_new 
-                    FROM guild_settings
-                    """)
-                    conn.execute("DROP TABLE guild_settings")
-                    conn.execute("ALTER TABLE guild_settings_new RENAME TO guild_settings")
-                    print("✅ guild_settings.main_admin_role_id migration completed")
-        except Exception as e:
-            print(f"⚠️ guild_settings migration skipped or failed: {e}")
-        
-        # Add main_admin_role_id column if it doesn't exist (for main admin role feature)
-        try:
-            conn.execute("ALTER TABLE guild_settings ADD COLUMN main_admin_role_id TEXT")
-        except:
-            pass  # Column already exists
-        
-        # Add work_day_end_time column if it doesn't exist (for auto-send feature)
-        try:
-            conn.execute("ALTER TABLE guild_settings ADD COLUMN work_day_end_time TEXT DEFAULT '17:00'")
-        except:
-            pass  # Column already exists
-        
-        # Now create tables if they don't exist (with correct TEXT types)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS authorized_roles (
-            guild_id TEXT,
-            role_id TEXT,
-            PRIMARY KEY (guild_id, role_id)
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS admin_roles (
-            guild_id TEXT,
-            role_id TEXT,
-            PRIMARY KEY (guild_id, role_id)
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS employee_roles (
-            guild_id TEXT,
-            role_id TEXT,
-            PRIMARY KEY (guild_id, role_id)
-        )
-        """)
-        
-        try:
-            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='clock_roles'")
-            if cursor.fetchone():
-                conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) SELECT CAST(guild_id AS TEXT), CAST(role_id AS TEXT) FROM clock_roles")
-                conn.execute("DROP TABLE clock_roles")
-        except:
-            pass
-        
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            guild_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            clock_in TEXT NOT NULL,     -- ISO UTC
-            clock_out TEXT,             -- ISO UTC
-            duration_seconds INTEGER
-        )
-        """)
-        
-        # Add indexes for performance
-        conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_sessions_guild_clock_out 
-        ON sessions(guild_id, clock_out)
-        """)
-        conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_sessions_guild_user_clock_out 
-        ON sessions(guild_id, user_id, clock_out)
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS server_subscriptions (
-            guild_id INTEGER PRIMARY KEY,
-            tier TEXT NOT NULL DEFAULT 'free',
-            subscription_id TEXT,
-            customer_id TEXT,
-            expires_at TEXT,
-            status TEXT DEFAULT 'active',
-            bot_access_paid BOOLEAN DEFAULT 0,
-            retention_tier TEXT DEFAULT 'none' CHECK(retention_tier IN ('none', '7day', '30day'))
-        )
-        """)
-        
-        # Email settings table for automated email features
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS email_settings (
-            guild_id INTEGER PRIMARY KEY,
-            auto_send_on_clockout BOOLEAN DEFAULT 0,
-            auto_email_before_delete BOOLEAN DEFAULT 0,
-            FOREIGN KEY (guild_id) REFERENCES server_subscriptions (guild_id)
-        )
-        """)
-        
-        # Recipients table for multiple report recipients per guild
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS report_recipients (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            guild_id INTEGER NOT NULL,
-            recipient_type TEXT NOT NULL CHECK(recipient_type IN ('discord', 'email')),
-            recipient_id TEXT,  -- Discord user ID for 'discord' type
-            email_address TEXT, -- Email address for 'email' type
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (guild_id) REFERENCES guild_settings (guild_id),
-            UNIQUE(guild_id, recipient_type, recipient_id),
-            UNIQUE(guild_id, recipient_type, email_address)
-        )
-        """)
-        
-        # Index for performance
-        conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_report_recipients_guild 
-        ON report_recipients(guild_id)
-        """)
-        
-        # Bot guilds table to track which servers the bot is connected to
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS bot_guilds (
-            guild_id TEXT PRIMARY KEY,
-            guild_name TEXT,
-            joined_at TEXT NOT NULL
-        )
-        """)
-        
-        # Banned users table for spam/abuse prevention (24hr bans)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS banned_users (
-            guild_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            banned_at TEXT NOT NULL DEFAULT (datetime('now')),
-            ban_expires_at TEXT,
-            warning_count INTEGER DEFAULT 0,
-            reason TEXT DEFAULT 'spam_detection',
-            PRIMARY KEY (guild_id, user_id)
-        )
-        """)
-        
-        # Index for performance
-        conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_banned_users_guild 
-        ON banned_users(guild_id)
-        """)
-        
-        # Server ban tracking for abuse detection
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS server_ban_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            guild_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            banned_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-        """)
-        
-        # Webhook events tracking for owner dashboard
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS webhook_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            event_type TEXT NOT NULL,
-            event_id TEXT,
-            guild_id INTEGER,
-            status TEXT NOT NULL CHECK(status IN ('success', 'failed')),
-            timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-            details TEXT
-        )
-        """)
-        
-        # Create index on timestamp for faster queries on recent events
-        conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_webhook_events_timestamp 
-        ON webhook_events(timestamp DESC)
-        """)
-        
-        conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_server_ban_log_guild_time 
-        ON server_ban_log(guild_id, banned_at)
-        """)
-        
-        # Migration: Add manual grant tracking columns to server_subscriptions
-        try:
-            # Check if columns exist before adding them
-            cursor = conn.execute("PRAGMA table_info(server_subscriptions)")
-            columns = {row[1] for row in cursor.fetchall()}
-            
-            if 'manually_granted' not in columns:
-                conn.execute("ALTER TABLE server_subscriptions ADD COLUMN manually_granted BOOLEAN DEFAULT 0")
-                print("✅ Added manually_granted column to server_subscriptions")
-            
-            if 'granted_by' not in columns:
-                conn.execute("ALTER TABLE server_subscriptions ADD COLUMN granted_by TEXT")
-                print("✅ Added granted_by column to server_subscriptions")
-            
-            if 'granted_at' not in columns:
-                conn.execute("ALTER TABLE server_subscriptions ADD COLUMN granted_at TEXT")
-                print("✅ Added granted_at column to server_subscriptions")
-            
-            if 'restrict_mobile_clockin' not in columns:
-                conn.execute("ALTER TABLE server_subscriptions ADD COLUMN restrict_mobile_clockin INTEGER DEFAULT 0")
-                print("✅ Added restrict_mobile_clockin column to server_subscriptions")
-        except Exception as e:
-            print(f"⚠️ Migration error (may be expected if columns already exist): {e}")
+    """PostgreSQL schema already exists - no initialization needed"""
+    print("✅ Using existing PostgreSQL schema (tables already created during migration)")
+    pass
 
-
-
-# --- Subscription/Tier Management ---
 def get_server_tier(guild_id: int) -> str:
     """Get subscription tier for a server (free/basic/pro)"""
     with db() as conn:
@@ -3020,21 +2790,21 @@ def set_server_tier(guild_id: int, tier: str, subscription_id: Optional[str] = N
             conn.execute("""
                 INSERT OR REPLACE INTO server_subscriptions 
                 (guild_id, tier, subscription_id, expires_at, status, customer_id) 
-                VALUES (?, ?, ?, NULL, 'active', ?)
+                VALUES (%s, %s, %s, NULL, 'active', %s)
             """, (guild_id, tier, subscription_id, customer_id))
         elif subscription_id:
             # Subscription without customer (legacy)
             conn.execute("""
                 INSERT OR REPLACE INTO server_subscriptions 
                 (guild_id, tier, subscription_id, expires_at, status) 
-                VALUES (?, ?, ?, NULL, 'active')
+                VALUES (%s, %s, %s, NULL, 'active')
             """, (guild_id, tier, subscription_id))
         else:
             # Free tier or manual assignment
             conn.execute("""
                 INSERT OR REPLACE INTO server_subscriptions 
                 (guild_id, tier, expires_at, status) 
-                VALUES (?, ?, NULL, 'active')
+                VALUES (%s, %s, NULL, 'active')
             """, (guild_id, tier))
 
 def is_user_banned(guild_id: int, user_id: int) -> bool:
@@ -3082,7 +2852,7 @@ def issue_warning(guild_id: int, user_id: int):
     with db() as conn:
         conn.execute(
             """INSERT INTO banned_users (guild_id, user_id, warning_count, reason) 
-               VALUES (?, ?, 1, 'spam_warning')
+               VALUES (%s, %s, 1, 'spam_warning')
                ON CONFLICT(guild_id, user_id) 
                DO UPDATE SET warning_count = warning_count + 1""",
             (guild_id, user_id)
@@ -3099,15 +2869,15 @@ def ban_user_24h(guild_id: int, user_id: int, reason: str = "rate_limit_exceeded
         conn.execute(
             """INSERT OR REPLACE INTO banned_users 
                (guild_id, user_id, banned_at, ban_expires_at, warning_count, reason) 
-               VALUES (?, ?, datetime('now'), ?, 
-                      COALESCE((SELECT warning_count FROM banned_users WHERE guild_id = ? AND user_id = ?), 0),
-                      ?)""",
+               VALUES (%s, %s, datetime('now'), %s, 
+                      COALESCE((SELECT warning_count FROM banned_users WHERE guild_id = ? AND user_id = %s), 0),
+                      %s)""",
             (guild_id, user_id, ban_expires.isoformat(), guild_id, user_id, reason)
         )
         
         # Log to server ban tracking
         conn.execute(
-            "INSERT INTO server_ban_log (guild_id, user_id) VALUES (?, ?)",
+            "INSERT INTO server_ban_log (guild_id, user_id) VALUES (%s, %s)",
             (guild_id, user_id)
         )
     
@@ -3409,7 +3179,7 @@ def set_bot_access(guild_id: int, paid: bool):
     with db() as conn:
         conn.execute("""
             INSERT INTO server_subscriptions (guild_id, bot_access_paid)
-            VALUES (?, ?)
+            VALUES (%s, %s)
             ON CONFLICT(guild_id) DO UPDATE SET bot_access_paid = ?
         """, (guild_id, int(paid), int(paid)))
 
@@ -3426,7 +3196,7 @@ def set_retention_tier(guild_id: int, tier: str):
     with db() as conn:
         conn.execute("""
             INSERT INTO server_subscriptions (guild_id, retention_tier)
-            VALUES (?, ?)
+            VALUES (%s, %s)
             ON CONFLICT(guild_id) DO UPDATE SET retention_tier = ?
         """, (guild_id, tier, tier))
 
@@ -3493,13 +3263,12 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
                 
                 # Optimize database after cleanup (only if we deleted something)
                 if deleted_count > 0:
-                    conn.execute("PRAGMA wal_checkpoint")
-                    # Skip VACUUM in background cleanup to avoid long locks
+                                        # Skip VACUUM in background cleanup to avoid long locks
                     
             # Success - exit retry loop
             break
             
-        except sqlite3.OperationalError as e:
+        except psycopg2.OperationalError as e:
             if "database is locked" in str(e) and attempt < max_retries - 1:
                 print(f"🔄 Database locked, retrying cleanup attempt {attempt + 1}/{max_retries}")
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
@@ -3518,9 +3287,7 @@ def cleanup_user_sessions(guild_id: int, user_id: int) -> int:
         try:
             with db() as conn:
                 # Set timeout for database operations
-                conn.execute("PRAGMA busy_timeout = 5000")
-                
-                # Delete all sessions for the specific user in this guild
+                                # Delete all sessions for the specific user in this guild
                 cursor = conn.execute("""
                     DELETE FROM sessions 
                     WHERE guild_id = ? AND user_id = ?
@@ -3529,12 +3296,10 @@ def cleanup_user_sessions(guild_id: int, user_id: int) -> int:
                 
                 # Optimize database after cleanup (only if we deleted something)
                 if deleted_count > 0:
-                    conn.execute("PRAGMA wal_checkpoint")
-                    
-            # Success - exit retry loop
+                                # Success - exit retry loop
             break
             
-        except sqlite3.OperationalError as e:
+        except psycopg2.OperationalError as e:
             if "database is locked" in str(e) and attempt < max_retries - 1:
                 print(f"🔄 Database locked, retrying user cleanup attempt {attempt + 1}/{max_retries}")
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
@@ -3578,7 +3343,7 @@ def add_report_recipient(guild_id: int, recipient_type: str, recipient_id: Optio
         with db() as conn:
             conn.execute("""
                 INSERT INTO report_recipients (guild_id, recipient_type, recipient_id, email_address)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s)
             """, (guild_id, recipient_type, recipient_id, email_address))
             return True
     except sqlite3.IntegrityError:
@@ -3739,7 +3504,7 @@ def set_guild_setting(guild_id: int, key: str, value):
         raise ValueError(f"Invalid column name: {key}")
     
     with db() as conn:
-        conn.execute("INSERT OR IGNORE INTO guild_settings(guild_id) VALUES (?)", (guild_id,))
+        conn.execute("INSERT OR IGNORE INTO guild_settings(guild_id) VALUES (%s)", (guild_id,))
         conn.execute(update_queries[key], (value, guild_id))
 
 def get_user_display_name(user: discord.Member, guild_id: int) -> str:
@@ -3764,13 +3529,13 @@ def start_session(guild_id: int, user_id: int, clock_in_iso: str):
     with db() as conn:
         conn.execute("""
             INSERT INTO sessions (guild_id, user_id, clock_in)
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
         """, (guild_id, user_id, clock_in_iso))
 
 def close_session(session_id: int, clock_out_iso: str, duration_s: int):
     with db() as conn:
         conn.execute("""
-            UPDATE sessions SET clock_out=?, duration_seconds=? WHERE id=?
+            UPDATE sessions SET clock_out=%s, duration_seconds=? WHERE id=?
         """, (clock_out_iso, duration_s, session_id))
 
 def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, end_utc: str):
@@ -3806,7 +3571,7 @@ def add_admin_role(guild_id: int, role_id: int):
     """Add a role as admin for Reports/Upgrade button access."""
     with db() as conn:
         # Convert IDs to strings for database storage (Discord snowflakes)
-        conn.execute("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (?, ?)", 
+        conn.execute("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (%s, %s)", 
                      (str(guild_id), str(role_id)))
 
 def remove_admin_role(guild_id: int, role_id: int):
@@ -3849,7 +3614,7 @@ def add_employee_role(guild_id: int, role_id: int):
     """Add a role that can use timeclock functions."""
     with db() as conn:
         # Convert IDs to strings for database storage (Discord snowflakes)
-        cursor = conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (?, ?)", 
+        cursor = conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (%s, %s)", 
                      (str(guild_id), str(role_id)))
         if cursor.rowcount > 0:
             print(f"✅ Added employee role {role_id} to guild {guild_id}")
@@ -4115,9 +3880,7 @@ def purge_timeclock_data_only(guild_id: int):
     try:
         with db() as conn:
             # Set timeout for database operations
-            conn.execute("PRAGMA busy_timeout = 5000")
-            
-            # Delete all sessions data only
+                        # Delete all sessions data only
             sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = ?", (guild_id,))
             sessions_deleted = sessions_cursor.rowcount
             
@@ -5270,7 +5033,7 @@ async def on_ready():
             for guild in bot.guilds:
                 conn.execute("""
                     INSERT OR REPLACE INTO bot_guilds (guild_id, guild_name, joined_at)
-                    VALUES (?, ?, datetime('now'))
+                    VALUES (%s, %s, datetime('now'))
                 """, (str(guild.id), guild.name))
         print(f"✅ Updated bot_guilds table with {len(bot.guilds)} guilds")
     except Exception as e:
@@ -5426,7 +5189,7 @@ async def on_guild_join(guild):
         with db() as conn:
             conn.execute("""
                 INSERT OR REPLACE INTO bot_guilds (guild_id, guild_name, joined_at)
-                VALUES (?, ?, datetime('now'))
+                VALUES (%s, %s, datetime('now'))
             """, (str(guild.id), guild.name))
         print(f"✅ Added {guild.name} to bot_guilds table")
     except Exception as e:
@@ -5742,7 +5505,7 @@ async def mobile_restriction_cmd(interaction: discord.Interaction, enabled: app_
             conn.execute(
                 """INSERT INTO server_subscriptions 
                    (guild_id, tier, bot_access_paid, retention_tier, restrict_mobile_clockin) 
-                   VALUES (?, 'free', 0, 'none', ?)""",
+                   VALUES (%s, 'free', 0, 'none', %s)""",
                 (guild_id, int(restrict))
             )
     
@@ -6331,7 +6094,7 @@ def schedule_daily_cleanup():
                 
                 # Sleep for 24 hours
                 threading.Event().wait(86400)  # 24 hours in seconds
-            except sqlite3.OperationalError as e:
+            except psycopg2.OperationalError as e:
                 if "locked" in str(e).lower():
                     print(f"⏳ Database locked during daily cleanup, skipping this cycle: {e}")
                     threading.Event().wait(3600)  # Wait 1 hour before retrying
