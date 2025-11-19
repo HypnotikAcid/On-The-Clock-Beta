@@ -2360,10 +2360,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Count currently clocked in users
             with db() as conn:
                 cursor = conn.execute("""
-                    SELECT COUNT(*) FROM sessions 
+                    SELECT COUNT(*) as count FROM sessions 
                     WHERE guild_id = %s AND clock_out IS NULL
                 """, (guild_id,))
-                clocked_in_count = cursor.fetchone()[0]
+                clocked_in_count = cursor.fetchone()['count']
                 
             # Get admin and employee roles
             admin_roles = []
@@ -2372,11 +2372,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             with db() as conn:
                 # Get admin roles
                 cursor = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id = %s", (guild_id,))
-                admin_role_ids = [row[0] for row in cursor.fetchall()]
+                admin_role_ids = [row['role_id'] for row in cursor.fetchall()]
                 
                 # Get employee roles  
                 cursor = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id = %s", (guild_id,))
-                employee_role_ids = [row[0] for row in cursor.fetchall()]
+                employee_role_ids = [row['role_id'] for row in cursor.fetchall()]
                 
             # Get role names from Discord
             for role_id in admin_role_ids:
@@ -3264,7 +3264,7 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
                 else:
                     # Clean up all guilds based on their individual retention policies
                     guilds_cursor = conn.execute("SELECT DISTINCT guild_id FROM sessions")
-                    guild_ids = [row[0] for row in guilds_cursor.fetchall()]
+                    guild_ids = [row['guild_id'] for row in guilds_cursor.fetchall()]
                     
                     for guild_id in guild_ids:
                         if guild_id is None:
@@ -3344,7 +3344,7 @@ def get_guild_setting(guild_id: int, key: str, default=None):
     with db() as conn:
         cur = conn.execute(column_queries[key], (guild_id,))
         row = cur.fetchone()
-        return row[0] if row and row[0] is not None else default
+        return row[key] if row and row[key] is not None else default
 
 # --- Report Recipients Management ---
 
@@ -3366,7 +3366,7 @@ def add_report_recipient(guild_id: int, recipient_type: str, recipient_id: Optio
                 VALUES (%s, %s, %s, %s)
             """, (guild_id, recipient_type, recipient_id, email_address))
             return True
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         # Recipient already exists
         return False
 
@@ -3413,7 +3413,7 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
             (guild_id,)
         )
         settings_row = cursor.fetchone()
-        auto_send_enabled = bool(settings_row[0]) if settings_row else False
+        auto_send_enabled = bool(settings_row['auto_send_on_clockout']) if settings_row else False
     
     # Get Discord recipients for DM notifications
     discord_recipients = get_report_recipients(guild_id, recipient_type='discord')
@@ -3439,7 +3439,11 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
     
     # Send Discord DMs to Discord recipients
     for recipient_row in discord_recipients:
-        recipient_id, recipient_type, discord_user_id, email_address, created_at = recipient_row
+        recipient_id = recipient_row['id']
+        recipient_type = recipient_row['recipient_type']
+        discord_user_id = recipient_row['recipient_id']
+        email_address = recipient_row['email_address']
+        created_at = recipient_row['created_at']
         
         if recipient_type == 'discord' and discord_user_id:
             try:
@@ -3477,7 +3481,7 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
                 duration_hours = round(elapsed / 3600, 2)
                 csv_content = f"User ID,Clock In,Clock Out,Duration (hours)\n{interaction.user.id},{start_dt.isoformat()},{end_dt.isoformat()},{duration_hours}"
                 
-                email_addresses = [row[3] for row in email_recipients if row[3]]
+                email_addresses = [row['email_address'] for row in email_recipients if row['email_address']]
                 
                 if email_addresses:
                     report_period = f"Clock-out at {fmt(end_dt, tz_name)} - {user_name}"
@@ -3524,7 +3528,7 @@ def set_guild_setting(guild_id: int, key: str, value):
         raise ValueError(f"Invalid column name: {key}")
     
     with db() as conn:
-        conn.execute("INSERT OR IGNORE INTO guild_settings(guild_id) VALUES (%s)", (guild_id,))
+        conn.execute("INSERT INTO guild_settings(guild_id) VALUES (%s) ON CONFLICT (guild_id) DO NOTHING", (guild_id,))
         conn.execute(update_queries[key], (value, guild_id))
 
 def get_user_display_name(user: discord.Member, guild_id: int) -> str:
@@ -3591,7 +3595,7 @@ def add_admin_role(guild_id: int, role_id: int):
     """Add a role as admin for Reports/Upgrade button access."""
     with db() as conn:
         # Convert IDs to strings for database storage (Discord snowflakes)
-        conn.execute("INSERT OR IGNORE INTO admin_roles (guild_id, role_id) VALUES (%s, %s)", 
+        conn.execute("INSERT INTO admin_roles (guild_id, role_id) VALUES (%s, %s) ON CONFLICT (guild_id, role_id) DO NOTHING", 
                      (str(guild_id), str(role_id)))
 
 def remove_admin_role(guild_id: int, role_id: int):
@@ -3606,7 +3610,7 @@ def get_admin_roles(guild_id: int):
     with db() as conn:
         cur = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id=%s", (str(guild_id),))
         # Convert back to int for Discord.py (role.id is an int)
-        return [int(row[0]) for row in cur.fetchall()]
+        return [int(row['role_id']) for row in cur.fetchall()]
 
 def user_has_admin_access(user: discord.Member):
     """Check if user has admin access (Discord admin OR custom admin role OR main admin role)."""
@@ -3634,7 +3638,7 @@ def add_employee_role(guild_id: int, role_id: int):
     """Add a role that can use timeclock functions."""
     with db() as conn:
         # Convert IDs to strings for database storage (Discord snowflakes)
-        cursor = conn.execute("INSERT OR IGNORE INTO employee_roles (guild_id, role_id) VALUES (%s, %s)", 
+        cursor = conn.execute("INSERT INTO employee_roles (guild_id, role_id) VALUES (%s, %s) ON CONFLICT (guild_id, role_id) DO NOTHING", 
                      (str(guild_id), str(role_id)))
         if cursor.rowcount > 0:
             print(f"✅ Added employee role {role_id} to guild {guild_id}")
@@ -3657,7 +3661,7 @@ def get_employee_roles(guild_id: int):
     with db() as conn:
         cur = conn.execute("SELECT role_id FROM employee_roles WHERE guild_id=%s", (str(guild_id),))
         # Convert back to int for Discord.py (role.id is an int)
-        return [int(row[0]) for row in cur.fetchall()]
+        return [int(row['role_id']) for row in cur.fetchall()]
 
 def user_has_clock_access(user: discord.Member, server_tier: str):
     """Check if user can access clock buttons based on server tier and roles."""
@@ -5395,7 +5399,7 @@ async def clock_interface(interaction: discord.Interaction):
         user_id = interaction.user.id
         active_session = None
         
-        with sqlite3.connect(DB_PATH) as conn:
+        with db() as conn:
             cursor = conn.execute(
                 "SELECT clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
                 (user_id, guild_id)
@@ -5404,7 +5408,7 @@ async def clock_interface(interaction: discord.Interaction):
         
         # Build status message
         if active_session:
-            clock_in_time = datetime.fromisoformat(active_session[0]).replace(tzinfo=timezone.utc)
+            clock_in_time = datetime.fromisoformat(active_session['clock_in']).replace(tzinfo=timezone.utc)
             elapsed = datetime.now(timezone.utc) - clock_in_time
             hours, remainder = divmod(int(elapsed.total_seconds()), 3600)
             minutes, _ = divmod(remainder, 60)
