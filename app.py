@@ -847,7 +847,7 @@ def owner_dashboard(user_session):
         
         # Get all servers with bot access
         with get_db() as conn:
-            # Get all guilds with subscriptions and settings (show ALL servers, not just paid)
+            # Get guilds where: bot is paid OR bot is currently in the server
             cursor = conn.execute("""
                 SELECT 
                     ss.guild_id,
@@ -861,6 +861,7 @@ def owner_dashboard(user_session):
                 FROM server_subscriptions ss
                 LEFT JOIN bot_guilds bg ON bg.guild_id = CAST(ss.guild_id AS TEXT)
                 LEFT JOIN timeclock_sessions ts ON ss.guild_id = ts.guild_id AND ts.clock_out_time IS NULL
+                WHERE ss.bot_access_paid = 1 OR bg.guild_id IS NOT NULL
                 GROUP BY ss.guild_id
                 ORDER BY bg.guild_name
             """)
@@ -884,7 +885,7 @@ def owner_dashboard(user_session):
                     'active_sessions': row[7]
                 })
             
-            # Get recent webhook events (last 100)
+            # Get recent webhook events (last 100) - only for visible servers
             cursor = conn.execute("""
                 SELECT 
                     we.event_id,
@@ -896,6 +897,8 @@ def owner_dashboard(user_session):
                     bg.guild_name
                 FROM webhook_events we
                 LEFT JOIN bot_guilds bg ON bg.guild_id = CAST(we.guild_id AS TEXT)
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = we.guild_id
+                WHERE ss.bot_access_paid = 1 OR bg.guild_id IS NOT NULL
                 ORDER BY we.timestamp DESC
                 LIMIT 100
             """)
@@ -920,15 +923,17 @@ def owner_dashboard(user_session):
                     'guild_name': row[6] or 'Unknown'
                 })
             
-            # Get summary stats (across ALL servers, not just paid)
+            # Get summary stats (only for servers where bot is paid OR bot is present)
             cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total_servers,
-                    SUM(CASE WHEN bot_access_paid = 1 THEN 1 ELSE 0 END) as paid_servers,
-                    SUM(CASE WHEN retention_tier = '7day' THEN 1 ELSE 0 END) as retention_7day_count,
-                    SUM(CASE WHEN retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
-                    SUM(CASE WHEN status = 'past_due' THEN 1 ELSE 0 END) as past_due_count
-                FROM server_subscriptions
+                    SUM(CASE WHEN ss.bot_access_paid = 1 THEN 1 ELSE 0 END) as paid_servers,
+                    SUM(CASE WHEN ss.retention_tier = '7day' THEN 1 ELSE 0 END) as retention_7day_count,
+                    SUM(CASE WHEN ss.retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
+                    SUM(CASE WHEN ss.status = 'past_due' THEN 1 ELSE 0 END) as past_due_count
+                FROM server_subscriptions ss
+                LEFT JOIN bot_guilds bg ON bg.guild_id = CAST(ss.guild_id AS TEXT)
+                WHERE ss.bot_access_paid = 1 OR bg.guild_id IS NOT NULL
             """)
             stats_row = cursor.fetchone()
             stats = {
