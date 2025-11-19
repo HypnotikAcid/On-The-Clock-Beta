@@ -1236,11 +1236,11 @@ def owner_dashboard(user_session):
                     COALESCE(ss.status, 'free') as status,
                     ss.subscription_id,
                     ss.customer_id,
-                    COUNT(DISTINCT ts.session_id) as active_sessions,
+                    COUNT(DISTINCT s.id) as active_sessions,
                     CASE WHEN bg.guild_id IS NOT NULL THEN 1 ELSE 0 END as bot_is_present
                 FROM server_subscriptions ss
                 LEFT JOIN bot_guilds bg ON CAST(bg.guild_id AS INTEGER) = ss.guild_id
-                LEFT JOIN timeclock_sessions ts ON ss.guild_id = ts.guild_id AND ts.clock_out_time IS NULL
+                LEFT JOIN sessions s ON ss.guild_id = s.guild_id AND s.clock_out IS NULL
                 WHERE ss.bot_access_paid = 1
                 GROUP BY ss.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, bg.guild_id
                 
@@ -1254,11 +1254,11 @@ def owner_dashboard(user_session):
                     COALESCE(ss.status, 'free') as status,
                     ss.subscription_id,
                     ss.customer_id,
-                    COUNT(DISTINCT ts.session_id) as active_sessions,
+                    COUNT(DISTINCT s.id) as active_sessions,
                     1 as bot_is_present
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS INTEGER)
-                LEFT JOIN timeclock_sessions ts ON CAST(bg.guild_id AS INTEGER) = ts.guild_id AND ts.clock_out_time IS NULL
+                LEFT JOIN sessions s ON CAST(bg.guild_id AS INTEGER) = s.guild_id AND s.clock_out IS NULL
                 WHERE COALESCE(ss.bot_access_paid, 0) = 0
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id
                 
@@ -1341,8 +1341,8 @@ def owner_dashboard(user_session):
             # Get total active sessions across all servers
             cursor = conn.execute("""
                 SELECT COUNT(*) as total_active_sessions
-                FROM timeclock_sessions 
-                WHERE clock_out_time IS NULL
+                FROM sessions 
+                WHERE clock_out IS NULL
             """)
             stats['total_active_sessions'] = cursor.fetchone()['total_active_sessions']
         
