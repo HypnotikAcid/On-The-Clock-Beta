@@ -42,7 +42,7 @@
         /* Left Sidebar */
         .sidebar {
             width: 250px;
-            background: rgba(10, 15, 31, 0.85);
+            background: rgba(10, 15, 31, 0.95);
             border-right: 1px solid rgba(212, 175, 55, 0.2);
             backdrop-filter: blur(10px);
             display: flex;
@@ -54,6 +54,7 @@
             overflow-y: auto;
             transition: transform 0.3s ease;
             z-index: 100;
+            pointer-events: auto;
         }
 
         .sidebar.mobile-hidden {
@@ -227,10 +228,12 @@
             bottom: 0;
             background: rgba(0, 0, 0, 0.5);
             z-index: 99;
+            pointer-events: none;
         }
 
         .mobile-overlay.active {
             display: block;
+            pointer-events: auto;
         }
 
         /* Right Content Area */
