@@ -423,6 +423,29 @@
             color: #34D399;
         }
 
+        .revoke-btn {
+            padding: 10px 14px;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: 6px;
+            color: #FF6B6B;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .revoke-btn:hover:not(:disabled) {
+            background: rgba(255, 107, 107, 0.2);
+            border-color: rgba(255, 107, 107, 0.5);
+        }
+
+        .revoke-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -559,15 +582,30 @@
                                     {% if server.bot_access %}disabled{% endif %}>
                                 {% if server.bot_access %}✓ Bot Access{% else %}Grant Bot Access{% endif %}
                             </button>
+                            <button class="revoke-btn" 
+                                    onclick="revokeAccess('{{ server.guild_id }}', 'bot_access', this)"
+                                    {% if not server.bot_access %}disabled{% endif %}>
+                                Revoke Bot Access
+                            </button>
                             <button class="grant-btn {% if server.retention_tier == '7day' %}granted{% endif %}" 
                                     onclick="grantAccess('{{ server.guild_id }}', '7day', this)"
                                     {% if server.retention_tier == '7day' %}disabled{% endif %}>
                                 {% if server.retention_tier == '7day' %}✓ 7-Day Active{% else %}Grant 7-Day Retention{% endif %}
                             </button>
+                            <button class="revoke-btn" 
+                                    onclick="revokeAccess('{{ server.guild_id }}', '7day', this)"
+                                    {% if server.retention_tier != '7day' %}disabled{% endif %}>
+                                Revoke 7-Day
+                            </button>
                             <button class="grant-btn {% if server.retention_tier == '30day' %}granted{% endif %}" 
                                     onclick="grantAccess('{{ server.guild_id }}', '30day', this)"
                                     {% if server.retention_tier == '30day' %}disabled{% endif %}>
                                 {% if server.retention_tier == '30day' %}✓ 30-Day Active{% else %}Grant 30-Day Retention{% endif %}
+                            </button>
+                            <button class="revoke-btn" 
+                                    onclick="revokeAccess('{{ server.guild_id }}', '30day', this)"
+                                    {% if server.retention_tier != '30day' %}disabled{% endif %}>
+                                Revoke 30-Day
                             </button>
                         </div>
                     </div>
@@ -693,6 +731,47 @@
             } catch (error) {
                 console.error('Grant access error:', error);
                 alert('Failed to grant access. Please try again.');
+                button.disabled = false;
+                button.textContent = 'Retry';
+            }
+        }
+
+        // Revoke access API call
+        async function revokeAccess(guildId, accessType, button) {
+            if (button.disabled) return;
+            
+            if (!confirm(`Are you sure you want to revoke ${accessType === 'bot_access' ? 'Bot Access' : accessType.toUpperCase() + ' Retention'} for this server?`)) {
+                return;
+            }
+            
+            button.disabled = true;
+            button.textContent = 'Revoking...';
+            
+            try {
+                const response = await fetch('/api/owner/revoke-access', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        guild_id: guildId,
+                        access_type: accessType
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Refresh the page immediately to update all badges and buttons
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    button.disabled = false;
+                    button.textContent = 'Retry';
+                }
+            } catch (error) {
+                console.error('Revoke access error:', error);
+                alert('Failed to revoke access. Please try again.');
                 button.disabled = false;
                 button.textContent = 'Retry';
             }
