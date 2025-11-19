@@ -27,6 +27,8 @@ Preferred communication style: Simple, everyday language.
 - **Database-Backed Sessions**: Ensures session persistence across restarts.
 - **Bot as Boss Architecture**: All role management changes flow through the bot's HTTP API, making the bot the single source of truth for both dashboard and Discord command operations, ensuring perfect synchronization and consistency.
 - **Email Automation**: APScheduler handles automated email tasks including auto-send on clock-out, scheduled work day end reports, and pre-deletion warnings. Scheduler runs in bot's event loop without circular imports.
+- **Webhook Monitoring & Owner Notifications**: Comprehensive webhook event logging system tracks all Stripe payment events (checkouts, subscriptions, cancellations, payment failures) with detailed step-by-step logging and automatic DM notifications to bot owner (Discord ID: 107103438139056128). All webhook outcomes including failures are logged to `webhook_events` database table for troubleshooting and audit trail.
+- **Owner Dashboard**: Web-based owner-only dashboard (`/owner` route) provides complete visibility into all servers, subscription statuses, active sessions, and recent webhook events. Features include: real-time stats (total servers, paid servers, retention tiers, past due count, active sessions), searchable server list with filters (All, Paid, Unpaid, Free Tier, 7-Day, 30-Day, Past Due), webhook event history (last 100 events) with search/filter by type and status. Access restricted to bot owner via Discord OAuth check.
 
 ## Security Configuration
 - **Code Analysis**: Semgrep rules for static analysis and secret management.
@@ -60,3 +62,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Database
 - **SQLite**: Used for data storage with WAL mode enabled. `bot.py` and `app.py` connect to the same `timeclock.db` file defined by `TIMECLOCK_DB` environment variable.
+
+# Recent Updates (November 2025)
+
+## Webhook Monitoring & Owner Notification System
+- **Comprehensive Event Logging**: All Stripe webhook events are logged with detailed step-by-step information throughout checkout, subscription, and payment failure handlers. Each webhook creates a record in the `webhook_events` table (event_type, event_id, guild_id, status, timestamp, details JSON).
+- **Owner DM Notifications**: Bot owner receives Discord DM notifications for all webhook events (purchases, cancellations, payment failures, rejection scenarios) with complete customer details (Discord ID, username, email, server name, product purchased, error messages). Notifications run asynchronously to avoid blocking webhook responses.
+- **Retention Purchase Enforcement**: Retention subscription purchases are validated server-side to ensure bot access is paid first. Failed purchases are logged and owner-notified.
+
+## Owner Dashboard
+- **Route**: `/owner` - Accessible only to bot owner (Discord ID: 107103438139056128) via Discord OAuth authentication.
+- **Summary Statistics**: Total Servers, Paid Servers, 7-Day Retention, 30-Day Retention, Past Due, Active Sessions.
+- **Server Management**: View all servers (paid and unpaid) with subscription details, active session counts, Stripe customer/subscription IDs. Search by name or ID. Filter by: All, Paid, Unpaid, Free Tier, 7-Day, 30-Day, Past Due.
+- **Webhook Event History**: Last 100 webhook events with server names, event types, statuses, timestamps, and detailed information (customer email, product type, session IDs, error messages). Search by any field. Filter by: All, Success, Failed, Checkout, Subscriptions, Payments.
+- **Database Schema**: Uses `server_subscriptions` table (guild_id INTEGER) joined with `bot_guilds` table (guild_id TEXT) using `CAST(ss.guild_id AS TEXT)` to avoid Discord snowflake ID overflow in SQLite signed 64-bit INTEGER range.
