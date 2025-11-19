@@ -173,10 +173,8 @@ def get_db():
     try:
         yield wrapper
         # Auto-commit on successful exit
-        conn.commit()
     except Exception as e:
         # Auto-rollback on exception
-        conn.rollback()
         raise
     finally:
         # Always return connection to pool
@@ -204,7 +202,7 @@ def init_dashboard_tables():
                 access_token TEXT NOT NULL,
                 refresh_token TEXT,
                 guilds_data TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                created_at TEXT NOT NULL DEFAULT (NOW()),
                 expires_at TEXT NOT NULL,
                 ip_address TEXT NOT NULL DEFAULT 'unknown'
             )
@@ -218,7 +216,7 @@ def init_dashboard_tables():
         
         # Migration: Add created_at column if it doesn't exist
         try:
-            conn.execute("ALTER TABLE user_sessions ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now'))")
+            conn.execute("ALTER TABLE user_sessions ADD COLUMN created_at TEXT NOT NULL DEFAULT (NOW())")
         except psycopg2.OperationalError:
             pass
         
@@ -229,9 +227,9 @@ def init_dashboard_tables():
             pass
         
         # Clean up expired sessions and states
-        conn.execute("DELETE FROM oauth_states WHERE expires_at < ?", 
+        conn.execute("DELETE FROM oauth_states WHERE expires_at < %s", 
                     (datetime.now(timezone.utc).isoformat(),))
-        conn.execute("DELETE FROM user_sessions WHERE expires_at < ?", 
+        conn.execute("DELETE FROM user_sessions WHERE expires_at < %s", 
                     (datetime.now(timezone.utc).isoformat(),))
 
 # Initialize tables when module is imported (for Gunicorn)
@@ -258,13 +256,13 @@ def verify_oauth_state(state):
     """Verify OAuth state and delete it"""
     with get_db() as conn:
         cursor = conn.execute(
-            "SELECT state FROM oauth_states WHERE state = ? AND expires_at > ?",
+            "SELECT state FROM oauth_states WHERE state = %s AND expires_at > %s",
             (state, datetime.now(timezone.utc).isoformat())
         )
         result = cursor.fetchone()
         
         if result:
-            conn.execute("DELETE FROM oauth_states WHERE state = ?", (state,))
+            conn.execute("DELETE FROM oauth_states WHERE state = %s", (state,))
             return True
     return False
 
@@ -331,7 +329,7 @@ def get_user_session(session_id):
         cursor = conn.execute("""
             SELECT session_id, user_id, username, discriminator, avatar, access_token, guilds_data, expires_at
             FROM user_sessions 
-            WHERE session_id = ? AND expires_at > ?
+            WHERE session_id = %s AND expires_at > %s
         """, (session_id, datetime.now(timezone.utc).isoformat()))
         row = cursor.fetchone()
         
@@ -351,7 +349,7 @@ def get_user_session(session_id):
 def delete_user_session(session_id):
     """Delete user session from database"""
     with get_db() as conn:
-        conn.execute("DELETE FROM user_sessions WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM user_sessions WHERE session_id = %s", (session_id,))
 
 def require_auth(f):
     """Decorator to require authentication"""
@@ -409,12 +407,12 @@ def check_guild_paid_access(guild_id):
     try:
         with get_db() as conn:
             # Check if bot is in the guild (bot_guilds table)
-            cursor = conn.execute("SELECT guild_id FROM bot_guilds WHERE guild_id = ?", (str(guild_id),))
+            cursor = conn.execute("SELECT guild_id FROM bot_guilds WHERE guild_id = %s", (str(guild_id),))
             bot_invited = cursor.fetchone() is not None
             
             # Check if guild has paid bot access (server_subscriptions table)
             cursor = conn.execute(
-                "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = ?",
+                "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = %s",
                 (int(guild_id),)
             )
             result = cursor.fetchone()
@@ -897,8 +895,8 @@ def handle_subscription_change(subscription):
         with bot_db() as conn:
             conn.execute("""
                 UPDATE server_subscriptions 
-                SET status = ?
-                WHERE subscription_id = ?
+                SET status = %s
+                WHERE subscription_id = %s
             """, (status, subscription_id))
         
         app.logger.info(f"✅ Subscription {subscription_id} status updated to {status}")
@@ -920,7 +918,7 @@ def handle_subscription_cancellation(subscription):
         with bot_db() as conn:
             cursor = conn.execute("""
                 SELECT guild_id FROM server_subscriptions 
-                WHERE subscription_id = ? OR customer_id = ?
+                WHERE subscription_id = %s OR customer_id = %s
             """, (subscription_id, customer_id))
             result = cursor.fetchone()
             
@@ -934,7 +932,7 @@ def handle_subscription_cancellation(subscription):
                 conn.execute("""
                     UPDATE server_subscriptions 
                     SET status = 'canceled', subscription_id = NULL
-                    WHERE guild_id = ?
+                    WHERE guild_id = %s
                 """, (guild_id,))
                 
                 # Trigger immediate data deletion
@@ -961,7 +959,7 @@ def handle_payment_failure(invoice):
         with bot_db() as conn:
             cursor = conn.execute("""
                 SELECT guild_id FROM server_subscriptions 
-                WHERE subscription_id = ? OR customer_id = ?
+                WHERE subscription_id = %s OR customer_id = %s
             """, (subscription_id, customer_id))
             result = cursor.fetchone()
             
@@ -972,7 +970,7 @@ def handle_payment_failure(invoice):
                 conn.execute("""
                     UPDATE server_subscriptions 
                     SET status = 'past_due'
-                    WHERE guild_id = ?
+                    WHERE guild_id = %s
                 """, (guild_id,))
                 
                 app.logger.info(f"⚠️ Payment failed: Guild {guild_id} marked as past_due")
@@ -1140,7 +1138,7 @@ def fetch_guild_name_from_discord(guild_id, db_conn=None):
                 db_conn.execute("""
                     INSERT INTO bot_guilds (guild_id, guild_name) 
                     VALUES (%s, %s)
-                    ON CONFLICT(guild_id) DO UPDATE SET guild_name = ?
+                    ON CONFLICT(guild_id) DO UPDATE SET guild_name = %s
                 """, (str(guild_id), guild_name, guild_name))
                 app.logger.info(f"Cached guild name for {guild_id}: {guild_name}")
             except Exception as db_error:
@@ -1191,10 +1189,8 @@ def owner_dashboard(user_session):
                 if inserted_count > 0:
                     app.logger.info(f"Added {inserted_count} placeholder server_subscriptions rows for new guilds")
                 
-                conn.commit()
             except Exception as reconcile_error:
                 app.logger.error(f"Database reconciliation error: {reconcile_error}")
-                conn.rollback()
                 # Continue anyway - reconciliation failure shouldn't block dashboard
             # Get servers with smart filtering:
             # - ALWAYS show paid servers (even if bot left)
@@ -1354,10 +1350,9 @@ def api_owner_grant_access(user_session):
         
         app.logger.info(f"Owner {user_session.get('username')} granting {access_type} to guild {guild_id}")
         
-        conn = get_db()
-        try:
+        with get_db() as conn:
             # Check if server exists in server_subscriptions
-            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
             server_exists = cursor.fetchone()
             
             if not server_exists:
@@ -1375,37 +1370,33 @@ def api_owner_grant_access(user_session):
                     SET bot_access_paid = 1,
                         manually_granted = 1,
                         granted_by = %s,
-                        granted_at = datetime('now')
-                    WHERE guild_id = ?
+                        granted_at = NOW()
+                    WHERE guild_id = %s
                 """, (user_session['user_id'], guild_id))
                 app.logger.info(f"✅ Granted bot access to guild {guild_id}")
                 
             elif access_type in ['7day', '30day']:
                 # Ensure bot access is paid first
-                cursor = conn.execute("SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+                cursor = conn.execute("SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
                 bot_access = cursor.fetchone()
                 
                 if not bot_access or not bot_access[0]:
-                    conn.rollback()
-                    return jsonify({
-                        'success': False, 
-                        'error': 'Bot access must be granted before retention tiers. Grant bot access first.'
-                    }), 400
+                    # Raise exception to trigger rollback via context manager
+                    raise ValueError('Bot access must be granted before retention tiers. Grant bot access first.')
                 
                 conn.execute("""
                     UPDATE server_subscriptions 
                     SET retention_tier = %s,
                         manually_granted = 1,
                         granted_by = %s,
-                        granted_at = datetime('now'),
+                        granted_at = NOW(),
                         status = 'active'
-                    WHERE guild_id = ?
+                    WHERE guild_id = %s
                 """, (access_type, user_session['user_id'], guild_id))
                 app.logger.info(f"✅ Granted {access_type} retention to guild {guild_id}")
             
-            # Commit all changes
-            conn.commit()
-            app.logger.info(f"✅ Transaction committed successfully for guild {guild_id}")
+            # Context manager handles commit automatically
+            app.logger.info(f"✅ Transaction will be committed for guild {guild_id}")
             
             # Send notification to server owner if granting bot access
             if access_type == 'bot_access':
@@ -1439,19 +1430,17 @@ def api_owner_grant_access(user_session):
                         app.logger.error(f"❌ Failed to queue welcome notification for guild {guild_id}: {notify_error}")
                         app.logger.error(traceback.format_exc())
             
-            return jsonify({
-                'success': True,
-                'message': f'Successfully granted {access_type} to server',
-                'guild_id': guild_id,
-                'access_type': access_type
-            })
-        except Exception as db_error:
-            conn.rollback()
-            app.logger.error(f"Database error during grant, rolled back: {db_error}")
-            raise
-        finally:
-            conn.close()
+        return jsonify({
+            'success': True,
+            'message': f'Successfully granted {access_type} to server',
+            'guild_id': guild_id,
+            'access_type': access_type
+        })
     
+    except ValueError as ve:
+        # Handle specific validation errors
+        app.logger.warning(f"Validation error during grant: {str(ve)}")
+        return jsonify({'success': False, 'error': str(ve)}), 400
     except Exception as e:
         app.logger.error(f"Grant access error: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -1481,10 +1470,9 @@ def api_owner_revoke_access(user_session):
         
         app.logger.info(f"Owner {user_session.get('username')} revoking {access_type} from guild {guild_id}")
         
-        conn = get_db()
-        try:
+        with get_db() as conn:
             # Check if server exists in server_subscriptions
-            cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+            cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
             server = cursor.fetchone()
             
             if not server:
@@ -1496,7 +1484,7 @@ def api_owner_revoke_access(user_session):
                 """, (guild_id,))
                 app.logger.info(f"Created placeholder server_subscriptions row for guild {guild_id}")
                 # Re-fetch the server
-                cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+                cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
                 server = cursor.fetchone()
             
             # Revoke the appropriate access
@@ -1510,7 +1498,7 @@ def api_owner_revoke_access(user_session):
                         manually_granted = 0,
                         granted_by = NULL,
                         granted_at = NULL
-                    WHERE guild_id = ?
+                    WHERE guild_id = %s
                 """, (guild_id,))
                 app.logger.info(f"❌ Revoked bot access from guild {guild_id} (also cleared retention tier)")
                 
@@ -1521,18 +1509,16 @@ def api_owner_revoke_access(user_session):
                         UPDATE server_subscriptions 
                         SET retention_tier = 'none',
                             status = 'active'
-                        WHERE guild_id = ?
+                        WHERE guild_id = %s
                     """, (guild_id,))
                     app.logger.info(f"❌ Revoked {access_type} retention from guild {guild_id}")
                 else:
-                    conn.rollback()
                     return jsonify({
                         'success': False, 
                         'error': f'Server does not have {access_type} retention active'
                     }), 400
             
             # Commit all changes
-            conn.commit()
             app.logger.info(f"✅ Transaction committed successfully for guild {guild_id}")
             
             return jsonify({
@@ -1541,12 +1527,6 @@ def api_owner_revoke_access(user_session):
                 'guild_id': guild_id,
                 'access_type': access_type
             })
-        except Exception as db_error:
-            conn.rollback()
-            app.logger.error(f"Database error during revoke, rolled back: {db_error}")
-            raise
-        finally:
-            conn.close()
     
     except Exception as e:
         app.logger.error(f"Revoke access error: {str(e)}")
@@ -1610,14 +1590,14 @@ def get_guild_settings(guild_id):
     with get_db() as conn:
         # Get admin roles (convert to strings to match Discord API format)
         admin_cursor = conn.execute(
-            "SELECT role_id FROM admin_roles WHERE guild_id = ?",
+            "SELECT role_id FROM admin_roles WHERE guild_id = %s",
             (guild_id,)
         )
         admin_roles = [str(row[0]) for row in admin_cursor.fetchall()]
         
         # Get employee roles (convert to strings to match Discord API format)
         employee_cursor = conn.execute(
-            "SELECT role_id FROM employee_roles WHERE guild_id = ?",
+            "SELECT role_id FROM employee_roles WHERE guild_id = %s",
             (guild_id,)
         )
         employee_roles = [str(row[0]) for row in employee_cursor.fetchall()]
@@ -1625,7 +1605,7 @@ def get_guild_settings(guild_id):
         
         # Get guild settings (timezone, recipient_user_id, work_day_end_time, etc.)
         settings_cursor = conn.execute(
-            "SELECT timezone, recipient_user_id, name_display_mode, main_admin_role_id, work_day_end_time FROM guild_settings WHERE guild_id = ?",
+            "SELECT timezone, recipient_user_id, name_display_mode, main_admin_role_id, work_day_end_time FROM guild_settings WHERE guild_id = %s",
             (guild_id,)
         )
         settings_row = settings_cursor.fetchone()
@@ -1633,7 +1613,7 @@ def get_guild_settings(guild_id):
         # Get email settings
         try:
             email_settings_cursor = conn.execute(
-                "SELECT auto_send_on_clockout, auto_email_before_delete FROM email_settings WHERE guild_id = ?",
+                "SELECT auto_send_on_clockout, auto_email_before_delete FROM email_settings WHERE guild_id = %s",
                 (guild_id,)
             )
             email_settings_row = email_settings_cursor.fetchone()
@@ -1643,7 +1623,7 @@ def get_guild_settings(guild_id):
         # Get mobile restriction setting
         try:
             mobile_restriction_cursor = conn.execute(
-                "SELECT restrict_mobile_clockin FROM server_subscriptions WHERE guild_id = ?",
+                "SELECT restrict_mobile_clockin FROM server_subscriptions WHERE guild_id = %s",
                 (int(guild_id),)
             )
             mobile_restriction_row = mobile_restriction_cursor.fetchone()
@@ -2345,12 +2325,12 @@ def api_update_timezone(user_session, guild_id):
         # Update or insert guild settings
         with get_db() as conn:
             # Check if settings exist
-            cursor = conn.execute("SELECT guild_id FROM guild_settings WHERE guild_id = ?", (guild_id,))
+            cursor = conn.execute("SELECT guild_id FROM guild_settings WHERE guild_id = %s", (guild_id,))
             exists = cursor.fetchone()
             
             if exists:
                 conn.execute(
-                    "UPDATE guild_settings SET timezone = ? WHERE guild_id = ?",
+                    "UPDATE guild_settings SET timezone = %s WHERE guild_id = %s",
                     (timezone_str, guild_id)
                 )
             else:
@@ -2385,17 +2365,16 @@ def api_update_email_settings(user_session, guild_id):
         auto_email_before_delete = bool(data.get('auto_email_before_delete', False))
         
         # Update or insert email settings
-        conn = get_db()
-        try:
+        with get_db() as conn:
             # Check if settings exist
-            cursor = conn.execute("SELECT guild_id FROM email_settings WHERE guild_id = ?", (guild_id,))
+            cursor = conn.execute("SELECT guild_id FROM email_settings WHERE guild_id = %s", (guild_id,))
             exists = cursor.fetchone()
             
             if exists:
                 conn.execute(
                     """UPDATE email_settings 
-                       SET auto_send_on_clockout = %s, auto_email_before_delete = ? 
-                       WHERE guild_id = ?""",
+                       SET auto_send_on_clockout = %s, auto_email_before_delete = %s 
+                       WHERE guild_id = %s""",
                     (auto_send_on_clockout, auto_email_before_delete, guild_id)
                 )
             else:
@@ -2405,7 +2384,6 @@ def api_update_email_settings(user_session, guild_id):
                     (guild_id, auto_send_on_clockout, auto_email_before_delete)
                 )
             
-            conn.commit()
             app.logger.info(f"✅ Email settings committed for guild {guild_id} by user {user_session.get('username')}")
             
             return jsonify({
@@ -2414,12 +2392,6 @@ def api_update_email_settings(user_session, guild_id):
                 'auto_send_on_clockout': auto_send_on_clockout,
                 'auto_email_before_delete': auto_email_before_delete
             })
-        except Exception as db_error:
-            conn.rollback()
-            app.logger.error(f"Database error saving email settings, rolled back: {db_error}")
-            raise
-        finally:
-            conn.close()
     except Exception as e:
         app.logger.error(f"Error updating email settings: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -2444,19 +2416,18 @@ def api_update_work_day_time(user_session, guild_id):
         
         # Validate time format (HH:MM)
         import re
-        if not re.match(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$', work_day_end_time):
+        if not re.match(r'^([01]%s[0-9]|2[0-3]):[0-5][0-9]$', work_day_end_time):
             return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
         
         # Update or insert guild settings
-        conn = get_db()
-        try:
+        with get_db() as conn:
             # Check if settings exist
-            cursor = conn.execute("SELECT guild_id FROM guild_settings WHERE guild_id = ?", (guild_id,))
+            cursor = conn.execute("SELECT guild_id FROM guild_settings WHERE guild_id = %s", (guild_id,))
             exists = cursor.fetchone()
             
             if exists:
                 conn.execute(
-                    "UPDATE guild_settings SET work_day_end_time = ? WHERE guild_id = ?",
+                    "UPDATE guild_settings SET work_day_end_time = %s WHERE guild_id = %s",
                     (work_day_end_time, guild_id)
                 )
             else:
@@ -2467,16 +2438,9 @@ def api_update_work_day_time(user_session, guild_id):
                     (guild_id, work_day_end_time)
                 )
             
-            conn.commit()
             app.logger.info(f"✅ Work day end time committed: {work_day_end_time} for guild {guild_id}")
             
             return jsonify({'success': True, 'message': 'Work day end time updated successfully', 'work_day_end_time': work_day_end_time})
-        except Exception as db_error:
-            conn.rollback()
-            app.logger.error(f"Database error saving work day time, rolled back: {db_error}")
-            raise
-        finally:
-            conn.close()
     except Exception as e:
         app.logger.error(f"Error updating work day end time: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -2500,15 +2464,14 @@ def api_update_mobile_restriction(user_session, guild_id):
         restrict_mobile = bool(data.get('restrict_mobile', False))
         
         # Update or insert mobile restriction setting
-        conn = get_db()
-        try:
+        with get_db() as conn:
             # Ensure a record exists in server_subscriptions
-            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = ?", (int(guild_id),))
+            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = %s", (int(guild_id),))
             exists = cursor.fetchone()
             
             if exists:
                 conn.execute(
-                    "UPDATE server_subscriptions SET restrict_mobile_clockin = ? WHERE guild_id = ?",
+                    "UPDATE server_subscriptions SET restrict_mobile_clockin = %s WHERE guild_id = %s",
                     (int(restrict_mobile), int(guild_id))
                 )
             else:
@@ -2520,7 +2483,6 @@ def api_update_mobile_restriction(user_session, guild_id):
                     (int(guild_id), int(restrict_mobile))
                 )
             
-            conn.commit()
             app.logger.info(f"✅ Mobile restriction setting committed: {restrict_mobile} for guild {guild_id}")
             
             return jsonify({
@@ -2528,12 +2490,6 @@ def api_update_mobile_restriction(user_session, guild_id):
                 'message': 'Mobile restriction setting updated successfully',
                 'restrict_mobile': restrict_mobile
             })
-        except Exception as db_error:
-            conn.rollback()
-            app.logger.error(f"Database error saving mobile restriction, rolled back: {db_error}")
-            raise
-        finally:
-            conn.close()
     except Exception as e:
         app.logger.error(f"Error updating mobile restriction: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -2554,7 +2510,7 @@ def api_get_email_recipients(user_session, guild_id):
             cursor = conn.execute(
                 """SELECT id, email_address, created_at 
                    FROM report_recipients 
-                   WHERE guild_id = ? AND recipient_type = 'email'
+                   WHERE guild_id = %s AND recipient_type = 'email'
                    ORDER BY created_at DESC""",
                 (guild_id,)
             )
@@ -2599,28 +2555,25 @@ def api_add_email_recipient(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid email address format'}), 400
         
         # Add to database
-        conn = get_db()
-        try:
-            cursor = conn.execute(
-                """INSERT INTO report_recipients (guild_id, recipient_type, email_address) 
-                   VALUES (%s, 'email', %s)""",
-                (guild_id, email)
-            )
-            recipient_id = cursor.lastrowid
-            
-            conn.commit()
-            app.logger.info(f"✅ Email recipient committed: {email} for guild {guild_id}")
-            
-            return jsonify({'success': True, 'message': 'Email recipient added successfully', 'id': recipient_id, 'email': email})
-        except sqlite3.IntegrityError:
-            conn.rollback()
-            return jsonify({'success': False, 'error': 'Email address already exists'}), 400
-        except Exception as db_error:
-            conn.rollback()
-            app.logger.error(f"Database error adding email recipient, rolled back: {db_error}")
-            raise
-        finally:
-            conn.close()
+        with get_db() as conn:
+            try:
+                cursor = conn.execute(
+                    """INSERT INTO report_recipients (guild_id, recipient_type, email_address) 
+                       VALUES (%s, 'email', %s)""",
+                    (guild_id, email)
+                )
+                recipient_id = cursor.lastrowid
+                
+                app.logger.info(f"✅ Email recipient committed: {email} for guild {guild_id}")
+                
+                return jsonify({'success': True, 'message': 'Email recipient added successfully', 'id': recipient_id, 'email': email})
+            except psycopg2.IntegrityError:
+                # Context manager handles rollback automatically
+                return jsonify({'success': False, 'error': 'Email address already exists'}), 400
+            except Exception as db_error:
+                # Context manager handles rollback automatically
+                app.logger.error(f"Database error adding email recipient: {db_error}")
+                raise
     except Exception as e:
         app.logger.error(f"Error adding email recipient: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -2644,28 +2597,19 @@ def api_remove_email_recipient(user_session, guild_id):
         recipient_id = data['id']
         
         # Remove from database
-        conn = get_db()
-        try:
+        with get_db() as conn:
             cursor = conn.execute(
                 """DELETE FROM report_recipients 
-                   WHERE id = ? AND guild_id = ? AND recipient_type = 'email'""",
+                   WHERE id = %s AND guild_id = %s AND recipient_type = 'email'""",
                 (recipient_id, guild_id)
             )
             
             if cursor.rowcount == 0:
-                conn.rollback()
                 return jsonify({'success': False, 'error': 'Recipient not found'}), 404
             
-            conn.commit()
             app.logger.info(f"✅ Email recipient removed: {recipient_id} for guild {guild_id}")
             
             return jsonify({'success': True, 'message': 'Email recipient removed successfully'})
-        except Exception as db_error:
-            conn.rollback()
-            app.logger.error(f"Database error removing email recipient, rolled back: {db_error}")
-            raise
-        finally:
-            conn.close()
     except Exception as e:
         app.logger.error(f"Error removing email recipient: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -2718,7 +2662,7 @@ def api_get_bans(user_session, guild_id):
             cursor = conn.execute("""
                 SELECT user_id, banned_at, ban_expires_at, warning_count, reason 
                 FROM banned_users 
-                WHERE guild_id = ?
+                WHERE guild_id = %s
                 ORDER BY banned_at DESC
             """, (guild_id,))
             
@@ -2755,7 +2699,7 @@ def api_unban_user(user_session, guild_id):
         
         with get_db() as conn:
             conn.execute(
-                "DELETE FROM banned_users WHERE guild_id = ? AND user_id = ?",
+                "DELETE FROM banned_users WHERE guild_id = %s AND user_id = %s",
                 (guild_id, user_id)
             )
         
@@ -2785,7 +2729,7 @@ def api_make_ban_permanent(user_session, guild_id):
             conn.execute("""
                 UPDATE banned_users 
                 SET ban_expires_at = NULL, reason = 'permanent_ban'
-                WHERE guild_id = ? AND user_id = ?
+                WHERE guild_id = %s AND user_id = %s
             """, (guild_id, user_id))
         
         app.logger.info(f"Made ban permanent for user {user_id} in guild {guild_id} by {user_session.get('username')}")
