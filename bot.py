@@ -2960,6 +2960,26 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_server_ban_log_guild_time 
         ON server_ban_log(guild_id, banned_at)
         """)
+        
+        # Migration: Add manual grant tracking columns to server_subscriptions
+        try:
+            # Check if columns exist before adding them
+            cursor = conn.execute("PRAGMA table_info(server_subscriptions)")
+            columns = {row[1] for row in cursor.fetchall()}
+            
+            if 'manually_granted' not in columns:
+                conn.execute("ALTER TABLE server_subscriptions ADD COLUMN manually_granted BOOLEAN DEFAULT 0")
+                print("✅ Added manually_granted column to server_subscriptions")
+            
+            if 'granted_by' not in columns:
+                conn.execute("ALTER TABLE server_subscriptions ADD COLUMN granted_by TEXT")
+                print("✅ Added granted_by column to server_subscriptions")
+            
+            if 'granted_at' not in columns:
+                conn.execute("ALTER TABLE server_subscriptions ADD COLUMN granted_at TEXT")
+                print("✅ Added granted_at column to server_subscriptions")
+        except Exception as e:
+            print(f"⚠️ Migration error (may be expected if columns already exist): {e}")
 
 
 

@@ -903,6 +903,89 @@ def owner_dashboard(user_session):
         app.logger.error(traceback.format_exc())
         return "<h1>Error</h1><p>Unable to load owner dashboard. Please try again later.</p><a href='/dashboard'>Return to Dashboard</a>", 500
 
+@app.route("/api/owner/grant-access", methods=["POST"])
+@require_api_auth
+def api_owner_grant_access(user_session):
+    """Owner-only API endpoint to manually grant bot access or retention tiers to servers"""
+    try:
+        BOT_OWNER_ID = '107103438139056128'
+        
+        # Security check: Only allow bot owner
+        if user_session['user_id'] != BOT_OWNER_ID:
+            app.logger.warning(f"Unauthorized grant access attempt by user {user_session['user_id']}")
+            return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
+        
+        data = request.get_json()
+        guild_id = data.get('guild_id')
+        access_type = data.get('access_type')
+        
+        if not guild_id or not access_type:
+            return jsonify({'success': False, 'error': 'Missing guild_id or access_type'}), 400
+        
+        if access_type not in ['bot_access', '7day', '30day']:
+            return jsonify({'success': False, 'error': 'Invalid access_type. Must be bot_access, 7day, or 30day'}), 400
+        
+        app.logger.info(f"Owner {user_session.get('username')} granting {access_type} to guild {guild_id}")
+        
+        with get_db() as conn:
+            # Check if server exists in server_subscriptions
+            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+            server_exists = cursor.fetchone()
+            
+            if not server_exists:
+                # Create server subscription entry if it doesn't exist
+                conn.execute("""
+                    INSERT INTO server_subscriptions (guild_id, bot_access_paid, retention_tier, status)
+                    VALUES (?, 0, 'none', 'active')
+                """, (guild_id,))
+                app.logger.info(f"Created new server_subscriptions entry for guild {guild_id}")
+            
+            # Grant the appropriate access
+            if access_type == 'bot_access':
+                conn.execute("""
+                    UPDATE server_subscriptions 
+                    SET bot_access_paid = 1,
+                        manually_granted = 1,
+                        granted_by = ?,
+                        granted_at = datetime('now')
+                    WHERE guild_id = ?
+                """, (user_session['user_id'], guild_id))
+                app.logger.info(f"✅ Granted bot access to guild {guild_id}")
+                
+            elif access_type in ['7day', '30day']:
+                # Ensure bot access is paid first
+                cursor = conn.execute("SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = ?", (guild_id,))
+                bot_access = cursor.fetchone()
+                
+                if not bot_access or not bot_access[0]:
+                    return jsonify({
+                        'success': False, 
+                        'error': 'Bot access must be granted before retention tiers. Grant bot access first.'
+                    }), 400
+                
+                conn.execute("""
+                    UPDATE server_subscriptions 
+                    SET retention_tier = ?,
+                        manually_granted = 1,
+                        granted_by = ?,
+                        granted_at = datetime('now'),
+                        status = 'active'
+                    WHERE guild_id = ?
+                """, (access_type, user_session['user_id'], guild_id))
+                app.logger.info(f"✅ Granted {access_type} retention to guild {guild_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully granted {access_type} to server',
+            'guild_id': guild_id,
+            'access_type': access_type
+        })
+    
+    except Exception as e:
+        app.logger.error(f"Grant access error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 def verify_guild_access(user_session, guild_id):
     """
     Verify user has access to a specific guild.

@@ -275,17 +275,171 @@
             background: rgba(212, 175, 55, 0.15);
         }
 
+        /* Server Card Styles */
+        .server-card {
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .server-card:hover {
+            border-color: rgba(212, 175, 55, 0.4);
+        }
+
+        .server-card-header {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            gap: 12px;
+        }
+
+        .server-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: #0A0F1F;
+            flex-shrink: 0;
+        }
+
+        .server-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .server-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #C9D1D9;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .server-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .expand-icon {
+            font-size: 20px;
+            color: #8B949E;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .server-card.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .server-details {
+            display: none;
+            padding: 0 16px 16px 16px;
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .server-card.expanded .server-details {
+            display: block;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.05);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #8B949E;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            color: #C9D1D9;
+            text-align: right;
+        }
+
+        .detail-value code {
+            background: rgba(10, 15, 31, 0.6);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #D4AF37;
+        }
+
+        .grant-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .grant-btn {
+            padding: 10px 14px;
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 6px;
+            color: #D4AF37;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .grant-btn:hover:not(:disabled) {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .grant-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: rgba(52, 211, 153, 0.1);
+            border-color: rgba(52, 211, 153, 0.3);
+            color: #34D399;
+        }
+
+        .grant-btn.granted {
+            background: rgba(52, 211, 153, 0.1);
+            border-color: rgba(52, 211, 153, 0.3);
+            color: #34D399;
+        }
+
         @media (max-width: 768px) {
             .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .server-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+            
+            .server-name {
+                font-size: 14px;
+            }
+            
+            .grant-buttons {
                 grid-template-columns: 1fr;
-            }
-            
-            .table {
-                font-size: 12px;
-            }
-            
-            .table th, .table td {
-                padding: 8px;
             }
         }
     </style>
@@ -343,63 +497,83 @@
             </div>
 
             {% if servers %}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Server Name</th>
-                        <th>Guild ID</th>
-                        <th>Bot Access</th>
-                        <th>Retention</th>
-                        <th>Status</th>
-                        <th>Active Sessions</th>
-                        <th>Stripe IDs</th>
-                    </tr>
-                </thead>
-                <tbody id="serversTable">
-                    {% for server in servers %}
-                    <tr data-retention="{{ server.retention_tier or 'free' }}" data-status="{{ server.status or 'active' }}" data-paid="{{ '1' if server.bot_access else '0' }}">
-                        <td>{{ server.guild_name }}</td>
-                        <td><code>{{ server.guild_id }}</code></td>
-                        <td>
-                            {% if server.bot_access %}
-                                <span class="badge success">Paid</span>
-                            {% else %}
-                                <span class="badge failed">Unpaid</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if server.retention_tier == '7day' %}
-                                <span class="badge retention-7">7-Day</span>
-                            {% elif server.retention_tier == '30day' %}
-                                <span class="badge retention-30">30-Day</span>
-                            {% else %}
-                                <span class="badge free">Free</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if server.status == 'active' %}
-                                <span class="badge success">Active</span>
-                            {% elif server.status == 'past_due' %}
-                                <span class="badge past-due">Past Due</span>
-                            {% else %}
-                                <span class="badge">{{ server.status or 'N/A' }}</span>
-                            {% endif %}
-                        </td>
-                        <td><strong>{{ server.active_sessions }}</strong></td>
-                        <td>
-                            {% if server.subscription_id %}
-                                <div style="font-size: 11px; color: #8B949E;">
-                                    Sub: <code>{{ server.subscription_id[:20] }}...</code><br>
-                                    Cust: <code>{{ server.customer_id[:20] }}...</code>
-                                </div>
-                            {% else %}
-                                <span style="color: #8B949E;">-</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div id="serversContainer">
+                {% for server in servers %}
+                <div class="server-card" data-retention="{{ server.retention_tier or 'free' }}" data-status="{{ server.status or 'active' }}" data-paid="{{ '1' if server.bot_access else '0' }}" data-guild-id="{{ server.guild_id }}">
+                    <div class="server-card-header" onclick="toggleServerCard(this)">
+                        <div class="server-icon">{{ server.guild_name[0]|upper if server.guild_name and server.guild_name != 'Unknown Server' else '?' }}</div>
+                        <div class="server-info">
+                            <div class="server-name">{{ server.guild_name }}</div>
+                            <div class="server-badges">
+                                {% if server.bot_access %}
+                                    <span class="badge success">💰 Paid</span>
+                                {% else %}
+                                    <span class="badge failed">Unpaid</span>
+                                {% endif %}
+                                
+                                {% if server.retention_tier == '7day' %}
+                                    <span class="badge retention-7">7-Day</span>
+                                {% elif server.retention_tier == '30day' %}
+                                    <span class="badge retention-30">30-Day</span>
+                                {% else %}
+                                    <span class="badge free">Free</span>
+                                {% endif %}
+                                
+                                {% if server.status == 'past_due' %}
+                                    <span class="badge past-due">Past Due</span>
+                                {% endif %}
+                                
+                                {% if server.active_sessions > 0 %}
+                                    <span class="badge active">{{ server.active_sessions }} Active</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="expand-icon">▼</div>
+                    </div>
+                    
+                    <div class="server-details">
+                        <div class="detail-row">
+                            <div class="detail-label">Guild ID</div>
+                            <div class="detail-value"><code>{{ server.guild_id }}</code></div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Active Sessions</div>
+                            <div class="detail-value"><strong>{{ server.active_sessions }}</strong> employees clocked in</div>
+                        </div>
+                        {% if server.subscription_id %}
+                        <div class="detail-row">
+                            <div class="detail-label">Stripe Subscription ID</div>
+                            <div class="detail-value"><code>{{ server.subscription_id }}</code></div>
+                        </div>
+                        {% endif %}
+                        {% if server.customer_id %}
+                        <div class="detail-row">
+                            <div class="detail-label">Stripe Customer ID</div>
+                            <div class="detail-value"><code>{{ server.customer_id }}</code></div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="grant-buttons">
+                            <button class="grant-btn {% if server.bot_access %}granted{% endif %}" 
+                                    onclick="grantAccess('{{ server.guild_id }}', 'bot_access', this)"
+                                    {% if server.bot_access %}disabled{% endif %}>
+                                {% if server.bot_access %}✓ Bot Access{% else %}Grant Bot Access{% endif %}
+                            </button>
+                            <button class="grant-btn {% if server.retention_tier == '7day' %}granted{% endif %}" 
+                                    onclick="grantAccess('{{ server.guild_id }}', '7day', this)"
+                                    {% if server.retention_tier == '7day' %}disabled{% endif %}>
+                                {% if server.retention_tier == '7day' %}✓ 7-Day Active{% else %}Grant 7-Day Retention{% endif %}
+                            </button>
+                            <button class="grant-btn {% if server.retention_tier == '30day' %}granted{% endif %}" 
+                                    onclick="grantAccess('{{ server.guild_id }}', '30day', this)"
+                                    {% if server.retention_tier == '30day' %}disabled{% endif %}>
+                                {% if server.retention_tier == '30day' %}✓ 30-Day Active{% else %}Grant 30-Day Retention{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
             {% else %}
             <div class="no-data">No servers with bot access found</div>
             {% endif %}
@@ -472,14 +646,66 @@
     </div>
 
     <script>
+        // Toggle server card expand/collapse
+        function toggleServerCard(element) {
+            const card = element.closest('.server-card');
+            card.classList.toggle('expanded');
+        }
+
+        // Grant access API call
+        async function grantAccess(guildId, accessType, button) {
+            if (button.disabled) return;
+            
+            button.disabled = true;
+            button.textContent = 'Granting...';
+            
+            try {
+                const response = await fetch('/api/owner/grant-access', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        guild_id: guildId,
+                        access_type: accessType
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    button.classList.add('granted');
+                    if (accessType === 'bot_access') {
+                        button.textContent = '✓ Bot Access';
+                    } else if (accessType === '7day') {
+                        button.textContent = '✓ 7-Day Active';
+                    } else if (accessType === '30day') {
+                        button.textContent = '✓ 30-Day Active';
+                    }
+                    
+                    // Refresh the page after 1 second to update all badges
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    alert('Error: ' + data.error);
+                    button.disabled = false;
+                    button.textContent = 'Retry';
+                }
+            } catch (error) {
+                console.error('Grant access error:', error);
+                alert('Failed to grant access. Please try again.');
+                button.disabled = false;
+                button.textContent = 'Retry';
+            }
+        }
+
         // Server search functionality
         document.getElementById('serverSearch').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#serversTable tr');
+            const cards = document.querySelectorAll('.server-card');
             
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(searchTerm) ? '' : 'none';
             });
         });
 
@@ -500,22 +726,22 @@
             tabs.forEach(tab => tab.classList.remove('active'));
             evt.target.classList.add('active');
             
-            const rows = document.querySelectorAll('#serversTable tr');
-            rows.forEach(row => {
+            const cards = document.querySelectorAll('.server-card');
+            cards.forEach(card => {
                 if (filterType === 'all') {
-                    row.style.display = '';
+                    card.style.display = '';
                 } else if (filterType === 'paid') {
-                    row.style.display = row.dataset.paid === '1' ? '' : 'none';
+                    card.style.display = card.dataset.paid === '1' ? '' : 'none';
                 } else if (filterType === 'unpaid') {
-                    row.style.display = row.dataset.paid === '0' ? '' : 'none';
+                    card.style.display = card.dataset.paid === '0' ? '' : 'none';
                 } else if (filterType === 'free') {
-                    row.style.display = row.dataset.retention === 'free' ? '' : 'none';
+                    card.style.display = card.dataset.retention === 'free' ? '' : 'none';
                 } else if (filterType === '7day') {
-                    row.style.display = row.dataset.retention === '7day' ? '' : 'none';
+                    card.style.display = card.dataset.retention === '7day' ? '' : 'none';
                 } else if (filterType === '30day') {
-                    row.style.display = row.dataset.retention === '30day' ? '' : 'none';
+                    card.style.display = card.dataset.retention === '30day' ? '' : 'none';
                 } else if (filterType === 'past_due') {
-                    row.style.display = row.dataset.status === 'past_due' ? '' : 'none';
+                    card.style.display = card.dataset.status === 'past_due' ? '' : 'none';
                 }
             });
         }
