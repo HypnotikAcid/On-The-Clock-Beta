@@ -3774,7 +3774,7 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
     if active_session:
         session_id = active_session['id']
         clock_in_iso = active_session['clock_in']
-        start_dt = datetime.fromisoformat(clock_in_iso)
+        start_dt = safe_parse_timestamp(clock_in_iso)
         current_session_seconds = int((now - start_dt).total_seconds())
     
     # Get start of today and start of week in guild timezone
@@ -3802,8 +3802,8 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
         
         daily_seconds = 0
         for session in daily_sessions:
-            clock_in_dt = datetime.fromisoformat(session['clock_in'])
-            clock_out_dt = datetime.fromisoformat(session['clock_out'])
+            clock_in_dt = safe_parse_timestamp(session['clock_in'])
+            clock_out_dt = safe_parse_timestamp(session['clock_out'])
             today_start_dt = datetime.fromisoformat(today_start_utc)
             
             # Calculate overlap with today
@@ -3823,8 +3823,8 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
         
         weekly_seconds = 0
         for session in weekly_sessions:
-            clock_in_dt = datetime.fromisoformat(session['clock_in'])
-            clock_out_dt = datetime.fromisoformat(session['clock_out'])
+            clock_in_dt = safe_parse_timestamp(session['clock_in'])
+            clock_out_dt = safe_parse_timestamp(session['clock_out'])
             week_start_dt = datetime.fromisoformat(week_start_utc)
             
             # Calculate overlap with this week
@@ -3954,6 +3954,15 @@ async def generate_individual_csv_report(bot, user_id, sessions, guild_id, guild
 # --- Time helpers ---
 def now_utc():
     return datetime.now(timezone.utc)
+
+def safe_parse_timestamp(value):
+    """Safely parse a timestamp value from database - handles both datetime objects and ISO strings"""
+    if isinstance(value, datetime):
+        return value
+    elif isinstance(value, str):
+        return datetime.fromisoformat(value)
+    else:
+        raise ValueError(f"Cannot parse timestamp from type {type(value)}: {value}")
 
 def fmt(dt: datetime, tz_name: Optional[str]) -> str:
     try:
@@ -4255,7 +4264,9 @@ class TimeClockView(discord.ui.View):
                             user_mention = f"<@{user_id}>"
                     
                     # Parse clock in time
-                    clock_in_utc = datetime.fromisoformat(clock_in_iso.replace('Z', '+00:00'))
+                    clock_in_utc = safe_parse_timestamp(clock_in_iso)
+                    if clock_in_utc.tzinfo is None:
+                        clock_in_utc = clock_in_utc.replace(tzinfo=timezone.utc)
                     clock_in_local = clock_in_utc.astimezone(guild_tz)
                     
                     # Calculate total time for today in this timezone
@@ -4279,15 +4290,19 @@ class TimeClockView(discord.ui.View):
                     # Calculate total day seconds
                     total_day_seconds = 0
                     for day_session in day_sessions:
-                        session_in = day_session['clock_in']
-                        session_out = day_session['clock_out']
-                        if session_out:  # Completed session
-                            start = datetime.fromisoformat(session_in.replace('Z', '+00:00'))
-                            end = datetime.fromisoformat(session_out.replace('Z', '+00:00'))
-                            total_day_seconds += (end - start).total_seconds()
+                        session_in = safe_parse_timestamp(day_session['clock_in'])
+                        session_out_raw = day_session['clock_out']
+                        if session_out_raw:  # Completed session
+                            session_out = safe_parse_timestamp(session_out_raw)
+                            if session_in.tzinfo is None:
+                                session_in = session_in.replace(tzinfo=timezone.utc)
+                            if session_out.tzinfo is None:
+                                session_out = session_out.replace(tzinfo=timezone.utc)
+                            total_day_seconds += (session_out - session_in).total_seconds()
                         else:  # Current active session
-                            start = datetime.fromisoformat(session_in.replace('Z', '+00:00'))
-                            total_day_seconds += (now_utc - start).total_seconds()
+                            if session_in.tzinfo is None:
+                                session_in = session_in.replace(tzinfo=timezone.utc)
+                            total_day_seconds += (now_utc - session_in).total_seconds()
                     
                     # Current shift time
                     shift_seconds = (now_utc - clock_in_utc).total_seconds()
@@ -4493,7 +4508,7 @@ class TimeClockView(discord.ui.View):
 
             session_id = active['id']
             clock_in_iso = active['clock_in']
-            start_dt = datetime.fromisoformat(clock_in_iso)
+            start_dt = safe_parse_timestamp(clock_in_iso)
             end_dt = now_utc()
             elapsed = int((end_dt - start_dt).total_seconds())
             close_session(session_id, end_dt.isoformat(), elapsed)
@@ -5498,7 +5513,9 @@ async def clock_interface(interaction: discord.Interaction):
         
         # Build status message
         if active_session:
-            clock_in_time = datetime.fromisoformat(active_session['clock_in']).replace(tzinfo=timezone.utc)
+            clock_in_time = safe_parse_timestamp(active_session['clock_in'])
+            if clock_in_time.tzinfo is None:
+                clock_in_time = clock_in_time.replace(tzinfo=timezone.utc)
             elapsed = datetime.now(timezone.utc) - clock_in_time
             hours, remainder = divmod(int(elapsed.total_seconds()), 3600)
             minutes, _ = divmod(remainder, 60)
