@@ -188,7 +188,7 @@ async def send_deletion_warnings():
                 es.auto_email_before_delete
             FROM guild_settings gs
             JOIN email_settings es ON gs.guild_id = es.guild_id
-            WHERE es.auto_email_before_delete = 1
+            WHERE es.auto_email_before_delete = TRUE
         """)
         guilds_with_warnings = cursor.fetchall()
     

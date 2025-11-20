@@ -1241,7 +1241,7 @@ def owner_dashboard(user_session):
                 FROM server_subscriptions ss
                 LEFT JOIN bot_guilds bg ON CAST(bg.guild_id AS INTEGER) = ss.guild_id
                 LEFT JOIN sessions s ON ss.guild_id = s.guild_id AND s.clock_out IS NULL
-                WHERE ss.bot_access_paid = 1
+                WHERE ss.bot_access_paid = TRUE
                 GROUP BY ss.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, bg.guild_id
                 
                 UNION
@@ -1249,7 +1249,7 @@ def owner_dashboard(user_session):
                 SELECT 
                     CAST(bg.guild_id AS INTEGER) as guild_id,
                     bg.guild_name,
-                    COALESCE(ss.bot_access_paid, 0) as bot_access_paid,
+                    COALESCE(ss.bot_access_paid, FALSE) as bot_access_paid,
                     COALESCE(ss.retention_tier, 'none') as retention_tier,
                     COALESCE(ss.status, 'free') as status,
                     ss.subscription_id,
@@ -1259,7 +1259,7 @@ def owner_dashboard(user_session):
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS INTEGER)
                 LEFT JOIN sessions s ON CAST(bg.guild_id AS INTEGER) = s.guild_id AND s.clock_out IS NULL
-                WHERE COALESCE(ss.bot_access_paid, 0) = 0
+                WHERE COALESCE(ss.bot_access_paid, FALSE) = FALSE
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id
                 
                 ORDER BY guild_name
@@ -1322,7 +1322,7 @@ def owner_dashboard(user_session):
             cursor = conn.execute("""
                 SELECT 
                     COUNT(*) as total_servers,
-                    SUM(CASE WHEN COALESCE(ss.bot_access_paid, 0) = 1 THEN 1 ELSE 0 END) as paid_servers,
+                    SUM(CASE WHEN COALESCE(ss.bot_access_paid, FALSE) = TRUE THEN 1 ELSE 0 END) as paid_servers,
                     SUM(CASE WHEN ss.retention_tier = '7day' THEN 1 ELSE 0 END) as retention_7day_count,
                     SUM(CASE WHEN ss.retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
                     SUM(CASE WHEN ss.status = 'past_due' THEN 1 ELSE 0 END) as past_due_count
@@ -1390,7 +1390,7 @@ def api_owner_grant_access(user_session):
                 # Create server subscription entry if it doesn't exist
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
-                    VALUES (%s, 'free', 0, 'none', 'active')
+                    VALUES (%s, 'free', FALSE, 'none', 'active')
                 """, (guild_id,))
                 app.logger.info(f"Created new server_subscriptions entry for guild {guild_id}")
             
@@ -1398,8 +1398,8 @@ def api_owner_grant_access(user_session):
             if access_type == 'bot_access':
                 conn.execute("""
                     UPDATE server_subscriptions 
-                    SET bot_access_paid = 1,
-                        manually_granted = 1,
+                    SET bot_access_paid = TRUE,
+                        manually_granted = TRUE,
                         granted_by = %s,
                         granted_at = NOW()
                     WHERE guild_id = %s
@@ -1511,7 +1511,7 @@ def api_owner_revoke_access(user_session):
                 # Auto-create placeholder row for this guild
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status)
-                    VALUES (%s, 'free', 0, 'none', 'free')
+                    VALUES (%s, 'free', FALSE, 'none', 'free')
                 """, (guild_id,))
                 app.logger.info(f"Created placeholder server_subscriptions row for guild {guild_id}")
                 # Re-fetch the server
@@ -1523,10 +1523,10 @@ def api_owner_revoke_access(user_session):
                 # Revoke bot access and also clear retention tier
                 conn.execute("""
                     UPDATE server_subscriptions 
-                    SET bot_access_paid = 0,
+                    SET bot_access_paid = FALSE,
                         retention_tier = 'none',
                         status = 'cancelled',
-                        manually_granted = 0,
+                        manually_granted = FALSE,
                         granted_by = NULL,
                         granted_at = NULL
                     WHERE guild_id = %s
@@ -1535,7 +1535,7 @@ def api_owner_revoke_access(user_session):
                 
             elif access_type in ['7day', '30day']:
                 # Only revoke if this is the current retention tier
-                if server[2] == access_type:
+                if server['retention_tier'] == access_type:
                     conn.execute("""
                         UPDATE server_subscriptions 
                         SET retention_tier = 'none',

@@ -2711,11 +2711,11 @@ def run_migrations_old_sqlite():
                 
                 if 'bot_access_paid' not in columns:
                     print("🔧 Adding bot_access_paid column to server_subscriptions table...")
-                    conn.execute("ALTER TABLE server_subscriptions ADD COLUMN bot_access_paid BOOLEAN DEFAULT 0")
+                    conn.execute("ALTER TABLE server_subscriptions ADD COLUMN bot_access_paid BOOLEAN DEFAULT FALSE")
                     # Migrate existing data: Set bot_access_paid=TRUE for tier='basic' or tier='pro'
                     conn.execute("""
                         UPDATE server_subscriptions 
-                        SET bot_access_paid = 1 
+                        SET bot_access_paid = TRUE 
                         WHERE tier IN ('basic', 'pro')
                     """)
                     print("✅ Migration completed: bot_access_paid column added and data migrated")
