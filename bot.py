@@ -3948,13 +3948,20 @@ def now_utc():
     return datetime.now(timezone.utc)
 
 def safe_parse_timestamp(value):
-    """Safely parse a timestamp value from database - handles both datetime objects and ISO strings"""
+    """Safely parse a timestamp value from database - handles both datetime objects and ISO strings
+    Always returns timezone-aware datetime in UTC to prevent naive/aware subtraction errors"""
     if isinstance(value, datetime):
-        return value
+        parsed_dt = value
     elif isinstance(value, str):
-        return datetime.fromisoformat(value)
+        parsed_dt = datetime.fromisoformat(value)
     else:
         raise ValueError(f"Cannot parse timestamp from type {type(value)}: {value}")
+    
+    # Ensure timezone awareness - if naive, assume UTC
+    if parsed_dt.tzinfo is None:
+        parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+    
+    return parsed_dt
 
 def fmt(dt: datetime, tz_name: Optional[str]) -> str:
     try:
