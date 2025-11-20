@@ -2425,15 +2425,15 @@ def api_update_mobile_restriction(user_session, guild_id):
             if exists:
                 conn.execute(
                     "UPDATE server_subscriptions SET restrict_mobile_clockin = %s WHERE guild_id = %s",
-                    (int(restrict_mobile), int(guild_id))
+                    (restrict_mobile, int(guild_id))
                 )
             else:
                 # Insert new record with all required default values
                 conn.execute(
                     """INSERT INTO server_subscriptions 
                        (guild_id, tier, bot_access_paid, retention_tier, restrict_mobile_clockin) 
-                       VALUES (%s, 'free', 0, 'none', %s)""",
-                    (int(guild_id), int(restrict_mobile))
+                       VALUES (%s, 'free', FALSE, 'none', %s)""",
+                    (int(guild_id), restrict_mobile)
                 )
             
             app.logger.info(f"✅ Mobile restriction setting committed: {restrict_mobile} for guild {guild_id}")
