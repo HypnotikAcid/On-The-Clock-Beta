@@ -2836,7 +2836,9 @@ def is_user_banned(guild_id: int, user_id: int) -> bool:
         
         # Check if ban has expired
         from datetime import datetime, timezone
-        expiry = datetime.fromisoformat(ban_expires_at.replace('Z', '+00:00'))
+        expiry = safe_parse_timestamp(ban_expires_at)
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
         if datetime.now(timezone.utc) > expiry:
             # Ban expired, remove it
             conn.execute(
@@ -3845,12 +3847,12 @@ async def generate_csv_report(bot, sessions_data, guild_id, guild_tz="America/Ne
     user_sessions = {}
     for session_row in sessions_data:
         user_id = session_row['user_id']
-        clock_in_iso = session_row['clock_in']
-        clock_out_iso = session_row['clock_out']
+        clock_in = safe_parse_timestamp(session_row['clock_in'])
+        clock_out = safe_parse_timestamp(session_row['clock_out'])
         duration_seconds = session_row['duration_seconds']
         if user_id not in user_sessions:
             user_sessions[user_id] = []
-        user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
+        user_sessions[user_id].append((clock_in, clock_out, duration_seconds))
     
     # Generate organized format for each user
     for user_id, sessions in user_sessions.items():
@@ -3863,9 +3865,8 @@ async def generate_csv_report(bot, sessions_data, guild_id, guild_tz="America/Ne
         
         # Calculate date range for this user
         all_dates = []
-        for clock_in_iso, _, _ in sessions:
-            clock_in_dt = datetime.fromisoformat(clock_in_iso)
-            date_formatted = fmt(clock_in_dt, guild_tz).split()[0]
+        for clock_in, _, _ in sessions:
+            date_formatted = fmt(clock_in, guild_tz).split()[0]
             all_dates.append(date_formatted)
         
         date_range = f"{min(all_dates)} to {max(all_dates)}" if len(set(all_dates)) > 1 else min(all_dates)
@@ -3875,16 +3876,12 @@ async def generate_csv_report(bot, sessions_data, guild_id, guild_tz="America/Ne
         writer.writerow([])  # Empty row
         
         # Process each session for this user
-        for clock_in_iso, clock_out_iso, duration_seconds in sessions:
-            # Parse timestamps
-            clock_in_dt = datetime.fromisoformat(clock_in_iso)
-            clock_out_dt = datetime.fromisoformat(clock_out_iso)
-            
+        for clock_in, clock_out, duration_seconds in sessions:
             # Format day and times
-            day_of_week = clock_in_dt.strftime("%A")  # Full day name
-            date_str = fmt(clock_in_dt, guild_tz).split()[0]
-            in_time = fmt(clock_in_dt, guild_tz).split()[1:3]  # Time and timezone
-            out_time = fmt(clock_out_dt, guild_tz).split()[1:3]
+            day_of_week = clock_in.strftime("%A")  # Full day name
+            date_str = fmt(clock_in, guild_tz).split()[0]
+            in_time = fmt(clock_in, guild_tz).split()[1:3]  # Time and timezone
+            out_time = fmt(clock_out, guild_tz).split()[1:3]
             
             # Duration in decimal hours
             total_hours = round(duration_seconds / 3600, 2)
@@ -3916,9 +3913,8 @@ async def generate_individual_csv_report(bot, user_id, sessions, guild_id, guild
     
     # Calculate date range for this user
     all_dates = []
-    for clock_in_iso, _, _ in sessions:
-        clock_in_dt = datetime.fromisoformat(clock_in_iso)
-        date_formatted = fmt(clock_in_dt, guild_tz).split()[0]
+    for clock_in, _, _ in sessions:
+        date_formatted = fmt(clock_in, guild_tz).split()[0]
         all_dates.append(date_formatted)
     
     date_range = f"{min(all_dates)} to {max(all_dates)}" if len(set(all_dates)) > 1 else min(all_dates)
@@ -3928,16 +3924,12 @@ async def generate_individual_csv_report(bot, user_id, sessions, guild_id, guild
     writer.writerow([])  # Empty row
     
     # Process each session for this user
-    for clock_in_iso, clock_out_iso, duration_seconds in sessions:
-        # Parse timestamps
-        clock_in_dt = datetime.fromisoformat(clock_in_iso)
-        clock_out_dt = datetime.fromisoformat(clock_out_iso)
-        
+    for clock_in, clock_out, duration_seconds in sessions:
         # Format day and times
-        day_of_week = clock_in_dt.strftime("%A")  # Full day name
-        date_str = fmt(clock_in_dt, guild_tz).split()[0]
-        in_time = fmt(clock_in_dt, guild_tz).split()[1:3]  # Time and timezone
-        out_time = fmt(clock_out_dt, guild_tz).split()[1:3]
+        day_of_week = clock_in.strftime("%A")  # Full day name
+        date_str = fmt(clock_in, guild_tz).split()[0]
+        in_time = fmt(clock_in, guild_tz).split()[1:3]  # Time and timezone
+        out_time = fmt(clock_out, guild_tz).split()[1:3]
         
         # Duration in decimal hours
         total_hours = round(duration_seconds / 3600, 2)
