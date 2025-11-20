@@ -12,6 +12,8 @@ from contextlib import contextmanager
 import logging
 import traceback
 import threading
+import asyncio
+import concurrent.futures
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 import requests
@@ -1414,12 +1416,18 @@ def api_owner_grant_access(user_session):
                 # Check bot availability with detailed logging
                 if not bot:
                     app.logger.error(f"❌ Bot instance is None - cannot send notification")
+                    app.logger.error(f"   Bot may not have started yet. Check if Discord bot thread is running.")
                 elif not hasattr(bot, 'loop'):
                     app.logger.error(f"❌ Bot instance has no 'loop' attribute - bot may not be started yet")
+                    app.logger.error(f"   Discord bot needs to connect before notifications can be sent.")
                 elif not bot.loop:
                     app.logger.error(f"❌ Bot loop is None - bot may not be fully connected")
+                    app.logger.error(f"   Discord connection not established. Wait for bot to fully start.")
+                elif not bot.is_ready():
+                    app.logger.error(f"❌ Bot is not ready - still connecting to Discord")
+                    app.logger.error(f"   Bot status: connected but not ready. Notification will be skipped.")
                 else:
-                    import asyncio
+                    app.logger.info(f"✅ Bot is ready and connected. Queueing notification...")
                     try:
                         # Queue the notification in the bot's event loop
                         future = asyncio.run_coroutine_threadsafe(
@@ -1428,15 +1436,25 @@ def api_owner_grant_access(user_session):
                         )
                         app.logger.info(f"✅ Welcome notification queued successfully for guild {guild_id}")
                         
-                        # Optional: Wait briefly for result (max 2 seconds) to catch immediate errors
+                        # Wait for result (max 5 seconds) to catch errors
                         try:
-                            future.result(timeout=2.0)
-                            app.logger.info(f"✅ Welcome notification completed for guild {guild_id}")
+                            result = future.result(timeout=5.0)
+                            app.logger.info(f"✅ Welcome notification completed successfully for guild {guild_id}")
+                        except concurrent.futures.TimeoutError:
+                            app.logger.error(f"⏱️ Welcome notification timed out after 5 seconds for guild {guild_id}")
+                            app.logger.error(f"   Notification may still be processing. Check Discord bot logs for [NOTIFY] messages.")
                         except Exception as result_error:
-                            app.logger.warning(f"⚠️ Welcome notification may have failed (check bot logs): {result_error}")
+                            app.logger.error(f"❌ Welcome notification failed for guild {guild_id}")
+                            app.logger.error(f"   Error type: {type(result_error).__name__}")
+                            app.logger.error(f"   Error message: {str(result_error)}")
+                            app.logger.error(f"   Full traceback:")
+                            app.logger.error(traceback.format_exc())
                             
                     except Exception as notify_error:
-                        app.logger.error(f"❌ Failed to queue welcome notification for guild {guild_id}: {notify_error}")
+                        app.logger.error(f"❌ Failed to queue welcome notification for guild {guild_id}")
+                        app.logger.error(f"   Error type: {type(notify_error).__name__}")
+                        app.logger.error(f"   Error message: {str(notify_error)}")
+                        app.logger.error(f"   Full traceback:")
                         app.logger.error(traceback.format_exc())
             
         return jsonify({
