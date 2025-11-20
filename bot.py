@@ -3137,12 +3137,29 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         
         logger.info(f"✅ [NOTIFY] Guild found: {guild.name} (ID: {guild_id})")
         
-        owner = guild.owner
-        if not owner:
-            logger.warning(f"⚠️ [NOTIFY] Guild {guild_id} has no owner")
+        # Get owner ID (always available)
+        owner_id = guild.owner_id
+        if not owner_id:
+            logger.error(f"❌ [NOTIFY] Guild {guild_id} has no owner_id (impossible - all Discord servers must have an owner)")
             return
         
-        logger.info(f"✅ [NOTIFY] Owner found: {owner.name} (ID: {owner.id})")
+        logger.info(f"📍 [NOTIFY] Guild owner ID: {owner_id}")
+        
+        # Try to get the owner member object (may not be cached after restart)
+        owner = guild.get_member(owner_id)
+        
+        if not owner:
+            logger.warning(f"⚠️ [NOTIFY] Owner member not in cache, attempting to fetch...")
+            try:
+                # Fetch the user object (not a full member, but has basic info)
+                owner = await bot.fetch_user(owner_id)
+                logger.info(f"✅ [NOTIFY] Fetched owner user object: {owner.name} (ID: {owner.id})")
+            except Exception as e:
+                logger.warning(f"⚠️ [NOTIFY] Could not fetch owner user {owner_id}: {e}")
+                logger.info(f"📤 [NOTIFY] Will send notification without owner mention")
+                owner = None
+        else:
+            logger.info(f"✅ [NOTIFY] Owner found in cache: {owner.name} (ID: {owner.id})")
         
         # Create a fancy embed
         embed = discord.Embed(
@@ -3220,14 +3237,20 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
             logger.error(f"   Bot needs 'Send Messages' and 'Embed Links' permissions in at least one channel")
             return
         
-        # Send message with @owner mention
+        # Send message with @owner mention (if available)
         logger.info(f"📤 [NOTIFY] Sending message to #{target_channel.name}...")
         try:
-            await target_channel.send(
-                content=f"{owner.mention} 👋",
-                embed=embed
-            )
-            logger.info(f"✅ [NOTIFY] Successfully sent bot access notification to #{target_channel.name} in {guild.name} (ID: {guild_id})")
+            # Include owner mention if we successfully fetched the owner
+            if owner:
+                await target_channel.send(
+                    content=f"{owner.mention} 👋",
+                    embed=embed
+                )
+                logger.info(f"✅ [NOTIFY] Successfully sent bot access notification to #{target_channel.name} in {guild.name} (ID: {guild_id})")
+            else:
+                # Send without mention if owner couldn't be fetched
+                await target_channel.send(embed=embed)
+                logger.info(f"✅ [NOTIFY] Successfully sent bot access notification (no mention) to #{target_channel.name} in {guild.name} (ID: {guild_id})")
         except discord.Forbidden:
             logger.error(f"❌ [NOTIFY] Permission denied when sending to #{target_channel.name} (permissions may have changed)")
             logger.error(f"   Bot needs 'Send Messages' and 'Embed Links' permissions in {guild.name}")
