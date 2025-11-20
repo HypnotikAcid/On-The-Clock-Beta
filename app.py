@@ -1239,7 +1239,7 @@ def owner_dashboard(user_session):
                     COUNT(DISTINCT s.id) as active_sessions,
                     CASE WHEN bg.guild_id IS NOT NULL THEN 1 ELSE 0 END as bot_is_present
                 FROM server_subscriptions ss
-                LEFT JOIN bot_guilds bg ON CAST(bg.guild_id AS INTEGER) = ss.guild_id
+                LEFT JOIN bot_guilds bg ON CAST(bg.guild_id AS BIGINT) = ss.guild_id
                 LEFT JOIN sessions s ON ss.guild_id = s.guild_id AND s.clock_out IS NULL
                 WHERE ss.bot_access_paid = TRUE
                 GROUP BY ss.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, bg.guild_id
@@ -1247,7 +1247,7 @@ def owner_dashboard(user_session):
                 UNION
                 
                 SELECT 
-                    CAST(bg.guild_id AS INTEGER) as guild_id,
+                    CAST(bg.guild_id AS BIGINT) as guild_id,
                     bg.guild_name,
                     COALESCE(ss.bot_access_paid, FALSE) as bot_access_paid,
                     COALESCE(ss.retention_tier, 'none') as retention_tier,
@@ -1257,8 +1257,8 @@ def owner_dashboard(user_session):
                     COUNT(DISTINCT s.id) as active_sessions,
                     1 as bot_is_present
                 FROM bot_guilds bg
-                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS INTEGER)
-                LEFT JOIN sessions s ON CAST(bg.guild_id AS INTEGER) = s.guild_id AND s.clock_out IS NULL
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
+                LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
                 WHERE COALESCE(ss.bot_access_paid, FALSE) = FALSE
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id
                 
@@ -1327,7 +1327,7 @@ def owner_dashboard(user_session):
                     SUM(CASE WHEN ss.retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
                     SUM(CASE WHEN ss.status = 'past_due' THEN 1 ELSE 0 END) as past_due_count
                 FROM bot_guilds bg
-                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS INTEGER)
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
             """)
             stats_row = cursor.fetchone()
             stats = {
