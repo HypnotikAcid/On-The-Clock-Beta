@@ -1223,29 +1223,9 @@ def owner_dashboard(user_session):
             except Exception as reconcile_error:
                 app.logger.error(f"Database reconciliation error: {reconcile_error}")
                 # Continue anyway - reconciliation failure shouldn't block dashboard
-            # Get servers with smart filtering:
-            # - ALWAYS show paid servers (even if bot left)
-            # - ONLY show unpaid servers if bot is still present
-            # Use UNION to combine: paid servers + unpaid servers where bot is present
+            # Get servers where bot is currently present
+            # Only show servers that are in bot_guilds table (bot is actually there)
             cursor = conn.execute("""
-                SELECT 
-                    ss.guild_id,
-                    COALESCE(bg.guild_name, 'Server (Bot Left)') as guild_name,
-                    ss.bot_access_paid,
-                    COALESCE(ss.retention_tier, 'none') as retention_tier,
-                    COALESCE(ss.status, 'free') as status,
-                    ss.subscription_id,
-                    ss.customer_id,
-                    COUNT(DISTINCT s.id) as active_sessions,
-                    CASE WHEN bg.guild_id IS NOT NULL THEN 1 ELSE 0 END as bot_is_present
-                FROM server_subscriptions ss
-                LEFT JOIN bot_guilds bg ON CAST(bg.guild_id AS BIGINT) = ss.guild_id
-                LEFT JOIN sessions s ON ss.guild_id = s.guild_id AND s.clock_out IS NULL
-                WHERE ss.bot_access_paid = TRUE
-                GROUP BY ss.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, bg.guild_id
-                
-                UNION
-                
                 SELECT 
                     CAST(bg.guild_id AS BIGINT) as guild_id,
                     bg.guild_name,
@@ -1255,13 +1235,11 @@ def owner_dashboard(user_session):
                     ss.subscription_id,
                     ss.customer_id,
                     COUNT(DISTINCT s.id) as active_sessions,
-                    1 as bot_is_present
+                    TRUE as bot_is_present
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
                 LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
-                WHERE COALESCE(ss.bot_access_paid, FALSE) = FALSE
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id
-                
                 ORDER BY guild_name
             """)
             servers = []
