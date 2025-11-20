@@ -3117,22 +3117,29 @@ def is_mobile_restricted(guild_id: int) -> bool:
 
 async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purchase"):
     """
-    Send a welcome message to the server owner when they get bot access.
+    Send a welcome message to the server when bot access is granted.
+    Posts in system channel or first available text channel with @owner mention.
     
     Args:
         guild_id: The Discord guild ID
         granted_by: Either "purchase" (Stripe) or "manual" (bot owner grant)
     """
     try:
+        print(f"📧 [NOTIFY] Starting notification for guild {guild_id}, granted_by={granted_by}")
+        
         guild = bot.get_guild(guild_id)
         if not guild:
-            print(f"⚠️ Cannot notify owner - guild {guild_id} not found")
+            print(f"❌ [NOTIFY] Guild {guild_id} not found in bot cache")
             return
+        
+        print(f"✅ [NOTIFY] Guild found: {guild.name} (ID: {guild_id})")
         
         owner = guild.owner
         if not owner:
-            print(f"⚠️ Cannot notify owner - guild {guild_id} has no owner")
+            print(f"⚠️ [NOTIFY] Guild {guild_id} has no owner")
             return
+        
+        print(f"✅ [NOTIFY] Owner found: {owner.name} (ID: {owner.id})")
         
         # Create a fancy embed
         embed = discord.Embed(
@@ -3182,14 +3189,53 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         embed.set_footer(text=f"Server ID: {guild_id}")
         embed.set_thumbnail(url=guild.icon.url if guild.icon else None)
         
-        # Send DM to owner
-        await owner.send(embed=embed)
-        print(f"✅ Sent bot access notification to owner of {guild.name} (ID: {guild_id})")
+        # Find a channel to post in - check permissions before selecting
+        target_channel = None
+        
+        # Build list of candidate channels: system channel first, then all text channels
+        candidate_channels = []
+        if guild.system_channel:
+            print(f"📍 [NOTIFY] System channel found: {guild.system_channel.name} (ID: {guild.system_channel.id})")
+            candidate_channels.append(guild.system_channel)
+        
+        candidate_channels.extend(guild.text_channels)
+        
+        # Find first channel where bot has required permissions
+        print(f"📍 [NOTIFY] Searching {len(candidate_channels)} channels for suitable target...")
+        for channel in candidate_channels:
+            permissions = channel.permissions_for(guild.me)
+            if permissions.send_messages and permissions.embed_links:
+                print(f"✅ [NOTIFY] Found suitable channel: #{channel.name} (ID: {channel.id})")
+                print(f"   Permissions: send_messages={permissions.send_messages}, embed_links={permissions.embed_links}")
+                target_channel = channel
+                break
+            else:
+                print(f"⚠️ [NOTIFY] Skipping #{channel.name}: send_messages={permissions.send_messages}, embed_links={permissions.embed_links}")
+        
+        if not target_channel:
+            print(f"❌ [NOTIFY] No accessible text channels found in guild {guild_id}")
+            print(f"   Bot needs 'Send Messages' and 'Embed Links' permissions in at least one channel")
+            return
+        
+        # Send message with @owner mention
+        print(f"📤 [NOTIFY] Sending message to #{target_channel.name}...")
+        try:
+            await target_channel.send(
+                content=f"{owner.mention} 👋",
+                embed=embed
+            )
+            print(f"✅ [NOTIFY] Successfully sent bot access notification to #{target_channel.name} in {guild.name} (ID: {guild_id})")
+        except discord.Forbidden:
+            print(f"❌ [NOTIFY] Permission denied when sending to #{target_channel.name} (permissions may have changed)")
+            print(f"   Bot needs 'Send Messages' and 'Embed Links' permissions in {guild.name}")
+            raise
         
     except discord.Forbidden:
-        print(f"⚠️ Cannot DM owner of guild {guild_id} - DMs disabled")
+        print(f"❌ [NOTIFY] Missing permissions to post in guild {guild_id}")
     except Exception as e:
-        print(f"❌ Error notifying owner of guild {guild_id}: {e}")
+        print(f"❌ [NOTIFY] Error notifying guild {guild_id}: {e}")
+        import traceback
+        traceback.print_exc()
 
 def set_bot_access(guild_id: int, paid: bool):
     """
