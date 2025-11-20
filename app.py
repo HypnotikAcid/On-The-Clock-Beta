@@ -1517,9 +1517,11 @@ def api_owner_revoke_access(user_session):
             # Revoke the appropriate access
             if access_type == 'bot_access':
                 # Revoke bot access and also clear retention tier
+                # CRITICAL: Set tier to 'free' to prevent migration from re-enabling access
                 conn.execute("""
                     UPDATE server_subscriptions 
                     SET bot_access_paid = FALSE,
+                        tier = 'free',
                         retention_tier = 'none',
                         status = 'cancelled',
                         manually_granted = FALSE,
@@ -1527,7 +1529,7 @@ def api_owner_revoke_access(user_session):
                         granted_at = NULL
                     WHERE guild_id = %s
                 """, (guild_id,))
-                app.logger.info(f"❌ Revoked bot access from guild {guild_id} (also cleared retention tier)")
+                app.logger.info(f"❌ Revoked bot access from guild {guild_id} (tier set to 'free', retention cleared)")
                 
             elif access_type in ['7day', '30day']:
                 # Only revoke if this is the current retention tier
