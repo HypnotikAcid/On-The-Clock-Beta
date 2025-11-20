@@ -3202,7 +3202,7 @@ def set_bot_access(guild_id: int, paid: bool):
             INSERT INTO server_subscriptions (guild_id, bot_access_paid)
             VALUES (%s, %s)
             ON CONFLICT(guild_id) DO UPDATE SET bot_access_paid = %s
-        """, (guild_id, int(paid), int(paid)))
+        """, (guild_id, paid, paid))
 
 def set_retention_tier(guild_id: int, tier: str):
     """
