@@ -5530,15 +5530,15 @@ async def mobile_restriction_cmd(interaction: discord.Interaction, enabled: app_
         if exists:
             conn.execute(
                 "UPDATE server_subscriptions SET restrict_mobile_clockin = %s WHERE guild_id = %s",
-                (int(restrict), guild_id)
+                (restrict, guild_id)
             )
         else:
             # Insert new record with all required default values
             conn.execute(
                 """INSERT INTO server_subscriptions 
                    (guild_id, tier, bot_access_paid, retention_tier, restrict_mobile_clockin) 
-                   VALUES (%s, 'free', 0, 'none', %s)""",
-                (guild_id, int(restrict))
+                   VALUES (%s, 'free', FALSE, 'none', %s)""",
+                (guild_id, restrict)
             )
     
     if restrict:
