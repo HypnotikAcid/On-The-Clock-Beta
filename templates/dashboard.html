@@ -1133,6 +1133,39 @@
                             </label>
                         </div>
                     </div>
+
+                    <!-- Ban Management Tile -->
+                    <div class="tile">
+                        <h2><span class="tile-icon">🚫</span>Ban Management</h2>
+                        <p class="tile-description">Manage banned users and spam/abuse infractions. Monitor user warnings and control access.</p>
+                        
+                        <!-- Important Warning -->
+                        <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #EF4444; padding: 12px; margin: 15px 0; border-radius: 6px;">
+                            <div style="display: flex; align-items: start; gap: 10px;">
+                                <span style="font-size: 18px; flex-shrink: 0;">⚠️</span>
+                                <div style="font-size: 12px; color: #FCA5A5; line-height: 1.6;">
+                                    <strong style="display: block; margin-bottom: 4px;">Important Reminder:</strong>
+                                    Excessive spam or abuse may result in the bot being removed from Discord. Use permanent bans carefully and ensure your server moderators use usage appropriately.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Banned Users Table -->
+                        <div id="banned-users-container" style="margin-top: 20px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                <span style="font-weight: 500; color: #C9D1D9; font-size: 14px;">Banned Users</span>
+                                <button onclick="loadBannedUsers()" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60A5FA; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                                    🔄 Refresh
+                                </button>
+                            </div>
+                            <div id="banned-users-list" style="background: rgba(16, 24, 39, 0.6); border: 1px solid rgba(75, 85, 99, 0.4); border-radius: 8px; padding: 12px; min-height: 100px;">
+                                <div style="text-align: center; color: #8B949E; padding: 20px;">
+                                    <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
+                                    <div>Loading banned users...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Action Buttons -->
@@ -1589,6 +1622,9 @@
                 populateAdminRoles(data.roles, data.current_settings.admin_roles);
                 populateEmployeeRoles(data.roles, data.current_settings.employee_roles);
                 populateTimezoneSettings(data.current_settings.timezone);
+                
+                // Load banned users
+                loadBannedUsers();
                 
             } catch (error) {
                 console.error('Error loading server data:', error);
@@ -2101,6 +2137,91 @@
 
         // Mobile restriction toggle event listener
         document.getElementById('restrict-mobile-toggle').addEventListener('change', updateMobileRestriction);
+
+        // Load banned users function
+        async function loadBannedUsers() {
+            if (!currentGuildId) return;
+            
+            const bannedUsersList = document.getElementById('banned-users-list');
+            bannedUsersList.innerHTML = `
+                <div style="text-align: center; color: #8B949E; padding: 20px;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
+                    <div>Loading banned users...</div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/server/${currentGuildId}/bans`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const bans = data.bans;
+                    
+                    if (bans.length === 0) {
+                        bannedUsersList.innerHTML = `
+                            <div style="text-align: center; color: #10B981; padding: 20px;">
+                                <div style="font-size: 24px; margin-bottom: 8px;">✅</div>
+                                <div>No banned users</div>
+                            </div>
+                        `;
+                    } else {
+                        let tableHTML = `
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid rgba(75, 85, 99, 0.4);">
+                                        <th style="text-align: left; padding: 10px; color: #9CA3AF;">User ID</th>
+                                        <th style="text-align: left; padding: 10px; color: #9CA3AF;">Banned At</th>
+                                        <th style="text-align: left; padding: 10px; color: #9CA3AF;">Expires At</th>
+                                        <th style="text-align: center; padding: 10px; color: #9CA3AF;">Warnings</th>
+                                        <th style="text-align: left; padding: 10px; color: #9CA3AF;">Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        
+                        bans.forEach(ban => {
+                            const bannedAt = new Date(ban.banned_at).toLocaleDateString();
+                            const expiresAt = ban.ban_expires_at ? new Date(ban.ban_expires_at).toLocaleDateString() : 'Never';
+                            const isExpired = ban.ban_expires_at && new Date(ban.ban_expires_at) < new Date();
+                            
+                            tableHTML += `
+                                <tr style="border-bottom: 1px solid rgba(75, 85, 99, 0.2);">
+                                    <td style="padding: 10px; color: #C9D1D9; font-family: monospace;">${ban.user_id}</td>
+                                    <td style="padding: 10px; color: #8B949E;">${bannedAt}</td>
+                                    <td style="padding: 10px; color: ${isExpired ? '#10B981' : '#C9D1D9'};">
+                                        ${expiresAt}${isExpired ? ' (Expired)' : ''}
+                                    </td>
+                                    <td style="padding: 10px; text-align: center; color: #F59E0B; font-weight: 600;">${ban.warning_count}</td>
+                                    <td style="padding: 10px; color: #8B949E;">${ban.reason}</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        tableHTML += `
+                                </tbody>
+                            </table>
+                        `;
+                        
+                        bannedUsersList.innerHTML = tableHTML;
+                    }
+                } else {
+                    bannedUsersList.innerHTML = `
+                        <div style="text-align: center; color: #EF4444; padding: 20px;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">❌</div>
+                            <div>Error loading banned users</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading banned users:', error);
+                bannedUsersList.innerHTML = `
+                    <div style="text-align: center; color: #EF4444; padding: 20px;">
+                        <div style="font-size: 24px; margin-bottom: 8px;">❌</div>
+                        <div>Error: ${error.message}</div>
+                    </div>
+                `;
+            }
+        }
 
         // Mobile menu functionality
         const mobileHamburger = document.getElementById('mobileHamburger');
