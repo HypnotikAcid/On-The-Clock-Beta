@@ -3772,7 +3772,8 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
     active_session = get_active_session(guild_id, user_id)
     current_session_seconds = 0
     if active_session:
-        session_id, clock_in_iso = active_session
+        session_id = active_session['id']
+        clock_in_iso = active_session['clock_in']
         start_dt = datetime.fromisoformat(clock_in_iso)
         current_session_seconds = int((now - start_dt).total_seconds())
     
@@ -3800,9 +3801,9 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
         daily_sessions = daily_cur.fetchall()
         
         daily_seconds = 0
-        for clock_in_iso, clock_out_iso in daily_sessions:
-            clock_in_dt = datetime.fromisoformat(clock_in_iso)
-            clock_out_dt = datetime.fromisoformat(clock_out_iso)
+        for session in daily_sessions:
+            clock_in_dt = datetime.fromisoformat(session['clock_in'])
+            clock_out_dt = datetime.fromisoformat(session['clock_out'])
             today_start_dt = datetime.fromisoformat(today_start_utc)
             
             # Calculate overlap with today
@@ -3821,9 +3822,9 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
         weekly_sessions = weekly_cur.fetchall()
         
         weekly_seconds = 0
-        for clock_in_iso, clock_out_iso in weekly_sessions:
-            clock_in_dt = datetime.fromisoformat(clock_in_iso)
-            clock_out_dt = datetime.fromisoformat(clock_out_iso)
+        for session in weekly_sessions:
+            clock_in_dt = datetime.fromisoformat(session['clock_in'])
+            clock_out_dt = datetime.fromisoformat(session['clock_out'])
             week_start_dt = datetime.fromisoformat(week_start_utc)
             
             # Calculate overlap with this week
@@ -4482,7 +4483,8 @@ class TimeClockView(discord.ui.View):
                 await interaction.followup.send("You don't have an active session.", ephemeral=True)
                 return
 
-            session_id, clock_in_iso = active
+            session_id = active['id']
+            clock_in_iso = active['clock_in']
             start_dt = datetime.fromisoformat(clock_in_iso)
             end_dt = now_utc()
             elapsed = int((end_dt - start_dt).total_seconds())
