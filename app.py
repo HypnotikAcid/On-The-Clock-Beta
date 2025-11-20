@@ -1418,7 +1418,7 @@ def api_owner_grant_access(user_session):
                 conn.execute("""
                     UPDATE server_subscriptions 
                     SET retention_tier = %s,
-                        manually_granted = 1,
+                        manually_granted = TRUE,
                         granted_by = %s,
                         granted_at = NOW(),
                         status = 'active'
