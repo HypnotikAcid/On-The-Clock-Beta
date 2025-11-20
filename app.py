@@ -1779,7 +1779,7 @@ def upgrade_info(user_session, guild_id):
                     '''}
                 </div>
                 
-                <a href="/server/{guild_id}/settings" class="back-btn">← Back to Dashboard</a>
+                <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
             </div>
         </body>
         </html>
@@ -2043,82 +2043,6 @@ def purchase_page(guild_id):
     except Exception as e:
         app.logger.error(f"Purchase page error: {str(e)}")
         return "<h1>Error</h1><p>Unable to load purchase page.</p>", 500
-
-@app.route("/server/<guild_id>/settings")
-@require_paid_access
-def server_settings(user_session, guild_id):
-    """Server-specific settings page with admin/employee management, email, and timezone"""
-    try:
-        app.logger.info(f"Server settings accessed for guild {guild_id} by user {user_session.get('username')}")
-        
-        # Check if bot is present in this guild first (before expensive Discord API calls)
-        bot_guild_ids = get_bot_guild_ids()
-        if guild_id not in bot_guild_ids:
-            app.logger.warning(f"Bot not present in guild {guild_id}")
-            return "<h1>Bot Not Present</h1><p>The On the Clock bot is not in this server. Please invite the bot first.</p><a href='/dashboard'>Back to Dashboard</a>", 404
-        
-        # Verify user has access to this guild
-        guild = verify_guild_access(user_session, guild_id)
-        if not guild:
-            app.logger.warning(f"User {user_session.get('username')} unauthorized for guild {guild_id}")
-            return "<h1>Access Denied</h1><p>You don't have admin access to this server.</p><a href='/dashboard'>Back to Dashboard</a>", 403
-        
-        # Fetch guild roles from Discord (members loaded via API later)
-        roles = get_guild_roles_from_bot(guild_id)
-        if not roles:
-            app.logger.error(f"Failed to fetch roles for guild {guild_id}")
-            # Render page with error state but show existing settings
-            current_settings = get_guild_settings(guild_id)
-            return render_template('server_settings.html', 
-                                   user=user_session, 
-                                   guild=guild, 
-                                   guild_id=guild_id, 
-                                   roles=[],
-                                   current_settings=current_settings,
-                                   error="Could not fetch server roles. Please check bot permissions and try again."), 200
-        
-        # Fetch current settings from database
-        try:
-            current_settings = get_guild_settings(guild_id)
-        except Exception as e:
-            app.logger.error(f"Error fetching guild settings: {str(e)}")
-            # Use defaults if database error
-            current_settings = {
-                'admin_roles': [],
-                'employee_roles': [],
-                'timezone': 'America/New_York',
-                'recipient_user_id': None,
-                'name_display_mode': 'username',
-                'main_admin_role_id': None,
-                'emails': []
-            }
-        
-        # Get bot access and retention tier status (NEW MONETIZATION MODEL)
-        from bot import check_bot_access, get_retention_tier
-        has_bot_access = check_bot_access(int(guild_id))
-        retention_tier = get_retention_tier(int(guild_id))
-        
-        # Prepare data for template
-        template_data = {
-            'user': user_session,
-            'guild': guild,
-            'guild_id': guild_id,
-            'roles': roles,
-            'current_settings': current_settings,
-            'has_bot_access': has_bot_access,
-            'retention_tier': retention_tier
-        }
-        
-        # Add cache-busting headers to ensure users see latest changes
-        response = make_response(render_template('server_settings.html', **template_data))
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response
-    except Exception as e:
-        app.logger.error(f"Server settings error: {str(e)}")
-        app.logger.error(traceback.format_exc())
-        return "<h1>Error</h1><p>Unable to load server settings. Please try again later.</p><a href='/dashboard'>Back to Dashboard</a>", 500
 
 # API Endpoints for Settings Management
 
