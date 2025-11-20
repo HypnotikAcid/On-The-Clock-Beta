@@ -66,5 +66,6 @@ Preferred communication style: Simple, everyday language.
 - **PostgreSQL**: Production database with persistent connection pooling (ThreadedConnectionPool with minconn=1, maxconn=10)
 - **Connection Management**: Uses @contextmanager pattern with FlaskConnectionWrapper for automatic commit/rollback
 - **Row Access**: All queries use RealDictCursor with named column access (row['column']) instead of positional access (row[0])
+- **RealDictRow Unpacking**: NEVER use tuple unpacking on database rows (e.g., `id, value = row`). This unpacks KEYS not VALUES. Always use dictionary access: `id = row['id']`
 - **SSL Connection Handling**: Built-in validation and retry logic for stale SSL connections (up to 2 attempts)
 - **Query Syntax**: PostgreSQL-specific features including %s placeholders, INSERT ... ON CONFLICT DO UPDATE, and NOW() for timestamps
