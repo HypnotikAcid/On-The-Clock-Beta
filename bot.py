@@ -5013,49 +5013,24 @@ class TimeClockView(discord.ui.View):
                 )
             return
         
-        has_bot_access = check_bot_access(guild_id)
         domain = get_domain()
+        landing_page_url = f"https://{domain}/"
         
-        if has_bot_access:
-            # Paid server - show normal dashboard link
-            dashboard_url = f"https://{domain}/server/{guild_id}/settings"
-            
-            embed = discord.Embed(
-                title="📊 Server Dashboard",
-                description=f"Access your server's dashboard to manage settings and view reports.",
-                color=discord.Color.blue()
-            )
-            
-            embed.add_field(
-                name="🔗 Dashboard Link",
-                value=f"[Open Dashboard]({dashboard_url})",
-                inline=False
-            )
-            
-            await send_reply(interaction, embed=embed, ephemeral=True)
-        else:
-            # Free server - show purchase page link
-            purchase_url = f"https://{domain}/purchase/{guild_id}"
-            
-            embed = discord.Embed(
-                title="🔓 Unlock Dashboard Access",
-                description="The dashboard is available with Bot Access ($5 one-time payment).",
-                color=discord.Color.gold()
-            )
-            
-            embed.add_field(
-                name="What You'll Get",
-                value="• Full team access\n• CSV Reports\n• Role management\n• Dashboard access\n• All bot commands",
-                inline=False
-            )
-            
-            embed.add_field(
-                name="🔗 Get Bot Access",
-                value=f"[View Purchase Options]({purchase_url})",
-                inline=False
-            )
-            
-            await send_reply(interaction, embed=embed, ephemeral=True)
+        embed = discord.Embed(
+            title="🌐 On the Clock Dashboard",
+            description=f"Access the web dashboard to manage your server settings, view reports, and purchase upgrades.",
+            color=discord.Color.blue()
+        )
+        
+        embed.add_field(
+            name="🔗 Dashboard Link",
+            value=f"[Open Dashboard]({landing_page_url})\n\nLog in with Discord to access your server settings and features.",
+            inline=False
+        )
+        
+        embed.set_footer(text="Tip: Use the dashboard to configure roles, timezone, and email settings")
+        
+        await send_reply(interaction, embed=embed, ephemeral=True)
 
 
 class SetupInstructionsView(discord.ui.View):
