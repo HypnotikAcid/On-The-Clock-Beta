@@ -3178,7 +3178,7 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         else:
             embed.add_field(
                 name="✅ Access Granted",
-                value="Your server has been granted bot access by the bot owner.",
+                value="Your server has been granted full bot access + dashboard usage by the bot owner.",
                 inline=False
             )
         
@@ -3196,7 +3196,7 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         
         embed.add_field(
             name="📊 Dashboard Access",
-            value=f"Visit your [server dashboard]({os.environ.get('REPLIT_DEV_DOMAIN', 'your-app.replit.app')}/dashboard) to configure settings",
+            value="Visit your [server dashboard](https://on-the-clock.replit.app/dashboard) to configure settings",
             inline=False
         )
         
