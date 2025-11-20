@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS server_subscriptions (
     retention_tier TEXT DEFAULT 'none',
     manually_granted BOOLEAN DEFAULT FALSE,
     granted_by TEXT,
-    granted_at TIMESTAMP
+    granted_at TIMESTAMP,
+    restrict_mobile_clockin BOOLEAN DEFAULT FALSE
 );
 
 -- Bot guilds tracking
