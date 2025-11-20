@@ -109,11 +109,11 @@ async def send_daily_report_for_guild(guild_id: int):
     try:
         with db() as cursor:
             cursor.execute(
-                "SELECT name FROM bot_guilds WHERE guild_id = %s",
+                "SELECT guild_name FROM bot_guilds WHERE guild_id = %s",
                 (str(guild_id),)
             )
             guild_row = cursor.fetchone()
-            guild_name = guild_row['name'] if guild_row else f"Guild {guild_id}"
+            guild_name = guild_row['guild_name'] if guild_row else f"Guild {guild_id}"
             
             cursor.execute(
                 "SELECT timezone FROM guild_settings WHERE guild_id = %s",
@@ -228,11 +228,11 @@ async def send_deletion_warning_email(guild_id: int, session_count: int, days_to
     try:
         with db() as cursor:
             cursor.execute(
-                "SELECT name FROM bot_guilds WHERE guild_id = %s",
+                "SELECT guild_name FROM bot_guilds WHERE guild_id = %s",
                 (str(guild_id),)
             )
             guild_row = cursor.fetchone()
-            guild_name = guild_row['name'] if guild_row else f"Guild {guild_id}"
+            guild_name = guild_row['guild_name'] if guild_row else f"Guild {guild_id}"
             
             cursor.execute(
                 "SELECT email_address FROM report_recipients WHERE guild_id = %s AND recipient_type = 'email'",
