@@ -3843,7 +3843,11 @@ async def generate_csv_report(bot, sessions_data, guild_id, guild_tz="America/Ne
     
     # Group sessions by user
     user_sessions = {}
-    for user_id, clock_in_iso, clock_out_iso, duration_seconds in sessions_data:
+    for session_row in sessions_data:
+        user_id = session_row['user_id']
+        clock_in_iso = session_row['clock_in']
+        clock_out_iso = session_row['clock_out']
+        duration_seconds = session_row['duration_seconds']
         if user_id not in user_sessions:
             user_sessions[user_id] = []
         user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
@@ -4227,10 +4231,12 @@ class TimeClockView(discord.ui.View):
             now_utc = datetime.now(timezone.utc)
             
             # Sort users by clock in time for organized display
-            sorted_sessions = sorted(active_sessions, key=lambda x: x[1])
+            sorted_sessions = sorted(active_sessions, key=lambda x: x['clock_in'])
             
             user_details = []
-            for i, (user_id, clock_in_iso) in enumerate(sorted_sessions, 1):
+            for i, session in enumerate(sorted_sessions, 1):
+                user_id = session['user_id']
+                clock_in_iso = session['clock_in']
                 try:
                     # Get user with proper Discord nickname
                     user = interaction.guild.get_member(user_id)
@@ -4272,7 +4278,9 @@ class TimeClockView(discord.ui.View):
                     
                     # Calculate total day seconds
                     total_day_seconds = 0
-                    for session_in, session_out in day_sessions:
+                    for day_session in day_sessions:
+                        session_in = day_session['clock_in']
+                        session_out = day_session['clock_out']
                         if session_out:  # Completed session
                             start = datetime.fromisoformat(session_in.replace('Z', '+00:00'))
                             end = datetime.fromisoformat(session_out.replace('Z', '+00:00'))
@@ -4796,7 +4804,11 @@ class TimeClockView(discord.ui.View):
             
             # Group sessions by user
             user_sessions = {}
-            for user_id, clock_in_iso, clock_out_iso, duration_seconds in sessions_data:
+            for session_row in sessions_data:
+                user_id = session_row['user_id']
+                clock_in_iso = session_row['clock_in']
+                clock_out_iso = session_row['clock_out']
+                duration_seconds = session_row['duration_seconds']
                 if user_id not in user_sessions:
                     user_sessions[user_id] = []
                 user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
