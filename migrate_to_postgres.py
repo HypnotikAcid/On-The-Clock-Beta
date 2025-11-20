@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS server_subscriptions (
     customer_id TEXT,
     bot_access_paid BOOLEAN DEFAULT FALSE,
     retention_tier TEXT DEFAULT 'none',
-    manually_granted INTEGER DEFAULT 0,
+    manually_granted BOOLEAN DEFAULT FALSE,
     granted_by TEXT,
     granted_at TIMESTAMP
 );
