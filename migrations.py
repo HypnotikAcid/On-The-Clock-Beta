@@ -82,6 +82,118 @@ def run_migrations():
                         details JSONB
                     )
                 """)
+                
+                # 4. Create employee_profiles table (employee & admin profiles)
+                print("   Checking table: employee_profiles")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS employee_profiles (
+                        id SERIAL PRIMARY KEY,
+                        guild_id BIGINT NOT NULL,
+                        user_id BIGINT NOT NULL,
+                        role_tier VARCHAR(20) DEFAULT 'employee',
+                        
+                        -- Profile data
+                        first_name VARCHAR(100),
+                        last_name VARCHAR(100),
+                        date_of_birth DATE,
+                        email VARCHAR(255),
+                        bio TEXT,
+                        avatar_choice VARCHAR(50) DEFAULT 'random',
+                        custom_avatar_url TEXT,
+                        company_role VARCHAR(100),
+                        
+                        -- Privacy toggles (all default TRUE)
+                        show_last_seen BOOLEAN DEFAULT TRUE,
+                        show_discord_status BOOLEAN DEFAULT TRUE,
+                        
+                        -- Employee premium settings
+                        email_timesheets BOOLEAN DEFAULT FALSE,
+                        timesheet_email VARCHAR(255),
+                        
+                        -- Metadata
+                        hire_date TIMESTAMPTZ DEFAULT NOW(),
+                        last_seen_discord TIMESTAMPTZ,
+                        profile_setup_completed BOOLEAN DEFAULT FALSE,
+                        profile_sent_on_first_clockin BOOLEAN DEFAULT FALSE,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        updated_at TIMESTAMPTZ DEFAULT NOW(),
+                        
+                        UNIQUE(guild_id, user_id)
+                    )
+                """)
+                
+                # Index for composite lookups
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_employee_profiles_guild_user 
+                    ON employee_profiles(guild_id, user_id)
+                """)
+                
+                # Index for active employees
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_employee_profiles_active 
+                    ON employee_profiles(guild_id, is_active)
+                """)
+                
+                # 5. Create employee_profile_tokens table
+                print("   Checking table: employee_profile_tokens")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS employee_profile_tokens (
+                        token UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        guild_id BIGINT NOT NULL,
+                        user_id BIGINT NOT NULL,
+                        delivery_method VARCHAR(20) DEFAULT 'ephemeral',
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '30 days'),
+                        used_at TIMESTAMPTZ,
+                        draft_data JSONB
+                    )
+                """)
+                
+                # Index for token lookups
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_profile_tokens_user 
+                    ON employee_profile_tokens(guild_id, user_id)
+                """)
+                
+                # 6. Create employee_archive table (PREMIUM FEATURE)
+                print("   Checking table: employee_archive")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS employee_archive (
+                        id SERIAL PRIMARY KEY,
+                        guild_id BIGINT NOT NULL,
+                        user_id BIGINT NOT NULL,
+                        profile_snapshot JSONB,
+                        hire_date TIMESTAMPTZ,
+                        termination_date TIMESTAMPTZ DEFAULT NOW(),
+                        termination_reason VARCHAR(20),
+                        admin_notes TEXT,
+                        archived_by BIGINT,
+                        reactivated_at TIMESTAMPTZ,
+                        reactivated_by BIGINT,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """)
+                
+                # Index for archive lookups
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_employee_archive_guild_user 
+                    ON employee_archive(guild_id, user_id)
+                """)
+                
+                # 7. Create guild_transfers table (future premium feature)
+                print("   Checking table: guild_transfers")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS guild_transfers (
+                        id SERIAL PRIMARY KEY,
+                        from_guild_id BIGINT NOT NULL,
+                        to_guild_id BIGINT NOT NULL,
+                        requested_by BIGINT NOT NULL,
+                        fee_paid DECIMAL(10,2) DEFAULT 10.00,
+                        transfer_data JSONB,
+                        completed_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """)
 
         print("✅ Database schema is up to date")
         return True
