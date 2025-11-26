@@ -3432,9 +3432,9 @@ def get_guild_setting(guild_id: int, key: str, default=None):
 
 def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America/New_York"):
     """
-    Get all employees with active sessions plus their hours (today/week/month).
-    Returns: List[Dict] with user_id, display_name, clock_in, 
-             hours_today, hours_week, hours_month
+    Get ALL employees (clocked in and out) with their stats and recent activity.
+    Returns: List[Dict] with user_id, username, display_name, avatar_url,
+             is_clocked_in, clock_in, clock_out, hours_today, hours_week, hours_month
     """
     from zoneinfo import ZoneInfo
     try:
@@ -3460,20 +3460,43 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
     employees = []
     
     with db() as conn:
-        # Get all currently clocked in users
+        # Get all unique employees who have sessions in this guild
         cursor = conn.execute("""
-            SELECT user_id, clock_in 
-            FROM sessions 
-            WHERE guild_id = %s AND clock_out IS NULL
+            SELECT DISTINCT s.user_id, u.username, u.display_name, u.avatar_url
+            FROM sessions s
+            LEFT JOIN users u ON s.user_id = u.user_id
+            WHERE s.guild_id = %s
+            ORDER BY s.user_id
         """, (guild_id,))
-        active_sessions = cursor.fetchall()
+        all_employees = cursor.fetchall()
         
-        for session in active_sessions:
-            user_id = session['user_id']
-            clock_in = session['clock_in'] # This is already UTC ISO string or datetime
+        for emp in all_employees:
+            user_id = emp['user_id']
+            
+            # Check if currently clocked in
+            cursor = conn.execute("""
+                SELECT clock_in 
+                FROM sessions 
+                WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
+                LIMIT 1
+            """, (guild_id, user_id))
+            active_session = cursor.fetchone()
+            
+            # Get most recent completed session for clock out time
+            cursor = conn.execute("""
+                SELECT clock_out
+                FROM sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out IS NOT NULL
+                ORDER BY clock_out DESC
+                LIMIT 1
+            """, (guild_id, user_id))
+            last_completed = cursor.fetchone()
+            
+            is_clocked_in = active_session is not None
+            clock_in = active_session['clock_in'] if active_session else None
+            clock_out = last_completed['clock_out'] if last_completed else None
             
             # Calculate historical hours
-            # We need to query completed sessions for today/week/month
             
             # Hours Today
             cursor = conn.execute("""
@@ -3486,9 +3509,12 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
             result = cursor.fetchone()
             hours_today = result['total'] if result and result['total'] else 0
             
-            # Add current session duration to today's total
-            current_duration = int((now_utc - safe_parse_timestamp(clock_in)).total_seconds())
-            hours_today += current_duration
+            # Add current session duration to today's total if clocked in
+            if is_clocked_in:
+                current_duration = int((now_utc - safe_parse_timestamp(clock_in)).total_seconds())
+                hours_today += current_duration
+            else:
+                current_duration = 0
 
             # Hours Week
             cursor = conn.execute("""
@@ -3516,7 +3542,12 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
             
             employees.append({
                 'user_id': str(user_id),
-                'clock_in': clock_in, # Keep as ISO string
+                'username': emp['username'],
+                'display_name': emp['display_name'],
+                'avatar_url': emp['avatar_url'],
+                'is_clocked_in': is_clocked_in,
+                'clock_in': clock_in if clock_in else None,
+                'clock_out': clock_out if clock_out else None,
                 'hours_today': hours_today,
                 'hours_week': hours_week,
                 'hours_month': hours_month
