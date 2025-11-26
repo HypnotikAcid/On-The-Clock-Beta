@@ -1229,6 +1229,7 @@
                     <div class="nav-item" data-section="timezone-settings" data-server-menu>
                         <span class="nav-item-icon">🕐</span>
                         <span>Timezone Settings</span>
+                        <span class="badge tz-reminder" id="tz-reminder-badge" style="display:none; background:#F59E0B; color:#111; padding:2px 6px; border-radius:10px; font-size:10px; margin-left:auto;">Set TZ!</span>
                     </div>
                     <div class="nav-item" data-section="employees" data-server-menu>
                         <span class="nav-item-icon">👥</span>
@@ -1745,33 +1746,25 @@
                     <p class="content-subtitle">View active employees and their hours</p>
                 </div>
 
-                <!-- Timezone Preference Setting -->
-                <div class="tile">
-                    <h2><span class="tile-icon">🌍</span>Dashboard Timezone</h2>
-                    <p class="tile-description">Set your preferred timezone for viewing employee hours.</p>
-
-                    <div style="position: relative; margin-top: 15px;">
-                        <!-- Comic bubble if not configured -->
-                        <div class="attention-bubble" id="tz-bubble" style="display: none;">
-                            💡 Set your timezone preference!
-                        </div>
-                        <select id="dashboard-timezone" class="timezone-select">
-                            <option value="America/New_York">Eastern Time (US & Canada)</option>
-                            <option value="America/Chicago">Central Time (US & Canada)</option>
-                            <option value="America/Denver">Mountain Time (US & Canada)</option>
-                            <option value="America/Phoenix">Arizona</option>
-                            <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
-                            <option value="America/Anchorage">Alaska</option>
-                            <option value="Pacific/Honolulu">Hawaii</option>
-                            <option value="Europe/London">London</option>
-                            <option value="Europe/Paris">Paris</option>
-                            <option value="Europe/Berlin">Berlin</option>
-                            <option value="Asia/Tokyo">Tokyo</option>
-                            <option value="Asia/Shanghai">Shanghai</option>
-                            <option value="Asia/Dubai">Dubai</option>
-                            <option value="Australia/Sydney">Sydney</option>
-                        </select>
-                    </div>
+                <!-- Inline Timezone Selector -->
+                <div style="display:flex; gap:12px; align-items:center; margin-bottom:20px; padding:12px 16px; background:rgba(139,148,158,0.1); border-radius:8px;">
+                    <span style="color:#8B949E; font-size:13px;">Display times in:</span>
+                    <select id="dashboard-timezone" class="timezone-select" style="flex:1; max-width:300px;">
+                        <option value="America/New_York">Eastern Time (US & Canada)</option>
+                        <option value="America/Chicago">Central Time (US & Canada)</option>
+                        <option value="America/Denver">Mountain Time (US & Canada)</option>
+                        <option value="America/Phoenix">Arizona</option>
+                        <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
+                        <option value="America/Anchorage">Alaska</option>
+                        <option value="Pacific/Honolulu">Hawaii</option>
+                        <option value="Europe/London">London</option>
+                        <option value="Europe/Paris">Paris</option>
+                        <option value="Europe/Berlin">Berlin</option>
+                        <option value="Asia/Tokyo">Tokyo</option>
+                        <option value="Asia/Shanghai">Shanghai</option>
+                        <option value="Asia/Dubai">Dubai</option>
+                        <option value="Australia/Sydney">Sydney</option>
+                    </select>
                 </div>
 
                 <!-- Employee Cards Grid -->
@@ -2753,14 +2746,26 @@
             }
         }
 
+        // Timezone reminder badge logic
+        function updateTimezoneReminder() {
+            const tz = localStorage.getItem('dashboard_timezone');
+            const badge = document.getElementById('tz-reminder-badge');
+            if (!badge) return;
+            if (tz && tz.trim()) {
+                badge.style.display = 'none';
+            } else {
+                badge.style.display = 'inline-block';
+            }
+        }
+
         // Timezone selector change handler
         document.getElementById('dashboard-timezone').addEventListener('change', () => {
             if (currentGuildId) {
                 loadEmployeeStatus(currentGuildId);
-                // Hide attention bubble if visible
-                document.getElementById('tz-bubble').style.display = 'none';
-                // Save preference (could be to localStorage or DB)
+                // Save preference to localStorage
                 localStorage.setItem('dashboard_timezone', document.getElementById('dashboard-timezone').value);
+                // Hide sidebar reminder badge
+                updateTimezoneReminder();
             }
         });
 
@@ -2768,10 +2773,9 @@
         const savedTimezone = localStorage.getItem('dashboard_timezone');
         if (savedTimezone) {
             document.getElementById('dashboard-timezone').value = savedTimezone;
-        } else {
-            // Show attention bubble if no preference saved
-            document.getElementById('tz-bubble').style.display = 'block';
         }
+        // Update sidebar reminder badge on startup
+        updateTimezoneReminder();
 
         // Time Adjustment Functionality
         async function loadPendingAdjustments(guildId) {
