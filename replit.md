@@ -31,6 +31,9 @@ Preferred communication style: Simple, everyday language.
 - **Owner Dashboard**: Web-based owner-only dashboard (`/owner` route) provides visibility into servers, subscriptions, active sessions, and webhook events, with manual subscription management capabilities.
 - **Mobile Device Restriction**: Server admins can restrict clock-in/out to desktop/web browser only via dashboard toggle or `/mobile` command.
 - **Persistent Button Architecture**: Uses `@discord.ui.button` decorators for persistent buttons with `timeout=None` and registration in `setup_hook()` for 100% button reliability across bot restarts.
+- **Database Migrations**: Automatic schema migrations run on startup via `migrations.py` with idempotent `CREATE TABLE IF NOT EXISTS` statements.
+- **Employee Status Cards**: Dashboard displays active employees with hours worked (today/week/month) via `get_active_employees_with_stats()` function.
+- **Time Adjustment Requests**: Employees can request time corrections; admins see before/after comparison and approve/deny via dashboard.
 
 ## Security Configuration
 - **Code Analysis**: Semgrep rules for static analysis and secret management.
