@@ -41,6 +41,9 @@ from bot import (
     bot
 )
 
+# Import and run database migrations on startup
+from migrations import run_migrations
+
 # Start Discord bot in background daemon thread
 def start_discord_bot():
     """Start the Discord bot in a background daemon thread."""
@@ -60,6 +63,9 @@ if __name__ != '__main__':
     worker_id = os.environ.get('GUNICORN_WORKER_ID', '1')
     # Only start bot in first worker to avoid multiple instances
     if worker_id == '1' or 'GUNICORN_WORKER_ID' not in os.environ:
+        # Run database migrations before starting bot
+        run_migrations()
+        
         bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
         bot_thread.start()
         app.logger.info("✅ Discord bot thread started in worker")
