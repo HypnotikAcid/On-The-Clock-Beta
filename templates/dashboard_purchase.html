@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Required - On the Clock</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+            color: #C9D1D9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 650px;
+            background: rgba(22, 27, 34, 0.9);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 16px;
+            padding: 3rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #D4AF37;
+        }
+
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            color: #8B949E;
+        }
+
+        .features {
+            text-align: left;
+            background: rgba(13, 17, 23, 0.5);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .feature {
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #C9D1D9;
+        }
+
+        .feature-icon {
+            color: #D4AF37;
+            font-size: 1.2rem;
+        }
+
+        .pricing {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(244, 229, 161, 0.05));
+            border: 2px solid #D4AF37;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #D4AF37;
+            margin-bottom: 0.5rem;
+        }
+
+        .price-detail {
+            color: #8B949E;
+            font-size: 0.95rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            color: #0D1117;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(212, 175, 55, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(48, 54, 61, 0.7);
+            color: #C9D1D9;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(58, 64, 71, 0.9);
+            border-color: rgba(212, 175, 55, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🔒</div>
+        <h1>Full Access Required</h1>
+        <p>This server has the bot installed, but you need to purchase full bot access to use the dashboard and all features.</p>
+        
+        <div class="features">
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Unlimited employee management</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Time tracking with /clock command</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>CSV report generation</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Role-based access control</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Dashboard configuration</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Email automation (optional upgrades)</span>
+            </div>
+        </div>
+
+        <div class="pricing">
+            <div class="price">$5</div>
+            <div class="price-detail">One-time payment • Lifetime access</div>
+        </div>
+
+        <div class="button-group">
+            <a href="/purchase/select_server" class="btn btn-primary">
+                Purchase Bot Access
+            </a>
+            <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

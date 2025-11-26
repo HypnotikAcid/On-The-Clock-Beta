@@ -1,0 +1,128 @@
+2025-11-19 17:25:38.05
+78dbd28e
+User
+conn.execute(
+2025-11-19 17:25:38.05
+78dbd28e
+User
+Traceback (most recent call last):
+2025-11-19 17:25:38.05
+78dbd28e
+User
+with get_db() as conn:
+2025-11-19 17:25:38.05
+78dbd28e
+User
+state = create_oauth_state()
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/app.py", line 1009, in auth_login
+2025-11-19 17:25:38.05
+78dbd28e
+User
+[2025-11-19 22:25:37 +0000] [21] [ERROR] Exception on /auth/login [GET]
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+2025-11-19 17:25:38.05
+78dbd28e
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:25:38.05
+78dbd28e
+User
+self._cursor.execute(query, params)
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/nix/store/7d088dip86hlzri9sk0h78b63yfmx0a0-python3-3.11.13/lib/python3.11/contextlib.py", line 158, in __exit__
+2025-11-19 17:25:38.05
+78dbd28e
+User
+^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:25:38.05
+78dbd28e
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:25:38.05
+78dbd28e
+User
+self.gen.throw(typ, value, traceback)
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/app.py", line 251, in create_oauth_state
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+2025-11-19 17:25:38.05
+78dbd28e
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:25:38.05
+78dbd28e
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:25:38.05
+78dbd28e
+User
+conn.rollback()
+2025-11-19 17:25:38.05
+78dbd28e
+User
+rv = self.dispatch_request()
+2025-11-19 17:25:38.05
+78dbd28e
+User
+return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args) # type: ignore[no-any-return]
+2025-11-19 17:25:38.05
+78dbd28e
+User
+^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/app.py", line 179, in get_db
+2025-11-19 17:25:38.05
+78dbd28e
+User
+return super().execute(query, vars)
+2025-11-19 17:25:38.05
+78dbd28e
+User
+rv = self.handle_user_exception(e)
+2025-11-19 17:25:38.05
+78dbd28e
+User
+response = self.full_dispatch_request()
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/psycopg2/extras.py", line 236, in execute
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/app.py", line 174, in get_db
+2025-11-19 17:25:38.05
+78dbd28e
+User
+Traceback (most recent call last):
+2025-11-19 17:25:38.05
+78dbd28e
+User
+During handling of the above exception, another exception occurred:
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 919, in full_dispatch_request
+2025-11-19 17:25:38.05
+78dbd28e
+User
+File "/home/runner/workspace/app.py", line 142, in execute
+2025-11-19 17:25:38.05
+78dbd28e
+User
+psycopg2.InterfaceError: connection already closed

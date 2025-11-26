@@ -1,0 +1,137 @@
+2025-11-19 17:45:41.37
+7068602b
+User
+[2025-11-19 22:45:41 +0000] [21] [ERROR] Exception on /auth/login [GET]
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/app.py", line 1007, in auth_login
+2025-11-19 17:45:41.37
+7068602b
+User
+Traceback (most recent call last):
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/app.py", line 249, in create_oauth_state
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+2025-11-19 17:45:41.37
+7068602b
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:45:41.37
+7068602b
+User
+^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app
+2025-11-19 17:45:41.37
+7068602b
+User
+rv = self.handle_user_exception(e)
+2025-11-19 17:45:41.37
+7068602b
+User
+state = create_oauth_state()
+2025-11-19 17:45:41.37
+7068602b
+User
+^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/psycopg2/extras.py", line 236, in execute
+2025-11-19 17:45:41.37
+7068602b
+User
+return super().execute(query, vars)
+2025-11-19 17:45:41.37
+7068602b
+User
+rv = self.handle_user_exception(e)
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+2025-11-19 17:45:41.37
+7068602b
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 919, in full_dispatch_request
+2025-11-19 17:45:41.37
+7068602b
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:45:41.37
+7068602b
+User
+rv = self.dispatch_request()
+2025-11-19 17:45:41.37
+7068602b
+User
+self._cursor.execute(query, params)
+2025-11-19 17:45:41.37
+7068602b
+User
+^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:45:41.37
+7068602b
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:45:41.37
+7068602b
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-19 17:45:41.37
+7068602b
+User
+psycopg2.OperationalError: SSL connection has been closed unexpectedly
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/app.py", line 142, in execute
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/app.py", line 249, in create_oauth_state
+2025-11-19 17:45:41.37
+7068602b
+User
+conn.execute(
+2025-11-19 17:45:41.37
+7068602b
+User
+response = self.full_dispatch_request()
+2025-11-19 17:45:41.37
+7068602b
+User
+Traceback (most recent call last):
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/app.py", line 1007, in auth_login
+2025-11-19 17:45:41.37
+7068602b
+User
+return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args) # type: ignore[no-any-return]
+
+2025-11-19 17:45:41.37
+7068602b
+User
+[2025-11-19 22:45:41 +0000] [21] [ERROR] Exception on /auth/login [GET]
+2025-11-19 17:45:41.37
+7068602b
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app

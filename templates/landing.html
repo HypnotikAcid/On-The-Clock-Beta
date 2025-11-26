@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On the Clock - Discord Timeclock Bot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+            color: #C9D1D9;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Matrix Background Animation */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.15;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 4rem;
+            padding-top: 2rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 1.5rem;
+        }
+
+        .logo-icon {
+            width: 55px;
+            height: 55px;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+        }
+
+        .logo-gear {
+            width: 32px;
+            height: 32px;
+            fill: #0D1117;
+            animation: rotate 8s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .logo-text {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1, #D4AF37);
+            background-size: 200% auto;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+        }
+
+        @keyframes shimmer {
+            to { background-position: 200% center; }
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #8B949E;
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+
+        /* Beta Warning - Minimal */
+        .beta-warning {
+            background: rgba(212, 175, 55, 0.08);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            margin: 0 auto 3rem;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .beta-warning h3 {
+            color: #D4AF37;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .beta-warning p {
+            color: #8B949E;
+            font-size: 0.9rem;
+        }
+
+        /* Action Buttons - Primary Focus */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 3rem 0;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #D4AF37, #C19A2E);
+            color: #0D1117;
+            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(212, 175, 55, 0.5);
+            background: linear-gradient(135deg, #E5C147, #D4AF37);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
+            color: #A78BFA;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
+            border-color: rgba(124, 58, 237, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-coffee {
+            background: linear-gradient(135deg, #8B4513, #A0522D);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
+        }
+
+        .btn-coffee:hover {
+            background: linear-gradient(135deg, #A0522D, #8B4513);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.5);
+        }
+
+        .coffee-icon {
+            display: inline-block;
+            animation: wiggle 2s ease-in-out infinite;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-15deg); }
+            75% { transform: rotate(15deg); }
+        }
+
+        /* Features - Compact List */
+        .features-section {
+            margin: 4rem 0;
+        }
+
+        .features-title {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #D4AF37;
+            margin-bottom: 2rem;
+        }
+
+        .features-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .feature-item {
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+            background: rgba(30, 35, 45, 0.8);
+            transform: translateX(5px);
+        }
+
+        .feature-icon {
+            font-size: 1.3rem;
+            min-width: 24px;
+        }
+
+        .feature-text {
+            font-size: 0.95rem;
+            color: #C9D1D9;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 5rem;
+            padding: 2rem 0;
+            border-top: 1px solid rgba(212, 175, 55, 0.2);
+            color: #8B949E;
+            font-size: 0.9rem;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem 1rem;
+            }
+            
+            .logo-text {
+                font-size: 2rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn {
+                justify-content: center;
+            }
+
+            .features-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Matrix Canvas Background -->
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="content-wrapper">
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <svg class="logo-gear" viewBox="0 0 24 24">
+                            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                        </svg>
+                    </div>
+                    <div class="logo-text">On the Clock</div>
+                </div>
+                <div class="subtitle">Professional Discord Timeclock Management</div>
+            </div>
+
+            <!-- Beta Warning -->
+            <div class="beta-warning">
+                <h3>⚠️ Beta Version</h3>
+                <p>Currently in beta testing. Report issues to support.</p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="/invite" class="btn btn-primary">
+                    <span>🤖</span>
+                    <span>Add to Discord</span>
+                </a>
+                <a href="/auth/login" class="btn btn-secondary">
+                    <span>🔐</span>
+                    <span>Dashboard Login</span>
+                </a>
+                <a href="https://discord.gg/KdTRTqdPcj" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                    <span>💬</span>
+                    <span>Support Server</span>
+                </a>
+                <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn btn-coffee">
+                    <span class="coffee-icon">☕</span>
+                    <span>Buy Me a Coffee</span>
+                </a>
+            </div>
+
+            <!-- Pricing Section -->
+            <div class="pricing-section" style="margin: 4rem 0;">
+                <h2 style="text-align: center; font-size: 1.8rem; font-weight: 700; color: #D4AF37; margin-bottom: 1rem;">Simple, Transparent Pricing</h2>
+                <p style="text-align: center; color: #8B949E; margin-bottom: 3rem; font-size: 1rem;">Start free, upgrade when you're ready</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; max-width: 1000px; margin: 0 auto;">
+                    <!-- Free Tier -->
+                    <div style="background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s ease;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">🆓</div>
+                        <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">Free Tier</h3>
+                        <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 1rem;">$0</div>
+                        <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
+                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Employee management</li>
+                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Basic /clock access</li>
+                            <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>⚠️</span> 24-hour data deletion</li>
+                            <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>✗</span> Reports locked</li>
+                        </ul>
+                    </div>
+
+                    <!-- Bot Access -->
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05)); border: 2px solid #10B981; border-radius: 12px; padding: 2rem; text-align: center; position: relative; transition: all 0.3s ease; transform: scale(1.05);">
+                        <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">POPULAR</div>
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔓</div>
+                        <h3 style="color: #10B981; font-size: 1.3rem; margin-bottom: 0.5rem;">Full Bot Access</h3>
+                        <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 0.3rem;">$5</div>
+                        <div style="font-size: 0.9rem; color: #8B949E; margin-bottom: 1rem;">one-time per server</div>
+                        <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Full bot features</li>
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> CSV reports unlocked</li>
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Dashboard access</li>
+                            <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>⚠️</span> 24-hour data deletion</li>
+                        </ul>
+                        <a href="/purchase/bot_access" style="display: inline-block; width: 100%; background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin-top: 1rem; transition: all 0.3s ease;">Purchase Now</a>
+                    </div>
+
+                    <!-- 7-Day Retention -->
+                    <div style="background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s ease;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📊</div>
+                        <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">7-Day Retention</h3>
+                        <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 0.3rem;">$5</div>
+                        <div style="font-size: 0.9rem; color: #8B949E; margin-bottom: 1rem;">per month</div>
+                        <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> All bot access features</li>
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> 7-day data retention</li>
+                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #8B949E;">ℹ️</span> Requires bot access</li>
+                        </ul>
+                    </div>
+
+                    <!-- 30-Day Retention -->
+                    <div style="background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s ease;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📈</div>
+                        <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">30-Day Retention</h3>
+                        <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 0.3rem;">$10</div>
+                        <div style="font-size: 0.9rem; color: #8B949E; margin-bottom: 1rem;">per month</div>
+                        <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> All bot access features</li>
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> 30-day data retention</li>
+                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #8B949E;">ℹ️</span> Requires bot access</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <p style="text-align: center; color: #8B949E; margin-top: 2rem; font-size: 0.95rem;">
+                    💡 Purchase here or use the <strong>/upgrade</strong> command in Discord
+                </p>
+            </div>
+
+            <!-- Compact Features List -->
+            <div class="features-section">
+                <h2 class="features-title">Core Features</h2>
+                <div class="features-list">
+                    <div class="feature-item">
+                        <span class="feature-icon">⏰</span>
+                        <span class="feature-text">Smart Clock In/Out System</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📊</span>
+                        <span class="feature-text">Detailed CSV Reports</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">👥</span>
+                        <span class="feature-text">Role-Based Access Control</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🌍</span>
+                        <span class="feature-text">Multi-Timezone Support</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📧</span>
+                        <span class="feature-text">Email Notifications</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">💎</span>
+                        <span class="feature-text">Flexible Subscription Plans</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p>&copy; 2025 On the Clock. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Matrix Animation Script -->
+    <script>
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>?';
+        const fontSize = 14;
+        let columns, drops;
+
+        function initMatrix() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            ctx.scale(dpr, dpr);
+
+            columns = Math.floor(window.innerWidth / fontSize);
+            drops = [];
+            for (let i = 0; i < columns; i++) {
+                drops[i] = Math.random() * -100;
+            }
+        }
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(10, 15, 31, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                
+                const gradient = ctx.createLinearGradient(
+                    i * fontSize, drops[i] * fontSize - 20,
+                    i * fontSize, drops[i] * fontSize + 20
+                );
+                gradient.addColorStop(0, 'rgba(212, 175, 55, 0)');
+                gradient.addColorStop(0.5, 'rgba(212, 175, 55, 0.9)');
+                gradient.addColorStop(1, 'rgba(212, 175, 55, 0)');
+                
+                ctx.fillStyle = gradient;
+                
+                if (i % 3 === 0) {
+                    ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
+                    ctx.shadowBlur = 12;
+                }
+                
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                ctx.shadowBlur = 0;
+
+                if (drops[i] * fontSize > window.innerHeight && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+            
+            requestAnimationFrame(drawMatrix);
+        }
+
+        initMatrix();
+        requestAnimationFrame(drawMatrix);
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                initMatrix();
+            }, 250);
+        });
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            canvas.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

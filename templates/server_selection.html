@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Server - On the Clock</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+            color: #C9D1D9;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: #D4AF37;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #8B949E;
+            font-size: 1rem;
+        }
+
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-box h3 {
+            color: #3B82F6;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box p {
+            color: #C9D1D9;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .server-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .server-card {
+            background: rgba(30, 35, 45, 0.8);
+            border: 2px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+
+        .server-card:hover {
+            border-color: rgba(212, 175, 55, 0.6);
+            transform: translateX(5px);
+        }
+
+        .server-card.no-bot {
+            border-color: rgba(239, 68, 68, 0.3);
+            opacity: 0.7;
+        }
+
+        .server-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .server-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #D4AF37, #C19A2E);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .server-icon img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .server-details h3 {
+            color: #C9D1D9;
+            font-size: 1.1rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .server-details p {
+            color: #8B949E;
+            font-size: 0.85rem;
+        }
+
+        .server-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        .status-ready {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10B981;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .status-need-bot {
+            background: rgba(239, 68, 68, 0.2);
+            color: #EF4444;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-purchase {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+        }
+
+        .btn-purchase:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-add-bot {
+            background: rgba(239, 68, 68, 0.15);
+            color: #EF4444;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-add-bot:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        .no-servers {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: rgba(30, 35, 45, 0.6);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+        }
+
+        .no-servers h3 {
+            color: #EF4444;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+
+        .no-servers p {
+            color: #8B949E;
+            margin-bottom: 2rem;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .back-link a {
+            color: #D4AF37;
+            text-decoration: none;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔓 Purchase Bot Access</h1>
+            <p>Select a server to unlock full features</p>
+        </div>
+
+        {% if product_type == 'bot_access' %}
+        <div class="info-box">
+            <h3>💡 What you're purchasing</h3>
+            <p><strong>$5 One-Time Payment</strong> - Unlock full bot features, CSV reports, and dashboard access for the selected server. Data is kept for 24 hours (upgrade to retention plans for longer storage).</p>
+        </div>
+        {% endif %}
+
+        {% if servers_with_bot %}
+        <h2 style="color: #10B981; margin-bottom: 1rem; font-size: 1.2rem;">✓ Ready to Purchase</h2>
+        <div class="server-list">
+            {% for server in servers_with_bot %}
+            <div class="server-card">
+                <div class="server-info">
+                    <div class="server-icon">
+                        {% if server.icon %}
+                        <img src="https://cdn.discordapp.com/icons/{{ server.id }}/{{ server.icon }}.png" alt="{{ server.name }}">
+                        {% else %}
+                        🎮
+                        {% endif %}
+                    </div>
+                    <div class="server-details">
+                        <h3>{{ server.name }}</h3>
+                        <p>Bot is installed and ready</p>
+                    </div>
+                </div>
+                <a href="/purchase/checkout?guild_id={{ server.id }}&product_type={{ product_type }}" class="btn btn-purchase">
+                    <span>💳</span>
+                    <span>Purchase - $5</span>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if servers_without_bot %}
+        <h2 style="color: #EF4444; margin: 2rem 0 1rem; font-size: 1.2rem;">⚠️ Add Bot First</h2>
+        <div class="server-list">
+            {% for server in servers_without_bot %}
+            <div class="server-card no-bot">
+                <div class="server-info">
+                    <div class="server-icon">
+                        {% if server.icon %}
+                        <img src="https://cdn.discordapp.com/icons/{{ server.id }}/{{ server.icon }}.png" alt="{{ server.name }}">
+                        {% else %}
+                        🎮
+                        {% endif %}
+                    </div>
+                    <div class="server-details">
+                        <h3>{{ server.name }}</h3>
+                        <p>Bot needs to be added first</p>
+                    </div>
+                </div>
+                <a href="{{ invite_url }}" target="_blank" class="btn btn-add-bot">
+                    <span>➕</span>
+                    <span>Add Bot</span>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not servers_with_bot and not servers_without_bot %}
+        <div class="no-servers">
+            <h3>No Servers Found</h3>
+            <p>You need to have a Discord server with admin permissions to purchase.</p>
+            <a href="{{ invite_url }}" class="btn btn-purchase">
+                <span>🤖</span>
+                <span>Add Bot to Your Server</span>
+            </a>
+        </div>
+        {% endif %}
+
+        <div class="back-link">
+            <a href="/">← Back to Home</a>
+        </div>
+    </div>
+</body>
+</html>

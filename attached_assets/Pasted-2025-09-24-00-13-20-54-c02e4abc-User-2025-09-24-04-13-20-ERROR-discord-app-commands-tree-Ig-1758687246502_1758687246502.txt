@@ -1,0 +1,98 @@
+2025-09-24 00:13:20.54
+c02e4abc
+User
+[2025-09-24 04:13:20] [ERROR ] discord.app_commands.tree: Ignoring exception in command 'purge'
+2025-09-24 00:13:20.54
+c02e4abc
+User
+Traceback (most recent call last):
+2025-09-24 00:13:20.54
+c02e4abc
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/commands.py", line 859, in _do_call
+2025-09-24 00:13:20.54
+c02e4abc
+User
+return await self._callback(interaction, **params) # type: ignore
+2025-09-24 00:13:20.54
+c02e4abc
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-09-24 00:13:20.54
+c02e4abc
+User
+File "/home/runner/workspace/bot.py", line 3788, in purge_data
+2025-09-24 00:13:20.54
+c02e4abc
+User
+await interaction.response.defer(ephemeral=True)
+2025-09-24 00:13:20.54
+c02e4abc
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/interactions.py", line 858, in defer
+2025-09-24 00:13:20.54
+c02e4abc
+User
+response = await adapter.create_interaction_response(
+2025-09-24 00:13:20.54
+c02e4abc
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-09-24 00:13:20.54
+c02e4abc
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/webhook/async_.py", line 224, in request
+2025-09-24 00:13:20.54
+c02e4abc
+User
+raise NotFound(response, data)
+2025-09-24 00:13:20.54
+c02e4abc
+User
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2025-09-24 00:13:20.54
+c02e4abc
+User
+2025-09-24 00:13:20.54
+c02e4abc
+User
+The above exception was the direct cause of the following exception:
+2025-09-24 00:13:20.54
+c02e4abc
+User
+2025-09-24 00:13:20.54
+c02e4abc
+User
+Traceback (most recent call last):
+2025-09-24 00:13:20.54
+c02e4abc
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/tree.py", line 1297, in _call
+2025-09-24 00:13:20.54
+c02e4abc
+User
+await command._invoke_with_namespace(interaction, namespace)
+2025-09-24 00:13:20.54
+c02e4abc
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/commands.py", line 884, in _invoke_with_namespace
+2025-09-24 00:13:20.54
+c02e4abc
+User
+return await self._do_call(interaction, transformed_values)
+2025-09-24 00:13:20.54
+c02e4abc
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-09-24 00:13:20.54
+c02e4abc
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/discord/app_commands/commands.py", line 877, in _do_call
+2025-09-24 00:13:20.54
+c02e4abc
+User
+raise CommandInvokeError(self, e) from e
+2025-09-24 00:13:20.54
+c02e4abc
+User
+discord.app_commands.errors.CommandInvokeError: Command 'purge' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction

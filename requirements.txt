@@ -1,0 +1,14 @@
+discord.py>=2.3
+tzdata
+stripe
+requests
+urllib3
+aiohttp
+flask
+gunicorn
+werkzeug
+psycopg2-binary
+apscheduler
+pytz
+psycopg2-binary
+asyncpg
