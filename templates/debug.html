@@ -20,7 +20,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -75,20 +75,172 @@
             font-size: 18px;
             font-weight: bold;
             color: #D4AF37;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
+        .wizard-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .wizard-step {
+            background: rgba(30, 35, 45, 0.6);
+            border: 2px solid rgba(100, 100, 120, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .wizard-step.active {
+            border-color: #D4AF37;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+        }
+
+        .wizard-step.completed {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            color: #0A0F1F;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .step-number.completed {
+            background: linear-gradient(135deg, #4CAF50, #81C784);
+        }
+
+        .step-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #E6E6E6;
+        }
+
+        .step-description {
+            color: #9CA3AF;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .help-box {
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .help-box h4 {
+            color: #2196F3;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .help-box p, .help-box li {
+            color: #9CA3AF;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .help-box ol, .help-box ul {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .help-box code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #F4E5A1;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #E6E6E6;
+            font-size: 13px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .input-group .label-hint {
+            color: #6B7280;
+            font-weight: normal;
+            font-size: 12px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(10, 15, 31, 0.8);
+            border: 1px solid rgba(100, 100, 120, 0.3);
+            border-radius: 8px;
+            color: #E6E6E6;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #D4AF37;
+        }
+
+        .input-group input::placeholder {
+            color: #6B7280;
+        }
+
+        .input-status {
+            margin-top: 8px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .input-status.valid {
+            color: #4CAF50;
+        }
+
+        .input-status.invalid {
+            color: #f44336;
+        }
+
+        .input-status.pending {
+            color: #FF9800;
+        }
+
         .test-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 15px;
+            margin-top: 15px;
         }
 
         .test-card {
-            background: rgba(30, 35, 45, 0.6);
+            background: rgba(10, 15, 31, 0.6);
             border: 1px solid rgba(100, 100, 120, 0.3);
             border-radius: 8px;
             padding: 15px;
@@ -103,6 +255,9 @@
             color: #E6E6E6;
             font-size: 14px;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .test-card p {
@@ -110,6 +265,33 @@
             font-size: 12px;
             margin-bottom: 12px;
             line-height: 1.5;
+        }
+
+        .expected-result {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+            font-size: 11px;
+        }
+
+        .expected-result .label {
+            color: #6B7280;
+            text-transform: uppercase;
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+
+        .expected-result .value {
+            font-weight: 600;
+        }
+
+        .expected-result .value.should-pass {
+            color: #4CAF50;
+        }
+
+        .expected-result .value.should-block {
+            color: #9C27B0;
         }
 
         .test-btn {
@@ -129,13 +311,8 @@
             color: white;
         }
 
-        .test-btn.warning {
-            background: linear-gradient(135deg, #FF9800, #F57C00);
-            color: white;
-        }
-
-        .test-btn.danger {
-            background: linear-gradient(135deg, #f44336, #d32f2f);
+        .test-btn.attack {
+            background: linear-gradient(135deg, #9C27B0, #7B1FA2);
             color: white;
         }
 
@@ -156,7 +333,7 @@
         }
 
         .console-section {
-            margin-top: 30px;
+            margin-top: 20px;
         }
 
         .console-header {
@@ -167,9 +344,12 @@
         }
 
         .console-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #4CAF50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .console-actions button {
@@ -193,8 +373,8 @@
             border: 1px solid rgba(100, 100, 120, 0.3);
             border-radius: 8px;
             padding: 15px;
-            min-height: 400px;
-            max-height: 600px;
+            min-height: 300px;
+            max-height: 500px;
             overflow-y: auto;
             font-family: 'JetBrains Mono', 'Fira Code', monospace;
             font-size: 13px;
@@ -202,10 +382,10 @@
         }
 
         .log-entry {
-            padding: 8px 12px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-            border-left: 3px solid;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid;
         }
 
         .log-entry.info {
@@ -229,38 +409,46 @@
         }
 
         .log-entry.blocked {
-            background: rgba(156, 39, 176, 0.1);
+            background: rgba(156, 39, 176, 0.15);
             border-left-color: #9C27B0;
+        }
+
+        .log-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
         }
 
         .log-timestamp {
             color: #6B7280;
             font-size: 11px;
-            margin-right: 10px;
         }
 
         .log-type {
             font-weight: 600;
-            margin-right: 10px;
             text-transform: uppercase;
             font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
         }
 
-        .log-type.info { color: #2196F3; }
-        .log-type.success { color: #4CAF50; }
-        .log-type.warning { color: #FF9800; }
-        .log-type.error { color: #f44336; }
-        .log-type.blocked { color: #9C27B0; }
+        .log-type.info { background: rgba(33, 150, 243, 0.2); color: #2196F3; }
+        .log-type.success { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .log-type.warning { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
+        .log-type.error { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        .log-type.blocked { background: rgba(156, 39, 176, 0.2); color: #CE93D8; }
 
         .log-message {
             color: #E6E6E6;
+            font-size: 14px;
         }
 
         .log-details {
-            margin-top: 8px;
-            padding: 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 4px;
+            margin-top: 10px;
+            padding: 12px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 6px;
             font-size: 12px;
             color: #9CA3AF;
             white-space: pre-wrap;
@@ -269,46 +457,134 @@
 
         .status-indicator {
             display: inline-block;
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            margin-right: 8px;
         }
 
         .status-indicator.running { background: #4CAF50; animation: pulse 1.5s infinite; }
         .status-indicator.idle { background: #6B7280; }
-        .status-indicator.error { background: #f44336; }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
 
-        .input-group {
+        .quick-start {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(244, 229, 161, 0.05));
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .quick-start h3 {
+            color: #D4AF37;
+            font-size: 16px;
             margin-bottom: 15px;
         }
 
-        .input-group label {
-            display: block;
-            color: #8B949E;
-            font-size: 12px;
+        .quick-start-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .qs-step {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .qs-step .number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #D4AF37;
+            color: #0A0F1F;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .qs-step h4 {
+            color: #E6E6E6;
+            font-size: 13px;
             margin-bottom: 5px;
         }
 
-        .input-group input, .input-group select {
-            width: 100%;
-            padding: 10px;
-            background: rgba(30, 35, 45, 0.6);
-            border: 1px solid rgba(100, 100, 120, 0.3);
-            border-radius: 6px;
+        .qs-step p {
+            color: #8B949E;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .run-all-btn {
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            color: #0A0F1F;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .run-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .result-summary {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .result-summary.visible {
+            display: block;
+        }
+
+        .result-summary h4 {
             color: #E6E6E6;
-            font-family: inherit;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(100, 100, 120, 0.2);
             font-size: 13px;
         }
 
-        .input-group input:focus, .input-group select:focus {
-            outline: none;
-            border-color: rgba(212, 175, 55, 0.5);
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-row .test-name {
+            color: #9CA3AF;
+        }
+
+        .result-row .result {
+            font-weight: 600;
+        }
+
+        .result-row .result.pass {
+            color: #4CAF50;
+        }
+
+        .result-row .result.fail {
+            color: #f44336;
         }
     </style>
 </head>
@@ -317,88 +593,170 @@
         <div class="header">
             <div>
                 <h1>Security Debug Console</h1>
-                <p>Owner-only testing interface for security validations</p>
+                <p>Test the SSRF security fix before deploying</p>
             </div>
             <div class="header-links">
                 <a href="/owner">Owner Dashboard</a>
-                <a href="/dashboard">User Dashboard</a>
+                <a href="/dashboard">Dashboard</a>
                 <a href="/auth/logout">Logout</a>
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-title">SSRF Protection Tests</div>
-            <p style="color: #8B949E; margin-bottom: 20px; font-size: 13px;">
-                These tests validate that the guild_id parameter is properly sanitized to prevent Server-Side Request Forgery attacks.
-            </p>
+        <div class="quick-start">
+            <h3>How This Works (Quick Guide)</h3>
+            <div class="quick-start-steps">
+                <div class="qs-step">
+                    <div class="number">1</div>
+                    <h4>No Setup Needed for Attack Tests</h4>
+                    <p>The purple "Attack Simulation" buttons work without any IDs. They test if malicious input is blocked.</p>
+                </div>
+                <div class="qs-step">
+                    <div class="number">2</div>
+                    <h4>What You're Testing</h4>
+                    <p>We patched code that builds URLs. Attackers could have injected "../" to access wrong endpoints.</p>
+                </div>
+                <div class="qs-step">
+                    <div class="number">3</div>
+                    <h4>Expected Results</h4>
+                    <p>Attack tests should show <strong style="color:#CE93D8">BLOCKED</strong>. This means the security fix is working.</p>
+                </div>
+                <div class="qs-step">
+                    <div class="number">4</div>
+                    <h4>Run All Tests</h4>
+                    <p>Click the button below to run all security tests automatically and see a summary.</p>
+                </div>
+            </div>
+            <button class="run-all-btn" onclick="runAllSecurityTests()">Run All Security Tests</button>
+            
+            <div class="result-summary" id="resultSummary">
+                <h4>Test Results Summary</h4>
+                <div id="resultRows"></div>
+            </div>
+        </div>
 
-            <div class="input-group">
-                <label>Test Guild ID (use a valid guild you have access to):</label>
-                <input type="text" id="testGuildId" placeholder="Enter a valid numeric guild ID" value="">
-            </div>
-            <div class="input-group">
-                <label>Test Role ID (use a valid role from that guild):</label>
-                <input type="text" id="testRoleId" placeholder="Enter a valid numeric role ID" value="">
-            </div>
+        <div class="section">
+            <div class="section-title">Security Tests (No Setup Required)</div>
+            <p style="color: #8B949E; margin-bottom: 20px; font-size: 13px;">
+                These tests verify that malicious guild IDs are blocked. Click any button - they use test data automatically.
+            </p>
 
             <div class="test-grid">
                 <div class="test-card">
-                    <h4>Valid Guild ID Test</h4>
-                    <p>Tests with a properly formatted numeric guild ID. Should succeed if you have access.</p>
-                    <button class="test-btn primary" onclick="runTest('valid_guild')">Run Test</button>
-                </div>
-
-                <div class="test-card">
                     <h4>Path Traversal Attack</h4>
-                    <p>Attempts guild ID with "../" path traversal. Should be BLOCKED with 400 error.</p>
-                    <button class="test-btn danger" onclick="runTest('path_traversal')">Run Test</button>
+                    <p>Simulates an attacker trying to access different API endpoints using "../" in the URL.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-block">BLOCKED - Returns 400 Error</div>
+                    </div>
+                    <button class="test-btn attack" onclick="runTest('path_traversal')">Run Attack Simulation</button>
                 </div>
 
                 <div class="test-card">
                     <h4>URL Encoded Traversal</h4>
-                    <p>Attempts with URL-encoded "../" (%2F%2E%2E). Should be BLOCKED with 400 error.</p>
-                    <button class="test-btn danger" onclick="runTest('encoded_traversal')">Run Test</button>
+                    <p>Tests if URL-encoded "../" (%2F%2E%2E) bypasses the security check.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-block">BLOCKED - Returns 400 Error</div>
+                    </div>
+                    <button class="test-btn attack" onclick="runTest('encoded_traversal')">Run Attack Simulation</button>
                 </div>
 
                 <div class="test-card">
                     <h4>Special Characters</h4>
-                    <p>Attempts guild ID with @, #, ?, & characters. Should be BLOCKED with 400 error.</p>
-                    <button class="test-btn warning" onclick="runTest('special_chars')">Run Test</button>
+                    <p>Tests if @, #, ?, & characters can be injected into the guild ID.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-block">BLOCKED - Returns 400 Error</div>
+                    </div>
+                    <button class="test-btn attack" onclick="runTest('special_chars')">Run Attack Simulation</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>Non-Numeric ID</h4>
+                    <p>Tests if alphabetic characters like "abcdefgh" are rejected.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-block">BLOCKED - Returns 400 Error</div>
+                    </div>
+                    <button class="test-btn attack" onclick="runTest('non_numeric')">Run Attack Simulation</button>
                 </div>
 
                 <div class="test-card">
                     <h4>Empty Guild ID</h4>
-                    <p>Tests with an empty guild ID. Should return 404 or 400 error.</p>
-                    <button class="test-btn warning" onclick="runTest('empty_guild')">Run Test</button>
-                </div>
-
-                <div class="test-card">
-                    <h4>Non-Numeric Guild ID</h4>
-                    <p>Tests with alphabetic characters "abcdefgh". Should be BLOCKED with 400 error.</p>
-                    <button class="test-btn danger" onclick="runTest('non_numeric')">Run Test</button>
+                    <p>Tests what happens when no guild ID is provided.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-block">BLOCKED - Returns Error</div>
+                    </div>
+                    <button class="test-btn attack" onclick="runTest('empty_guild')">Run Attack Simulation</button>
                 </div>
             </div>
         </div>
 
         <div class="section">
-            <div class="section-title">API Connectivity Tests</div>
+            <div class="section-title">System Health Checks</div>
+            <p style="color: #8B949E; margin-bottom: 20px; font-size: 13px;">
+                Verify your backend services are running correctly.
+            </p>
+
             <div class="test-grid">
                 <div class="test-card">
-                    <h4>Bot API Health Check</h4>
-                    <p>Verifies the internal bot API at localhost:8081 is reachable.</p>
-                    <button class="test-btn info" onclick="runTest('bot_api_health')">Run Test</button>
-                </div>
-
-                <div class="test-card">
                     <h4>Database Connection</h4>
-                    <p>Tests PostgreSQL database connectivity and query execution.</p>
-                    <button class="test-btn info" onclick="runTest('db_connection')">Run Test</button>
+                    <p>Verifies PostgreSQL database is accessible and queries work.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-pass">SUCCESS - Connected</div>
+                    </div>
+                    <button class="test-btn info" onclick="runTest('db_connection')">Check Database</button>
                 </div>
 
                 <div class="test-card">
-                    <h4>Session Validation</h4>
-                    <p>Verifies your current session is valid and properly authenticated.</p>
-                    <button class="test-btn info" onclick="runTest('session_check')">Run Test</button>
+                    <h4>Session Status</h4>
+                    <p>Confirms your login session is valid and shows your account info.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-pass">SUCCESS - Authenticated</div>
+                    </div>
+                    <button class="test-btn info" onclick="runTest('session_check')">Check Session</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>Bot API Connection</h4>
+                    <p>Tests if the Discord bot's internal API is reachable.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-pass">SUCCESS - API Responding</div>
+                    </div>
+                    <button class="test-btn info" onclick="runTest('bot_api_health')">Check Bot API</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Optional: Test With Real Guild</div>
+            
+            <div class="help-box">
+                <h4>When Would You Use This?</h4>
+                <p>Only if you want to verify that legitimate requests still work after the security patch. This is optional - the attack tests above are the important ones.</p>
+            </div>
+
+            <div class="input-group">
+                <label>
+                    Guild ID <span class="label-hint">(Copy from your dashboard URL or Discord developer mode)</span>
+                </label>
+                <input type="text" id="testGuildId" placeholder="Example: 1234567890123456789">
+                <div class="input-status" id="guildIdStatus"></div>
+            </div>
+
+            <div class="test-grid">
+                <div class="test-card">
+                    <h4>Valid Guild Test</h4>
+                    <p>Tests that a real guild ID you have access to works correctly with the security patch.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-pass">SUCCESS - If you have access</div>
+                    </div>
+                    <button class="test-btn primary" onclick="runTest('valid_guild')">Test Real Guild</button>
                 </div>
             </div>
         </div>
@@ -407,18 +765,19 @@
             <div class="console-header">
                 <div class="console-title">
                     <span class="status-indicator idle" id="statusIndicator"></span>
-                    Debug Console Output
+                    Test Output Console
                 </div>
                 <div class="console-actions">
                     <button onclick="clearConsole()">Clear</button>
-                    <button onclick="exportLogs()">Export Logs</button>
+                    <button onclick="exportLogs()">Export</button>
                 </div>
             </div>
             <div class="console-output" id="consoleOutput">
                 <div class="log-entry info">
-                    <span class="log-timestamp">[Ready]</span>
-                    <span class="log-type info">INFO</span>
-                    <span class="log-message">Debug console initialized. Click a test button to begin.</span>
+                    <div class="log-header">
+                        <span class="log-type info">READY</span>
+                    </div>
+                    <div class="log-message">Click any test button above to start. Attack simulations should show "BLOCKED" in purple.</div>
                 </div>
             </div>
         </div>
@@ -427,7 +786,27 @@
     <script>
         const consoleOutput = document.getElementById('consoleOutput');
         const statusIndicator = document.getElementById('statusIndicator');
+        const guildIdInput = document.getElementById('testGuildId');
+        const guildIdStatus = document.getElementById('guildIdStatus');
         let testRunning = false;
+        let testResults = {};
+
+        guildIdInput.addEventListener('input', function() {
+            const value = this.value.trim();
+            if (!value) {
+                guildIdStatus.innerHTML = '';
+                guildIdStatus.className = 'input-status';
+            } else if (/^\d+$/.test(value) && value.length >= 17) {
+                guildIdStatus.innerHTML = '&#10003; Valid format (numeric ID)';
+                guildIdStatus.className = 'input-status valid';
+            } else if (/^\d+$/.test(value)) {
+                guildIdStatus.innerHTML = '&#9888; Looks short - Discord IDs are usually 18-19 digits';
+                guildIdStatus.className = 'input-status pending';
+            } else {
+                guildIdStatus.innerHTML = '&#10007; Must be numbers only';
+                guildIdStatus.className = 'input-status invalid';
+            }
+        });
 
         function getTimestamp() {
             return new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -437,14 +816,19 @@
             const entry = document.createElement('div');
             entry.className = `log-entry ${type}`;
             
+            const typeLabel = type === 'blocked' ? 'BLOCKED' : type.toUpperCase();
+            
             let html = `
-                <span class="log-timestamp">[${getTimestamp()}]</span>
-                <span class="log-type ${type}">${type.toUpperCase()}</span>
-                <span class="log-message">${escapeHtml(message)}</span>
+                <div class="log-header">
+                    <span class="log-timestamp">[${getTimestamp()}]</span>
+                    <span class="log-type ${type}">${typeLabel}</span>
+                </div>
+                <div class="log-message">${escapeHtml(message)}</div>
             `;
             
             if (details) {
-                html += `<div class="log-details">${escapeHtml(typeof details === 'object' ? JSON.stringify(details, null, 2) : details)}</div>`;
+                const detailsStr = typeof details === 'object' ? JSON.stringify(details, null, 2) : details;
+                html += `<div class="log-details">${escapeHtml(detailsStr)}</div>`;
             }
             
             entry.innerHTML = html;
@@ -465,9 +849,11 @@
         function clearConsole() {
             consoleOutput.innerHTML = `
                 <div class="log-entry info">
-                    <span class="log-timestamp">[${getTimestamp()}]</span>
-                    <span class="log-type info">INFO</span>
-                    <span class="log-message">Console cleared.</span>
+                    <div class="log-header">
+                        <span class="log-timestamp">[${getTimestamp()}]</span>
+                        <span class="log-type info">INFO</span>
+                    </div>
+                    <div class="log-message">Console cleared. Ready for new tests.</div>
                 </div>
             `;
         }
@@ -478,7 +864,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `debug-logs-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
+            a.download = `security-test-logs-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
             a.click();
             URL.revokeObjectURL(url);
             log('info', 'Logs exported to file');
@@ -486,7 +872,7 @@
 
         async function runTest(testType) {
             if (testRunning) {
-                log('warning', 'A test is already running. Please wait.');
+                log('warning', 'Please wait for the current test to finish.');
                 return;
             }
 
@@ -494,9 +880,21 @@
             setStatus('running');
 
             const guildId = document.getElementById('testGuildId').value.trim();
-            const roleId = document.getElementById('testRoleId').value.trim();
+            const roleId = '';
 
-            log('info', `Starting test: ${testType}`);
+            const testNames = {
+                'path_traversal': 'Path Traversal Attack',
+                'encoded_traversal': 'URL Encoded Traversal',
+                'special_chars': 'Special Characters',
+                'non_numeric': 'Non-Numeric ID',
+                'empty_guild': 'Empty Guild ID',
+                'valid_guild': 'Valid Guild Test',
+                'bot_api_health': 'Bot API Health',
+                'db_connection': 'Database Connection',
+                'session_check': 'Session Check'
+            };
+
+            log('info', `Running test: ${testNames[testType] || testType}...`);
 
             try {
                 const response = await fetch('/debug/run-test', {
@@ -513,27 +911,88 @@
 
                 const data = await response.json();
 
-                if (data.success) {
-                    if (data.blocked) {
-                        log('blocked', data.message, data.details);
-                    } else {
-                        log('success', data.message, data.details);
-                    }
+                if (data.blocked || data.expected_failure) {
+                    log('blocked', data.message, data.details);
+                    testResults[testType] = { passed: true, message: 'Correctly blocked' };
+                } else if (data.success) {
+                    log('success', data.message, data.details);
+                    testResults[testType] = { passed: true, message: 'Success' };
                 } else {
-                    if (data.expected_failure) {
-                        log('blocked', `EXPECTED BLOCK: ${data.message}`, data.details);
-                    } else {
-                        log('error', data.message, data.details);
-                    }
+                    log('error', data.message, data.details);
+                    testResults[testType] = { passed: false, message: data.message };
                 }
 
             } catch (error) {
-                log('error', `Test failed with exception: ${error.message}`);
+                log('error', `Test failed: ${error.message}`);
+                testResults[testType] = { passed: false, message: error.message };
             }
 
             testRunning = false;
             setStatus('idle');
-            log('info', `Test "${testType}" completed`);
+        }
+
+        async function runAllSecurityTests() {
+            const securityTests = [
+                'path_traversal',
+                'encoded_traversal', 
+                'special_chars',
+                'non_numeric',
+                'empty_guild'
+            ];
+
+            const testNames = {
+                'path_traversal': 'Path Traversal',
+                'encoded_traversal': 'Encoded Traversal',
+                'special_chars': 'Special Characters',
+                'non_numeric': 'Non-Numeric ID',
+                'empty_guild': 'Empty Guild ID'
+            };
+
+            log('info', '=== Starting All Security Tests ===');
+            testResults = {};
+
+            for (const test of securityTests) {
+                await runTest(test);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            log('info', '=== All Security Tests Complete ===');
+
+            const summary = document.getElementById('resultSummary');
+            const rows = document.getElementById('resultRows');
+            rows.innerHTML = '';
+
+            let allPassed = true;
+            for (const [test, result] of Object.entries(testResults)) {
+                if (!result.passed) allPassed = false;
+                
+                const row = document.createElement('div');
+                row.className = 'result-row';
+                row.innerHTML = `
+                    <span class="test-name">${testNames[test] || test}</span>
+                    <span class="result ${result.passed ? 'pass' : 'fail'}">${result.passed ? 'PASS' : 'FAIL'}</span>
+                `;
+                rows.appendChild(row);
+            }
+
+            const finalRow = document.createElement('div');
+            finalRow.className = 'result-row';
+            finalRow.style.marginTop = '10px';
+            finalRow.style.paddingTop = '10px';
+            finalRow.style.borderTop = '2px solid rgba(100, 100, 120, 0.3)';
+            finalRow.innerHTML = `
+                <span class="test-name" style="font-weight: bold;">Overall Result</span>
+                <span class="result ${allPassed ? 'pass' : 'fail'}" style="font-size: 15px;">${allPassed ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}</span>
+            `;
+            rows.appendChild(finalRow);
+
+            summary.classList.add('visible');
+
+            if (allPassed) {
+                log('success', 'All security tests passed! The SSRF vulnerability has been successfully patched.');
+            } else {
+                log('error', 'Some tests failed. Please review the results above.');
+            }
         }
     </script>
 </body>
