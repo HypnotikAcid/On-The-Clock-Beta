@@ -25,6 +25,11 @@ Preferred communication style: Simple, everyday language.
    - `subscription_status` command line 7351: Changed 5-variable tuple unpack → dictionary access
 9. **None Check Missing** - Added None check for `current` variable in `approve_adjustment()` before accessing `current['clock_in']`
 10. **RealDictRow Tuple Unpacking Bug** - Fixed `handle_api_get_recipients()` at line 2032: Changed tuple unpacking to dictionary key access (was unpacking column NAMES instead of VALUES)
+11. **Dashboard Emoji Corruption** - Fixed 3 corrupted emoji characters in dashboard-core.js caused by Antigravity UTF-16 LE encoding:
+    - Line 228: Role icons now use Unicode escapes `\u2694` (⚔ for admin) and `\u263A` (☺ for employee)
+    - Line 487: Email icon now uses `\u2709` (✉)
+    - Line 659: Loading spinner uses `\u21BB` (↻)
+12. **Timezone Icon Rendering** - Replaced `🕰️` emoji with HTML entity `&#9200;` (⏰) in dashboard.html for reliable rendering at small sizes
 
 **Status**: ✅ All encoding and variable issues resolved. App fully operational with proper data access.
 
