@@ -2029,7 +2029,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             email_recipients = []
             
             for recipient_row in recipients:
-                recipient_id, recipient_type, discord_user_id, email_address, created_at = recipient_row
+                recipient_id = recipient_row['id']
+                recipient_type = recipient_row['recipient_type']
+                discord_user_id = recipient_row['recipient_id']
+                email_address = recipient_row['email_address']
                 
                 if recipient_type == 'discord' and discord_user_id:
                     try:
