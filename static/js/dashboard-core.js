@@ -1,4 +1,4 @@
-﻿// Server Settings State
+// Server Settings State
 let currentGuildId = null;
 let currentServerData = null;
 let selectedAvailableAdminRole = null;
@@ -671,7 +671,7 @@ async function loadBannedUsers() {
             if (bans.length === 0) {
                 bannedUsersList.innerHTML = `
                             <div style="text-align: center; color: #10B981; padding: 20px;">
-                                <div style="font-size: 24px; margin-bottom: 8px;">âœ…</div>
+                                <div style="font-size: 24px; margin-bottom: 8px;">✅</div>
                                 <div>No banned users</div>
                             </div>
                         `;
@@ -930,7 +930,7 @@ async function loadPendingAdjustments(guildId) {
                                 </div>
                                 
                                 <div class="adjustment-actions">
-                                    <button class="approve-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'approve')">âœ… Approve</button>
+                                    <button class="approve-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'approve')">✅ Approve</button>
                                     <button class="deny-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'deny')">âŒ Deny</button>
                                 </div>
                             </div>

@@ -180,7 +180,7 @@ def migrate():
         pg_conn.commit()
         print("✅ Schema created\n")
         
-        # Table migration mapping (SQLite → PostgreSQL)
+        # Table migration mapping (SQLite &rarr; PostgreSQL)
         tables = [
             'server_subscriptions',
             'bot_guilds',
