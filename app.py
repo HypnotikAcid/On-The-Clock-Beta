@@ -102,7 +102,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 app_db_pool = None
 
 # Discord OAuth2 Configuration
-DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
+DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID', '1418446753379913809')
 DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
 DISCORD_API_BASE = 'https://discord.com/api/v10'
 DISCORD_OAUTH_SCOPES = 'identify guilds'

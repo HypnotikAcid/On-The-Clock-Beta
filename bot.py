@@ -89,7 +89,7 @@ def set_cached_discord_data(cache_type: str, guild_id: int, data):
 # Note: These duplicate some functionality from app.py but are needed
 # for the bot's internal HTTP server to avoid circular imports
 
-DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
+# DISCORD_CLIENT_ID already defined above with fallback
 DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
 DISCORD_API_BASE = 'https://discord.com/api/v10'
 DISCORD_OAUTH_SCOPES = 'identify guilds'
