@@ -758,6 +758,16 @@
                     </div>
                     <button class="test-btn primary" onclick="runTest('valid_guild')">Test Real Guild</button>
                 </div>
+
+                <div class="test-card">
+                    <h4>Invalid Role ID Test</h4>
+                    <p>Tests that fake role IDs not belonging to the guild are rejected by the role management endpoints.</p>
+                    <div class="expected-result">
+                        <div class="label">Expected Result</div>
+                        <div class="value should-block">BLOCKED - Invalid role rejected</div>
+                    </div>
+                    <button class="test-btn attack" onclick="runTest('invalid_role_id')">Test Role Validation</button>
+                </div>
             </div>
         </div>
 
@@ -891,7 +901,8 @@
                 'valid_guild': 'Valid Guild Test',
                 'bot_api_health': 'Bot API Health',
                 'db_connection': 'Database Connection',
-                'session_check': 'Session Check'
+                'session_check': 'Session Check',
+                'invalid_role_id': 'Invalid Role ID Test'
             };
 
             log('info', `Running test: ${testNames[testType] || testType}...`);

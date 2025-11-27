@@ -1493,6 +1493,10 @@ def debug_run_test(user_session):
                 }
             })
         
+        elif test_type == 'invalid_role_id':
+            result = _test_role_id_validation(guild_id, user_session)
+            return jsonify(result)
+        
         else:
             return jsonify({
                 'success': False,
@@ -1575,6 +1579,62 @@ def _test_guild_id_validation(guild_id, role_id, user_session, expect_block=Fals
             'role_id_provided': bool(role_id)
         }
     }
+
+def _test_role_id_validation(guild_id, user_session):
+    """Helper function to test role_id validation in remove endpoints"""
+    fake_role_id = "999999999999999999"
+    
+    if not guild_id:
+        return {
+            'success': False,
+            'message': 'Please enter a valid Guild ID first to test role validation',
+            'details': 'A real guild ID is needed to test role validation against the guild\'s actual roles'
+        }
+    
+    if not guild_id.isdigit():
+        return {
+            'success': False,
+            'message': f'Guild ID "{guild_id}" is not numeric',
+            'details': 'Please use a valid numeric Discord guild ID'
+        }
+    
+    guild = verify_guild_access(user_session, guild_id)
+    if not guild:
+        return {
+            'success': False,
+            'message': f'You do not have admin access to guild {guild_id}',
+            'details': 'Enter a guild ID where you have admin permissions'
+        }
+    
+    is_valid_role = validate_role_in_guild(guild_id, fake_role_id)
+    
+    if not is_valid_role:
+        return {
+            'success': True,
+            'blocked': True,
+            'expected_failure': True,
+            'message': f'ROLE VALIDATION ACTIVE: Fake role ID "{fake_role_id}" correctly rejected',
+            'details': {
+                'tested_guild': guild_id,
+                'guild_name': guild.get('name', 'Unknown'),
+                'tested_role_id': fake_role_id,
+                'validation_result': 'BLOCKED',
+                'reason': 'validate_role_in_guild() returned False - invalid role prevented from being forwarded'
+            }
+        }
+    else:
+        return {
+            'success': False,
+            'blocked': False,
+            'message': f'WARNING: Fake role ID "{fake_role_id}" was NOT blocked!',
+            'details': {
+                'tested_guild': guild_id,
+                'tested_role_id': fake_role_id,
+                'expected': 'BLOCK',
+                'actual': 'ALLOWED',
+                'security_concern': 'This role ID should have been rejected as invalid for this guild'
+            }
+        }
 
 @app.route("/api/owner/grant-access", methods=["POST"])
 @require_api_auth
