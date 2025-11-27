@@ -6,6 +6,21 @@
 
 Preferred communication style: Simple, everyday language.
 
+# Recent Fixes (November 27, 2025)
+
+## Critical Encoding Fixes Applied
+1. **UTF-16 LE Encoding Corruption (app.py)** - Converted corrupted UTF-16 LE file with 138,000+ null bytes to proper UTF-8 UTF-8
+2. **Dashboard Template Recovery** - Restored dashboard.html from git commit 1303f18 (recovered full 704-line version)
+3. **SQL Query Table References** - Fixed bot.py queries to use `employee_profiles` table instead of nonexistent `users` table:
+   - `get_active_employees_with_stats()` - Updated table join and column references
+   - `get_pending_adjustments()` - Updated table join and privacy settings references
+4. **UTF-8 BOM Removal** - Removed BOM markers from templates/dashboard.html and static/css/dashboard.css
+5. **Unicode Character Encoding** - Replaced literal Unicode arrows with HTML entities for reliable rendering:
+   - Right arrow: `→` → `&rarr;` (in dashboard-roles.js)
+   - Left arrow: `←` → `&larr;` (in dashboard.html and server_selection.html)
+
+**Status**: ✅ All encoding issues resolved. App fully operational with proper character rendering.
+
 # System Architecture
 
 ## Bot Framework
@@ -34,6 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **Database Migrations**: Automatic schema migrations run on startup via `migrations.py` with idempotent `CREATE TABLE IF NOT EXISTS` statements.
 - **Employee Status Cards**: Dashboard displays active employees with hours worked (today/week/month) via `get_active_employees_with_stats()` function.
 - **Time Adjustment Requests**: Employees can request time corrections; admins see before/after comparison and approve/deny via dashboard.
+- **Encoding Best Practices**: Uses HTML entities (&rarr;, &larr;) for special characters to ensure cross-platform compatibility.
 
 ## Security Configuration
 - **Code Analysis**: Semgrep rules for static analysis and secret management.

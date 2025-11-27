@@ -90,7 +90,7 @@ async function loadUserAdjustmentHistory(guildId) {
                                     ${req.original_clock_in ? new Date(req.original_clock_in).toLocaleString() : 'None'}
                                 </div>
                             </div>
-                            <div class="arrow">→</div>
+                            <div class="arrow">&rarr;</div>
                             <div class="after">
                                 <h5 style="color: #D4AF37; margin-bottom: 4px;">Requested</h5>
                                 <div style="font-size: 12px;">
