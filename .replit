@@ -99,3 +99,9 @@ externalPort = 6000
 [agent]
 expertMode = true
 integrations = ["flask_stripe:1.0.0", "replitmail:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+BOT_OWNER_ID = "107103438139056128"
+DISCORD_CLIENT_ID = "1418446753379913809"

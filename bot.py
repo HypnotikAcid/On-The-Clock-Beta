@@ -46,7 +46,10 @@ HTTP_PORT = int(os.getenv("HEALTH_PORT", "8080"))     # Health check server port
 db_pool = None
 
 # --- Bot Owner Configuration ---
-BOT_OWNER_ID = 107103438139056128  # Your Discord user ID for super admin access
+BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "107103438139056128"))  # Discord user ID for super admin access
+
+# --- Discord Application Configuration ---
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")  # Discord application client ID
 
 # --- Discord Data Caching ---
 # Simple in-memory cache for Discord API data to reduce rate limiting

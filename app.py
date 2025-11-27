@@ -1034,7 +1034,9 @@ def index():
 @app.route("/dashboard/invite")
 def dashboard_invite():
     """Page shown when user tries to access dashboard but bot is not invited to their server."""
-    return render_template('dashboard_invite.html')
+    discord_client_id = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")
+    invite_url = f"https://discord.com/oauth2/authorize?client_id={discord_client_id}&permissions=8&scope=bot%20applications.commands"
+    return render_template('dashboard_invite.html', invite_url=invite_url)
 
 @app.route("/dashboard/purchase")
 def dashboard_purchase():
@@ -1208,10 +1210,10 @@ def fetch_guild_name_from_discord(guild_id, db_conn=None):
 def owner_dashboard(user_session):
     """Owner-only dashboard showing all servers, subscriptions, webhook events, and active sessions"""
     try:
-        BOT_OWNER_ID = '107103438139056128'
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         # Security check: Only allow bot owner
-        if user_session['user_id'] != BOT_OWNER_ID:
+        if user_session['user_id'] != bot_owner_id:
             app.logger.warning(f"Unauthorized owner dashboard access attempt by user {user_session['user_id']}")
             return "<h1>403 Forbidden</h1><p>You do not have permission to access this page.</p><a href='/dashboard'>Return to Dashboard</a>", 403
         
@@ -1354,10 +1356,10 @@ def owner_dashboard(user_session):
 def api_owner_grant_access(user_session):
     """Owner-only API endpoint to manually grant bot access or retention tiers to servers"""
     try:
-        BOT_OWNER_ID = '107103438139056128'
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         # Security check: Only allow bot owner
-        if user_session['user_id'] != BOT_OWNER_ID:
+        if user_session['user_id'] != bot_owner_id:
             app.logger.warning(f"Unauthorized grant access attempt by user {user_session['user_id']}")
             return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
         
@@ -1490,10 +1492,10 @@ def api_owner_grant_access(user_session):
 def api_owner_revoke_access(user_session):
     """Owner-only API endpoint to manually revoke bot access or retention tiers from servers"""
     try:
-        BOT_OWNER_ID = '107103438139056128'
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         # Security check: Only allow bot owner
-        if user_session['user_id'] != BOT_OWNER_ID:
+        if user_session['user_id'] != bot_owner_id:
             app.logger.warning(f"Unauthorized revoke access attempt by user {user_session['user_id']}")
             return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
         
@@ -2784,9 +2786,9 @@ def purchase_select_server(user_session):
                 servers_without_bot.append(guild)
         
         # Bot invite URL
-        bot_id = "1418446753379913809"
+        discord_client_id = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")
         permissions = "2048"
-        invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions={permissions}&scope=bot%20applications.commands"
+        invite_url = f"https://discord.com/api/oauth2/authorize?client_id={discord_client_id}&permissions={permissions}&scope=bot%20applications.commands"
         
         return render_template(
             'server_selection.html',
@@ -3007,9 +3009,9 @@ def purchase_cancel():
 def invite():
     """Redirect to Discord bot invite link."""
     # Bot invite with essential permissions
-    bot_id = "1418446753379913809"
+    discord_client_id = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")
     permissions = "2048"  # Slash commands permission
-    invite_url = f"https://discord.com/api/oauth2/authorize?client_id={bot_id}&permissions={permissions}&scope=bot%20applications.commands"
+    invite_url = f"https://discord.com/api/oauth2/authorize?client_id={discord_client_id}&permissions={permissions}&scope=bot%20applications.commands"
     return f'<script>window.location.href="{invite_url}";</script><a href="{invite_url}">Click here if you are not redirected</a>'
 
 @app.route("/favicon.ico")
