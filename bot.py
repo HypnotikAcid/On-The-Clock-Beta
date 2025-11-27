@@ -56,6 +56,140 @@ DISCORD_CACHE = {
 }
 CACHE_DURATION = 300  # 5 minutes cache duration
 
+def get_cached_discord_data(cache_type: str, guild_id: int):
+    """
+    Get cached Discord data if still valid.
+    Returns None if cache miss or expired.
+    """
+    cache = DISCORD_CACHE.get(cache_type, {})
+    entry = cache.get(guild_id)
+    
+    if entry:
+        timestamp = entry.get('timestamp', 0)
+        if time.time() - timestamp < CACHE_DURATION:
+            return entry.get('data')
+    return None
+
+def set_cached_discord_data(cache_type: str, guild_id: int, data):
+    """
+    Store Discord data in cache with current timestamp.
+    """
+    if cache_type not in DISCORD_CACHE:
+        DISCORD_CACHE[cache_type] = {}
+    
+    DISCORD_CACHE[cache_type][guild_id] = {
+        'timestamp': time.time(),
+        'data': data
+    }
+
+# --- OAuth and Session Functions (for bot's HTTP server) ---
+# Note: These duplicate some functionality from app.py but are needed
+# for the bot's internal HTTP server to avoid circular imports
+
+DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
+DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
+DISCORD_API_BASE = 'https://discord.com/api/v10'
+DISCORD_OAUTH_SCOPES = 'identify guilds'
+DISCORD_REDIRECT_URI = os.environ.get('DISCORD_REDIRECT_URI', '')
+
+def create_oauth_session(state: str, ip_address: str, expiry_minutes: int = 15) -> bool:
+    """
+    Create OAuth state in database for CSRF protection.
+    Returns True on success, False on failure.
+    """
+    try:
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO oauth_states (state, expires_at) VALUES (%s, %s)",
+                (state, expires_at.isoformat())
+            )
+        return True
+    except Exception as e:
+        print(f"Error creating OAuth session: {e}")
+        return False
+
+def get_discord_oauth_url(state: str) -> str:
+    """
+    Generate Discord OAuth2 authorization URL.
+    """
+    from urllib.parse import urlencode
+    
+    params = {
+        'client_id': DISCORD_CLIENT_ID,
+        'redirect_uri': DISCORD_REDIRECT_URI,
+        'response_type': 'code',
+        'scope': DISCORD_OAUTH_SCOPES,
+        'state': state
+    }
+    
+    return f'https://discord.com/oauth2/authorize?{urlencode(params)}'
+
+def get_user_session(session_id: str) -> Optional[Dict]:
+    """
+    Get user session from database.
+    Returns session dict or None if not found/expired.
+    """
+    try:
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT session_id, user_id, username, discriminator, avatar, 
+                       access_token, guilds_data, expires_at
+                FROM user_sessions 
+                WHERE session_id = %s AND expires_at > %s
+            """, (session_id, datetime.now(timezone.utc).isoformat()))
+            row = cursor.fetchone()
+            
+            if row:
+                return {
+                    'session_id': row['session_id'],
+                    'user_id': row['user_id'],
+                    'username': row['username'],
+                    'discriminator': row['discriminator'] or '0',
+                    'avatar': row['avatar'],
+                    'access_token': row['access_token'],
+                    'guilds': json.loads(row['guilds_data']) if row['guilds_data'] else [],
+                    'expires_at': row['expires_at']
+                }
+    except Exception as e:
+        print(f"Error getting user session: {e}")
+    return None
+
+def delete_user_session(session_id: str) -> bool:
+    """
+    Delete user session from database.
+    Returns True on success.
+    """
+    try:
+        with db() as conn:
+            conn.execute("DELETE FROM user_sessions WHERE session_id = %s", (session_id,))
+        return True
+    except Exception as e:
+        print(f"Error deleting user session: {e}")
+        return False
+
+def get_discord_guild_member(access_token: str, guild_id: int) -> Optional[Dict]:
+    """
+    Fetch guild member data from Discord API using OAuth token.
+    Returns member data dict or None on failure.
+    """
+    try:
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = requests.get(
+            f'{DISCORD_API_BASE}/users/@me/guilds/{guild_id}/member',
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 403:
+            print(f"No permission to access member data for guild {guild_id}")
+        else:
+            print(f"Failed to fetch guild member: {response.status_code}")
+    except Exception as e:
+        print(f"Error fetching guild member: {e}")
+    return None
+
 # --- Rate Limiting / Spam Detection ---
 # Track user interactions to prevent spam/abuse
 RATE_LIMIT_WINDOW = 30  # 30 seconds
@@ -3773,6 +3907,24 @@ def deny_adjustment(request_id: int, guild_id: int, reviewer_user_id: int):
             return False, "Request not found or already processed"
     except Exception as e:
         return False, str(e)
+
+def get_user_adjustment_history(guild_id: int, user_id: int, limit: int = 50):
+    """
+    Get adjustment request history for a specific user.
+    Returns all requests (pending, approved, denied) for audit trail.
+    """
+    with db() as conn:
+        cursor = conn.execute("""
+            SELECT r.id, r.request_type, r.status, r.reason,
+                   r.original_clock_in, r.original_clock_out,
+                   r.requested_clock_in, r.requested_clock_out,
+                   r.created_at, r.reviewed_at, r.reviewed_by
+            FROM time_adjustment_requests r
+            WHERE r.guild_id = %s AND r.user_id = %s
+            ORDER BY r.created_at DESC
+            LIMIT %s
+        """, (guild_id, user_id, limit))
+        return cursor.fetchall()
 
 # --- Report Recipients Management ---
 

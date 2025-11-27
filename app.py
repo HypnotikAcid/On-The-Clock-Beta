@@ -35,6 +35,7 @@ from bot import (
     get_active_employees_with_stats,
     create_adjustment_request,
     get_pending_adjustments,
+    get_user_adjustment_history,
     approve_adjustment,
     deny_adjustment,
     db as bot_db,
@@ -3160,6 +3161,31 @@ def api_deny_adjustment(user_session, guild_id, request_id):
             
     except Exception as e:
         app.logger.error(f"Error denying adjustment: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/guild/<guild_id>/adjustments/history")
+@require_api_auth
+def api_get_adjustment_history(user_session, guild_id):
+    """
+    Get adjustment request history for the current user.
+    Returns all requests (pending, approved, denied) for audit trail.
+    """
+    try:
+        user_id = int(user_session['user_id'])
+        requests = get_user_adjustment_history(int(guild_id), user_id)
+        
+        serialized_requests = []
+        for req in requests:
+            req_dict = dict(req)
+            for key, value in req_dict.items():
+                if isinstance(value, datetime):
+                    req_dict[key] = value.isoformat()
+            serialized_requests.append(req_dict)
+            
+        return jsonify({'success': True, 'requests': serialized_requests})
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching adjustment history: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == "__main__":

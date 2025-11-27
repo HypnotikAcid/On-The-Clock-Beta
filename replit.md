@@ -33,6 +33,27 @@ Preferred communication style: Simple, everyday language.
 
 **Status**: ✅ All encoding and variable issues resolved. App fully operational with proper data access.
 
+## Missing Function & Route Fixes (November 27, 2025)
+13. **Missing Cache Functions** - Added `get_cached_discord_data()` and `set_cached_discord_data()` to bot.py for Discord API rate limiting
+14. **Missing OAuth Functions** - Added to bot.py:
+    - `create_oauth_session()` - Creates OAuth state in database for CSRF protection
+    - `get_discord_oauth_url()` - Generates Discord OAuth2 authorization URL
+    - `get_user_session()` - Retrieves user session from database
+    - `delete_user_session()` - Deletes user session from database
+    - `get_discord_guild_member()` - Fetches guild member data from Discord API
+15. **Missing Adjustment History** - Added `get_user_adjustment_history()` function to bot.py and `/api/guild/{id}/adjustments/history` route to app.py
+16. **Windows Line Endings** - Converted app.py from CRLF to LF line endings
+
+## Known Hardcoded Values (Future Refactoring)
+- `BOT_OWNER_ID = '107103438139056128'` - Hardcoded in 3 places in app.py (should use env var)
+- `bot_id = "1418446753379913809"` - Hardcoded in 2 places in app.py + dashboard_invite.html template
+
+## Outstanding TODOs
+- `app.py:727` - TODO: implement Discord API call to get member roles
+- `app.py:1685` - TODO: Add email table and fetch emails
+- `bot.py:964` - TODO: Consider refunding the payment automatically here
+- `bot.py:1044` - TODO: Consider refunding the payment automatically here
+
 # Code Quality & Bug Prevention
 
 ## Known Bug Patterns to Audit
