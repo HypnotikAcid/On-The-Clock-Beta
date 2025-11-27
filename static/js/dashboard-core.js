@@ -225,7 +225,7 @@ function createRoleItem(role, type, isCurrent = false) {
     const roleColor = role.color ? role.color.toString(16).padStart(6, '0') : '99aab5';
 
     // Choose emoji based on type
-    const emoji = type === 'admin' ? 'ðŸ›¡ï¸' : 'ðŸŽ­';
+    const emoji = type === 'admin' ? '\u2694' : '\u263A';
 
     div.innerHTML = `
                 <div class="listbox-item-icon" style="background-color: #${roleColor};">
@@ -484,7 +484,7 @@ function renderEmailList(emails) {
 
     emailList.innerHTML = emails.map(email => `
                 <div class="email-item" data-email-id="${email.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(30, 35, 45, 0.6); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 6px; margin-bottom: 8px; transition: all 0.2s ease;">
-                    <span class="email-address" style="color: #C9D1D9; font-size: 14px; flex: 1;">ðŸ“§ ${email.email}</span>
+                    <span class="email-address" style="color: #C9D1D9; font-size: 14px; flex: 1;">\u2709 ${email.email}</span>
                     <button class="email-remove-btn" onclick="removeEmail(${email.id})" style="background: linear-gradient(135deg, #DC2626, #B91C1C); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;">Remove</button>
                 </div>
             `).join('');
@@ -656,7 +656,7 @@ async function loadBannedUsers() {
     const bannedUsersList = document.getElementById('banned-users-list');
     bannedUsersList.innerHTML = `
                 <div style="text-align: center; color: #8B949E; padding: 20px;">
-                    <div style="font-size: 24px; margin-bottom: 8px;">ðŸ”„</div>
+                    <div style="font-size: 24px; margin-bottom: 8px;">\u21BB</div>
                     <div>Loading banned users...</div>
                 </div>
             `;
