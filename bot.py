@@ -3581,7 +3581,7 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
             
             # Default privacy settings to True if no employee record exists
             show_status = emp['show_discord_status'] if emp['show_discord_status'] is not None else True
-            show_last_seen_setting = emp['show_last_seen'] if emp['show_last_seen'] is not None else True
+            show_last_seen = emp['show_last_seen'] if emp['show_last_seen'] is not None else True
             
             employees.append({
                 'user_id': str(user_id),

@@ -9,15 +9,17 @@ Preferred communication style: Simple, everyday language.
 # Recent Fixes (November 27, 2025)
 
 ## Critical Encoding Fixes Applied
-1. **UTF-16 LE Encoding Corruption (app.py)** - Converted corrupted UTF-16 LE file with 138,000+ null bytes to proper UTF-8 UTF-8
+1. **UTF-16 LE Encoding Corruption (app.py)** - Converted corrupted UTF-16 LE file with 138,000+ null bytes to proper UTF-8
 2. **Dashboard Template Recovery** - Restored dashboard.html from git commit 1303f18 (recovered full 704-line version)
 3. **SQL Query Table References** - Fixed bot.py queries to use `employee_profiles` table instead of nonexistent `users` table:
    - `get_active_employees_with_stats()` - Updated table join and column references
    - `get_pending_adjustments()` - Updated table join and privacy settings references
-4. **UTF-8 BOM Removal** - Removed BOM markers from templates/dashboard.html and static/css/dashboard.css
+4. **UTF-8 BOM Removal** - Removed BOM markers from all affected files (dashboard.html, dashboard.css, dashboard-core.js, dashboard-matrix.js, app.py)
 5. **Unicode Character Encoding** - Replaced literal Unicode arrows with HTML entities for reliable rendering:
    - Right arrow: `→` → `&rarr;` (in dashboard-roles.js)
    - Left arrow: `←` → `&larr;` (in dashboard.html and server_selection.html)
+6. **Mojibake Cleanup** - Fixed 56 corrupted character sequences across app.py (48), dashboard.html (4), and dashboard-core.js (4)
+7. **Variable Name Bug Fix** - Fixed `show_last_seen_setting` → `show_last_seen` in `get_active_employees_with_stats()` that caused Employee Status page error
 
 **Status**: ✅ All encoding issues resolved. App fully operational with proper character rendering.
 
