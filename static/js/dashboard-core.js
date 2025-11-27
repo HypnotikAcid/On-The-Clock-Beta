@@ -1,3 +1,11 @@
+// Security: HTML escape utility to prevent XSS
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
 // Server Settings State
 let currentGuildId = null;
 let currentServerData = null;
@@ -68,7 +76,11 @@ document.querySelectorAll('.server-item').forEach(item => {
         document.getElementById('serverNavName').textContent = guildName;
         const serverNavIcon = document.getElementById('serverNavIcon');
         if (guildIcon) {
-            serverNavIcon.innerHTML = `<img src="${guildIcon}" alt="${guildName}">`;
+            const img = document.createElement('img');
+            img.src = guildIcon;
+            img.alt = guildName;
+            serverNavIcon.innerHTML = '';
+            serverNavIcon.appendChild(img);
         } else {
             serverNavIcon.textContent = guildName.charAt(0).toUpperCase();
         }
@@ -228,12 +240,12 @@ function createRoleItem(role, type, isCurrent = false) {
     const emoji = type === 'admin' ? '\u2694' : '\u263A';
 
     div.innerHTML = `
-                <div class="listbox-item-icon" style="background-color: #${roleColor};">
+                <div class="listbox-item-icon" style="background-color: #${escapeHtml(roleColor)};">
                     ${emoji}
                 </div>
                 <div class="listbox-item-info">
-                    <div class="listbox-item-name">${role.name}</div>
-                    <div class="listbox-item-meta">Role ID: ${role.id}</div>
+                    <div class="listbox-item-name">${escapeHtml(role.name)}</div>
+                    <div class="listbox-item-meta">Role ID: ${escapeHtml(role.id)}</div>
                 </div>
             `;
 
@@ -805,14 +817,16 @@ async function loadEmployeeStatus(guildId) {
                     return `${h}h ${m}m`;
                 };
 
+                const safeName = escapeHtml(emp.display_name || 'Unknown User');
+                const safeInitial = emp.display_name ? escapeHtml(emp.display_name.charAt(0).toUpperCase()) : '?';
                 return `
                         <div class="employee-card">
                             <div class="employee-card-header">
                                 <div class="employee-avatar">
-                                    ${emp.display_name ? emp.display_name.charAt(0).toUpperCase() : '?'}
+                                    ${safeInitial}
                                 </div>
                                 <div class="employee-info">
-                                    <h3>${emp.display_name || 'Unknown User'}</h3>
+                                    <h3>${safeName}</h3>
                                     <div class="employee-status">
                                         <span style="width: 8px; height: 8px; background: #57F287; border-radius: 50%; display: inline-block;"></span>
                                         Clocked in for ${durationStr}
@@ -837,7 +851,7 @@ async function loadEmployeeStatus(guildId) {
                         `;
             }).join('');
         } else {
-            container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Error: ${data.error}</div>`;
+            container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Error: ${escapeHtml(data.error)}</div>`;
         }
     } catch (error) {
         console.error('Error loading employees:', error);

@@ -3,6 +3,16 @@
  * Handles UI visibility and data loading based on user role tier
  */
 
+// Security: HTML escape utility to prevent XSS (duplicate for safety if loaded before dashboard-core.js)
+if (typeof escapeHtml !== 'function') {
+    function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+}
+
 // Update Sidebar and UI based on Role
 function updateSidebarForRole(roleTier) {
     const adminItems = document.querySelectorAll('.admin-only');
@@ -80,7 +90,7 @@ async function loadUserAdjustmentHistory(guildId) {
                         </div>
                         
                         <div style="margin-bottom: 10px; color: #C9D1D9; font-size: 14px;">
-                            <strong>Reason:</strong> ${req.reason}
+                            <strong>Reason:</strong> ${escapeHtml(req.reason)}
                         </div>
                         
                         <div class="before-after-grid">
@@ -104,7 +114,7 @@ async function loadUserAdjustmentHistory(guildId) {
                 container.innerHTML = '<div class="empty-state">No adjustment history found.</div>';
             }
         } else {
-            container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Error: ${data.error}</div>`;
+            container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Error: ${escapeHtml(data.error)}</div>`;
         }
     } catch (error) {
         console.error('Error loading history:', error);
