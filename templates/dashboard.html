@@ -1,1169 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - On the Clock</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
-            color: #C9D1D9;
-            min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
-        }
-
-        /* Matrix Background Animation */
-        #matrix-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            opacity: 0.15;
-        }
-
-        /* Main Layout Container */
-        .layout-container {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Left Sidebar */
-        .sidebar {
-            width: 250px;
-            background: rgba(10, 15, 31, 0.95);
-            border-right: 1px solid rgba(212, 175, 55, 0.2);
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            overflow-y: auto;
-            transition: transform 0.3s ease;
-            z-index: 100;
-            pointer-events: auto;
-        }
-
-        .sidebar.mobile-hidden {
-            transform: translateX(-100%);
-        }
-
-        /* Sidebar Logo */
-        .sidebar-logo {
-            padding: 20px;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .sidebar-logo-icon {
-            font-size: 28px;
-        }
-
-        .sidebar-logo-text {
-            font-size: 16px;
-            font-weight: bold;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            line-height: 1.2;
-        }
-
-        /* Sidebar Navigation */
-        .sidebar-nav {
-            flex: 1;
-            padding: 20px 0;
-        }
-
-        .nav-section-title {
-            padding: 0 20px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: #8B949E;
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-        }
-
-        .nav-item {
-            padding: 10px 20px;
-            margin: 2px 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: #C9D1D9;
-            font-size: 14px;
-            font-weight: 500;
-            border: 1px solid transparent;
-        }
-
-        .nav-item:hover {
-            background: rgba(30, 35, 45, 0.6);
-            border-color: rgba(212, 175, 55, 0.15);
-        }
-
-        .nav-item.active {
-            background: rgba(212, 175, 55, 0.15);
-            border-color: rgba(212, 175, 55, 0.3);
-            color: #D4AF37;
-        }
-
-        .nav-item-icon {
-            font-size: 18px;
-            width: 20px;
-            text-align: center;
-        }
-
-        /* Sidebar User Profile */
-        .sidebar-user {
-            padding: 15px;
-            border-top: 1px solid rgba(212, 175, 55, 0.15);
-            background: rgba(10, 15, 31, 0.5);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .sidebar-user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            color: #0D1117;
-            flex-shrink: 0;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
-        }
-
-        .sidebar-user-avatar img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .sidebar-user-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .sidebar-user-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: #C9D1D9;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .sidebar-user-id {
-            font-size: 11px;
-            color: #8B949E;
-            font-family: monospace;
-        }
-
-        .logout-icon {
-            font-size: 18px;
-            color: #8B949E;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-        }
-
-        .logout-icon:hover {
-            background: rgba(237, 66, 69, 0.2);
-            color: #ed4245;
-        }
-
-        /* Mobile Hamburger */
-        .mobile-hamburger {
-            display: none;
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 101;
-            background: rgba(30, 35, 45, 0.9);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 8px;
-            padding: 10px 12px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-        }
-
-        .hamburger-icon {
-            font-size: 24px;
-            color: #D4AF37;
-        }
-
-        /* Mobile Overlay */
-        .mobile-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 280px;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 99;
-        }
-
-        .mobile-overlay.active {
-            display: block;
-        }
-
-        /* Right Content Area */
-        .content-area {
-            flex: 1;
-            margin-left: 250px;
-            padding: 30px;
-            transition: margin-left 0.3s ease;
-        }
-
-        .content-section {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .content-section.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Content Header */
-        .content-header {
-            margin-bottom: 30px;
-        }
-
-        .content-title {
-            font-size: 32px;
-            font-weight: 700;
-            color: #C9D1D9;
-            margin-bottom: 8px;
-        }
-
-        .content-subtitle {
-            font-size: 14px;
-            color: #8B949E;
-        }
-
-        /* Tiles Grid */
-        .tiles-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .tile {
-            background: rgba(30, 35, 45, 0.6);
-            border-radius: 10px;
-            padding: 25px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .tile:hover {
-            border-color: rgba(212, 175, 55, 0.4);
-            background: rgba(30, 35, 45, 0.8);
-        }
-
-        .tile h2 {
-            color: #D4AF37;
-            margin-bottom: 20px;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .tile-icon {
-            font-size: 24px;
-        }
-
-        /* Server List */
-        .servers-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-
-        .server-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px;
-            background: rgba(30, 35, 45, 0.4);
-            border: 1px solid rgba(212, 175, 55, 0.15);
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .server-item:hover {
-            background: rgba(30, 35, 45, 0.7);
-            border-color: rgba(212, 175, 55, 0.4);
-            transform: translateX(5px);
-        }
-
-        .server-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: bold;
-            color: #0D1117;
-            flex-shrink: 0;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
-        }
-
-        .server-icon img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .server-info {
-            flex: 1;
-        }
-
-        .server-name {
-            font-size: 16px;
-            font-weight: 600;
-            color: #C9D1D9;
-            margin-bottom: 5px;
-        }
-
-        .server-meta {
-            display: flex;
-            gap: 15px;
-            font-size: 12px;
-            color: #8B949E;
-        }
-
-        .server-badge {
-            padding: 2px 8px;
-            background: rgba(212, 175, 55, 0.2);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 3px;
-            font-size: 11px;
-            color: #D4AF37;
-        }
-
-        .owner-badge {
-            background: rgba(212, 175, 55, 0.25);
-            border-color: rgba(212, 175, 55, 0.4);
-            color: #F4E5A1;
-        }
-
-        .admin-badge {
-            background: rgba(124, 58, 237, 0.2);
-            border-color: rgba(124, 58, 237, 0.3);
-            color: #A78BFA;
-        }
-
-        .no-servers {
-            text-align: center;
-            padding: 40px;
-            color: #8B949E;
-        }
-
-        .no-servers a {
-            color: #D4AF37;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .no-servers a:hover {
-            color: #F4E5A1;
-            text-decoration: underline;
-        }
-
-        .servers-list::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .servers-list::-webkit-scrollbar-track {
-            background: rgba(30, 35, 45, 0.5);
-            border-radius: 10px;
-        }
-
-        .servers-list::-webkit-scrollbar-thumb {
-            background: rgba(212, 175, 55, 0.5);
-            border-radius: 10px;
-        }
-
-        .servers-list::-webkit-scrollbar-thumb:hover {
-            background: rgba(212, 175, 55, 0.7);
-        }
-
-        /* Action Buttons */
-        .action-buttons-container {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin: 30px 0;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 14px 28px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-        }
-
-        .coffee-button {
-            background: linear-gradient(135deg, #8B4513, #A0522D);
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
-        }
-
-        .coffee-button:hover {
-            background: linear-gradient(135deg, #A0522D, #8B4513);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.5);
-        }
-
-        .support-button {
-            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
-            color: #A78BFA;
-            border: 1px solid rgba(124, 58, 237, 0.3);
-        }
-
-        .support-button:hover {
-            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
-            border-color: rgba(124, 58, 237, 0.5);
-            transform: translateY(-2px);
-        }
-
-        .coffee-icon {
-            display: inline-block;
-            animation: wiggle 2s ease-in-out infinite;
-        }
-
-        @keyframes wiggle {
-
-            0%,
-            100% {
-                transform: rotate(0deg);
-            }
-
-            25% {
-                transform: rotate(-15deg);
-            }
-
-            75% {
-                transform: rotate(15deg);
-            }
-        }
-
-        .coffee-caption {
-            text-align: center;
-            color: #8B949E;
-            font-size: 13px;
-            margin-top: 10px;
-            font-style: italic;
-        }
-
-        /* Server-Specific Navigation */
-        .nav-section {
-            margin-bottom: 15px;
-        }
-
-        .back-to-servers {
-            padding: 10px 20px;
-            margin: 2px 10px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: #A78BFA;
-            font-size: 14px;
-            font-weight: 600;
-            border: 1px solid rgba(124, 58, 237, 0.3);
-            background: rgba(124, 58, 237, 0.1);
-        }
-
-        .back-to-servers:hover {
-            background: rgba(124, 58, 237, 0.2);
-            border-color: rgba(124, 58, 237, 0.5);
-            transform: translateX(-3px);
-        }
-
-        .server-nav-header {
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-            margin-bottom: 10px;
-        }
-
-        .server-nav-icon {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            color: #0D1117;
-            flex-shrink: 0;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
-        }
-
-        .server-nav-icon img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .server-nav-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: #C9D1D9;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Dual Listbox Styles */
-        .dual-listbox-container {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .listbox-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .listbox-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #C9D1D9;
-        }
-
-        .listbox {
-            background: rgba(10, 15, 31, 0.5);
-            border: 1px solid rgba(212, 175, 55, 0.15);
-            border-radius: 8px;
-            padding: 10px;
-            min-height: 250px;
-            max-height: 350px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .listbox-item {
-            background: rgba(30, 35, 45, 0.4);
-            padding: 10px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border: 1px solid transparent;
-        }
-
-        .listbox-item:hover {
-            background: rgba(30, 35, 45, 0.7);
-            border-color: rgba(212, 175, 55, 0.2);
-        }
-
-        .listbox-item.selected {
-            background: rgba(212, 175, 55, 0.2);
-            border: 1px solid rgba(212, 175, 55, 0.4);
-        }
-
-        .listbox-item-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: #0D1117;
-            flex-shrink: 0;
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
-        }
-
-        .listbox-item-info {
-            flex: 1;
-        }
-
-        .listbox-item-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: #C9D1D9;
-        }
-
-        .listbox-item-meta {
-            font-size: 12px;
-            color: #8B949E;
-        }
-
-        .transfer-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .transfer-btn {
-            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
-            color: #A78BFA;
-            border: 1px solid rgba(124, 58, 237, 0.3);
-            padding: 10px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            min-width: 50px;
-        }
-
-        .transfer-btn:hover:not(:disabled) {
-            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
-            border-color: rgba(124, 58, 237, 0.5);
-            transform: translateY(-2px);
-        }
-
-        .transfer-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #8B949E;
-            font-size: 13px;
-        }
-
-        .listbox::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .listbox::-webkit-scrollbar-track {
-            background: rgba(10, 15, 31, 0.5);
-            border-radius: 10px;
-        }
-
-        .listbox::-webkit-scrollbar-thumb {
-            background: rgba(212, 175, 55, 0.5);
-            border-radius: 10px;
-        }
-
-        .listbox::-webkit-scrollbar-thumb:hover {
-            background: rgba(212, 175, 55, 0.7);
-        }
-
-        /* Timezone Selector */
-        .timezone-select {
-            background: rgba(10, 15, 31, 0.5);
-            border: 1px solid rgba(212, 175, 55, 0.15);
-            border-radius: 8px;
-            padding: 12px;
-            color: #C9D1D9;
-            font-size: 14px;
-            width: 100%;
-            cursor: pointer;
-        }
-
-        .timezone-select:focus {
-            outline: none;
-            border-color: rgba(212, 175, 55, 0.5);
-        }
-
-        .save-btn {
-            background: linear-gradient(135deg, #D4AF37, #C19A2E);
-            color: #0D1117;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            margin-top: 15px;
-            width: 100%;
-            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
-        }
-
-        .save-btn:hover {
-            background: linear-gradient(135deg, #E5C147, #D4AF37);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(212, 175, 55, 0.5);
-        }
-
-        /* Sync Notice */
-        .sync-notice {
-            background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.15));
-            border: 2px solid rgba(255, 193, 7, 0.4);
-            border-radius: 10px;
-            padding: 15px 20px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            animation: subtlePulse 3s ease-in-out infinite;
-        }
-
-        @keyframes subtlePulse {
-
-            0%,
-            100% {
-                box-shadow: 0 0 10px rgba(255, 193, 7, 0.2);
-            }
-
-            50% {
-                box-shadow: 0 0 20px rgba(255, 193, 7, 0.4);
-            }
-        }
-
-        .sync-notice-icon {
-            font-size: 24px;
-            flex-shrink: 0;
-        }
-
-        .sync-notice-text {
-            color: #D4AF37;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .sync-notice-text strong {
-            color: #F4E5A1;
-        }
-
-        /* Coming Soon Overlay */
-        .coming-soon-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(26, 26, 46, 0.85);
-            backdrop-filter: blur(5px);
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-            gap: 20px;
-        }
-
-        .coming-soon-text {
-            font-size: 32px;
-            font-weight: bold;
-            color: #D4AF37;
-            text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
-            letter-spacing: 3px;
-            animation: comingSoonPulse 2s ease-in-out infinite;
-        }
-
-        @keyframes comingSoonPulse {
-
-            0%,
-            100% {
-                opacity: 0.8;
-                transform: scale(1);
-            }
-
-            50% {
-                opacity: 1;
-                transform: scale(1.05);
-            }
-        }
-
-        .tile {
-            position: relative;
-        }
-
-        .tile-description {
-            color: #8B949E;
-            font-size: 13px;
-            margin-bottom: 20px;
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 280px;
-            }
-
-            .sidebar.mobile-hidden {
-                transform: translateX(-100%);
-            }
-
-            .mobile-hamburger {
-                display: block;
-            }
-
-            .content-area {
-                margin-left: 0;
-                padding: 70px 15px 20px;
-            }
-
-            .tiles-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .action-buttons-container {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .btn {
-                justify-content: center;
-            }
-
-            .content-title {
-                font-size: 24px;
-            }
-        }
-
-        /* Toggle Switch Styles */
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 26px;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(30, 35, 45, 0.8);
-            transition: 0.4s;
-            border-radius: 34px;
-            border: 1px solid rgba(212, 175, 55, 0.2);
-        }
-
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 4px;
-            bottom: 3px;
-            background-color: rgba(139, 148, 158, 0.6);
-            transition: 0.4s;
-            border-radius: 50%;
-        }
-
-        input:checked+.toggle-slider {
-            background-color: rgba(212, 175, 55, 0.4);
-            border-color: rgba(212, 175, 55, 0.6);
-        }
-
-        input:checked+.toggle-slider:before {
-            transform: translateX(24px);
-            background-color: #D4AF37;
-            box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
-        }
-
-        input:disabled+.toggle-slider {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .toggle-slider:hover {
-            border-color: rgba(212, 175, 55, 0.4);
-        }
-
-        /* Employee Status Styles */
-        .employee-cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .employee-card {
-            background: rgba(30, 35, 45, 0.6);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 10px;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .employee-card:hover {
-            border-color: rgba(212, 175, 55, 0.4);
-            transform: translateY(-2px);
-        }
-
-        .employee-card-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .employee-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: bold;
-            color: #0D1117;
-            flex-shrink: 0;
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
-        }
-
-        .employee-info h3 {
-            color: #C9D1D9;
-            font-size: 16px;
-            margin-bottom: 5px;
-        }
-
-        .employee-status {
-            color: #57F287;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .employee-stats {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-        }
-
-        .stat-label {
-            color: #8B949E;
-        }
-
-        .stat-value {
-            color: #D4AF37;
-            font-weight: 600;
-        }
-
-        /* Attention Bubble Animation */
-        .attention-bubble {
-            position: absolute;
-            top: -45px;
-            left: 0;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            color: #0D1117;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: bold;
-            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
-            animation: bounce 2s ease-in-out infinite;
-            z-index: 10;
-        }
-
-        .attention-bubble:after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 20px;
-            width: 10px;
-            height: 10px;
-            background: #FFA500;
-            transform: rotate(45deg);
-        }
-
-        @keyframes bounce {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-
-        /* Time Adjustment Styles */
-        .adjustment-card {
-            background: rgba(30, 35, 45, 0.6);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .adjustment-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
-        }
-
-        .before-after-grid {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            gap: 20px;
-            align-items: center;
-            margin: 20px 0;
-            background: rgba(10, 15, 31, 0.3);
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .arrow {
-            color: #D4AF37;
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        .adjustment-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 15px;
-        }
-
-        .approve-btn {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10B981;
-            border: 1px solid rgba(16, 185, 129, 0.4);
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .approve-btn:hover {
-            background: rgba(16, 185, 129, 0.3);
-            transform: translateY(-1px);
-        }
-
-        .deny-btn {
-            background: rgba(239, 68, 68, 0.2);
-            color: #EF4444;
-            border: 1px solid rgba(239, 68, 68, 0.4);
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .deny-btn:hover {
-            background: rgba(239, 68, 68, 0.3);
-            transform: translateY(-1px);
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #C9D1D9;
-            font-size: 14px;
-        }
-
-        .form-control {
-            width: 100%;
-            background: rgba(10, 15, 31, 0.5);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 6px;
-            padding: 10px;
-            color: #C9D1D9;
-            font-family: inherit;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: rgba(212, 175, 55, 0.5);
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 
 <body>
@@ -1172,7 +14,7 @@
 
     <!-- Mobile Hamburger -->
     <div class="mobile-hamburger" id="mobileHamburger">
-        <span class="hamburger-icon">☰</span>
+        <span class="hamburger-icon">â˜°</span>
     </div>
 
     <!-- Mobile Overlay -->
@@ -1184,7 +26,7 @@
         <aside class="sidebar" id="sidebar">
             <!-- Logo -->
             <div class="sidebar-logo">
-                <span class="sidebar-logo-icon">⚙️</span>
+                <span class="sidebar-logo-icon">âš™ï¸</span>
                 <div class="sidebar-logo-text">On the Clock<br>Dashboard</div>
             </div>
 
@@ -1194,7 +36,7 @@
                 <div id="main-nav">
                     <div class="nav-section-title">Navigation</div>
                     <div class="nav-item active" data-section="my-servers">
-                        <span class="nav-item-icon">🏢</span>
+                        <span class="nav-item-icon">ðŸ¢</span>
                         <span>My Servers</span>
                     </div>
                 </div>
@@ -1202,7 +44,7 @@
                 <!-- Server-Specific Navigation (hidden by default) -->
                 <div id="server-nav" style="display: none;">
                     <div class="back-to-servers" id="backToServers">
-                        <span>←</span>
+                        <span>â†</span>
                         <span>Back to Servers</span>
                     </div>
                     <div class="server-nav-header" id="serverNavHeader">
@@ -1211,32 +53,32 @@
                     </div>
                     <div class="nav-section-title">Server Settings</div>
                     <div class="nav-item" data-section="server-overview" data-server-menu>
-                        <span class="nav-item-icon">📊</span>
+                        <span class="nav-item-icon">ðŸ“Š</span>
                         <span>Server Overview</span>
                     </div>
                     <div class="nav-item" data-section="admin-roles" data-server-menu>
-                        <span class="nav-item-icon">👥</span>
+                        <span class="nav-item-icon">ðŸ‘¥</span>
                         <span>Admin Roles</span>
                     </div>
                     <div class="nav-item" data-section="employee-roles" data-server-menu>
-                        <span class="nav-item-icon">👷</span>
+                        <span class="nav-item-icon">ðŸ‘·</span>
                         <span>Employee Roles</span>
                     </div>
                     <div class="nav-item" data-section="email-settings" data-server-menu>
-                        <span class="nav-item-icon">📧</span>
+                        <span class="nav-item-icon">ðŸ“§</span>
                         <span>Email Settings</span>
                     </div>
                     <div class="nav-item" data-section="timezone-settings" data-server-menu>
-                        <span class="nav-item-icon">🕐</span>
+                        <span class="nav-item-icon">ðŸ•</span>
                         <span>Timezone Settings</span>
                         <span class="badge tz-reminder" id="tz-reminder-badge" style="display:none; background:#F59E0B; color:#111; padding:2px 6px; border-radius:10px; font-size:10px; margin-left:auto;">Set TZ!</span>
                     </div>
                     <div class="nav-item" data-section="employees" data-server-menu>
-                        <span class="nav-item-icon">👥</span>
+                        <span class="nav-item-icon">ðŸ‘¥</span>
                         <span>Employee Status</span>
                     </div>
                     <div class="nav-item" data-section="adjustments" data-server-menu>
-                        <span class="nav-item-icon">⏱️</span>
+                        <span class="nav-item-icon">â±ï¸</span>
                         <span>Time Adjustments</span>
                         <span class="badge" id="pending-count"
                             style="display:none; background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">0</span>
@@ -1258,7 +100,7 @@
                     <div class="sidebar-user-name">{{ user.username }}</div>
                     <div class="sidebar-user-id">{{ user.user_id[:8] }}...</div>
                 </div>
-                <a href="/auth/logout" class="logout-icon" title="Logout">🚪</a>
+                <a href="/auth/logout" class="logout-icon" title="Logout">ðŸšª</a>
             </div>
         </aside>
 
@@ -1274,7 +116,7 @@
                 <div class="tiles-grid">
                     <!-- Server List Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.guilds|length }})</h2>
+                        <h2><span class="tile-icon">ðŸ¢</span>Managed Servers ({{ user.guilds|length }})</h2>
                         <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
                             Showing servers where On the Clock bot is present and you have admin access
                         </p>
@@ -1296,15 +138,15 @@
                                     <div class="server-meta">
                                         {% if guild.bot_access_paid %}
                                         <span class="server-badge"
-                                            style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15)); border: 1px solid rgba(16, 185, 129, 0.3); color: #10B981;">💰
+                                            style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15)); border: 1px solid rgba(16, 185, 129, 0.3); color: #10B981;">ðŸ’°
                                             Paid</span>
                                         {% endif %}
                                         {% if guild.owner %}
-                                        <span class="server-badge owner-badge">👑 Owner</span>
+                                        <span class="server-badge owner-badge">ðŸ‘‘ Owner</span>
                                         {% elif guild.permissions|has_permission(0x8) %}
-                                        <span class="server-badge admin-badge">⚡ Administrator</span>
+                                        <span class="server-badge admin-badge">âš¡ Administrator</span>
                                         {% elif guild.permissions|has_permission(0x20) %}
-                                        <span class="server-badge admin-badge">🔧 Manage Server</span>
+                                        <span class="server-badge admin-badge">ðŸ”§ Manage Server</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -1315,8 +157,8 @@
                         <div class="no-servers">
                             <p style="margin-bottom: 10px;"><strong>No managed servers found</strong></p>
                             <p style="font-size: 13px;">To see servers here, you need:</p>
-                            <p style="font-size: 13px;">✅ The "On the Clock" bot added to your server</p>
-                            <p style="font-size: 13px;">✅ Admin permissions in that server</p>
+                            <p style="font-size: 13px;">âœ… The "On the Clock" bot added to your server</p>
+                            <p style="font-size: 13px;">âœ… Admin permissions in that server</p>
                             <p style="margin-top: 15px;"><a href="/invite">Add bot to your server</a></p>
                         </div>
                         {% endif %}
@@ -1327,12 +169,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">☕</span>
+                        <span class="coffee-icon">â˜•</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>✉️</span>
+                        <span>âœ‰ï¸</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -1348,7 +190,7 @@
 
                 <!-- Sync Notice -->
                 <div class="sync-notice">
-                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-icon">â±ï¸</div>
                     <div class="sync-notice-text">
                         <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
                         Refresh this page to see the latest updates.
@@ -1357,7 +199,7 @@
 
                 <div class="tiles-grid">
                     <div class="tile">
-                        <h2><span class="tile-icon">📊</span>Server Information</h2>
+                        <h2><span class="tile-icon">ðŸ“Š</span>Server Information</h2>
                         <p class="tile-description">Quick overview of your server configuration and active settings.</p>
                         <p style="color: #C9D1D9; margin-top: 15px;">Select a setting from the sidebar to manage your
                             server.</p>
@@ -1365,7 +207,7 @@
 
                     <!-- Mobile Device Restriction Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">📱</span>Mobile Device Restrictions</h2>
+                        <h2><span class="tile-icon">ðŸ“±</span>Mobile Device Restrictions</h2>
                         <p class="tile-description">Control whether employees can clock in/out from mobile or tablet
                             devices.</p>
 
@@ -1373,7 +215,7 @@
                         <div
                             style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; padding: 12px; margin: 15px 0; border-radius: 6px;">
                             <div style="display: flex; align-items: start; gap: 10px;">
-                                <span style="font-size: 18px; flex-shrink: 0;">⚠️</span>
+                                <span style="font-size: 18px; flex-shrink: 0;">âš ï¸</span>
                                 <div style="font-size: 12px; color: #FCD34D; line-height: 1.6;">
                                     <strong style="display: block; margin-bottom: 6px;">Device Detection
                                         Limitations:</strong>
@@ -1406,7 +248,7 @@
 
                     <!-- Ban Management Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">🚫</span>Ban Management</h2>
+                        <h2><span class="tile-icon">ðŸš«</span>Ban Management</h2>
                         <p class="tile-description">Manage banned users and spam/abuse infractions. Monitor user
                             warnings and control access.</p>
 
@@ -1414,7 +256,7 @@
                         <div
                             style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #EF4444; padding: 12px; margin: 15px 0; border-radius: 6px;">
                             <div style="display: flex; align-items: start; gap: 10px;">
-                                <span style="font-size: 18px; flex-shrink: 0;">⚠️</span>
+                                <span style="font-size: 18px; flex-shrink: 0;">âš ï¸</span>
                                 <div style="font-size: 12px; color: #FCA5A5; line-height: 1.6;">
                                     <strong style="display: block; margin-bottom: 4px;">Important Reminder:</strong>
                                     Excessive spam or abuse may result in the bot being removed from Discord. Use
@@ -1430,13 +272,13 @@
                                 <span style="font-weight: 500; color: #C9D1D9; font-size: 14px;">Banned Users</span>
                                 <button onclick="loadBannedUsers()"
                                     style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60A5FA; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
-                                    🔄 Refresh
+                                    ðŸ”„ Refresh
                                 </button>
                             </div>
                             <div id="banned-users-list"
                                 style="background: rgba(16, 24, 39, 0.6); border: 1px solid rgba(75, 85, 99, 0.4); border-radius: 8px; padding: 12px; min-height: 100px;">
                                 <div style="text-align: center; color: #8B949E; padding: 20px;">
-                                    <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
+                                    <div style="font-size: 24px; margin-bottom: 8px;">ðŸ”„</div>
                                     <div>Loading banned users...</div>
                                 </div>
                             </div>
@@ -1448,12 +290,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">☕</span>
+                        <span class="coffee-icon">â˜•</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>✉️</span>
+                        <span>âœ‰ï¸</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -1469,7 +311,7 @@
 
                 <!-- Sync Notice -->
                 <div class="sync-notice">
-                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-icon">â±ï¸</div>
                     <div class="sync-notice-text">
                         <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
                         Refresh this page to see the latest updates.
@@ -1478,7 +320,7 @@
 
                 <div class="tiles-grid">
                     <div class="tile">
-                        <h2><span class="tile-icon">👥</span>Admin Roles</h2>
+                        <h2><span class="tile-icon">ðŸ‘¥</span>Admin Roles</h2>
                         <p class="tile-description">Set which roles can access admin features like Reports and Upgrade
                             buttons. Discord administrators always have access.</p>
 
@@ -1488,8 +330,8 @@
                                 <div class="listbox" id="available-admin-roles"></div>
                             </div>
                             <div class="transfer-buttons">
-                                <button class="transfer-btn" id="add-admin-role-btn" disabled>→</button>
-                                <button class="transfer-btn" id="remove-admin-role-btn" disabled>←</button>
+                                <button class="transfer-btn" id="add-admin-role-btn" disabled>â†’</button>
+                                <button class="transfer-btn" id="remove-admin-role-btn" disabled>â†</button>
                             </div>
                             <div class="listbox-wrapper">
                                 <div class="listbox-label">Admin Roles</div>
@@ -1503,12 +345,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">☕</span>
+                        <span class="coffee-icon">â˜•</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>✉️</span>
+                        <span>âœ‰ï¸</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -1524,7 +366,7 @@
 
                 <!-- Sync Notice -->
                 <div class="sync-notice">
-                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-icon">â±ï¸</div>
                     <div class="sync-notice-text">
                         <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
                         Refresh this page to see the latest updates.
@@ -1533,7 +375,7 @@
 
                 <div class="tiles-grid">
                     <div class="tile">
-                        <h2><span class="tile-icon">👷</span>Employee Roles</h2>
+                        <h2><span class="tile-icon">ðŸ‘·</span>Employee Roles</h2>
                         <p class="tile-description">Choose which roles can use the /clock command and access timeclock
                             functions.</p>
 
@@ -1543,8 +385,8 @@
                                 <div class="listbox" id="available-roles"></div>
                             </div>
                             <div class="transfer-buttons">
-                                <button class="transfer-btn" id="add-role-btn" disabled>→</button>
-                                <button class="transfer-btn" id="remove-role-btn" disabled>←</button>
+                                <button class="transfer-btn" id="add-role-btn" disabled>â†’</button>
+                                <button class="transfer-btn" id="remove-role-btn" disabled>â†</button>
                             </div>
                             <div class="listbox-wrapper">
                                 <div class="listbox-label">Employee Roles</div>
@@ -1558,12 +400,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">☕</span>
+                        <span class="coffee-icon">â˜•</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>✉️</span>
+                        <span>âœ‰ï¸</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -1580,7 +422,7 @@
                 <div class="tiles-grid">
                     <!-- Email Recipients Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">📧</span>Email Recipients</h2>
+                        <h2><span class="tile-icon">ðŸ“§</span>Email Recipients</h2>
                         <p class="tile-description" style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">Manage
                             email addresses that will receive automated reports</p>
 
@@ -1602,7 +444,7 @@
                         <div class="workday-time-setting"
                             style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
                             <label style="display: block; color: #C9D1D9; font-weight: 500; margin-bottom: 10px;">
-                                🕐 Work Day End Time (for auto-send reports)
+                                ðŸ• Work Day End Time (for auto-send reports)
                             </label>
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 <input type="time" id="work-day-end-time" value="17:00"
@@ -1621,7 +463,7 @@
                             style="background: rgba(10, 15, 31, 0.5); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 8px; padding: 15px; margin-top: 15px; display: flex; flex-direction: column; gap: 12px;">
                             <div class="toggle-item"
                                 style="display: flex; align-items: center; justify-content: space-between;">
-                                <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">📤 Auto-send report
+                                <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">ðŸ“¤ Auto-send report
                                     on clock-out</span>
                                 <label class="toggle-switch" style="position: relative; width: 50px; height: 26px;">
                                     <input type="checkbox" id="toggle-auto-send-clockout"
@@ -1632,7 +474,7 @@
                             </div>
                             <div class="toggle-item"
                                 style="display: flex; align-items: center; justify-content: space-between;">
-                                <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">⏰ Auto-email before
+                                <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">â° Auto-email before
                                     data deletion</span>
                                 <label class="toggle-switch" style="position: relative; width: 50px; height: 26px;">
                                     <input type="checkbox" id="toggle-auto-email-delete"
@@ -1645,14 +487,14 @@
 
                         <div class="email-note"
                             style="margin-top: 15px; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; color: #9CA3AF; font-size: 13px;">
-                            ℹ️ <strong>Note:</strong> Email functionality requires email addresses to be configured. Add
+                            â„¹ï¸ <strong>Note:</strong> Email functionality requires email addresses to be configured. Add
                             recipient emails above to enable auto-send features.
                         </div>
                     </div>
 
                     <!-- Custom Email Formatting Tile (COMING SOON) -->
                     <div class="tile" style="position: relative;">
-                        <h2><span class="tile-icon">✉️</span>Custom Email Formatting</h2>
+                        <h2><span class="tile-icon">âœ‰ï¸</span>Custom Email Formatting</h2>
                         <p class="tile-description" style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
                             Customize the format and appearance of automated email reports</p>
 
@@ -1682,12 +524,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">☕</span>
+                        <span class="coffee-icon">â˜•</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>✉️</span>
+                        <span>âœ‰ï¸</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -1703,7 +545,7 @@
 
                 <!-- Sync Notice -->
                 <div class="sync-notice">
-                    <div class="sync-notice-icon">⏱️</div>
+                    <div class="sync-notice-icon">â±ï¸</div>
                     <div class="sync-notice-text">
                         <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
                         Refresh this page to see the latest updates.
@@ -1712,7 +554,7 @@
 
                 <div class="tiles-grid">
                     <div class="tile">
-                        <h2><span class="tile-icon">🕐</span>Timezone Settings</h2>
+                        <h2><span class="tile-icon">ðŸ•</span>Timezone Settings</h2>
                         <p class="tile-description">Set the timezone for displaying time entries in reports and
                             notifications.</p>
 
@@ -1742,7 +584,7 @@
             <!-- Employee Status Section -->
             <section class="content-section" id="section-employees">
                 <div class="content-header">
-                    <h1 class="content-title">👥 Employee Status</h1>
+                    <h1 class="content-title">ðŸ‘¥ Employee Status</h1>
                     <p class="content-subtitle">View active employees and their hours</p>
                 </div>
 
@@ -1777,13 +619,13 @@
             <!-- Time Adjustments Section -->
             <section class="content-section" id="section-adjustments">
                 <div class="content-header">
-                    <h1 class="content-title">⏱️ Time Adjustments</h1>
+                    <h1 class="content-title">â±ï¸ Time Adjustments</h1>
                     <p class="content-subtitle">Request changes or review pending adjustments</p>
                 </div>
 
                 <!-- Employee View: Submit Request -->
                 <div class="tile" id="employee-adjustment-form-container">
-                    <h2><span class="tile-icon">📝</span>Request Adjustment</h2>
+                    <h2><span class="tile-icon">ðŸ“</span>Request Adjustment</h2>
                     <form id="adjustment-form">
                         <div class="form-group">
                             <label>Adjustment Type</label>
@@ -1823,12 +665,12 @@
             <div class="action-buttons-container">
                 <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                     class="btn coffee-button">
-                    <span class="coffee-icon">☕</span>
+                    <span class="coffee-icon">â˜•</span>
                     <span>Buy Me a Coffee</span>
                 </a>
                 <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                     class="btn support-button">
-                    <span>✉️</span>
+                    <span>âœ‰ï¸</span>
                     <span>App Ideas & Requests</span>
                 </a>
             </div>
@@ -2126,7 +968,7 @@
             const roleColor = role.color ? role.color.toString(16).padStart(6, '0') : '99aab5';
 
             // Choose emoji based on type
-            const emoji = type === 'admin' ? '🛡️' : '🎭';
+            const emoji = type === 'admin' ? 'ðŸ›¡ï¸' : 'ðŸŽ­';
 
             div.innerHTML = `
                 <div class="listbox-item-icon" style="background-color: #${roleColor};">
@@ -2385,7 +1227,7 @@
 
             emailList.innerHTML = emails.map(email => `
                 <div class="email-item" data-email-id="${email.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(30, 35, 45, 0.6); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 6px; margin-bottom: 8px; transition: all 0.2s ease;">
-                    <span class="email-address" style="color: #C9D1D9; font-size: 14px; flex: 1;">📧 ${email.email}</span>
+                    <span class="email-address" style="color: #C9D1D9; font-size: 14px; flex: 1;">ðŸ“§ ${email.email}</span>
                     <button class="email-remove-btn" onclick="removeEmail(${email.id})" style="background: linear-gradient(135deg, #DC2626, #B91C1C); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;">Remove</button>
                 </div>
             `).join('');
@@ -2557,7 +1399,7 @@
             const bannedUsersList = document.getElementById('banned-users-list');
             bannedUsersList.innerHTML = `
                 <div style="text-align: center; color: #8B949E; padding: 20px;">
-                    <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
+                    <div style="font-size: 24px; margin-bottom: 8px;">ðŸ”„</div>
                     <div>Loading banned users...</div>
                 </div>
             `;
@@ -2572,7 +1414,7 @@
                     if (bans.length === 0) {
                         bannedUsersList.innerHTML = `
                             <div style="text-align: center; color: #10B981; padding: 20px;">
-                                <div style="font-size: 24px; margin-bottom: 8px;">✅</div>
+                                <div style="font-size: 24px; margin-bottom: 8px;">âœ…</div>
                                 <div>No banned users</div>
                             </div>
                         `;
@@ -2619,7 +1461,7 @@
                 } else {
                     bannedUsersList.innerHTML = `
                         <div style="text-align: center; color: #EF4444; padding: 20px;">
-                            <div style="font-size: 24px; margin-bottom: 8px;">❌</div>
+                            <div style="font-size: 24px; margin-bottom: 8px;">âŒ</div>
                             <div>Error loading banned users</div>
                         </div>
                     `;
@@ -2628,7 +1470,7 @@
                 console.error('Error loading banned users:', error);
                 bannedUsersList.innerHTML = `
                     <div style="text-align: center; color: #EF4444; padding: 20px;">
-                        <div style="font-size: 24px; margin-bottom: 8px;">❌</div>
+                        <div style="font-size: 24px; margin-bottom: 8px;">âŒ</div>
                         <div>Error: ${error.message}</div>
                     </div>
                 `;
@@ -2821,7 +1663,7 @@
                                             ${req.original_clock_in ? new Date(req.original_clock_in).toLocaleString() : 'None'}
                                         </div>
                                     </div>
-                                    <div class="arrow">→</div>
+                                    <div class="arrow">â†’</div>
                                     <div class="after">
                                         <h5 style="color: #D4AF37; margin-bottom: 8px;">Requested</h5>
                                         <div style="font-size: 13px;">
@@ -2831,8 +1673,8 @@
                                 </div>
                                 
                                 <div class="adjustment-actions">
-                                    <button class="approve-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'approve')">✅ Approve</button>
-                                    <button class="deny-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'deny')">❌ Deny</button>
+                                    <button class="approve-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'approve')">âœ… Approve</button>
+                                    <button class="deny-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'deny')">âŒ Deny</button>
                                 </div>
                             </div>
                         `).join('');
