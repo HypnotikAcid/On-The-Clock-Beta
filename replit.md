@@ -44,6 +44,10 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting & Spam Detection**: In-memory tracking with 30-second windows and 24-hour bans for repeat offenders.
 - **Purge Command Security**: `/purge` command is restricted to server OWNERS and uses a safe purge function for session data.
 - **Employee Role Persistence**: Dashboard role changes are managed through the bot's HTTP API with `BOT_API_SECRET` authentication.
+- **SSRF Protection**: Bot API requests use `BOT_API_BASE_URL` constant with strict guild_id validation (digits only, max 20 chars).
+- **XSS Prevention**: Dashboard JavaScript uses `escapeHtml()` for user data in HTML context and data attributes with `addEventListener` instead of inline event handlers.
+- **SQL Injection Prevention**: All database queries use parameterized statements with `%s` placeholders.
+- **Environment Variables**: Stripe price IDs configured via environment variables (`STRIPE_PRICE_BOT_ACCESS`, `STRIPE_PRICE_RETENTION_7DAY`, `STRIPE_PRICE_RETENTION_30DAY`).
 
 # External Dependencies
 
