@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Debug Console - On the Clock</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+            color: #C9D1D9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(10, 15, 31, 0.85);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #FF6B6B, #FFE66D);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #8B949E;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .header-links a {
+            color: #D4AF37;
+            text-decoration: none;
+            margin-left: 20px;
+            font-size: 14px;
+        }
+
+        .header-links a:hover {
+            text-decoration: underline;
+        }
+
+        .section {
+            background: rgba(10, 15, 31, 0.85);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #D4AF37;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .test-card {
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(100, 100, 120, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .test-card:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .test-card h4 {
+            color: #E6E6E6;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .test-card p {
+            color: #8B949E;
+            font-size: 12px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .test-btn {
+            width: 100%;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .test-btn.primary {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .test-btn.warning {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            color: white;
+        }
+
+        .test-btn.danger {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        .test-btn.info {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+        }
+
+        .test-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .test-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .console-section {
+            margin-top: 30px;
+        }
+
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .console-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .console-actions button {
+            padding: 8px 16px;
+            border: 1px solid rgba(100, 100, 120, 0.3);
+            background: rgba(30, 35, 45, 0.6);
+            color: #C9D1D9;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .console-actions button:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .console-output {
+            background: #0D1117;
+            border: 1px solid rgba(100, 100, 120, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid;
+        }
+
+        .log-entry.info {
+            background: rgba(33, 150, 243, 0.1);
+            border-left-color: #2196F3;
+        }
+
+        .log-entry.success {
+            background: rgba(76, 175, 80, 0.1);
+            border-left-color: #4CAF50;
+        }
+
+        .log-entry.warning {
+            background: rgba(255, 152, 0, 0.1);
+            border-left-color: #FF9800;
+        }
+
+        .log-entry.error {
+            background: rgba(244, 67, 54, 0.1);
+            border-left-color: #f44336;
+        }
+
+        .log-entry.blocked {
+            background: rgba(156, 39, 176, 0.1);
+            border-left-color: #9C27B0;
+        }
+
+        .log-timestamp {
+            color: #6B7280;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+
+        .log-type {
+            font-weight: 600;
+            margin-right: 10px;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .log-type.info { color: #2196F3; }
+        .log-type.success { color: #4CAF50; }
+        .log-type.warning { color: #FF9800; }
+        .log-type.error { color: #f44336; }
+        .log-type.blocked { color: #9C27B0; }
+
+        .log-message {
+            color: #E6E6E6;
+        }
+
+        .log-details {
+            margin-top: 8px;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            font-size: 12px;
+            color: #9CA3AF;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.running { background: #4CAF50; animation: pulse 1.5s infinite; }
+        .status-indicator.idle { background: #6B7280; }
+        .status-indicator.error { background: #f44336; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #8B949E;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(100, 100, 120, 0.3);
+            border-radius: 6px;
+            color: #E6E6E6;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Security Debug Console</h1>
+                <p>Owner-only testing interface for security validations</p>
+            </div>
+            <div class="header-links">
+                <a href="/owner">Owner Dashboard</a>
+                <a href="/dashboard">User Dashboard</a>
+                <a href="/auth/logout">Logout</a>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">SSRF Protection Tests</div>
+            <p style="color: #8B949E; margin-bottom: 20px; font-size: 13px;">
+                These tests validate that the guild_id parameter is properly sanitized to prevent Server-Side Request Forgery attacks.
+            </p>
+
+            <div class="input-group">
+                <label>Test Guild ID (use a valid guild you have access to):</label>
+                <input type="text" id="testGuildId" placeholder="Enter a valid numeric guild ID" value="">
+            </div>
+            <div class="input-group">
+                <label>Test Role ID (use a valid role from that guild):</label>
+                <input type="text" id="testRoleId" placeholder="Enter a valid numeric role ID" value="">
+            </div>
+
+            <div class="test-grid">
+                <div class="test-card">
+                    <h4>Valid Guild ID Test</h4>
+                    <p>Tests with a properly formatted numeric guild ID. Should succeed if you have access.</p>
+                    <button class="test-btn primary" onclick="runTest('valid_guild')">Run Test</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>Path Traversal Attack</h4>
+                    <p>Attempts guild ID with "../" path traversal. Should be BLOCKED with 400 error.</p>
+                    <button class="test-btn danger" onclick="runTest('path_traversal')">Run Test</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>URL Encoded Traversal</h4>
+                    <p>Attempts with URL-encoded "../" (%2F%2E%2E). Should be BLOCKED with 400 error.</p>
+                    <button class="test-btn danger" onclick="runTest('encoded_traversal')">Run Test</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>Special Characters</h4>
+                    <p>Attempts guild ID with @, #, ?, & characters. Should be BLOCKED with 400 error.</p>
+                    <button class="test-btn warning" onclick="runTest('special_chars')">Run Test</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>Empty Guild ID</h4>
+                    <p>Tests with an empty guild ID. Should return 404 or 400 error.</p>
+                    <button class="test-btn warning" onclick="runTest('empty_guild')">Run Test</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>Non-Numeric Guild ID</h4>
+                    <p>Tests with alphabetic characters "abcdefgh". Should be BLOCKED with 400 error.</p>
+                    <button class="test-btn danger" onclick="runTest('non_numeric')">Run Test</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">API Connectivity Tests</div>
+            <div class="test-grid">
+                <div class="test-card">
+                    <h4>Bot API Health Check</h4>
+                    <p>Verifies the internal bot API at localhost:8081 is reachable.</p>
+                    <button class="test-btn info" onclick="runTest('bot_api_health')">Run Test</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>Database Connection</h4>
+                    <p>Tests PostgreSQL database connectivity and query execution.</p>
+                    <button class="test-btn info" onclick="runTest('db_connection')">Run Test</button>
+                </div>
+
+                <div class="test-card">
+                    <h4>Session Validation</h4>
+                    <p>Verifies your current session is valid and properly authenticated.</p>
+                    <button class="test-btn info" onclick="runTest('session_check')">Run Test</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section console-section">
+            <div class="console-header">
+                <div class="console-title">
+                    <span class="status-indicator idle" id="statusIndicator"></span>
+                    Debug Console Output
+                </div>
+                <div class="console-actions">
+                    <button onclick="clearConsole()">Clear</button>
+                    <button onclick="exportLogs()">Export Logs</button>
+                </div>
+            </div>
+            <div class="console-output" id="consoleOutput">
+                <div class="log-entry info">
+                    <span class="log-timestamp">[Ready]</span>
+                    <span class="log-type info">INFO</span>
+                    <span class="log-message">Debug console initialized. Click a test button to begin.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const consoleOutput = document.getElementById('consoleOutput');
+        const statusIndicator = document.getElementById('statusIndicator');
+        let testRunning = false;
+
+        function getTimestamp() {
+            return new Date().toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        function log(type, message, details = null) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            let html = `
+                <span class="log-timestamp">[${getTimestamp()}]</span>
+                <span class="log-type ${type}">${type.toUpperCase()}</span>
+                <span class="log-message">${escapeHtml(message)}</span>
+            `;
+            
+            if (details) {
+                html += `<div class="log-details">${escapeHtml(typeof details === 'object' ? JSON.stringify(details, null, 2) : details)}</div>`;
+            }
+            
+            entry.innerHTML = html;
+            consoleOutput.appendChild(entry);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function setStatus(status) {
+            statusIndicator.className = `status-indicator ${status}`;
+        }
+
+        function clearConsole() {
+            consoleOutput.innerHTML = `
+                <div class="log-entry info">
+                    <span class="log-timestamp">[${getTimestamp()}]</span>
+                    <span class="log-type info">INFO</span>
+                    <span class="log-message">Console cleared.</span>
+                </div>
+            `;
+        }
+
+        function exportLogs() {
+            const logs = consoleOutput.innerText;
+            const blob = new Blob([logs], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `debug-logs-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            log('info', 'Logs exported to file');
+        }
+
+        async function runTest(testType) {
+            if (testRunning) {
+                log('warning', 'A test is already running. Please wait.');
+                return;
+            }
+
+            testRunning = true;
+            setStatus('running');
+
+            const guildId = document.getElementById('testGuildId').value.trim();
+            const roleId = document.getElementById('testRoleId').value.trim();
+
+            log('info', `Starting test: ${testType}`);
+
+            try {
+                const response = await fetch('/debug/run-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        test_type: testType,
+                        guild_id: guildId,
+                        role_id: roleId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.blocked) {
+                        log('blocked', data.message, data.details);
+                    } else {
+                        log('success', data.message, data.details);
+                    }
+                } else {
+                    if (data.expected_failure) {
+                        log('blocked', `EXPECTED BLOCK: ${data.message}`, data.details);
+                    } else {
+                        log('error', data.message, data.details);
+                    }
+                }
+
+            } catch (error) {
+                log('error', `Test failed with exception: ${error.message}`);
+            }
+
+            testRunning = false;
+            setStatus('idle');
+            log('info', `Test "${testType}" completed`);
+        }
+    </script>
+</body>
+</html>

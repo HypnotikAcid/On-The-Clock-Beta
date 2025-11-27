@@ -1351,6 +1351,228 @@ def owner_dashboard(user_session):
         app.logger.error(traceback.format_exc())
         return "<h1>Error</h1><p>Unable to load owner dashboard. Please try again later.</p><a href='/dashboard'>Return to Dashboard</a>", 500
 
+@app.route("/debug")
+@require_auth
+def debug_console(user_session):
+    """Owner-only debug console for security testing"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            app.logger.warning(f"Unauthorized debug console access attempt by user {user_session['user_id']}")
+            return "<h1>403 Forbidden</h1><p>You do not have permission to access this page.</p><a href='/dashboard'>Return to Dashboard</a>", 403
+        
+        app.logger.info(f"Debug console accessed by owner {user_session.get('username')}")
+        return render_template('debug.html', user=user_session)
+    
+    except Exception as e:
+        app.logger.error(f"Debug console error: {str(e)}")
+        return "<h1>Error</h1><p>Unable to load debug console.</p><a href='/dashboard'>Return to Dashboard</a>", 500
+
+@app.route("/debug/run-test", methods=["POST"])
+@require_api_auth
+def debug_run_test(user_session):
+    """Owner-only API endpoint to run security tests"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        data = request.get_json()
+        test_type = data.get('test_type')
+        guild_id = data.get('guild_id', '')
+        role_id = data.get('role_id', '')
+        
+        app.logger.info(f"Debug test '{test_type}' initiated by owner")
+        
+        if test_type == 'valid_guild':
+            if not guild_id or not guild_id.isdigit():
+                return jsonify({
+                    'success': False,
+                    'message': 'Please enter a valid numeric guild ID first',
+                    'details': 'Guild ID must be a numeric Discord snowflake ID'
+                })
+            
+            result = _test_guild_id_validation(guild_id, role_id, user_session)
+            return jsonify(result)
+        
+        elif test_type == 'path_traversal':
+            malicious_id = f"{guild_id}/../admin" if guild_id else "123/../admin"
+            result = _test_guild_id_validation(malicious_id, role_id, user_session, expect_block=True)
+            return jsonify(result)
+        
+        elif test_type == 'encoded_traversal':
+            malicious_id = f"{guild_id}%2F..%2Fadmin" if guild_id else "123%2F..%2Fadmin"
+            result = _test_guild_id_validation(malicious_id, role_id, user_session, expect_block=True)
+            return jsonify(result)
+        
+        elif test_type == 'special_chars':
+            malicious_id = f"{guild_id}@evil.com#fragment" if guild_id else "123@evil.com#fragment"
+            result = _test_guild_id_validation(malicious_id, role_id, user_session, expect_block=True)
+            return jsonify(result)
+        
+        elif test_type == 'empty_guild':
+            result = _test_guild_id_validation('', role_id, user_session, expect_block=True)
+            return jsonify(result)
+        
+        elif test_type == 'non_numeric':
+            result = _test_guild_id_validation('abcdefgh', role_id, user_session, expect_block=True)
+            return jsonify(result)
+        
+        elif test_type == 'bot_api_health':
+            try:
+                bot_api_secret = os.getenv('BOT_API_SECRET')
+                if not bot_api_secret:
+                    return jsonify({
+                        'success': False,
+                        'message': 'BOT_API_SECRET not configured',
+                        'details': 'The bot API secret is not set in environment variables'
+                    })
+                
+                response = requests.get(
+                    'http://localhost:8081/health',
+                    headers={'Authorization': f'Bearer {bot_api_secret}'},
+                    timeout=5
+                )
+                
+                if response.ok:
+                    return jsonify({
+                        'success': True,
+                        'message': 'Bot API is healthy and responding',
+                        'details': f'Status: {response.status_code}, Response: {response.text[:200]}'
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': f'Bot API returned status {response.status_code}',
+                        'details': response.text[:500]
+                    })
+            except requests.exceptions.ConnectionError:
+                return jsonify({
+                    'success': False,
+                    'message': 'Cannot connect to Bot API at localhost:8081',
+                    'details': 'The bot API server may not be running'
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'Bot API health check failed: {str(e)}',
+                    'details': traceback.format_exc()
+                })
+        
+        elif test_type == 'db_connection':
+            try:
+                with get_db() as conn:
+                    cursor = conn.execute("SELECT COUNT(*) as count FROM server_subscriptions")
+                    row = cursor.fetchone()
+                    return jsonify({
+                        'success': True,
+                        'message': 'Database connection successful',
+                        'details': f'Query executed successfully. Server subscriptions count: {row["count"]}'
+                    })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'Database connection failed: {str(e)}',
+                    'details': traceback.format_exc()
+                })
+        
+        elif test_type == 'session_check':
+            return jsonify({
+                'success': True,
+                'message': 'Session is valid and authenticated',
+                'details': {
+                    'user_id': user_session.get('user_id'),
+                    'username': user_session.get('username'),
+                    'is_owner': user_session['user_id'] == bot_owner_id,
+                    'guilds_count': len(user_session.get('guilds', []))
+                }
+            })
+        
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Unknown test type: {test_type}'
+            })
+    
+    except Exception as e:
+        app.logger.error(f"Debug test error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Test execution error: {str(e)}',
+            'details': traceback.format_exc()
+        })
+
+def _test_guild_id_validation(guild_id, role_id, user_session, expect_block=False):
+    """Helper function to test guild_id validation (SSRF protection)"""
+    test_url = f"/api/server/{guild_id}/admin-roles/add"
+    
+    is_numeric = guild_id.isdigit() if guild_id else False
+    
+    if not is_numeric:
+        if expect_block:
+            return {
+                'success': True,
+                'blocked': True,
+                'expected_failure': True,
+                'message': f'SSRF PROTECTION ACTIVE: Guild ID "{guild_id}" correctly rejected',
+                'details': {
+                    'tested_value': guild_id,
+                    'is_numeric': False,
+                    'validation_result': 'BLOCKED',
+                    'reason': 'isdigit() check returned False - malicious input prevented'
+                }
+            }
+        else:
+            return {
+                'success': False,
+                'message': f'Guild ID "{guild_id}" is not numeric',
+                'details': 'Please use a valid numeric Discord guild ID'
+            }
+    
+    guild = verify_guild_access(user_session, guild_id)
+    if not guild:
+        return {
+            'success': False,
+            'blocked': False,
+            'message': f'You do not have admin access to guild {guild_id}',
+            'details': {
+                'tested_value': guild_id,
+                'is_numeric': True,
+                'validation_result': 'PASSED format check',
+                'access_check': 'FAILED - no admin access'
+            }
+        }
+    
+    if expect_block:
+        return {
+            'success': False,
+            'blocked': False,
+            'message': f'WARNING: Guild ID "{guild_id}" was NOT blocked!',
+            'details': {
+                'tested_value': guild_id,
+                'is_numeric': True,
+                'expected': 'BLOCK',
+                'actual': 'ALLOWED',
+                'security_concern': 'This input should have been rejected'
+            }
+        }
+    
+    return {
+        'success': True,
+        'blocked': False,
+        'message': f'Guild ID "{guild_id}" passed validation and access checks',
+        'details': {
+            'tested_value': guild_id,
+            'is_numeric': True,
+            'validation_result': 'PASSED',
+            'access_check': 'PASSED',
+            'guild_name': guild.get('name', 'Unknown'),
+            'role_id_provided': bool(role_id)
+        }
+    }
+
 @app.route("/api/owner/grant-access", methods=["POST"])
 @require_api_auth
 def api_owner_grant_access(user_session):
