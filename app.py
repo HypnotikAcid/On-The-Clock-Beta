@@ -2082,6 +2082,10 @@ def api_add_admin_role(user_session, guild_id):
             app.logger.error("BOT_API_SECRET not configured")
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
         
+        # Validate guild_id format to prevent SSRF
+        if not guild_id.isdigit():
+            return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
+        
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -2131,6 +2135,10 @@ def api_remove_admin_role(user_session, guild_id):
             app.logger.error("BOT_API_SECRET not configured")
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
         
+        # Validate guild_id format to prevent SSRF
+        if not guild_id.isdigit():
+            return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
+        
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -2175,6 +2183,10 @@ def api_add_employee_role(user_session, guild_id):
         if not bot_api_secret:
             app.logger.error("BOT_API_SECRET not configured")
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
+        
+        # Validate guild_id format to prevent SSRF
+        if not guild_id.isdigit():
+            return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
@@ -2228,6 +2240,10 @@ def api_remove_employee_role(user_session, guild_id):
         if not bot_api_secret:
             app.logger.error("BOT_API_SECRET not configured")
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
+        
+        # Validate guild_id format to prevent SSRF
+        if not guild_id.isdigit():
+            return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
