@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Your Profile | On the Clock</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #36393f;
+            --bg-secondary: #2f3136;
+            --bg-tertiary: #202225;
+            --text-normal: #dcddde;
+            --text-muted: #72767d;
+            --header-primary: #fff;
+            --interactive-normal: #b9bbbe;
+            --interactive-hover: #dcddde;
+            --interactive-active: #fff;
+            --brand-color: #5865F2;
+            --brand-hover: #4752C4;
+            --danger-color: #ed4245;
+            --success-color: #3ba55c;
+            --card-bg: #2f3136;
+            --input-bg: #40444b;
+            --border-color: #202225;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-normal);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-section {
+            background: var(--bg-secondary);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .preview-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            color: var(--header-primary);
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-normal);
+            font-family: inherit;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--brand-color);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .toggle-label {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toggle-label span {
+            font-size: 14px;
+            color: var(--text-normal);
+            font-weight: 500;
+            text-transform: none;
+        }
+
+        .toggle-label small {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #72767d;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--success-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(16px);
+        }
+
+        .btn-submit {
+            background-color: var(--brand-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--brand-hover);
+        }
+
+        /* Employee Card Preview Styles */
+        .employee-card {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            width: 300px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            border-left: 4px solid var(--brand-color);
+            transition: all 0.3s ease;
+        }
+
+        .card-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .avatar-container {
+            position: relative;
+            margin-right: 15px;
+        }
+
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--bg-tertiary);
+        }
+
+        .status-indicator {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            /* Default offline */
+            border: 2px solid var(--bg-secondary);
+        }
+
+        .status-online {
+            background-color: var(--success-color);
+        }
+
+        .status-idle {
+            background-color: #faa61a;
+        }
+
+        .status-dnd {
+            background-color: #ed4245;
+        }
+
+        .status-offline {
+            background-color: #747f8d;
+        }
+
+        .user-info h3 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--header-primary);
+        }
+
+        .user-info span {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 4px;
+        }
+
+        .card-body {
+            padding: 15px 20px;
+        }
+
+        .bio-text {
+            font-size: 13px;
+            color: var(--text-normal);
+            line-height: 1.4;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: var(--bg-tertiary);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            display: block;
+        }
+
+        .stat-value {
+            font-size: 14px;
+            color: var(--header-primary);
+            font-weight: 600;
+        }
+
+        .preview-label {
+            margin-bottom: 15px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Form Section -->
+        <div class="form-section">
+            <h1>Setup Your Profile</h1>
+            <p class="subtitle">Complete your employee profile to get started.</p>
+
+            <form action="/setup-profile/{{ token }}" method="POST">
+                <div class="form-group">
+                    <label for="full_name">Full Name</label>
+                    <input type="text" id="full_name" name="full_name" value="{{ profile.full_name }}" required
+                        placeholder="e.g. John Doe">
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address (Admin Only)</label>
+                    <input type="email" id="email" name="email" value="{{ profile.email or '' }}"
+                        placeholder="name@company.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="bio">Bio / Role Description</label>
+                    <textarea id="bio" name="bio" maxlength="200"
+                        placeholder="Briefly describe your role...">{{ profile.bio or '' }}</textarea>
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-label">
+                        <span>Show "Last Seen"</span>
+                        <small>Allow others to see when you were last active</small>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="show_last_seen" {% if profile.show_last_seen %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-label">
+                        <span>Show Discord Status</span>
+                        <small>Display your online/idle status on dashboard</small>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="show_discord_status" {% if profile.show_discord_status %}checked{%
+                            endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-submit">Save Profile</button>
+            </form>
+        </div>
+
+        <!-- Preview Section -->
+        <div class="preview-section">
+            <div class="preview-label">Live Preview</div>
+            <div class="employee-card">
+                <div class="card-header">
+                    <div class="avatar-container">
+                        <img src="{{ profile.avatar_url }}" alt="Avatar" class="avatar">
+                        <div class="status-indicator status-online" id="preview-status"></div>
+                    </div>
+                    <div class="user-info">
+                        <h3 id="preview-name">{{ profile.full_name }}</h3>
+                        <span>{{ profile.position }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="bio-text" id="preview-bio">
+                        {{ profile.bio or 'No bio set yet.' }}
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Today</span>
+                            <span class="stat-value">0h 0m</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Week</span>
+                            <span class="stat-value">0h 0m</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Live Preview Logic
+        const nameInput = document.getElementById('full_name');
+        const bioInput = document.getElementById('bio');
+        const statusToggle = document.querySelector('input[name="show_discord_status"]');
+
+        const previewName = document.getElementById('preview-name');
+        const previewBio = document.getElementById('preview-bio');
+        const previewStatus = document.getElementById('preview-status');
+
+        nameInput.addEventListener('input', (e) => {
+            previewName.textContent = e.target.value || 'Your Name';
+        });
+
+        bioInput.addEventListener('input', (e) => {
+            previewBio.textContent = e.target.value || 'No bio set yet.';
+        });
+
+        statusToggle.addEventListener('change', (e) => {
+            previewStatus.style.display = e.target.checked ? 'block' : 'none';
+        });
+    </script>
+</body>
+
+</html>

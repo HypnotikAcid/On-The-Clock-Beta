@@ -522,6 +522,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         elif self.path.startswith("/success") or self.path.startswith("/cancel"):
             # Handle payment result pages (with or without query parameters)
             self.handle_payment_result()
+        elif self.path.startswith('/api/guild/') and '/employee-status' in self.path:
+            # Handle employee status request
+            self.handle_api_employee_status()
         else:
             self.send_response(404)
             self.end_headers()
@@ -546,6 +549,40 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
     
+    def handle_api_employee_status(self):
+        """Handle GET /api/guild/{id}/employee-status"""
+        try:
+            # Extract guild ID from path /api/guild/{id}/employee-status
+            parts = self.path.split('/')
+            if len(parts) < 4:
+                self.send_json_response({"error": "Invalid path"}, 400)
+                return
+                
+            guild_id_str = parts[3]
+            guild_id = int(guild_id_str)
+            
+            bot_instance = getattr(type(self), 'bot', None)
+            if not bot_instance:
+                self.send_json_response({"error": "Bot not initialized"}, 500)
+                return
+                
+            guild = bot_instance.get_guild(guild_id)
+            if not guild:
+                self.send_json_response({"error": "Guild not found"}, 404)
+                return
+                
+            statuses = {}
+            for member in guild.members:
+                statuses[str(member.id)] = str(member.status)
+                
+            self.send_json_response({"success": True, "statuses": statuses})
+            
+        except ValueError:
+            self.send_json_response({"error": "Invalid guild ID"}, 400)
+        except Exception as e:
+            print(f"❌ Employee status API error: {e}")
+            self.send_json_response({"error": "Server error"}, 500)
+
     def handle_payment_result(self):
         """Handle success/cancel pages"""
         if self.path.startswith("/success"):
@@ -3461,10 +3498,13 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
     
     with db() as conn:
         # Get all unique employees who have sessions in this guild
+        # Join with employees table to get privacy settings
         cursor = conn.execute("""
-            SELECT DISTINCT s.user_id, u.username, u.display_name, u.avatar_url
+            SELECT DISTINCT s.user_id, u.username, u.display_name, u.avatar_url,
+                   e.privacy_show_status, e.privacy_show_last_seen
             FROM sessions s
             LEFT JOIN users u ON s.user_id = u.user_id
+            LEFT JOIN employees e ON s.user_id = e.user_id AND s.guild_id = e.guild_id
             WHERE s.guild_id = %s
             ORDER BY s.user_id
         """, (guild_id,))
@@ -3540,6 +3580,10 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
             hours_month = result['total'] if result and result['total'] else 0
             hours_month += current_duration
             
+            # Default privacy settings to True if no employee record exists
+            show_status = emp['privacy_show_status'] if emp['privacy_show_status'] is not None else True
+            show_last_seen = emp['privacy_show_last_seen'] if emp['privacy_show_last_seen'] is not None else True
+            
             employees.append({
                 'user_id': str(user_id),
                 'username': emp['username'],
@@ -3550,7 +3594,9 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
                 'clock_out': clock_out if clock_out else None,
                 'hours_today': hours_today,
                 'hours_week': hours_week,
-                'hours_month': hours_month
+                'hours_month': hours_month,
+                'privacy_show_status': show_status,
+                'privacy_show_last_seen': show_last_seen
             })
             
     return employees
@@ -4337,6 +4383,134 @@ def sanitize_filename(filename: str) -> str:
     
     return filename
 
+# --- Employee Management Helpers ---
+def ensure_employee_profile(guild_id: int, user_id: int, username: str, display_name: str, avatar_url: str) -> bool:
+    """
+    Ensure an employee profile exists. If not, create a default one.
+    Returns True if a new profile was created, False if it already existed.
+    """
+    with db() as conn:
+        # Check if profile exists
+        cursor = conn.execute(
+            "SELECT 1 FROM employee_profiles WHERE guild_id = %s AND user_id = %s",
+            (guild_id, user_id)
+        )
+        if cursor.fetchone():
+            return False
+            
+        # Create default profile
+        conn.execute("""
+            INSERT INTO employee_profiles 
+            (guild_id, user_id, full_name, display_name, avatar_url, 
+             position, department, hire_date, is_active, 
+             show_last_seen, show_discord_status, profile_setup_completed)
+            VALUES (%s, %s, %s, %s, %s, 'Employee', 'General', NOW(), TRUE, TRUE, TRUE, FALSE)
+        """, (guild_id, user_id, username, display_name, avatar_url))
+        print(f"👤 Created default employee profile for {username} ({user_id}) in guild {guild_id}")
+        return True
+
+def generate_profile_setup_token(guild_id: int, user_id: int) -> str:
+    """Generate a secure token for profile setup."""
+    import uuid
+    token = str(uuid.uuid4())
+    from datetime import timedelta
+    expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+    
+    with db() as conn:
+        conn.execute("""
+            INSERT INTO employee_profile_tokens 
+            (token, guild_id, user_id, created_at, expires_at, is_used, delivery_method)
+            VALUES (%s, %s, %s, NOW(), %s, FALSE, 'dm')
+        """, (token, guild_id, user_id, expires_at))
+        
+    return token
+
+def archive_employee(guild_id: int, user_id: int, reason: str = "left_server"):
+    """Archive an employee profile."""
+    with db() as conn:
+        # Get current profile data
+        cursor = conn.execute(
+            "SELECT * FROM employee_profiles WHERE guild_id = %s AND user_id = %s",
+            (guild_id, user_id)
+        )
+        profile = cursor.fetchone()
+        
+        if not profile:
+            return
+            
+        # Create archive record
+        conn.execute("""
+            INSERT INTO employee_archive
+            (guild_id, user_id, original_profile_data, archived_at, termination_reason)
+            VALUES (%s, %s, %s, NOW(), %s)
+            ON CONFLICT (guild_id, user_id) DO UPDATE
+            SET original_profile_data = EXCLUDED.original_profile_data,
+                archived_at = NOW(),
+                termination_reason = EXCLUDED.termination_reason,
+                reactivated_at = NULL
+        """, (guild_id, user_id, json.dumps(profile, default=str), reason))
+        
+        # Mark profile as inactive
+        conn.execute("""
+            UPDATE employee_profiles 
+            SET is_active = FALSE 
+            WHERE guild_id = %s AND user_id = %s
+        """, (guild_id, user_id))
+        
+        print(f"📦 Archived employee {user_id} in guild {guild_id} (Reason: {reason})")
+
+def reactivate_employee(guild_id: int, user_id: int):
+    """Reactivate an archived employee profile."""
+    with db() as conn:
+        # Check if archived
+        cursor = conn.execute(
+            "SELECT 1 FROM employee_archive WHERE guild_id = %s AND user_id = %s",
+            (guild_id, user_id)
+        )
+        if not cursor.fetchone():
+            return
+            
+        # Reactivate profile
+        conn.execute("""
+            UPDATE employee_profiles 
+            SET is_active = TRUE 
+            WHERE guild_id = %s AND user_id = %s
+        """, (guild_id, user_id))
+        
+        # Update archive record
+        conn.execute("""
+            UPDATE employee_archive
+            SET reactivated_at = NOW()
+            WHERE guild_id = %s AND user_id = %s
+        """, (guild_id, user_id))
+        
+        print(f"♻️ Reactivated employee {user_id} in guild {guild_id}")
+
+# Debounce cache for presence updates
+presence_update_cache = {}
+
+def update_employee_presence(guild_id: int, user_id: int, status: str):
+    """Update employee's last seen status with debounce."""
+    key = f"{guild_id}:{user_id}"
+    now = time.time()
+    
+    # Debounce: Only update every 5 minutes per user
+    if key in presence_update_cache and now - presence_update_cache[key] < 300:
+        return
+        
+    presence_update_cache[key] = now
+    
+    try:
+        with db() as conn:
+            conn.execute("""
+                UPDATE employee_profiles 
+                SET last_seen_discord = NOW(), 
+                    discord_status = %s
+                WHERE guild_id = %s AND user_id = %s AND is_active = TRUE
+            """, (status, guild_id, user_id))
+    except Exception as e:
+        print(f"Error updating presence for {user_id}: {e}")
+
 # --- Discord bot ---
 intents = discord.Intents.default()
 intents.presences = True  # Required for is_on_mobile() to work
@@ -4364,6 +4538,63 @@ async def setup_hook():
     print("✅ Persistent view setup complete - ephemeral interface mode")
 
 bot.setup_hook = setup_hook
+
+@bot.event
+async def on_member_remove(member):
+    """Handle member leaving - archive employee profile"""
+    try:
+        # Check if they were an employee (had profile)
+        archive_employee(member.guild.id, member.id, reason="left_server")
+    except Exception as e:
+        print(f"Error in on_member_remove for {member.id}: {e}")
+
+@bot.event
+async def on_member_update(before, after):
+    """Handle member updates - check for role changes to reactivate"""
+    if before.roles == after.roles:
+        return
+        
+    try:
+        guild_id = after.guild.id
+        employee_roles = get_employee_roles(guild_id)
+        
+        # Check if they gained an employee role
+        had_role = any(r.id in employee_roles for r in before.roles)
+        has_role = any(r.id in employee_roles for r in after.roles)
+        
+        if not had_role and has_role:
+            # Employee role added - reactivate if archived
+            reactivate_employee(guild_id, after.id)
+            # Also ensure profile exists
+            ensure_employee_profile(
+                guild_id, after.id, 
+                after.name, after.display_name, 
+                str(after.avatar.url) if after.avatar else str(after.default_avatar.url)
+            )
+            
+    except Exception as e:
+        print(f"Error in on_member_update for {after.id}: {e}")
+
+@bot.event
+async def on_presence_update(before, after):
+    """Track employee activity"""
+    try:
+        if after.bot:
+            return
+            
+        status_map = {
+            discord.Status.online: 'online',
+            discord.Status.idle: 'idle',
+            discord.Status.dnd: 'dnd',
+            discord.Status.offline: 'offline'
+        }
+        
+        status = status_map.get(after.status, 'offline')
+        update_employee_presence(after.guild.id, after.id, status)
+        
+    except Exception as e:
+        # Fail silently to avoid log spam
+        pass
 
 class TimeClockView(discord.ui.View):
     """
@@ -4726,6 +4957,52 @@ class TimeClockView(discord.ui.View):
                 return
                 
             start_session(guild_id, user_id, now_utc().isoformat())
+            
+            # --- NEW: Profile Setup Logic ---
+            try:
+                # Ensure profile exists
+                avatar_url = str(interaction.user.avatar.url) if interaction.user.avatar else str(interaction.user.default_avatar.url)
+                ensure_employee_profile(
+                    guild_id, user_id, 
+                    interaction.user.name, interaction.user.display_name, 
+                    avatar_url
+                )
+                
+                # Check if we should send setup link (first clock-in)
+                with db() as conn:
+                    cursor = conn.execute(
+                        "SELECT profile_sent_on_first_clockin, profile_setup_completed FROM employee_profiles WHERE guild_id = %s AND user_id = %s",
+                        (guild_id, user_id)
+                    )
+                    row = cursor.fetchone()
+                    
+                    if row and not row['profile_sent_on_first_clockin'] and not row['profile_setup_completed']:
+                        # Generate token and link
+                        token = generate_profile_setup_token(guild_id, user_id)
+                        domain = get_domain()
+                        protocol = "https" if "replit.app" in domain else "http"
+                        setup_url = f"{protocol}://{domain}/setup-profile/{token}"
+                        
+                        # Send ephemeral message with link
+                        await interaction.followup.send(
+                            f"✅ **Clocked In!**\n\n"
+                            f"👋 **Welcome to the team!**\n"
+                            f"Please take a moment to set up your employee profile:\n"
+                            f"👉 [**Complete Your Profile**]({setup_url})\n"
+                            f"*(This link expires in 30 days)*", 
+                            ephemeral=True
+                        )
+                        
+                        # Mark as sent
+                        conn.execute(
+                            "UPDATE employee_profiles SET profile_sent_on_first_clockin = TRUE WHERE guild_id = %s AND user_id = %s",
+                            (guild_id, user_id)
+                        )
+                        return # Exit early since we sent the message
+            except Exception as e:
+                print(f"Error in profile setup logic: {e}")
+            # --------------------------------
+            
             await interaction.followup.send("✅ Clocked in. Have a great shift!", ephemeral=True)
             
         except (discord.NotFound, discord.errors.NotFound):
@@ -5443,6 +5720,35 @@ async def on_ready():
         print(f"✅ Updated bot_guilds table with {len(bot.guilds)} guilds")
     except Exception as e:
         print(f"❌ Error updating bot_guilds table: {e}")
+
+    # --- Employee Profile Catch-up ---
+    print("🔄 Running employee profile catch-up...")
+    try:
+        with db() as conn:
+            for guild in bot.guilds:
+                try:
+                    employee_roles = get_employee_roles(guild.id)
+                    if not employee_roles:
+                        continue
+                        
+                    for member in guild.members:
+                        if member.bot:
+                            continue
+                            
+                        # Check if they have an employee role
+                        has_role = any(r.id in employee_roles for r in member.roles)
+                        if has_role:
+                            # Ensure profile exists
+                            ensure_employee_profile(
+                                guild.id, member.id, 
+                                member.name, member.display_name, 
+                                str(member.avatar.url) if member.avatar else str(member.default_avatar.url)
+                            )
+                except Exception as e:
+                    print(f"Error processing guild {guild.id} for catch-up: {e}")
+        print("✅ Employee profile catch-up complete")
+    except Exception as e:
+        print(f"❌ Error in employee profile catch-up: {e}")
 
 def create_setup_embed() -> discord.Embed:
     """Create the setup instructions embed (reusable for DMs and button responses)"""
