@@ -20,8 +20,11 @@ Preferred communication style: Simple, everyday language.
    - Left arrow: `←` → `&larr;` (in dashboard.html and server_selection.html)
 6. **Mojibake Cleanup** - Fixed 56 corrupted character sequences across app.py (48), dashboard.html (4), and dashboard-core.js (4)
 7. **Variable Name Bug Fix** - Fixed `show_last_seen_setting` → `show_last_seen` in `get_active_employees_with_stats()` that caused Employee Status page error
+8. **RealDictRow Tuple Unpacking Bugs** - Fixed critical bugs where tuple unpacking of database results returned KEYS instead of VALUES:
+   - `get_server_tier()` line 2824: Changed `tier, status = result` → dictionary access
+   - `subscription_status` command line 7351: Changed 5-variable tuple unpack → dictionary access
 
-**Status**: ✅ All encoding issues resolved. App fully operational with proper character rendering.
+**Status**: ✅ All encoding and variable issues resolved. App fully operational with proper data access.
 
 # System Architecture
 

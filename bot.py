@@ -2821,7 +2821,8 @@ def get_server_tier(guild_id: int) -> str:
         if not result:
             return "free"
         
-        tier, status = result
+        tier = result['tier']
+        status = result['status']
         # If subscription is canceled, treat as free tier
         if status == "canceled":
             return "free"
@@ -7348,7 +7349,11 @@ async def subscription_status(interaction: discord.Interaction):
                 expires_at = None
                 status = "active"
             else:
-                tier, subscription_id, customer_id, expires_at, status = result
+                tier = result['tier']
+                subscription_id = result['subscription_id']
+                customer_id = result['customer_id']
+                expires_at = result['expires_at']
+                status = result['status']
         
         tier_colors = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
         tier_emojis = {"free": "🆓", "basic": "💼", "pro": "⭐"}
