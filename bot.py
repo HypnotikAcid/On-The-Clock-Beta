@@ -203,9 +203,9 @@ user_interaction_timestamps = {}  # {(guild_id, user_id, button_name): [timestam
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 STRIPE_PRICE_IDS = {
-    'bot_access': os.getenv('STRIPE_PRICE_BOT_ACCESS', 'price_1SDH0m3Jrp0J9AdlcP3QvEAt'),
-    'retention_7day': os.getenv('STRIPE_PRICE_RETENTION_7DAY', 'price_1SAHpL3Jrp0J9Adlfowh5qpr'),
-    'retention_30day': os.getenv('STRIPE_PRICE_RETENTION_30DAY', 'price_1SAHqH3Jrp0J9AdlFSJpJ32A')
+    'bot_access': os.getenv('STRIPE_PRICE_BOT_ACCESS'),
+    'retention_7day': os.getenv('STRIPE_PRICE_RETENTION_7DAY'),
+    'retention_30day': os.getenv('STRIPE_PRICE_RETENTION_30DAY')
 }
 
 # Session storage - now using database for persistence instead of in-memory dictionaries

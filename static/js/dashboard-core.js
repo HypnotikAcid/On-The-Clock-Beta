@@ -495,11 +495,21 @@ function renderEmailList(emails) {
     }
 
     emailList.innerHTML = emails.map(email => `
-                <div class="email-item" data-email-id="${email.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(30, 35, 45, 0.6); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 6px; margin-bottom: 8px; transition: all 0.2s ease;">
-                    <span class="email-address" style="color: #C9D1D9; font-size: 14px; flex: 1;">\u2709 ${email.email}</span>
-                    <button class="email-remove-btn" onclick="removeEmail(${email.id})" style="background: linear-gradient(135deg, #DC2626, #B91C1C); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;">Remove</button>
+                <div class="email-item" data-email-id="${escapeHtml(email.id)}" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(30, 35, 45, 0.6); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 6px; margin-bottom: 8px; transition: all 0.2s ease;">
+                    <span class="email-address" style="color: #C9D1D9; font-size: 14px; flex: 1;">\u2709 ${escapeHtml(email.email)}</span>
+                    <button class="email-remove-btn" data-email-id="${escapeHtml(email.id)}" style="background: linear-gradient(135deg, #DC2626, #B91C1C); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;">Remove</button>
                 </div>
             `).join('');
+    
+    // Attach event listeners safely using data attributes
+    emailList.querySelectorAll('.email-remove-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const emailId = parseInt(this.dataset.emailId, 10);
+            if (!isNaN(emailId)) {
+                removeEmail(emailId);
+            }
+        });
+    });
 }
 
 async function addEmail() {
@@ -709,13 +719,13 @@ async function loadBannedUsers() {
 
                     tableHTML += `
                                 <tr style="border-bottom: 1px solid rgba(75, 85, 99, 0.2);">
-                                    <td style="padding: 10px; color: #C9D1D9; font-family: monospace;">${ban.user_id}</td>
-                                    <td style="padding: 10px; color: #8B949E;">${bannedAt}</td>
+                                    <td style="padding: 10px; color: #C9D1D9; font-family: monospace;">${escapeHtml(ban.user_id)}</td>
+                                    <td style="padding: 10px; color: #8B949E;">${escapeHtml(bannedAt)}</td>
                                     <td style="padding: 10px; color: ${isExpired ? '#10B981' : '#C9D1D9'};">
-                                        ${expiresAt}${isExpired ? ' (Expired)' : ''}
+                                        ${escapeHtml(expiresAt)}${isExpired ? ' (Expired)' : ''}
                                     </td>
-                                    <td style="padding: 10px; text-align: center; color: #F59E0B; font-weight: 600;">${ban.warning_count}</td>
-                                    <td style="padding: 10px; color: #8B949E;">${ban.reason}</td>
+                                    <td style="padding: 10px; text-align: center; color: #F59E0B; font-weight: 600;">${escapeHtml(ban.warning_count)}</td>
+                                    <td style="padding: 10px; color: #8B949E;">${escapeHtml(ban.reason)}</td>
                                 </tr>
                             `;
                 });
@@ -740,7 +750,7 @@ async function loadBannedUsers() {
         bannedUsersList.innerHTML = `
                     <div style="text-align: center; color: #EF4444; padding: 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">\u274C</div>
-                        <div>Error: ${error.message}</div>
+                        <div>Error: ${escapeHtml(error.message)}</div>
                     </div>
                 `;
     }
@@ -908,23 +918,29 @@ async function loadPendingAdjustments(guildId) {
                 countBadge.textContent = data.requests.length;
                 countBadge.style.display = 'inline-block';
 
-                container.innerHTML = data.requests.map(req => `
-                            <div class="adjustment-card" id="req-${req.id}">
+                container.innerHTML = data.requests.map(req => {
+                    const safeUsername = escapeHtml(req.username || '');
+                    const safeDisplayName = escapeHtml(req.display_name || req.username || 'Unknown');
+                    const safeInitial = safeUsername ? escapeHtml(req.username.charAt(0).toUpperCase()) : '?';
+                    const safeReason = escapeHtml(req.reason || '');
+                    const safeRequestType = escapeHtml(req.request_type.replace('_', ' ').toUpperCase());
+                    return `
+                            <div class="adjustment-card" id="req-${escapeHtml(req.id)}">
                                 <div class="adjustment-header">
                                     <div class="employee-avatar" style="width: 40px; height: 40px; font-size: 16px;">
-                                        ${req.username ? req.username.charAt(0).toUpperCase() : '?'}
+                                        ${safeInitial}
                                     </div>
                                     <div class="employee-info">
-                                        <h3 style="font-size: 15px;">${req.display_name || req.username}</h3>
+                                        <h3 style="font-size: 15px;">${safeDisplayName}</h3>
                                         <div style="font-size: 12px; color: #8B949E;">Requested ${new Date(req.created_at).toLocaleString()}</div>
                                     </div>
                                     <div style="margin-left: auto; font-size: 12px; background: rgba(212, 175, 55, 0.1); color: #D4AF37; padding: 4px 8px; border-radius: 4px;">
-                                        ${req.request_type.replace('_', ' ').toUpperCase()}
+                                        ${safeRequestType}
                                     </div>
                                 </div>
                                 
                                 <div style="margin-bottom: 15px; color: #C9D1D9; font-size: 14px;">
-                                    <strong>Reason:</strong> ${req.reason}
+                                    <strong>Reason:</strong> ${safeReason}
                                 </div>
                                 
                                 <div class="before-after-grid">
@@ -944,11 +960,23 @@ async function loadPendingAdjustments(guildId) {
                                 </div>
                                 
                                 <div class="adjustment-actions">
-                                    <button class="approve-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'approve')">✅ Approve</button>
-                                    <button class="deny-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'deny')">\u274C Deny</button>
+                                    <button class="approve-btn" data-guild-id="${escapeHtml(guildId)}" data-request-id="${escapeHtml(req.id)}" data-action="approve">✅ Approve</button>
+                                    <button class="deny-btn" data-guild-id="${escapeHtml(guildId)}" data-request-id="${escapeHtml(req.id)}" data-action="deny">\u274C Deny</button>
                                 </div>
                             </div>
-                        `).join('');
+                        `;}).join('');
+                
+                // Attach event listeners safely using data attributes
+                container.querySelectorAll('.approve-btn, .deny-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const gId = parseInt(this.dataset.guildId, 10);
+                        const rId = parseInt(this.dataset.requestId, 10);
+                        const action = this.dataset.action;
+                        if (!isNaN(gId) && !isNaN(rId) && (action === 'approve' || action === 'deny')) {
+                            handleAdjustment(gId, rId, action);
+                        }
+                    });
+                });
             } else {
                 countBadge.style.display = 'none';
                 container.innerHTML = '<div class="empty-state">No pending requests.</div>';
