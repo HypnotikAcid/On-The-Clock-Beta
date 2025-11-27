@@ -718,7 +718,7 @@ async function loadBannedUsers() {
         } else {
             bannedUsersList.innerHTML = `
                         <div style="text-align: center; color: #EF4444; padding: 20px;">
-                            <div style="font-size: 24px; margin-bottom: 8px;">aŒ</div>
+                            <div style="font-size: 24px; margin-bottom: 8px;">\u274C</div>
                             <div>Error loading banned users</div>
                         </div>
                     `;
@@ -727,7 +727,7 @@ async function loadBannedUsers() {
         console.error('Error loading banned users:', error);
         bannedUsersList.innerHTML = `
                     <div style="text-align: center; color: #EF4444; padding: 20px;">
-                        <div style="font-size: 24px; margin-bottom: 8px;">aŒ</div>
+                        <div style="font-size: 24px; margin-bottom: 8px;">\u274C</div>
                         <div>Error: ${error.message}</div>
                     </div>
                 `;
@@ -920,7 +920,7 @@ async function loadPendingAdjustments(guildId) {
                                             ${req.original_clock_in ? new Date(req.original_clock_in).toLocaleString() : 'None'}
                                         </div>
                                     </div>
-                                    <div class="arrow">a†’</div>
+                                    <div class="arrow">\u2192</div>
                                     <div class="after">
                                         <h5 style="color: #D4AF37; margin-bottom: 8px;">Requested</h5>
                                         <div style="font-size: 13px;">
@@ -931,7 +931,7 @@ async function loadPendingAdjustments(guildId) {
                                 
                                 <div class="adjustment-actions">
                                     <button class="approve-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'approve')">✅ Approve</button>
-                                    <button class="deny-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'deny')">aŒ Deny</button>
+                                    <button class="deny-btn" onclick="handleAdjustment(${guildId}, ${req.id}, 'deny')">\u274C Deny</button>
                                 </div>
                             </div>
                         `).join('');
