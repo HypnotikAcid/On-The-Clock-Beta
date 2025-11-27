@@ -28,6 +28,44 @@ Preferred communication style: Simple, everyday language.
 
 **Status**: ✅ All encoding and variable issues resolved. App fully operational with proper data access.
 
+# Code Quality & Bug Prevention
+
+## Known Bug Patterns to Audit
+
+### 1. RealDictRow Tuple Unpacking (CRITICAL)
+**Pattern**: `a, b, c = cursor.fetchone()` or `for x, y in cursor.fetchall()`
+**Problem**: Unpacks column NAMES not VALUES when using psycopg2 RealDictCursor
+**Fix**: Always use `row['column_name']` dictionary access
+**Search**: `grep -n ", .* = .*row\|, .* = .*result" bot.py app.py`
+
+### 2. Missing None Guards
+**Pattern**: `result = cursor.fetchone()` followed by `result['key']` without check
+**Problem**: Crashes if query returns no rows
+**Fix**: Always check `if result:` or `if result is None: return`
+**Search**: `grep -n "fetchone()\[" bot.py app.py`
+
+### 3. Variable Name Mismatches
+**Pattern**: Similar variable names with different suffixes (_setting, _status, etc.)
+**Problem**: Using wrong variable name causes NameError or wrong data
+**Fix**: Verify variable names match between assignment and usage
+**Search**: `grep -n "show_last_seen" bot.py` (check for variants)
+
+### 4. Encoding Issues (from Antigravity editor)
+**Pattern**: Files saved as UTF-16 LE instead of UTF-8
+**Problem**: Null bytes corrupt file, mojibake characters appear
+**Fix**: Convert to UTF-8, use HTML entities for special chars
+**Check**: `file --mime-encoding *.py`
+
+## Master Audit Prompt
+Use this to request a comprehensive audit:
+> "Audit bot.py and app.py for: (1) tuple unpacking of database rows - must use dictionary access; (2) variable name mismatches; (3) None checks before accessing fetchone() results; (4) encoding issues. Report exact file/line for each issue."
+
+## Prevention Rules
+- **Database rows**: ALWAYS use `row['column']` never `a, b = row`
+- **Query results**: ALWAYS check `if result:` before `result['key']`
+- **Special characters**: Use HTML entities (`&rarr;`, `&larr;`) in templates
+- **File encoding**: Ensure editor saves as UTF-8
+
 # System Architecture
 
 ## Bot Framework
