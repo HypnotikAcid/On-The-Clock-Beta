@@ -1,0 +1,174 @@
+Security Debug Console
+Test the SSRF security fix before deploying
+
+Owner Dashboard Dashboard Logout
+How This Works (Quick Guide)
+1
+No Setup Needed for Attack Tests
+The purple "Attack Simulation" buttons work without any IDs. They test if malicious input is blocked.
+
+2
+What You're Testing
+We patched code that builds URLs. Attackers could have injected "../" to access wrong endpoints.
+
+3
+Expected Results
+Attack tests should show BLOCKED. This means the security fix is working.
+
+4
+Run All Tests
+Click the button below to run all security tests automatically and see a summary.
+
+Run All Security Tests
+Test Results Summary
+Path Traversal
+PASS
+Encoded Traversal
+PASS
+Special Characters
+PASS
+Non-Numeric ID
+PASS
+Empty Guild ID
+PASS
+Overall Result
+ALL TESTS PASSED
+Security Tests (No Setup Required)
+These tests verify that malicious guild IDs are blocked. Click any button - they use test data automatically.
+
+Path Traversal Attack
+Simulates an attacker trying to access different API endpoints using "../" in the URL.
+
+Expected Result
+BLOCKED - Returns 400 Error
+Run Attack Simulation
+URL Encoded Traversal
+Tests if URL-encoded "../" (%2F%2E%2E) bypasses the security check.
+
+Expected Result
+BLOCKED - Returns 400 Error
+Run Attack Simulation
+Special Characters
+Tests if @, #, ?, & characters can be injected into the guild ID.
+
+Expected Result
+BLOCKED - Returns 400 Error
+Run Attack Simulation
+Non-Numeric ID
+Tests if alphabetic characters like "abcdefgh" are rejected.
+
+Expected Result
+BLOCKED - Returns 400 Error
+Run Attack Simulation
+Empty Guild ID
+Tests what happens when no guild ID is provided.
+
+Expected Result
+BLOCKED - Returns Error
+Run Attack Simulation
+System Health Checks
+Verify your backend services are running correctly.
+
+Database Connection
+Verifies PostgreSQL database is accessible and queries work.
+
+Expected Result
+SUCCESS - Connected
+Check Database
+Session Status
+Confirms your login session is valid and shows your account info.
+
+Expected Result
+SUCCESS - Authenticated
+Check Session
+Bot API Connection
+Tests if the Discord bot's internal API is reachable.
+
+Expected Result
+SUCCESS - API Responding
+Check Bot API
+Optional: Test With Real Guild
+When Would You Use This?
+Only if you want to verify that legitimate requests still work after the security patch. This is optional - the attack tests above are the important ones.
+
+Guild ID (Copy from your dashboard URL or Discord developer mode)
+Example: 1234567890123456789
+Valid Guild Test
+Tests that a real guild ID you have access to works correctly with the security patch.
+
+Expected Result
+SUCCESS - If you have access
+Test Real Guild
+Test Output Console
+Clear Export
+READY
+Click any test button above to start. Attack simulations should show "BLOCKED" in purple.
+[18:21:27]
+INFO
+=== Starting All Security Tests ===
+[18:21:27]
+INFO
+Running test: Path Traversal Attack...
+[18:21:27]
+BLOCKED
+SSRF PROTECTION ACTIVE: Guild ID "123/../admin" correctly rejected
+{
+  "is_numeric": false,
+  "reason": "isdigit() check returned False - malicious input prevented",
+  "tested_value": "123/../admin",
+  "validation_result": "BLOCKED"
+}
+[18:21:28]
+INFO
+Running test: URL Encoded Traversal...
+[18:21:28]
+BLOCKED
+SSRF PROTECTION ACTIVE: Guild ID "123%2F..%2Fadmin" correctly rejected
+{
+  "is_numeric": false,
+  "reason": "isdigit() check returned False - malicious input prevented",
+  "tested_value": "123%2F..%2Fadmin",
+  "validation_result": "BLOCKED"
+}
+[18:21:29]
+INFO
+Running test: Special Characters...
+[18:21:29]
+BLOCKED
+SSRF PROTECTION ACTIVE: Guild ID "123@evil.com#fragment" correctly rejected
+{
+  "is_numeric": false,
+  "reason": "isdigit() check returned False - malicious input prevented",
+  "tested_value": "123@evil.com#fragment",
+  "validation_result": "BLOCKED"
+}
+[18:21:30]
+INFO
+Running test: Non-Numeric ID...
+[18:21:30]
+BLOCKED
+SSRF PROTECTION ACTIVE: Guild ID "abcdefgh" correctly rejected
+{
+  "is_numeric": false,
+  "reason": "isdigit() check returned False - malicious input prevented",
+  "tested_value": "abcdefgh",
+  "validation_result": "BLOCKED"
+}
+[18:21:31]
+INFO
+Running test: Empty Guild ID...
+[18:21:31]
+BLOCKED
+SSRF PROTECTION ACTIVE: Guild ID "" correctly rejected
+{
+  "is_numeric": false,
+  "reason": "isdigit() check returned False - malicious input prevented",
+  "tested_value": "",
+  "validation_result": "BLOCKED"
+}
+[18:21:31]
+INFO
+=== All Security Tests Complete ===
+[18:21:31]
+SUCCESS
+All security tests passed! The SSRF vulnerability has been successfully patched.
