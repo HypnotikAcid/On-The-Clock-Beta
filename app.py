@@ -3166,10 +3166,10 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_ENV") != "production"
     
-    print(f"≡ƒîÉ Starting Landing Page Server...")
-    print(f"≡ƒöº Environment: {os.environ.get('FLASK_ENV', 'development')}")
-    print(f"≡ƒîÉ Port: {port}")
-    print(f"≡ƒÉ¢ Debug: {debug}")
+    print(f"🚀 Starting Landing Page Server...")
+    print(f"🌍 Environment: {os.environ.get('FLASK_ENV', 'development')}")
+    print(f"🔌 Port: {port}")
+    print(f"🐛 Debug: {debug}")
     
     # Run Flask app
     app.run(host="0.0.0.0", port=port, debug=debug)
