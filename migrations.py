@@ -195,6 +195,19 @@ def run_migrations():
                     )
                 """)
 
+                # Add missing columns to employee_profiles if they don't exist
+                print("   Checking for missing columns in employee_profiles")
+                alter_queries = [
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS full_name TEXT",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS display_name TEXT",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS position TEXT",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS department TEXT",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS discord_status TEXT"
+                ]
+                for query in alter_queries:
+                    cur.execute(query)
+
         print("✅ Database schema is up to date")
         return True
 

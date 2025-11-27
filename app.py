@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Flask app for On the Clock - landing page and OAuth dashboard.
 """
@@ -23,6 +23,16 @@ import stripe
 from stripe import SignatureVerificationError
 
 app = Flask(__name__)
+# Environment Variables
+DATABASE_URL = os.environ.get('DATABASE_URL')
+DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
+DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
+DISCORD_API_BASE = 'https://discord.com/api/v10'
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+
+app_db_pool = None
+
 
 # Import helper functions from bot.py for Stripe webhook handling
 from bot import (
@@ -50,10 +60,10 @@ def start_discord_bot():
     try:
         import asyncio
         from bot import run_bot_with_api
-        app.logger.info("🤖 Starting Discord bot in background thread...")
+        app.logger.info("ðŸ¤– Starting Discord bot in background thread...")
         asyncio.run(run_bot_with_api())
     except Exception as e:
-        app.logger.error(f"❌ Error starting Discord bot: {e}")
+        app.logger.error(f"âŒ Error starting Discord bot: {e}")
         import traceback
         traceback.print_exc()
 
@@ -68,94 +78,7 @@ if __name__ != '__main__':
         
         bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
         bot_thread.start()
-        app.logger.info("✅ Discord bot thread started in worker")
-
-# Configure logging to work with Gunicorn
-if __name__ != '__main__':
-    gunicorn_logger = logging.getLogger('gunicorn.error')
-    app.logger.handlers = gunicorn_logger.handlers
-    app.logger.setLevel(gunicorn_logger.level)
-else:
-    logging.basicConfig(level=logging.DEBUG)
-
-# Custom Jinja2 filter for Discord permission checking
-@app.template_filter('has_permission')
-def has_permission(permissions, permission_flag):
-    """Check if a permission integer has a specific flag using bitwise AND"""
-    try:
-        return int(permissions) & permission_flag != 0
-    except (ValueError, TypeError):
-#!/usr/bin/env python3
-"""
-Flask app for On the Clock - landing page and OAuth dashboard.
-"""
-import os
-import secrets
-import json
-import psycopg2
-import psycopg2.pool
-from psycopg2.extras import RealDictCursor
-from contextlib import contextmanager
-import logging
-import traceback
-import threading
-import asyncio
-import concurrent.futures
-from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
-import requests
-from flask import Flask, render_template, redirect, request, session, jsonify, url_for, make_response
-from werkzeug.middleware.proxy_fix import ProxyFix
-import stripe
-from stripe import SignatureVerificationError
-
-app = Flask(__name__)
-
-# Import helper functions from bot.py for Stripe webhook handling
-from bot import (
-    check_bot_access,
-    set_bot_access,
-    set_retention_tier,
-    purge_timeclock_data_only,
-    create_secure_checkout_session,
-    notify_server_owner_bot_access,
-    get_active_employees_with_stats,
-    create_adjustment_request,
-    get_pending_adjustments,
-    approve_adjustment,
-    deny_adjustment,
-    db as bot_db,
-    bot
-)
-
-# Import and run database migrations on startup
-from migrations import run_migrations
-
-# Start Discord bot in background daemon thread
-def start_discord_bot():
-    """Start the Discord bot in a background daemon thread."""
-    try:
-        import asyncio
-        from bot import run_bot_with_api
-        app.logger.info("🤖 Starting Discord bot in background thread...")
-        asyncio.run(run_bot_with_api())
-    except Exception as e:
-        app.logger.error(f"❌ Error starting Discord bot: {e}")
-        import traceback
-        traceback.print_exc()
-
-# Start bot thread when running under Gunicorn (only in first worker)
-if __name__ != '__main__':
-    import os
-    worker_id = os.environ.get('GUNICORN_WORKER_ID', '1')
-    # Only start bot in first worker to avoid multiple instances
-    if worker_id == '1' or 'GUNICORN_WORKER_ID' not in os.environ:
-        # Run database migrations before starting bot
-        run_migrations()
-        
-        bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
-        bot_thread.start()
-        app.logger.info("✅ Discord bot thread started in worker")
+        app.logger.info("âœ… Discord bot thread started in worker")
 
 # Configure logging to work with Gunicorn
 if __name__ != '__main__':
@@ -203,7 +126,7 @@ def init_app_db_pool():
         maxconn=10,
         dsn=DATABASE_URL
     )
-    app.logger.info("✅ PostgreSQL connection pool initialized for Flask")
+    app.logger.info("âœ… PostgreSQL connection pool initialized for Flask")
 
 class FlaskConnectionWrapper:
     """Wrapper to make psycopg2 connection behave like sqlite3 connection with Row factory"""
@@ -382,7 +305,7 @@ try:
     init_dashboard_tables()
 except Exception as e:
     # Fallback to print if logger not available during import
-    print(f"⚠️ Dashboard initialization warning: {e}")
+    print(f"âš ï¸ Dashboard initialization warning: {e}")
 
 # OAuth Helper Functions
 def create_oauth_state():
@@ -1063,10 +986,10 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_ENV") != "production"
     
-    print(f"🌐 Starting Landing Page Server...")
-    print(f"🔧 Environment: {os.environ.get('FLASK_ENV', 'development')}")
-    print(f"🌐 Port: {port}")
-    print(f"🐛 Debug: {debug}")
+    print(f"ðŸŒ Starting Landing Page Server...")
+    print(f"ðŸ”§ Environment: {os.environ.get('FLASK_ENV', 'development')}")
+    print(f"ðŸŒ Port: {port}")
+    print(f"ðŸ› Debug: {debug}")
     
     # Run Flask app
     app.run(host="0.0.0.0", port=port, debug=debug)
