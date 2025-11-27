@@ -2377,6 +2377,10 @@ def api_remove_admin_role(user_session, guild_id):
         
         role_id = str(data['role_id'])
         
+        # Validate role belongs to guild
+        if not validate_role_in_guild(guild_id, role_id):
+            return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
+        
         # Forward request to bot API (Bot as Boss)
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/remove"
@@ -2484,6 +2488,10 @@ def api_remove_employee_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Missing role_id'}), 400
         
         role_id = str(data['role_id'])
+        
+        # Validate role belongs to guild
+        if not validate_role_in_guild(guild_id, role_id):
+            return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
         
         # Forward request to bot API (Bot as Boss)
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
