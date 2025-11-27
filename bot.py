@@ -3498,13 +3498,12 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
     
     with db() as conn:
         # Get all unique employees who have sessions in this guild
-        # Join with employees table to get privacy settings
+        # Join with employee_profiles table to get user data and privacy settings
         cursor = conn.execute("""
-            SELECT DISTINCT s.user_id, u.username, u.display_name, u.avatar_url,
-                   e.privacy_show_status, e.privacy_show_last_seen
+            SELECT DISTINCT s.user_id, u.display_name, u.full_name, u.avatar_url,
+                   u.show_last_seen, u.show_discord_status
             FROM sessions s
-            LEFT JOIN users u ON s.user_id = u.user_id
-            LEFT JOIN employees e ON s.user_id = e.user_id AND s.guild_id = e.guild_id
+            LEFT JOIN employee_profiles u ON s.user_id = u.user_id AND s.guild_id = u.guild_id
             WHERE s.guild_id = %s
             ORDER BY s.user_id
         """, (guild_id,))
@@ -3581,13 +3580,13 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
             hours_month += current_duration
             
             # Default privacy settings to True if no employee record exists
-            show_status = emp['privacy_show_status'] if emp['privacy_show_status'] is not None else True
-            show_last_seen = emp['privacy_show_last_seen'] if emp['privacy_show_last_seen'] is not None else True
+            show_status = emp['show_discord_status'] if emp['show_discord_status'] is not None else True
+            show_last_seen_setting = emp['show_last_seen'] if emp['show_last_seen'] is not None else True
             
             employees.append({
                 'user_id': str(user_id),
-                'username': emp['username'],
-                'display_name': emp['display_name'],
+                'username': emp['display_name'] or emp['full_name'] or f"User {user_id}",
+                'display_name': emp['display_name'] or emp['full_name'],
                 'avatar_url': emp['avatar_url'],
                 'is_clocked_in': is_clocked_in,
                 'clock_in': clock_in if clock_in else None,
@@ -3656,9 +3655,9 @@ def get_pending_adjustments(guild_id: int):
     with db() as conn:
         cursor = conn.execute("""
             SELECT r.*, 
-                   u.username, u.display_name, u.avatar_url
+                   u.display_name, u.full_name, u.avatar_url
             FROM time_adjustment_requests r
-            LEFT JOIN users u ON r.user_id = u.user_id
+            LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id
             WHERE r.guild_id = %s AND r.status = 'pending'
             ORDER BY r.created_at DESC
         """, (guild_id,))
