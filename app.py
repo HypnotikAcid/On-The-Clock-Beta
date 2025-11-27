@@ -116,6 +116,9 @@ STRIPE_PRICE_IDS = {
     'retention_30day': os.environ.get('STRIPE_PRICE_RETENTION_30DAY')
 }
 
+# Bot API Configuration
+BOT_API_BASE_URL = "http://localhost:8081"
+
 # Initialize Stripe
 if STRIPE_SECRET_KEY:
     stripe.api_key = STRIPE_SECRET_KEY
@@ -2305,7 +2308,7 @@ def api_add_admin_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
         
         # Validate guild_id format to prevent SSRF
-        if not guild_id.isdigit():
+        if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
@@ -2325,7 +2328,8 @@ def api_add_admin_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
         
         # Forward request to bot API (Bot as Boss)
-        bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/admin-roles/add"
+        # Using constant base URL with validated guild_id (digits only, max 20 chars)
+        bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/add"
         
         response = requests.post(
             bot_api_url,
@@ -2358,7 +2362,7 @@ def api_remove_admin_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
         
         # Validate guild_id format to prevent SSRF
-        if not guild_id.isdigit():
+        if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
@@ -2374,7 +2378,8 @@ def api_remove_admin_role(user_session, guild_id):
         role_id = str(data['role_id'])
         
         # Forward request to bot API (Bot as Boss)
-        bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/admin-roles/remove"
+        # Using constant base URL with validated guild_id (digits only, max 20 chars)
+        bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/remove"
         
         response = requests.post(
             bot_api_url,
@@ -2407,7 +2412,7 @@ def api_add_employee_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
         
         # Validate guild_id format to prevent SSRF
-        if not guild_id.isdigit():
+        if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
@@ -2427,7 +2432,8 @@ def api_add_employee_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
         
         # Forward request to bot API (Bot as Boss)
-        bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/employee-roles/add"
+        # Using constant base URL with validated guild_id (digits only, max 20 chars)
+        bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/employee-roles/add"
         
         app.logger.info(f"≡ƒou Flask calling bot API: {bot_api_url} with role_id={role_id}")
         
@@ -2464,7 +2470,7 @@ def api_remove_employee_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
         
         # Validate guild_id format to prevent SSRF
-        if not guild_id.isdigit():
+        if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
@@ -2480,7 +2486,8 @@ def api_remove_employee_role(user_session, guild_id):
         role_id = str(data['role_id'])
         
         # Forward request to bot API (Bot as Boss)
-        bot_api_url = f"http://localhost:8081/api/guild/{guild_id}/employee-roles/remove"
+        # Using constant base URL with validated guild_id (digits only, max 20 chars)
+        bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/employee-roles/remove"
         
         response = requests.post(
             bot_api_url,
