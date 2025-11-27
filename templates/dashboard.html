@@ -14,7 +14,7 @@
 
     <!-- Mobile Hamburger -->
     <div class="mobile-hamburger" id="mobileHamburger">
-        <span class="hamburger-icon">â˜°</span>
+        <span class="hamburger-icon">☰</span>
     </div>
 
     <!-- Mobile Overlay -->
@@ -26,7 +26,7 @@
         <aside class="sidebar" id="sidebar">
             <!-- Logo -->
             <div class="sidebar-logo">
-                <span class="sidebar-logo-icon">âš™ï¸</span>
+                <span class="sidebar-logo-icon">⚙️</span>
                 <div class="sidebar-logo-text">On the Clock<br>Dashboard</div>
             </div>
 
@@ -36,7 +36,7 @@
                 <div id="main-nav">
                     <div class="nav-section-title">Navigation</div>
                     <div class="nav-item active" data-section="my-servers">
-                        <span class="nav-item-icon">ðŸ¢</span>
+                        <span class="nav-item-icon">🏢</span>
                         <span>My Servers</span>
                     </div>
                 </div>
@@ -44,7 +44,7 @@
                 <!-- Server-Specific Navigation (hidden by default) -->
                 <div id="server-nav" style="display: none;">
                     <div class="back-to-servers" id="backToServers">
-                        <span>â†</span>
+                        <span>←</span>
                         <span>Back to Servers</span>
                     </div>
                     <div class="server-nav-header" id="serverNavHeader">
@@ -53,34 +53,34 @@
                     </div>
                     <div class="nav-section-title">Server Settings</div>
                     <div class="nav-item" data-section="server-overview" data-server-menu>
-                        <span class="nav-item-icon">ðŸ“Š</span>
+                        <span class="nav-item-icon">📊</span>
                         <span>Server Overview</span>
                     </div>
                     <div class="nav-item" data-section="admin-roles" data-server-menu>
-                        <span class="nav-item-icon">ðŸ‘¥</span>
+                        <span class="nav-item-icon">👥</span>
                         <span>Admin Roles</span>
                     </div>
                     <div class="nav-item" data-section="employee-roles" data-server-menu>
-                        <span class="nav-item-icon">ðŸ‘·</span>
+                        <span class="nav-item-icon">👷</span>
                         <span>Employee Roles</span>
                     </div>
                     <div class="nav-item" data-section="email-settings" data-server-menu>
-                        <span class="nav-item-icon">ðŸ“§</span>
+                        <span class="nav-item-icon">📧</span>
                         <span>Email Settings</span>
                     </div>
                     <div class="nav-item" data-section="timezone-settings" data-server-menu>
-                        <span class="nav-item-icon">ðŸ•</span>
+                        <span class="nav-item-icon">🕰️</span>
                         <span>Timezone Settings</span>
                         <span class="badge tz-reminder" id="tz-reminder-badge"
                             style="display:none; background:#F59E0B; color:#111; padding:2px 6px; border-radius:10px; font-size:10px; margin-left:auto;">Set
                             TZ!</span>
                     </div>
                     <div class="nav-item" data-section="employees" data-server-menu>
-                        <span class="nav-item-icon">ðŸ‘¥</span>
+                        <span class="nav-item-icon">👥</span>
                         <span>Employee Status</span>
                     </div>
                     <div class="nav-item" data-section="adjustments" data-server-menu>
-                        <span class="nav-item-icon">â±ï¸</span>
+                        <span class="nav-item-icon">⏳</span>
                         <span>Time Adjustments</span>
                         <span class="badge" id="pending-count"
                             style="display:none; background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">0</span>
@@ -102,7 +102,7 @@
                     <div class="sidebar-user-name">{{ user.username }}</div>
                     <div class="sidebar-user-id">{{ user.user_id[:8] }}...</div>
                 </div>
-                <a href="/auth/logout" class="logout-icon" title="Logout">ðŸšª</a>
+                <a href="/auth/logout" class="logout-icon" title="Logout">🚪</a>
             </div>
         </aside>
 
@@ -118,7 +118,7 @@
                 <div class="tiles-grid">
                     <!-- Server List Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">ðŸ¢</span>Managed Servers ({{ user.guilds|length }})</h2>
+                        <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.guilds|length }})</h2>
                         <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
                             Showing servers where On the Clock bot is present and you have admin access
                         </p>
@@ -140,15 +140,15 @@
                                     <div class="server-meta">
                                         {% if guild.bot_access_paid %}
                                         <span class="server-badge"
-                                            style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15)); border: 1px solid rgba(16, 185, 129, 0.3); color: #10B981;">ðŸ’°
+                                            style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15)); border: 1px solid rgba(16, 185, 129, 0.3); color: #10B981;">💰
                                             Paid</span>
                                         {% endif %}
                                         {% if guild.owner %}
-                                        <span class="server-badge owner-badge">ðŸ‘‘ Owner</span>
+                                        <span class="server-badge owner-badge">👑 Owner</span>
                                         {% elif guild.permissions|has_permission(0x8) %}
-                                        <span class="server-badge admin-badge">âš¡ Administrator</span>
+                                        <span class="server-badge admin-badge">⚡ Administrator</span>
                                         {% elif guild.permissions|has_permission(0x20) %}
-                                        <span class="server-badge admin-badge">ðŸ”§ Manage Server</span>
+                                        <span class="server-badge admin-badge">🔧 Manage Server</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -159,8 +159,8 @@
                         <div class="no-servers">
                             <p style="margin-bottom: 10px;"><strong>No managed servers found</strong></p>
                             <p style="font-size: 13px;">To see servers here, you need:</p>
-                            <p style="font-size: 13px;">âœ… The "On the Clock" bot added to your server</p>
-                            <p style="font-size: 13px;">âœ… Admin permissions in that server</p>
+                            <p style="font-size: 13px;">✅ The "On the Clock" bot added to your server</p>
+                            <p style="font-size: 13px;">✅ Admin permissions in that server</p>
                             <p style="margin-top: 15px;"><a href="/invite">Add bot to your server</a></p>
                         </div>
                         {% endif %}
@@ -171,12 +171,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">â˜•</span>
+                        <span class="coffee-icon">☕</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>âœ‰ï¸</span>
+                        <span>✉️</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -192,7 +192,7 @@
 
                 <!-- Sync Notice -->
                 <div class="sync-notice">
-                    <div class="sync-notice-icon">â±ï¸</div>
+                    <div class="sync-notice-icon">⏳</div>
                     <div class="sync-notice-text">
                         <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
                         Refresh this page to see the latest updates.
@@ -201,7 +201,7 @@
 
                 <div class="tiles-grid">
                     <div class="tile">
-                        <h2><span class="tile-icon">ðŸ“Š</span>Server Information</h2>
+                        <h2><span class="tile-icon">📊</span>Server Information</h2>
                         <p class="tile-description">Quick overview of your server configuration and active settings.</p>
                         <p style="color: #C9D1D9; margin-top: 15px;">Select a setting from the sidebar to manage your
                             server.</p>
@@ -209,7 +209,7 @@
 
                     <!-- Mobile Device Restriction Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">ðŸ“±</span>Mobile Device Restrictions</h2>
+                        <h2><span class="tile-icon">📱</span>Mobile Device Restrictions</h2>
                         <p class="tile-description">Control whether employees can clock in/out from mobile or tablet
                             devices.</p>
 
@@ -217,7 +217,7 @@
                         <div
                             style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; padding: 12px; margin: 15px 0; border-radius: 6px;">
                             <div style="display: flex; align-items: start; gap: 10px;">
-                                <span style="font-size: 18px; flex-shrink: 0;">âš ï¸</span>
+                                <span style="font-size: 18px; flex-shrink: 0;">⚠️</span>
                                 <div style="font-size: 12px; color: #FCD34D; line-height: 1.6;">
                                     <strong style="display: block; margin-bottom: 6px;">Device Detection
                                         Limitations:</strong>
@@ -250,7 +250,7 @@
 
                     <!-- Ban Management Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">ðŸš«</span>Ban Management</h2>
+                        <h2><span class="tile-icon">🚫</span>Ban Management</h2>
                         <p class="tile-description">Manage banned users and spam/abuse infractions. Monitor user
                             warnings and control access.</p>
 
@@ -258,7 +258,7 @@
                         <div
                             style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #EF4444; padding: 12px; margin: 15px 0; border-radius: 6px;">
                             <div style="display: flex; align-items: start; gap: 10px;">
-                                <span style="font-size: 18px; flex-shrink: 0;">âš ï¸</span>
+                                <span style="font-size: 18px; flex-shrink: 0;">⚠️</span>
                                 <div style="font-size: 12px; color: #FCA5A5; line-height: 1.6;">
                                     <strong style="display: block; margin-bottom: 4px;">Important Reminder:</strong>
                                     Excessive spam or abuse may result in the bot being removed from Discord. Use
@@ -274,13 +274,13 @@
                                 <span style="font-weight: 500; color: #C9D1D9; font-size: 14px;">Banned Users</span>
                                 <button onclick="loadBannedUsers()"
                                     style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60A5FA; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
-                                    ðŸ”„ Refresh
+                                    🔄 Refresh
                                 </button>
                             </div>
                             <div id="banned-users-list"
                                 style="background: rgba(16, 24, 39, 0.6); border: 1px solid rgba(75, 85, 99, 0.4); border-radius: 8px; padding: 12px; min-height: 100px;">
                                 <div style="text-align: center; color: #8B949E; padding: 20px;">
-                                    <div style="font-size: 24px; margin-bottom: 8px;">ðŸ”„</div>
+                                    <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
                                     <div>Loading banned users...</div>
                                 </div>
                             </div>
@@ -292,12 +292,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">â˜•</span>
+                        <span class="coffee-icon">☕</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>âœ‰ï¸</span>
+                        <span>✉️</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -313,7 +313,7 @@
 
                 <!-- Sync Notice -->
                 <div class="sync-notice">
-                    <div class="sync-notice-icon">â±ï¸</div>
+                    <div class="sync-notice-icon">⏳</div>
                     <div class="sync-notice-text">
                         <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
                         Refresh this page to see the latest updates.
@@ -322,7 +322,7 @@
 
                 <div class="tiles-grid">
                     <div class="tile">
-                        <h2><span class="tile-icon">ðŸ‘¥</span>Admin Roles</h2>
+                        <h2><span class="tile-icon">👥</span>Admin Roles</h2>
                         <p class="tile-description">Set which roles can access admin features like Reports and Upgrade
                             buttons. Discord administrators always have access.</p>
 
@@ -333,7 +333,7 @@
                             </div>
                             <div class="transfer-buttons">
                                 <button class="transfer-btn" id="add-admin-role-btn" disabled>â†’</button>
-                                <button class="transfer-btn" id="remove-admin-role-btn" disabled>â†</button>
+                                <button class="transfer-btn" id="remove-admin-role-btn" disabled>â† </button>
                             </div>
                             <div class="listbox-wrapper">
                                 <div class="listbox-label">Admin Roles</div>
@@ -347,12 +347,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">â˜•</span>
+                        <span class="coffee-icon">☕</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>âœ‰ï¸</span>
+                        <span>✉️</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -368,7 +368,7 @@
 
                 <!-- Sync Notice -->
                 <div class="sync-notice">
-                    <div class="sync-notice-icon">â±ï¸</div>
+                    <div class="sync-notice-icon">⏳</div>
                     <div class="sync-notice-text">
                         <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
                         Refresh this page to see the latest updates.
@@ -377,7 +377,7 @@
 
                 <div class="tiles-grid">
                     <div class="tile">
-                        <h2><span class="tile-icon">ðŸ‘·</span>Employee Roles</h2>
+                        <h2><span class="tile-icon">👷</span>Employee Roles</h2>
                         <p class="tile-description">Choose which roles can use the /clock command and access timeclock
                             functions.</p>
 
@@ -388,7 +388,7 @@
                             </div>
                             <div class="transfer-buttons">
                                 <button class="transfer-btn" id="add-role-btn" disabled>â†’</button>
-                                <button class="transfer-btn" id="remove-role-btn" disabled>â†</button>
+                                <button class="transfer-btn" id="remove-role-btn" disabled>â† </button>
                             </div>
                             <div class="listbox-wrapper">
                                 <div class="listbox-label">Employee Roles</div>
@@ -402,12 +402,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">â˜•</span>
+                        <span class="coffee-icon">☕</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>âœ‰ï¸</span>
+                        <span>✉️</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -424,7 +424,7 @@
                 <div class="tiles-grid">
                     <!-- Email Recipients Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">ðŸ“§</span>Email Recipients</h2>
+                        <h2><span class="tile-icon">📧</span>Email Recipients</h2>
                         <p class="tile-description" style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">Manage
                             email addresses that will receive automated reports</p>
 
@@ -446,7 +446,7 @@
                         <div class="workday-time-setting"
                             style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
                             <label style="display: block; color: #C9D1D9; font-weight: 500; margin-bottom: 10px;">
-                                ðŸ• Work Day End Time (for auto-send reports)
+                                🕰️ Work Day End Time (for auto-send reports)
                             </label>
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 <input type="time" id="work-day-end-time" value="17:00"
@@ -465,7 +465,7 @@
                             style="background: rgba(10, 15, 31, 0.5); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 8px; padding: 15px; margin-top: 15px; display: flex; flex-direction: column; gap: 12px;">
                             <div class="toggle-item"
                                 style="display: flex; align-items: center; justify-content: space-between;">
-                                <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">ðŸ“¤ Auto-send
+                                <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">📤 Auto-send
                                     report
                                     on clock-out</span>
                                 <label class="toggle-switch" style="position: relative; width: 50px; height: 26px;">
@@ -477,7 +477,7 @@
                             </div>
                             <div class="toggle-item"
                                 style="display: flex; align-items: center; justify-content: space-between;">
-                                <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">â° Auto-email
+                                <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">⏰ Auto-email
                                     before
                                     data deletion</span>
                                 <label class="toggle-switch" style="position: relative; width: 50px; height: 26px;">
@@ -491,7 +491,7 @@
 
                         <div class="email-note"
                             style="margin-top: 15px; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; color: #9CA3AF; font-size: 13px;">
-                            â„¹ï¸ <strong>Note:</strong> Email functionality requires email addresses to be configured.
+                            ℹ️ <strong>Note:</strong> Email functionality requires email addresses to be configured.
                             Add
                             recipient emails above to enable auto-send features.
                         </div>
@@ -499,7 +499,7 @@
 
                     <!-- Custom Email Formatting Tile (COMING SOON) -->
                     <div class="tile" style="position: relative;">
-                        <h2><span class="tile-icon">âœ‰ï¸</span>Custom Email Formatting</h2>
+                        <h2><span class="tile-icon">✉️</span>Custom Email Formatting</h2>
                         <p class="tile-description" style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
                             Customize the format and appearance of automated email reports</p>
 
@@ -529,12 +529,12 @@
                 <div class="action-buttons-container">
                     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                         class="btn coffee-button">
-                        <span class="coffee-icon">â˜•</span>
+                        <span class="coffee-icon">☕</span>
                         <span>Buy Me a Coffee</span>
                     </a>
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
-                        <span>âœ‰ï¸</span>
+                        <span>✉️</span>
                         <span>App Ideas & Requests</span>
                     </a>
                 </div>
@@ -550,7 +550,7 @@
 
                 <!-- Sync Notice -->
                 <div class="sync-notice">
-                    <div class="sync-notice-icon">â±ï¸</div>
+                    <div class="sync-notice-icon">⏳</div>
                     <div class="sync-notice-text">
                         <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
                         Refresh this page to see the latest updates.
@@ -559,7 +559,7 @@
 
                 <div class="tiles-grid">
                     <div class="tile">
-                        <h2><span class="tile-icon">ðŸ•</span>Timezone Settings</h2>
+                        <h2><span class="tile-icon">🕰️</span>Timezone Settings</h2>
                         <p class="tile-description">Set the timezone for displaying time entries in reports and
                             notifications.</p>
 
@@ -589,7 +589,7 @@
             <!-- Employee Status Section -->
             <section class="content-section" id="section-employees">
                 <div class="content-header">
-                    <h1 class="content-title">ðŸ‘¥ Employee Status</h1>
+                    <h1 class="content-title">👥 Employee Status</h1>
                     <p class="content-subtitle">View active employees and their hours</p>
                 </div>
 
@@ -625,13 +625,13 @@
             <!-- Time Adjustments Section -->
             <section class="content-section" id="section-adjustments">
                 <div class="content-header">
-                    <h1 class="content-title">â±ï¸ Time Adjustments</h1>
+                    <h1 class="content-title">⏳ Time Adjustments</h1>
                     <p class="content-subtitle">Request changes or review pending adjustments</p>
                 </div>
 
                 <!-- Employee View: Submit Request -->
                 <div class="tile" id="employee-adjustment-form-container">
-                    <h2><span class="tile-icon">ðŸ“</span>Request Adjustment</h2>
+                    <h2><span class="tile-icon">📝</span>Request Adjustment</h2>
                     <form id="adjustment-form">
                         <div class="form-group">
                             <label>Adjustment Type</label>
@@ -679,12 +679,12 @@
             <div class="action-buttons-container">
                 <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
                     class="btn coffee-button">
-                    <span class="coffee-icon">â˜•</span>
+                    <span class="coffee-icon">☕</span>
                     <span>Buy Me a Coffee</span>
                 </a>
                 <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                     class="btn support-button">
-                    <span>âœ‰ï¸</span>
+                    <span>✉️</span>
                     <span>App Ideas & Requests</span>
                 </a>
             </div>
