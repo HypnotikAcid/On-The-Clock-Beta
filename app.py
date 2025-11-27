@@ -54,7 +54,7 @@ def start_discord_bot():
         app.logger.info("≡ƒnû Starting Discord bot in background thread...")
         asyncio.run(run_bot_with_api())
     except Exception as e:
-        app.logger.error(f"Γ¥î Error starting Discord bot: {e}")
+        app.logger.error(f"[ERROR] Error starting Discord bot: {e}")
         import traceback
         traceback.print_exc()
 
@@ -69,7 +69,7 @@ if __name__ != '__main__':
         
         bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
         bot_thread.start()
-        app.logger.info("Γ£a Discord bot thread started in worker")
+        app.logger.info("[OK] Discord bot thread started in worker")
 
 # Configure logging to work with Gunicorn
 if __name__ != '__main__':
@@ -140,7 +140,7 @@ def init_app_db_pool():
         maxconn=10,
         dsn=DATABASE_URL
     )
-    app.logger.info("Γ£a PostgreSQL connection pool initialized for Flask")
+    app.logger.info("[OK] PostgreSQL connection pool initialized for Flask")
 
 class FlaskConnectionWrapper:
     """Wrapper to make psycopg2 connection behave like sqlite3 connection with Row factory"""
@@ -282,7 +282,7 @@ try:
     init_dashboard_tables()
 except Exception as e:
     # Fallback to print if logger not available during import
-    print(f"ΓÜa∩╕Å Dashboard initialization warning: {e}")
+    print(f"[WARN] Dashboard initialization warning: {e}")
 
 # OAuth Helper Functions
 def create_oauth_state():
@@ -791,11 +791,11 @@ def stripe_webhook():
     sig_header = request.headers.get('stripe-signature')
     
     if not STRIPE_WEBHOOK_SECRET:
-        app.logger.error("Γ¥î STRIPE_WEBHOOK_SECRET not configured")
+        app.logger.error("[ERROR] STRIPE_WEBHOOK_SECRET not configured")
         return jsonify({'error': 'Webhook secret not configured'}), 400
     
     if not sig_header:
-        app.logger.error("Γ¥î Missing Stripe signature header")
+        app.logger.error("[ERROR] Missing Stripe signature header")
         return jsonify({'error': 'Missing signature'}), 400
     
     try:
@@ -817,18 +817,18 @@ def stripe_webhook():
         elif event_type == 'invoice.payment_failed':
             handle_payment_failure(event['data']['object'])
         else:
-            app.logger.info(f"Γa╣∩╕Å Unhandled Stripe event type: {event_type}")
+            app.logger.info(f"[INFO] Unhandled Stripe event type: {event_type}")
         
         return jsonify({'received': True}), 200
         
     except SignatureVerificationError as e:
-        app.logger.error(f"Γ¥î Invalid webhook signature: {e}")
+        app.logger.error(f"[ERROR] Invalid webhook signature: {e}")
         return jsonify({'error': 'Invalid signature'}), 400
     except ValueError as e:
-        app.logger.error(f"Γ¥î Invalid webhook payload: {e}")
+        app.logger.error(f"[ERROR] Invalid webhook payload: {e}")
         return jsonify({'error': 'Invalid payload'}), 400
     except Exception as e:
-        app.logger.error(f"Γ¥î Error processing webhook: {e}")
+        app.logger.error(f"[ERROR] Error processing webhook: {e}")
         app.logger.error(traceback.format_exc())
         return jsonify({'error': 'Internal error'}), 500
 
@@ -849,7 +849,7 @@ def handle_checkout_completed(session):
                 price_id = line_item.price.id
         
         if not price_id:
-            app.logger.error("Γ¥î No price ID found in checkout session")
+            app.logger.error("[ERROR] No price ID found in checkout session")
             return
         
         # Match price_id against STRIPE_PRICE_IDS to determine product_type
@@ -860,13 +860,13 @@ def handle_checkout_completed(session):
                 break
         
         if not product_type:
-            app.logger.error(f"Γ¥î Unknown price ID in checkout: {price_id}")
+            app.logger.error(f"[ERROR] Unknown price ID in checkout: {price_id}")
             return
         
         guild_id = session.get('metadata', {}).get('guild_id')
         
         if not guild_id:
-            app.logger.error("Γ¥î No guild_id found in session metadata")
+            app.logger.error("[ERROR] No guild_id found in session metadata")
             return
         
         guild_id = int(guild_id)
@@ -875,12 +875,12 @@ def handle_checkout_completed(session):
         if product_type == 'bot_access':
             # One-time bot access payment
             set_bot_access(guild_id, True)
-            app.logger.info(f"Γ£a Bot access granted for server {guild_id}")
+            app.logger.info(f"[OK] Bot access granted for server {guild_id}")
             
         elif product_type == 'retention_7day':
             # 7-day retention subscription
             if not check_bot_access(guild_id):
-                app.logger.error(f"Γ¥î SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
+                app.logger.error(f"[ERROR] SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
                 return
             
             subscription_id = session.get('subscription')
@@ -898,12 +898,12 @@ def handle_checkout_completed(session):
                         status = 'active'
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
             
-            app.logger.info(f"Γ£a 7-day retention granted for server {guild_id}")
+            app.logger.info(f"[OK] 7-day retention granted for server {guild_id}")
             
         elif product_type == 'retention_30day':
             # 30-day retention subscription
             if not check_bot_access(guild_id):
-                app.logger.error(f"Γ¥î SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
+                app.logger.error(f"[ERROR] SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
                 return
             
             subscription_id = session.get('subscription')
@@ -921,10 +921,10 @@ def handle_checkout_completed(session):
                         status = 'active'
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
             
-            app.logger.info(f"Γ£a 30-day retention granted for server {guild_id}")
+            app.logger.info(f"[OK] 30-day retention granted for server {guild_id}")
             
     except Exception as e:
-        app.logger.error(f"Γ¥î Error processing checkout session: {e}")
+        app.logger.error(f"[ERROR] Error processing checkout session: {e}")
         app.logger.error(traceback.format_exc())
 
 def handle_subscription_change(subscription):
@@ -934,7 +934,7 @@ def handle_subscription_change(subscription):
         status = subscription.get('status')
         
         if not subscription_id:
-            app.logger.error("Γ¥î No subscription ID in subscription change event")
+            app.logger.error("[ERROR] No subscription ID in subscription change event")
             return
         
         with bot_db() as conn:
@@ -944,10 +944,10 @@ def handle_subscription_change(subscription):
                 WHERE subscription_id = %s
             """, (status, subscription_id))
         
-        app.logger.info(f"Γ£a Subscription {subscription_id} status updated to {status}")
+        app.logger.info(f"[OK] Subscription {subscription_id} status updated to {status}")
         
     except Exception as e:
-        app.logger.error(f"Γ¥î Error processing subscription change: {e}")
+        app.logger.error(f"[ERROR] Error processing subscription change: {e}")
         app.logger.error(traceback.format_exc())
 
 def handle_subscription_cancellation(subscription):
@@ -957,7 +957,7 @@ def handle_subscription_cancellation(subscription):
         customer_id = subscription.get('customer')
         
         if not subscription_id:
-            app.logger.error("Γ¥î No subscription ID in cancellation event")
+            app.logger.error("[ERROR] No subscription ID in cancellation event")
             return
         
         with bot_db() as conn:
@@ -983,12 +983,12 @@ def handle_subscription_cancellation(subscription):
                 # Trigger immediate data deletion
                 purge_timeclock_data_only(guild_id)
                 
-                app.logger.info(f"Γ£a Retention subscription canceled for server {guild_id}")
+                app.logger.info(f"[OK] Retention subscription canceled for server {guild_id}")
             else:
-                app.logger.error(f"Γ¥î No guild found for subscription {subscription_id}")
+                app.logger.error(f"[ERROR] No guild found for subscription {subscription_id}")
                 
     except Exception as e:
-        app.logger.error(f"Γ¥î Error processing subscription cancellation: {e}")
+        app.logger.error(f"[ERROR] Error processing subscription cancellation: {e}")
         app.logger.error(traceback.format_exc())
 
 def handle_payment_failure(invoice):
@@ -998,7 +998,7 @@ def handle_payment_failure(invoice):
         subscription_id = invoice.get('subscription')
         
         if not customer_id and not subscription_id:
-            app.logger.error("Γ¥î No customer or subscription ID in payment failure event")
+            app.logger.error("[ERROR] No customer or subscription ID in payment failure event")
             return
         
         with bot_db() as conn:
@@ -1018,12 +1018,12 @@ def handle_payment_failure(invoice):
                     WHERE guild_id = %s
                 """, (guild_id,))
                 
-                app.logger.info(f"ΓÜa∩╕Å Payment failed: Guild {guild_id} marked as past_due")
+                app.logger.info(f"[WARN] Payment failed: Guild {guild_id} marked as past_due")
             else:
-                app.logger.error(f"Γ¥î No guild found for customer {customer_id}")
+                app.logger.error(f"[ERROR] No guild found for customer {customer_id}")
                 
     except Exception as e:
-        app.logger.error(f"Γ¥î Error processing payment failure: {e}")
+        app.logger.error(f"[ERROR] Error processing payment failure: {e}")
         app.logger.error(traceback.format_exc())
 
 @app.route("/")
@@ -1398,7 +1398,7 @@ def api_owner_grant_access(user_session):
                         granted_at = NOW()
                     WHERE guild_id = %s
                 """, (user_session['user_id'], guild_id))
-                app.logger.info(f"Γ£a Granted bot access to guild {guild_id}")
+                app.logger.info(f"[OK] Granted bot access to guild {guild_id}")
                 
             elif access_type in ['7day', '30day']:
                 # Ensure bot access is paid first
@@ -1418,10 +1418,10 @@ def api_owner_grant_access(user_session):
                         status = 'active'
                     WHERE guild_id = %s
                 """, (access_type, user_session['user_id'], guild_id))
-                app.logger.info(f"Γ£a Granted {access_type} retention to guild {guild_id}")
+                app.logger.info(f"[OK] Granted {access_type} retention to guild {guild_id}")
             
             # Context manager handles commit automatically
-            app.logger.info(f"Γ£a Transaction will be committed for guild {guild_id}")
+            app.logger.info(f"[OK] Transaction will be committed for guild {guild_id}")
             
             # Send notification to server owner if granting bot access
             if access_type == 'bot_access':
@@ -1429,43 +1429,43 @@ def api_owner_grant_access(user_session):
                 
                 # Check bot availability with detailed logging
                 if not bot:
-                    app.logger.error(f"Γ¥î Bot instance is None - cannot send notification")
+                    app.logger.error(f"[ERROR] Bot instance is None - cannot send notification")
                     app.logger.error(f"   Bot may not have started yet. Check if Discord bot thread is running.")
                 elif not hasattr(bot, 'loop'):
-                    app.logger.error(f"Γ¥î Bot instance has no 'loop' attribute - bot may not be started yet")
+                    app.logger.error(f"[ERROR] Bot instance has no 'loop' attribute - bot may not be started yet")
                     app.logger.error(f"   Discord bot needs to connect before notifications can be sent.")
                 elif not bot.loop:
-                    app.logger.error(f"Γ¥î Bot loop is None - bot may not be fully connected")
+                    app.logger.error(f"[ERROR] Bot loop is None - bot may not be fully connected")
                     app.logger.error(f"   Discord connection not established. Wait for bot to fully start.")
                 elif not bot.is_ready():
-                    app.logger.error(f"Γ¥î Bot is not ready - still connecting to Discord")
+                    app.logger.error(f"[ERROR] Bot is not ready - still connecting to Discord")
                     app.logger.error(f"   Bot status: connected but not ready. Notification will be skipped.")
                 else:
-                    app.logger.info(f"Γ£a Bot is ready and connected. Queueing notification...")
+                    app.logger.info(f"[OK] Bot is ready and connected. Queueing notification...")
                     try:
                         # Queue the notification in the bot's event loop
                         future = asyncio.run_coroutine_threadsafe(
                             notify_server_owner_bot_access(int(guild_id), granted_by="manual"),
                             bot.loop
                         )
-                        app.logger.info(f"Γ£a Welcome notification queued successfully for guild {guild_id}")
+                        app.logger.info(f"[OK] Welcome notification queued successfully for guild {guild_id}")
                         
                         # Wait for result (max 5 seconds) to catch errors
                         try:
                             result = future.result(timeout=5.0)
-                            app.logger.info(f"Γ£a Welcome notification completed successfully for guild {guild_id}")
+                            app.logger.info(f"[OK] Welcome notification completed successfully for guild {guild_id}")
                         except concurrent.futures.TimeoutError:
                             app.logger.error(f"ΓÅ▒∩╕Å Welcome notification timed out after 5 seconds for guild {guild_id}")
                             app.logger.error(f"   Notification may still be processing. Check Discord bot logs for [NOTIFY] messages.")
                         except Exception as result_error:
-                            app.logger.error(f"Γ¥î Welcome notification failed for guild {guild_id}")
+                            app.logger.error(f"[ERROR] Welcome notification failed for guild {guild_id}")
                             app.logger.error(f"   Error type: {type(result_error).__name__}")
                             app.logger.error(f"   Error message: {str(result_error)}")
                             app.logger.error(f"   Full traceback:")
                             app.logger.error(traceback.format_exc())
                             
                     except Exception as notify_error:
-                        app.logger.error(f"Γ¥î Failed to queue welcome notification for guild {guild_id}")
+                        app.logger.error(f"[ERROR] Failed to queue welcome notification for guild {guild_id}")
                         app.logger.error(f"   Error type: {type(notify_error).__name__}")
                         app.logger.error(f"   Error message: {str(notify_error)}")
                         app.logger.error(f"   Full traceback:")
@@ -1543,7 +1543,7 @@ def api_owner_revoke_access(user_session):
                         granted_at = NULL
                     WHERE guild_id = %s
                 """, (guild_id,))
-                app.logger.info(f"Γ¥î Revoked bot access from guild {guild_id} (tier set to 'free', retention cleared)")
+                app.logger.info(f"[ERROR] Revoked bot access from guild {guild_id} (tier set to 'free', retention cleared)")
                 
             elif access_type in ['7day', '30day']:
                 # Only revoke if this is the current retention tier
@@ -1554,7 +1554,7 @@ def api_owner_revoke_access(user_session):
                             status = 'active'
                         WHERE guild_id = %s
                     """, (guild_id,))
-                    app.logger.info(f"Γ¥î Revoked {access_type} retention from guild {guild_id}")
+                    app.logger.info(f"[ERROR] Revoked {access_type} retention from guild {guild_id}")
                 else:
                     return jsonify({
                         'success': False, 
@@ -1562,7 +1562,7 @@ def api_owner_revoke_access(user_session):
                     }), 400
             
             # Commit all changes
-            app.logger.info(f"Γ£a Transaction committed successfully for guild {guild_id}")
+            app.logger.info(f"[OK] Transaction committed successfully for guild {guild_id}")
             
             return jsonify({
                 'success': True,
@@ -1763,9 +1763,9 @@ def upgrade_info(user_session, guild_id):
                 <h1>≡ƒÆ│ Upgrade Your Server</h1>
                 
                 <div class="status {'paid' if has_bot_access else 'free'}">
-                    {'Γ£a Full Bot Access Active' if has_bot_access else '≡ƒoÆ Free Tier - Limited Features'}
+                    {'[OK] Full Bot Access Active' if has_bot_access else '≡ƒoÆ Free Tier - Limited Features'}
                     <br>
-                    {f"≡ƒôè {retention_tier.replace('day', '-Day').title()} Retention" if retention_tier != 'none' else 'ΓÜa∩╕Å 24-Hour Data Deletion'}
+                    {f"≡ƒôè {retention_tier.replace('day', '-Day').title()} Retention" if retention_tier != 'none' else '[WARN] 24-Hour Data Deletion'}
                 </div>
                 
                 <div class="instructions">
@@ -1836,7 +1836,7 @@ def purchase_page(guild_id):
             </head>
             <body>
                 <div>
-                    <h1>Γ£a Bot Access Already Active!</h1>
+                    <h1>[OK] Bot Access Already Active!</h1>
                     <p>Redirecting to upgrade options...</p>
                 </div>
             </body>
@@ -1906,7 +1906,7 @@ def purchase_page(guild_id):
                     align-items: center;
                 }}
                 .feature-card li::before {{
-                    content: "Γ£a";
+                    content: "[OK]";
                     margin-right: 10px;
                 }}
                 .cta-section {{
@@ -2011,28 +2011,28 @@ def purchase_page(guild_id):
                         </tr>
                         <tr>
                             <td>Clock In/Out</td>
-                            <td class="yes">Γ£a Basic</td>
-                            <td class="yes">Γ£a Full Access</td>
+                            <td class="yes">[OK] Basic</td>
+                            <td class="yes">[OK] Full Access</td>
                         </tr>
                         <tr>
                             <td>Team Reports</td>
-                            <td class="no">Γ¥î Dummy Only</td>
-                            <td class="yes">Γ£a Real CSV Reports</td>
+                            <td class="no">[ERROR] Dummy Only</td>
+                            <td class="yes">[OK] Real CSV Reports</td>
                         </tr>
                         <tr>
                             <td>Dashboard</td>
-                            <td class="no">Γ¥î Locked</td>
-                            <td class="yes">Γ£a Full Access</td>
+                            <td class="no">[ERROR] Locked</td>
+                            <td class="yes">[OK] Full Access</td>
                         </tr>
                         <tr>
                             <td>Role Management</td>
-                            <td class="no">Γ¥î Admin Only</td>
-                            <td class="yes">Γ£a Full Control</td>
+                            <td class="no">[ERROR] Admin Only</td>
+                            <td class="yes">[OK] Full Control</td>
                         </tr>
                         <tr>
                             <td>Data Retention</td>
-                            <td class="no">ΓÜa∩╕Å 24 Hours</td>
-                            <td class="yes">ΓÜa∩╕Å 24 Hours*</td>
+                            <td class="no">[WARN] 24 Hours</td>
+                            <td class="yes">[WARN] 24 Hours*</td>
                         </tr>
                     </table>
                     <p style="margin-top: 20px; color: #9CA3AF; font-size: 0.9em;">
@@ -2351,7 +2351,7 @@ def api_update_email_settings(user_session, guild_id):
                     (guild_id, auto_send_on_clockout, auto_email_before_delete)
                 )
             
-            app.logger.info(f"Γ£a Email settings committed for guild {guild_id} by user {user_session.get('username')}")
+            app.logger.info(f"[OK] Email settings committed for guild {guild_id} by user {user_session.get('username')}")
             
             return jsonify({
                 'success': True, 
@@ -2405,7 +2405,7 @@ def api_update_work_day_time(user_session, guild_id):
                     (guild_id, work_day_end_time)
                 )
             
-            app.logger.info(f"Γ£a Work day end time committed: {work_day_end_time} for guild {guild_id}")
+            app.logger.info(f"[OK] Work day end time committed: {work_day_end_time} for guild {guild_id}")
             
             return jsonify({'success': True, 'message': 'Work day end time updated successfully', 'work_day_end_time': work_day_end_time})
     except Exception as e:
@@ -2423,13 +2423,13 @@ def api_update_mobile_restriction(user_session, guild_id):
         # Verify user has access
         guild = verify_guild_access(user_session, guild_id)
         if not guild:
-            app.logger.warning(f"Γ¥î Access denied for guild {guild_id}")
+            app.logger.warning(f"[ERROR] Access denied for guild {guild_id}")
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
         # Get mobile restriction setting from request
         data = request.get_json()
         if data is None:
-            app.logger.error(f"Γ¥î Missing data in request for guild {guild_id}")
+            app.logger.error(f"[ERROR] Missing data in request for guild {guild_id}")
             return jsonify({'success': False, 'error': 'Missing data'}), 400
         
         restrict_mobile = bool(data.get('restrict_mobile', False))
@@ -2464,9 +2464,9 @@ def api_update_mobile_restriction(user_session, guild_id):
             )
             verify_result = verify_cursor.fetchone()
             if verify_result:
-                app.logger.info(f"Γ£a Verified database value: {verify_result['restrict_mobile_clockin']} for guild {guild_id}")
+                app.logger.info(f"[OK] Verified database value: {verify_result['restrict_mobile_clockin']} for guild {guild_id}")
             
-            app.logger.info(f"Γ£a Mobile restriction setting committed: {restrict_mobile} for guild {guild_id}")
+            app.logger.info(f"[OK] Mobile restriction setting committed: {restrict_mobile} for guild {guild_id}")
             
             return jsonify({
                 'success': True, 
@@ -2474,7 +2474,7 @@ def api_update_mobile_restriction(user_session, guild_id):
                 'restrict_mobile': restrict_mobile
             })
     except Exception as e:
-        app.logger.error(f"Γ¥î Error updating mobile restriction: {str(e)}")
+        app.logger.error(f"[ERROR] Error updating mobile restriction: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
@@ -2547,7 +2547,7 @@ def api_add_email_recipient(user_session, guild_id):
                 )
                 recipient_id = cursor.lastrowid
                 
-                app.logger.info(f"Γ£a Email recipient committed: {email} for guild {guild_id}")
+                app.logger.info(f"[OK] Email recipient committed: {email} for guild {guild_id}")
                 
                 return jsonify({'success': True, 'message': 'Email recipient added successfully', 'id': recipient_id, 'email': email})
             except psycopg2.IntegrityError:
@@ -2590,7 +2590,7 @@ def api_remove_email_recipient(user_session, guild_id):
             if cursor.rowcount == 0:
                 return jsonify({'success': False, 'error': 'Recipient not found'}), 404
             
-            app.logger.info(f"Γ£a Email recipient removed: {recipient_id} for guild {guild_id}")
+            app.logger.info(f"[OK] Email recipient removed: {recipient_id} for guild {guild_id}")
             
             return jsonify({'success': True, 'message': 'Email recipient removed successfully'})
     except Exception as e:
@@ -2925,7 +2925,7 @@ def purchase_success():
     </head>
     <body>
         <div class="container">
-            <h1>Γ£a Purchase Successful!</h1>
+            <h1>[OK] Purchase Successful!</h1>
             <p>Your payment has been processed. Your server's access has been automatically updated.</p>
             <p>You can now use all premium features in Discord!</p>
             <a href="/">Return to Home</a>
@@ -2995,7 +2995,7 @@ def purchase_cancel():
     </head>
     <body>
         <div class="container">
-            <h1>Γ¥î Purchase Cancelled</h1>
+            <h1>[ERROR] Purchase Cancelled</h1>
             <p>Your purchase was cancelled. No charges were made.</p>
             <p>You can try again anytime!</p>
             <a href="/">Return to Home</a>

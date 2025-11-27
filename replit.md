@@ -44,9 +44,14 @@ Preferred communication style: Simple, everyday language.
 15. **Missing Adjustment History** - Added `get_user_adjustment_history()` function to bot.py and `/api/guild/{id}/adjustments/history` route to app.py
 16. **Windows Line Endings** - Converted app.py from CRLF to LF line endings
 
-## Known Hardcoded Values (Future Refactoring)
-- `BOT_OWNER_ID = '107103438139056128'` - Hardcoded in 3 places in app.py (should use env var)
-- `bot_id = "1418446753379913809"` - Hardcoded in 2 places in app.py + dashboard_invite.html template
+## Configuration Improvements (November 27, 2025)
+17. **Environment Variables** - Moved hardcoded Discord IDs to environment variables:
+    - `BOT_OWNER_ID` - Now reads from env var with fallback (bot.py + app.py)
+    - `DISCORD_CLIENT_ID` - Now reads from env var with fallback (bot.py + app.py + dashboard_invite.html)
+18. **SQLite Cleanup** - Removed old SQLite files no longer needed after PostgreSQL migration:
+    - Removed: `timeclock.db`, `timeclock_backup.db`, `sqlite_schema.sql`, `migrate_to_postgres.py`
+19. **Log Message Cleanup** - Fixed remaining mojibake characters in app.py log messages:
+    - Replaced corrupted emoji with ASCII markers: `[ERROR]`, `[OK]`, `[WARN]`, `[INFO]`
 
 ## Outstanding TODOs
 - `app.py:727` - TODO: implement Discord API call to get member roles
