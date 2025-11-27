@@ -23,6 +23,7 @@ Preferred communication style: Simple, everyday language.
 8. **RealDictRow Tuple Unpacking Bugs** - Fixed critical bugs where tuple unpacking of database results returned KEYS instead of VALUES:
    - `get_server_tier()` line 2824: Changed `tier, status = result` → dictionary access
    - `subscription_status` command line 7351: Changed 5-variable tuple unpack → dictionary access
+9. **None Check Missing** - Added None check for `current` variable in `approve_adjustment()` before accessing `current['clock_in']`
 
 **Status**: ✅ All encoding and variable issues resolved. App fully operational with proper data access.
 

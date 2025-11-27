@@ -3719,6 +3719,9 @@ def approve_adjustment(request_id: int, guild_id: int, reviewer_user_id: int):
                 cursor = conn.execute("SELECT clock_in, clock_out FROM sessions WHERE id = %s", (session_id,))
                 current = cursor.fetchone()
                 
+                if not current:
+                    return False, "Original session not found"
+                
                 new_in = safe_parse_timestamp(request['requested_clock_in']) if request['requested_clock_in'] else safe_parse_timestamp(current['clock_in'])
                 new_out = safe_parse_timestamp(request['requested_clock_out']) if request['requested_clock_out'] else safe_parse_timestamp(current['clock_out'])
                 
