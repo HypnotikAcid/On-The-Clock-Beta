@@ -1,0 +1,182 @@
+CRITICAL LIMITATIONS TO AVOID
+1. File Size & Context Window Limits
+Problem: AI tools have finite "working memory" (context windows) - typically 64k-128k tokens. Large files exceed this, causing:
+
+Corrupted edits and syntax errors
+Loss of global context
+"Lost in the middle" - AI forgets important details
+Hallucinations (plausible but wrong code)
+RULES:
+
+✅ Hard Limit: Keep files under 500 lines (ideal)
+⚠️ Warning Zone: 500-1,000 lines (needs monitoring)
+❌ Danger Zone: 1,000-2,000 lines (suggest refactoring)
+🚫 BLOCKED: 2,000+ lines (MUST be split before any AI edits)
+Enforcement: Before writing code, ASK:
+
+"Will this file exceed 500 lines?"
+"Can this be split into smaller modules?"
+If yes to either, propose modular structure FIRST
+2. Monolithic Code Organization
+Problem: AI tools can't understand cross-file dependencies in large codebases
+
+RULES FOR ALL PROJECTS:
+
+Web Development (HTML/CSS/JS):
+❌ NO inline CSS > 100 lines (extract to separate file)
+❌ NO inline JavaScript > 200 lines (extract to separate file)
+✅ Use <link> for CSS: <link rel="stylesheet" href="styles.css">
+✅ Use <script src=""> for JavaScript modules
+✅ Split large CSS into: base.css, components.css, utilities.css
+✅ Split large JS into feature modules: auth.js, forms.js, api.js
+Android Development (Kotlin/Java):
+❌ NO Activities > 300 lines (use Fragments + ViewModels)
+❌ NO ViewModels > 400 lines (extract to Repository/UseCase layer)
+❌ NO XML layouts > 200 lines (use <include> for reusable components)
+✅ One ViewModel per screen
+✅ Extract shared UI to custom Views or Composables
+✅ Use dependency injection (Hilt/Dagger)
+✅ Separate concerns: UI Layer → ViewModel → Repository → Data Source
+Python/Backend Development:
+❌ NO modules > 500 lines (split into submodules)
+❌ NO classes > 300 lines (extract mixins/utilities)
+✅ One class per file (unless tightly coupled)
+✅ Group related functions in separate utilities
+✅ Use __init__.py to organize module imports cleanly
+3. Cross-File Dependencies & Architecture
+Problem: AI can't track dependencies across multiple files, causing broken refactors
+
+RULES:
+
+✅ Explicit imports: Always use explicit imports, never import *
+✅ Clear interfaces: Define clear contracts (interfaces/protocols/abstract classes)
+✅ Dependency injection: Don't hardcode dependencies
+✅ Loose coupling: Modules should be independently understandable
+❌ Avoid: Circular dependencies between modules
+❌ Avoid: Global state and "God classes"
+Architecture Patterns to Use:
+
+MVC/MVVM for UI applications
+Repository Pattern for data access
+Service Layer for business logic
+Feature-based folder structure (not type-based)
+Example:
+
+✅ Good (Feature-based):
+/features
+  /auth
+    - LoginScreen.kt
+    - AuthViewModel.kt
+    - AuthRepository.kt
+  /profile
+    - ProfileScreen.kt
+    - ProfileViewModel.kt
+❌ Bad (Type-based):
+/viewmodels (10+ files)
+/screens (10+ files)
+/repositories (10+ files)
+4. Code Quality & Documentation
+Problem: AI generates worse code when context is unclear or inconsistent
+
+RULES:
+
+✅ Meaningful names: Use descriptive variable/function names
+Good: calculateUserMonthlyTotal(userId, month)
+Bad: calc(u, m) or process_data(x, y)
+✅ Consistent style: Follow established style guides (PEP 8, ktlint, ESLint)
+✅ Comments for complexity: Explain WHY, not WHAT
+// ✅ Good: Explains reasoning
+// Using debounce to prevent API spam from rapid user input
+fun searchUsers(query: String) { ... }
+// ❌ Bad: States the obvious
+// This function searches for users
+fun searchUsers(query: String) { ... }
+✅ Document architectural decisions: Keep ARCHITECTURE.md or similar
+✅ Type hints/annotations: Use them everywhere (TypeScript, Python type hints, Kotlin types)
+5. Security & Review Requirements
+Problem: AI can generate code with security vulnerabilities or expose secrets
+
+NON-NEGOTIABLE RULES:
+
+🚨 NEVER trust AL-generated code blindly
+✅ Code review: ALL AI-generated code must be reviewed
+✅ Security scan: Run SAST tools (SonarQube, Snyk, etc.)
+❌ NO hardcoded secrets: Use environment variables/secret managers
+❌ NO exposed API keys: Even in comments or test files
+✅ Test coverage: Minimum 70% for AI-generated code
+✅ Validate inputs: All user inputs must be sanitized
+Security Checklist for AI Code:
+
+ No SQL injection vulnerabilities
+ No XSS (Cross-Site Scripting) risks
+ Proper authentication/authorization
+ No sensitive data in logs
+ HTTPS/TLS for all external connections
+6. Context Management Strategy
+Problem: AI loses track in long sessions or complex tasks
+
+RULES:
+
+✅ Break down tasks: Split complex features into 5-10 subtasks
+✅ One feature at a time: Don't mix unrelated changes
+✅ Close irrelevant files: Only keep 3-5 files open in IDE
+✅ Clear prompts: Be specific about requirements
+Good: "Create a login form with email/password validation, show errors inline, and call /api/auth/login on submit"
+Bad: "Make a login page"
+✅ Start fresh: For new features, start a new AI conversation
+7. Testing & Validation
+Problem: AI-generated code may have subtle bugs or logic errors
+
+MANDATORY PRACTICES:
+
+✅ Write tests FIRST (TDD): Provide AI with test cases as context
+✅ Automated testing: Unit + Integration tests for all features
+✅ Manual testing: Test all user flows personally
+✅ Edge cases: Specifically test error conditions
+✅ Performance testing: Validate for slow operations
+📋 PRE-PROJECT CHECKLIST
+Before starting ANY new project with AI assistance:
+
+Setup Phase:
+ Define maximum file size limits for project type
+ Set up automated linters (ESLint, ktlint, black, etc.)
+ Configure pre-commit hooks (file size check, style check)
+ Create folder structure following modular principles
+ Set up testing framework
+ Configure security scanning tools
+ Create ARCHITECTURE.md documenting patterns to follow
+During Development:
+ Monitor file sizes after each AI interaction
+ Review all AI-generated code for quality/security
+ Run tests after accepting AI suggestions
+ Keep related files open, close unrelated ones
+ Break down complex tasks before asking AI
+Red Flags to Watch For:
+🚩 File approaching 500 lines → Refactor now
+🚩 AI suggesting copied code → Check for better abstraction
+🚩 AI "hallucinating" functions → Verify against docs
+🚩 Complex nested logic → Simplify before accepting
+🚩 Missing error handling → Add it yourself
+🎯 ENFORCEMENT
+When AI Tool Should Refuse: If I ask for changes that would:
+
+Create a file > 500 lines
+Add > 100 lines to a file > 400 lines
+Create circular dependencies
+Duplicate code instead of abstracting
+Mix multiple unrelated features
+AI Response Should Be: "This change would create a [FILE SIZE / ARCHITECTURE / DUPLICATION] problem. Here's a better approach: [MODULAR SOLUTION]"
+
+✅ CONFIRMATION REQUIRED
+At the start of EVERY new project or major feature:
+
+AI must acknowledge:
+
+"I understand file size limits and will proactively suggest splitting"
+"I will follow [PROJECT TYPE] architecture best practices"
+"I will not generate code exceeding defined thresholds"
+"I will flag security risks and require validation"
+"I understand this project prioritizes QUALITY over speed"
+Do you acknowledge and agree to follow ALL these rules for this project?
+
+Last Updated: Based on real-world experience and industry research (2024) Applies To: ALL projects - Web, Mobile, Backend, Scripts, etc. No Exceptions: These are ironclad rules, not suggestions
