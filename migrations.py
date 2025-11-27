@@ -134,6 +134,56 @@ def run_migrations():
                     ON employee_profiles(guild_id, is_active)
                 """)
                 
+                # Add missing columns to employee_profiles (for GitHub sync compatibility)
+                # These are idempotent - will do nothing if columns already exist
+                try:
+                    cur.execute("""
+                        ALTER TABLE employee_profiles 
+                        ADD COLUMN IF NOT EXISTS full_name VARCHAR(200)
+                    """)
+                except Exception:
+                    pass  # Column may already exist
+                    
+                try:
+                    cur.execute("""
+                        ALTER TABLE employee_profiles 
+                        ADD COLUMN IF NOT EXISTS display_name VARCHAR(100)
+                    """)
+                except Exception:
+                    pass  # Column may already exist
+                    
+                try:
+                    cur.execute("""
+                        ALTER TABLE employee_profiles 
+                        ADD COLUMN IF NOT EXISTS avatar_url TEXT
+                    """)
+                except Exception:
+                    pass  # Column may already exist
+                    
+                try:
+                    cur.execute("""
+                        ALTER TABLE employee_profiles 
+                        ADD COLUMN IF NOT EXISTS position VARCHAR(100)
+                    """)
+                except Exception:
+                    pass  # Column may already exist
+                    
+                try:
+                    cur.execute("""
+                        ALTER TABLE employee_profiles 
+                        ADD COLUMN IF NOT EXISTS department VARCHAR(100)
+                    """)
+                except Exception:
+                    pass  # Column may already exist
+                    
+                try:
+                    cur.execute("""
+                        ALTER TABLE employee_profiles 
+                        ADD COLUMN IF NOT EXISTS discord_status VARCHAR(20) DEFAULT 'offline'
+                    """)
+                except Exception:
+                    pass  # Column may already exist
+                
                 # 5. Create employee_profile_tokens table
                 print("   Checking table: employee_profile_tokens")
                 cur.execute("""

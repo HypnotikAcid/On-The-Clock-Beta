@@ -23,17 +23,6 @@ import stripe
 from stripe import SignatureVerificationError
 
 app = Flask(__name__)
-# Environment Variables
-DATABASE_URL = os.environ.get('DATABASE_URL')
-DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
-DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
-DISCORD_API_BASE = 'https://discord.com/api/v10'
-STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
-STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
-
-app_db_pool = None
-
-
 # Import helper functions from bot.py for Stripe webhook handling
 from bot import (
     check_bot_access,
@@ -78,7 +67,7 @@ if __name__ != '__main__':
         
         bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
         bot_thread.start()
-        app.logger.info("âœ… Discord bot thread started in worker")
+        app.logger.info('✅ Discord bot thread started in worker')
 
 # Configure logging to work with Gunicorn
 if __name__ != '__main__':
@@ -96,11 +85,22 @@ def has_permission(permissions, permission_flag):
         return int(permissions) & permission_flag != 0
     except (ValueError, TypeError):
         return False
+
+# Environment configuration
+DATABASE_URL = os.environ.get('DATABASE_URL')
+DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID')
+DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
+DISCORD_API_BASE = 'https://discord.com/api/v10'
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+
+# Database pool initialization
+app_db_pool = None
+
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-
 
 # Initialize Stripe
 if STRIPE_SECRET_KEY:
