@@ -818,7 +818,10 @@ async function loadEmployeeStatus(guildId) {
                 return;
             }
 
-            container.innerHTML = data.employees.map(emp => {
+            // Clear container and build employee cards using safe DOM methods
+            container.innerHTML = '';
+            
+            data.employees.forEach(emp => {
                 // Calculate duration
                 const clockInTime = new Date(emp.clock_in);
                 const now = new Date();
@@ -836,39 +839,64 @@ async function loadEmployeeStatus(guildId) {
                     return `${h}h ${m}m`;
                 };
 
-                const safeName = escapeHtml(emp.display_name || 'Unknown User');
-                const safeInitial = emp.display_name ? escapeHtml(emp.display_name.charAt(0).toUpperCase()) : '?';
-                return `
-                        <div class="employee-card">
-                            <div class="employee-card-header">
-                                <div class="employee-avatar">
-                                    ${safeInitial}
-                                </div>
-                                <div class="employee-info">
-                                    <h3>${safeName}</h3>
-                                    <div class="employee-status">
-                                        <span style="width: 8px; height: 8px; background: #57F287; border-radius: 50%; display: inline-block;"></span>
-                                        Clocked in for ${durationStr}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="employee-stats">
-                                <div class="stat-row">
-                                    <span class="stat-label">Today</span>
-                                    <span class="stat-value">${formatHours(emp.hours_today)}</span>
-                                </div>
-                                <div class="stat-row">
-                                    <span class="stat-label">This Week</span>
-                                    <span class="stat-value">${formatHours(emp.hours_week)}</span>
-                                </div>
-                                <div class="stat-row">
-                                    <span class="stat-label">This Month</span>
-                                    <span class="stat-value">${formatHours(emp.hours_month)}</span>
-                                </div>
-                            </div>
-                        </div>
-                        `;
-            }).join('');
+                // Create employee card using safe DOM methods
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+
+                const cardHeader = document.createElement('div');
+                cardHeader.className = 'employee-card-header';
+
+                const avatar = document.createElement('div');
+                avatar.className = 'employee-avatar';
+                avatar.textContent = emp.display_name ? emp.display_name.charAt(0).toUpperCase() : '?';
+
+                const info = document.createElement('div');
+                info.className = 'employee-info';
+
+                const nameH3 = document.createElement('h3');
+                nameH3.textContent = emp.display_name || 'Unknown User';
+
+                const status = document.createElement('div');
+                status.className = 'employee-status';
+                const statusDot = document.createElement('span');
+                statusDot.style.cssText = 'width: 8px; height: 8px; background: #57F287; border-radius: 50%; display: inline-block;';
+                status.appendChild(statusDot);
+                status.appendChild(document.createTextNode(` Clocked in for ${durationStr}`));
+
+                info.appendChild(nameH3);
+                info.appendChild(status);
+                cardHeader.appendChild(avatar);
+                cardHeader.appendChild(info);
+
+                const stats = document.createElement('div');
+                stats.className = 'employee-stats';
+
+                // Create stat rows
+                const createStatRow = (label, value) => {
+                    const row = document.createElement('div');
+                    row.className = 'stat-row';
+                    
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'stat-label';
+                    labelSpan.textContent = label;
+                    
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'stat-value';
+                    valueSpan.textContent = value;
+                    
+                    row.appendChild(labelSpan);
+                    row.appendChild(valueSpan);
+                    return row;
+                };
+
+                stats.appendChild(createStatRow('Today', formatHours(emp.hours_today)));
+                stats.appendChild(createStatRow('This Week', formatHours(emp.hours_week)));
+                stats.appendChild(createStatRow('This Month', formatHours(emp.hours_month)));
+
+                card.appendChild(cardHeader);
+                card.appendChild(stats);
+                container.appendChild(card);
+            });
         } else {
             container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Error: ${escapeHtml(data.error)}</div>`;
         }
