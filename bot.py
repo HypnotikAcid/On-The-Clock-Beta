@@ -3872,10 +3872,8 @@ def approve_adjustment(request_id: int, guild_id: int, reviewer_user_id: int):
                 
                 params.append(session_id)
                 
-                conn.execute(f"""
-                    UPDATE sessions SET {', '.join(updates)}
-                    WHERE id = %s
-                """, tuple(params))
+                query = "UPDATE sessions SET " + ', '.join(updates) + " WHERE id = %s"
+                conn.execute(query, tuple(params))
                 
             elif req_type == 'delete_session':
                 session_id = request['original_session_id']
