@@ -601,6 +601,24 @@
                     <p class="content-subtitle">Request changes or review pending adjustments</p>
                 </div>
 
+
+                <!-- Calendar View (Phase 1) -->
+                <div class="tile" id="adjustments-calendar-container" style="margin-bottom: 30px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2><span class="tile-icon">??</span>My Work Calendar</h2>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button id="calendar-prev-month" class="calendar-nav-btn" title="Previous Month">? Prev</button>
+                            <span id="calendar-month-year" style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
+                            <button id="calendar-next-month" class="calendar-nav-btn" title="Next ?">Next ?</button>
+                        </div>
+                    </div>
+                    <div id="calendar-grid" class="calendar-grid">
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">Loading calendar...</div>
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
+                        <div style="font-size: 13px; color: #C9D1D9;"><strong>?? How to use:</strong> Click on any day with work sessions to view details.</div>
+                    </div>
+                </div>
                 <!-- Employee View: Submit Request -->
                 <div class="tile" id="employee-adjustment-form-container">
                     <h2><span class="tile-icon">📝</span>Request Adjustment</h2>
@@ -905,6 +923,23 @@
 
         <!-- Dashboard Core Logic -->
         <script src="/static/js/dashboard-core.js"></script>
-</body>
+        <!-- Dashboard Adjustments Calendar -->
+        <script src="/static/js/dashboard-adjustments.js"></script>
+
+        <!-- Calendar Initialization -->
+        <script>
+            // Initialize calendar when adjustments section is active
+            const currentGuildId = document.getElementById('guild-selector')?.value;
+            const currentUserId = '{{ user.user_id }}';
+            
+            if (currentGuildId && currentUserId) {
+                // Wait for calendar script to load, then initialize
+                setTimeout(() => {
+                    if (typeof initializeAdjustmentsCalendar === 'function') {
+                        initializeAdjustmentsCalendar(currentGuildId, currentUserId);
+                    }
+                }, 500);
+            }
+        </script></body>
 
 </html>
