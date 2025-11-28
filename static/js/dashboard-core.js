@@ -6,6 +6,19 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Loading overlay functions
+function showLoading(message = 'Loading...') {
+    const overlay = document.getElementById('loadingOverlay');
+    const textEl = overlay.querySelector('.loading-text');
+    if (textEl) textEl.textContent = message;
+    overlay.classList.add('active');
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.remove('active');
+}
+
 // Server Settings State
 let currentGuildId = null;
 let currentServerData = null;
@@ -14,54 +27,62 @@ let selectedCurrentAdminRole = null;
 let selectedAvailableRole = null;
 let selectedCurrentRole = null;
 
-// Navigation functionality
-function updateNavigation() {
+// Navigation handler function (called by event delegation)
+async function handleNavigation(sectionId) {
+    if (!sectionId) return;
+    
     const navItems = document.querySelectorAll('.nav-item');
     const contentSections = document.querySelectorAll('.content-section');
+    
+    // Show loading for sections that fetch data
+    const loadingSections = ['employees', 'email-settings', 'adjustments', 'server-overview', 'admin-roles', 'employee-roles'];
+    if (loadingSections.includes(sectionId)) {
+        showLoading();
+    }
+    
+    // Update active states
+    navItems.forEach(nav => nav.classList.remove('active'));
+    const activeNav = document.querySelector(`[data-section="${sectionId}"]`);
+    if (activeNav) activeNav.classList.add('active');
 
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const sectionId = item.getAttribute('data-section');
+    contentSections.forEach(section => section.classList.remove('active'));
+    const targetSection = document.getElementById('section-' + sectionId);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
 
-            navItems.forEach(nav => nav.classList.remove('active'));
-            item.classList.add('active');
+    try {
+        // Load section-specific data
+        if (sectionId === 'email-settings') {
+            await loadEmailRecipients();
+        }
 
-            contentSections.forEach(section => section.classList.remove('active'));
-            const targetSection = document.getElementById('section-' + sectionId);
-            if (targetSection) {
-                targetSection.classList.add('active');
+        if (sectionId === 'employees') {
+            await loadEmployeeStatus(currentGuildId);
+        }
+
+        if (sectionId === 'adjustments') {
+            if (typeof loadUserAdjustmentHistory === 'function') {
+                await loadUserAdjustmentHistory(currentGuildId);
             }
-
-            // Load email recipients when email settings section is shown
-            if (sectionId === 'email-settings') {
-                loadEmailRecipients();
+            if (currentServerData && (currentServerData.user_role_tier === 'admin' || currentServerData.user_role_tier === 'owner')) {
+                await loadPendingAdjustments(currentGuildId);
             }
-
-            // Load employee status when section is shown
-            if (sectionId === 'employees') {
-                loadEmployeeStatus(currentGuildId);
-            }
-
-            // Load adjustments when section is shown
-            if (sectionId === 'adjustments') {
-                // Always load user history
-                if (typeof loadUserAdjustmentHistory === 'function') {
-                    loadUserAdjustmentHistory(currentGuildId);
-                }
-
-                // Only load pending if admin/owner
-                if (currentServerData && (currentServerData.user_role_tier === 'admin' || currentServerData.user_role_tier === 'owner')) {
-                    loadPendingAdjustments(currentGuildId);
-                }
-            }
-
-            // Don't auto-close sidebar on mobile - let user navigate freely
-            // They can close it by tapping the overlay or back button
-        });
-    });
+        }
+    } finally {
+        // Always hide loading when done
+        hideLoading();
+    }
 }
 
-updateNavigation();
+// Set up navigation using event delegation (only once)
+document.querySelector('.sidebar-nav').addEventListener('click', (e) => {
+    const navItem = e.target.closest('.nav-item');
+    if (navItem) {
+        const sectionId = navItem.getAttribute('data-section');
+        handleNavigation(sectionId);
+    }
+});
 
 // Server Selection Handler
 document.querySelectorAll('.server-item').forEach(item => {
@@ -69,6 +90,9 @@ document.querySelectorAll('.server-item').forEach(item => {
         const guildId = this.dataset.guildId;
         const guildName = this.dataset.guildName;
         const guildIcon = this.dataset.guildIcon;
+
+        // Show loading overlay
+        showLoading('Loading server...');
 
         currentGuildId = guildId;
 
@@ -89,19 +113,21 @@ document.querySelectorAll('.server-item').forEach(item => {
         document.getElementById('main-nav').style.display = 'none';
         document.getElementById('server-nav').style.display = 'block';
 
-        // Load server data
-        await loadServerData(guildId);
+        try {
+            // Load server data
+            await loadServerData(guildId);
 
-        // Load pending count
-        loadPendingAdjustments(guildId);
+            // Load pending count
+            await loadPendingAdjustments(guildId);
 
-        // Navigate to server overview
-        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-        document.querySelector('[data-section="server-overview"]').classList.add('active');
-        document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-        document.getElementById('section-server-overview').classList.add('active');
-
-        updateNavigation();
+            // Navigate to server overview
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            document.querySelector('[data-section="server-overview"]').classList.add('active');
+            document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+            document.getElementById('section-server-overview').classList.add('active');
+        } finally {
+            hideLoading();
+        }
     });
 });
 
@@ -119,8 +145,6 @@ document.getElementById('backToServers').addEventListener('click', () => {
     document.querySelector('[data-section="my-servers"]').classList.add('active');
     document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
     document.getElementById('section-my-servers').classList.add('active');
-
-    updateNavigation();
 });
 
 // Load Server Data
