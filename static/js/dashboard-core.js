@@ -865,7 +865,12 @@ async function loadEmployeeStatus(guildId) {
 
                 // Create employee card using safe DOM methods
                 const card = document.createElement('div');
-                card.className = 'employee-card';
+                card.className = 'employee-card clickable';
+                card.dataset.userId = emp.user_id;
+                card.dataset.guildId = guildId;
+                card.onclick = function () {
+                    openEmployeeDetailView(emp.user_id, guildId);
+                };
 
                 const cardHeader = document.createElement('div');
                 cardHeader.className = 'employee-card-header';
@@ -1192,3 +1197,203 @@ async function loadUserAdjustmentHistory(guildId) {
         container.innerHTML = '<div class="empty-state" style="color: #EF4444;">Failed to load history.</div>';
     }
 }
+
+// ===========================
+// Employee Detail View Functions
+// ===========================
+
+// Open employee detail modal
+async function openEmployeeDetailView(userId, guildId) {
+    const overlay = document.getElementById('employee-detail-overlay');
+    if (!overlay) {
+        console.error('Employee detail overlay not found');
+        return;
+    }
+
+    overlay.style.display = 'flex';
+
+    // Set loading state
+    document.getElementById('detail-name').textContent = 'Loading...';
+    document.getElementById('detail-status').textContent = 'Status: Loading...';
+    document.getElementById('weekly-timecard-grid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: rgba(0,0,0,0.5);">Loading...</div>';
+    document.getElementById('recent-requests-list').innerHTML = '<div style="text-align: center; padding: 20px; color: rgba(0,0,0,0.5);">Loading...</div>';
+
+    try {
+        // Fetch employee detail
+        const detailResponse = await fetch(`/api/guild/${guildId}/employee/${userId}/detail`);
+        const detailData = await detailResponse.json();
+
+        if (!detailData.success) {
+            throw new Error(detailData.error || 'Failed to load employee details');
+        }
+
+        // Fetch timecard
+        const timecardResponse = await fetch(`/api/guild/${guildId}/employee/${userId}/timecard`);
+        const timecardData = await timecardResponse.json();
+
+        if (!timecardData.success) {
+            throw new Error(timecardData.error || 'Failed to load timecard');
+        }
+
+        // Fetch recent requests
+        const requestsResponse = await fetch(`/api/guild/${guildId}/employee/${userId}/adjustments/recent`);
+        const requestsData = await requestsResponse.json();
+
+        if (!requestsData.success) {
+            throw new Error(requestsData.error || 'Failed to load requests');
+        }
+
+        // Render data
+        renderEmployeeHeader(detailData.employee);
+        renderWeeklyTimecard(timecardData);
+        renderRecentRequests(requestsData.requests || [], guildId);
+
+    } catch (error) {
+        console.error('Error loading employee detail:', error);
+        document.getElementById('detail-name').textContent = 'Error';
+        document.getElementById('detail-status').textContent = 'Failed to load employee data';
+        document.getElementById('weekly-timecard-grid').innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--stamp-denied);">${escapeHtml(error.message)}</div>`;
+        document.getElementById('recent-requests-list').innerHTML = `<div style="text-align: center; padding: 20px; color: var(--stamp-denied);">${escapeHtml(error.message)}</div>`;
+    }
+}
+
+// Close modal
+function closeEmployeeDetailView() {
+    const overlay = document.getElementById('employee-detail-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+
+// Render employee header
+function renderEmployeeHeader(employee) {
+    const nameEl = document.getElementById('detail-name');
+    const statusEl = document.getElementById('detail-status');
+    const avatarEl = document.getElementById('detail-avatar');
+
+    if (nameEl) {
+        nameEl.textContent = employee.display_name || 'Unknown User';
+    }
+
+    if (statusEl) {
+        const status = employee.is_clocked_in ? `🟢 Clocked In` : `🔴 Clocked Out`;
+        const totalHours = employee.total_hours_week ? ` • ${Math.floor(employee.total_hours_week / 3600)}h this week` : '';
+        statusEl.textContent = `${status}${totalHours}`;
+    }
+
+    if (avatarEl) {
+        avatarEl.textContent = employee.display_name ? employee.display_name.charAt(0).toUpperCase() : '?';
+    }
+}
+
+// Render weekly timecard
+function renderWeeklyTimecard(data) {
+    const container = document.getElementById('weekly-timecard-grid');
+    if (!container) return;
+
+    if (!data.days || data.days.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: rgba(0,0,0,0.5);">No timecard data available</div>';
+        return;
+    }
+
+    container.innerHTML = data.days.map(day => {
+        const hours = day.duration_hours || 0;
+        const barHeight = Math.min(hours * 10, 100); // Cap at 100px
+        const isComplete = day.status === 'complete';
+        const barColor = isComplete ? '#10B981' : '#8B949E';
+
+        return `
+            <div class="timecard-day">
+                <div class="day-name">${escapeHtml(day.day_name || 'N/A')}</div>
+                <div class="day-hours">${hours.toFixed(1)}h</div>
+                <div class="time-bar" style="height: ${barHeight}px; background: ${barColor}"></div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Render recent requests
+function renderRecentRequests(requests, guildId) {
+    const container = document.getElementById('recent-requests-list');
+    if (!container) return;
+
+    if (!requests || requests.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="text-align: center; padding: 30px; color: rgba(0,0,0,0.5);">No recent adjustment requests</div>';
+        return;
+    }
+
+    container.innerHTML = requests.map(req => {
+        const statusClass = req.status || 'pending';
+        const requestType = (req.request_type || 'unknown').replace(/_/g, ' ').toUpperCase();
+        const reason = escapeHtml(req.reason || 'No reason provided');
+
+        let actionButtons = '';
+        if (req.status === 'pending' && currentServerData && (currentServerData.user_role_tier === 'admin' || currentServerData.user_role_tier === 'owner')) {
+            actionButtons = `
+                <div class="request-actions" style="margin-top: 12px; display: flex; gap: 8px;">
+                    <button onclick="handleQuickApproval(${req.id}, ${guildId}, 'approve')" style="background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.4);">✅ Approve</button>
+                    <button onclick="handleQuickApproval(${req.id}, ${guildId}, 'deny')" style="background: rgba(220, 38, 38, 0.2); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.4);">❌ Deny</button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="request-card">
+                <div class="stamp ${statusClass}">${statusClass.toUpperCase()}</div>
+                <div class="request-type">${requestType}</div>
+                <div class="request-reason">Reason: ${reason}</div>
+                <div style="font-size: 11px; color: rgba(0,0,0,0.5); margin-top: 8px;">
+                    Requested: ${new Date(req.created_at).toLocaleString()}
+                </div>
+                ${actionButtons}
+            </div>
+        `;
+    }).join('');
+}
+
+// Quick approval handler
+async function handleQuickApproval(requestId, guildId, action) {
+    if (!requestId || !guildId || !action) {
+        alert('Invalid parameters');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/guild/${guildId}/adjustments/${requestId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Refresh the employee detail view
+            // Get the current employee user ID (we'll need to track this)
+            const overlay = document.getElementById('employee-detail-overlay');
+            if (overlay && overlay.style.display !== 'none') {
+                // For now, just reload the page section
+                alert(`Request ${action}ed successfully!`);
+                closeEmployeeDetailView();
+            }
+        } else {
+            alert(`Error: ${data.error || 'Failed to process request'}`);
+        }
+    } catch (error) {
+        console.error('Error handling approval:', error);
+        alert('Failed to process request. Please try again.');
+    }
+}
+
+// Close modal when clicking overlay (outside the modal)
+document.addEventListener('DOMContentLoaded', function () {
+    const overlay = document.getElementById('employee-detail-overlay');
+    if (overlay) {
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) {
+                closeEmployeeDetailView();
+            }
+        });
+    }
+});
