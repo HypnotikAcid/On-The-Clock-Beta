@@ -117,7 +117,7 @@ STRIPE_PRICE_IDS = {
 }
 
 # Bot API Configuration
-BOT_API_BASE_URL = "http://localhost:8081"
+BOT_API_BASE_URL = os.getenv('BOT_API_BASE_URL', 'http://localhost:8081')
 
 # Initialize Stripe
 if STRIPE_SECRET_KEY:
@@ -495,7 +495,7 @@ def check_user_admin_realtime(user_id, guild_id):
             return {'is_member': False, 'is_admin': False, 'reason': 'api_secret_missing'}
         
         # Call bot API to check admin status
-        url = f'http://localhost:8081/api/guild/{guild_id}/user/{user_id}/check-admin'
+        url = f'{BOT_API_BASE_URL}/api/guild/{guild_id}/user/{user_id}/check-admin'
         headers = {'Authorization': f'Bearer {bot_api_secret}'}
         
         response = requests.get(url, headers=headers, timeout=5)
@@ -2391,6 +2391,11 @@ def api_add_admin_role(user_session, guild_id):
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/add"
         
+        # Validate constructed URL starts with allowed base (defense in depth)
+        if not bot_api_url.startswith(BOT_API_BASE_URL):
+            app.logger.error(f"URL validation failed: {bot_api_url}")
+            return jsonify({'success': False, 'error': 'Invalid request'}), 400
+        
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
@@ -2445,6 +2450,11 @@ def api_remove_admin_role(user_session, guild_id):
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/remove"
         
+        # Validate constructed URL starts with allowed base (defense in depth)
+        if not bot_api_url.startswith(BOT_API_BASE_URL):
+            app.logger.error(f"URL validation failed: {bot_api_url}")
+            return jsonify({'success': False, 'error': 'Invalid request'}), 400
+        
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
@@ -2498,6 +2508,11 @@ def api_add_employee_role(user_session, guild_id):
         # Forward request to bot API (Bot as Boss)
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/employee-roles/add"
+        
+        # Validate constructed URL starts with allowed base (defense in depth)
+        if not bot_api_url.startswith(BOT_API_BASE_URL):
+            app.logger.error(f"URL validation failed: {bot_api_url}")
+            return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
         app.logger.info(f"≡ƒou Flask calling bot API: {bot_api_url} with role_id={role_id}")
         
@@ -2556,6 +2571,11 @@ def api_remove_employee_role(user_session, guild_id):
         # Forward request to bot API (Bot as Boss)
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/employee-roles/remove"
+        
+        # Validate constructed URL starts with allowed base (defense in depth)
+        if not bot_api_url.startswith(BOT_API_BASE_URL):
+            app.logger.error(f"URL validation failed: {bot_api_url}")
+            return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
         response = requests.post(
             bot_api_url,
