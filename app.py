@@ -3565,10 +3565,181 @@ def api_get_adjustment_history(user_session, guild_id):
                     req_dict[key] = value.isoformat()
             serialized_requests.append(req_dict)
             
-        return jsonify({'success': True, 'requests': serialized_requests})
+        return jsonify({'success': True, 'history': serialized_requests})
         
     except Exception as e:
         app.logger.error(f"Error fetching adjustment history: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Employee Detail View API Endpoints
+@app.route("/api/guild/<guild_id>/employee/<user_id>/detail")
+@require_paid_api_access
+def api_get_employee_detail(user_session, guild_id, user_id):
+    """
+    Get comprehensive employee detail including profile, status, and statistics.
+    """
+    try:
+        from bot import get_active_employees_with_stats
+        
+        # Get employee data with stats
+        timezone_name = request.args.get('timezone', 'America/New_York')
+        employees = get_active_employees_with_stats(int(guild_id), timezone_name)
+        
+        # Find the specific employee
+        employee = None
+        for emp in employees:
+            if str(emp.get('user_id')) == str(user_id):
+                employee = emp
+                break
+        
+        # If not in active list, get from database
+        if not employee:
+            with bot_db() as conn:
+                cursor = conn.execute("""
+                    SELECT user_id, username, display_name
+                    FROM employee_profiles
+                    WHERE guild_id = %s AND user_id = %s
+                """, (int(guild_id), user_id))
+                profile = cursor.fetchone()
+                
+                if profile:
+                    employee = {
+                        'user_id': profile['user_id'],
+                        'username': profile['username'],
+                        'display_name': profile['display_name'],
+                        'status': 'clocked_out',
+                        'hours_today': 0,
+                        'hours_week': 0,
+                        'hours_month': 0
+                    }
+        
+        if not employee:
+            return jsonify({'success': False, 'error': 'Employee not found'}), 404
+        
+        # Get total sessions count
+        with bot_db() as conn:
+            cursor = conn.execute("""
+                SELECT COUNT(*) as total_sessions
+                FROM sessions
+                WHERE guild_id = %s AND user_id = %s
+            """, (int(guild_id), user_id))
+            result = cursor.fetchone()
+            employee['total_sessions'] = result['total_sessions'] if result else 0
+        
+        return jsonify({'success': True, 'employee': employee})
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching employee detail: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/guild/<guild_id>/employee/<user_id>/timecard")
+@require_paid_api_access
+def api_get_employee_timecard(user_session, guild_id, user_id):
+    """
+    Get weekly timecard for an employee showing daily clock in/out times.
+    """
+    try:
+        from datetime import date, timedelta
+        
+        # Get week start (default to current week's Monday)
+        week_param = request.args.get('week')
+        if week_param:
+            week_start = datetime.fromisoformat(week_param).date()
+        else:
+            today = date.today()
+            week_start = today - timedelta(days=today.weekday())
+        
+        timezone_name = request.args.get('timezone', 'America/New_York')
+        
+        # Get sessions for the week
+        week_end = week_start + timedelta(days=7)
+        
+        with bot_db() as conn:
+            cursor = conn.execute("""
+                SELECT clock_in, clock_out, duration_seconds
+                FROM sessions
+                WHERE guild_id = %s AND user_id = %s
+                AND clock_in::date >= %s AND clock_in::date < %s
+                ORDER BY clock_in ASC
+            """, (int(guild_id), user_id, week_start, week_end))
+            sessions = cursor.fetchall()
+        
+        # Build 7-day structure
+        days = []
+        week_total_seconds = 0
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        
+        for i in range(7):
+            current_date = week_start + timedelta(days=i)
+            day_sessions = [s for s in sessions if s['clock_in'].date() == current_date]
+            
+            if day_sessions:
+                # Use first session of the day
+                session = day_sessions[0]
+                day_data = {
+                    'date': current_date.isoformat(),
+                    'day_name': day_names[i],
+                    'clock_in': session['clock_in'].isoformat() if session['clock_in'] else None,
+                    'clock_out': session['clock_out'].isoformat() if session['clock_out'] else None,
+                    'duration_hours': round(session['duration_seconds'] / 3600, 2) if session['duration_seconds'] else 0,
+                    'status': 'complete' if session['clock_out'] else 'in_progress'
+                }
+                week_total_seconds += session['duration_seconds'] or 0
+            else:
+                day_data = {
+                    'date': current_date.isoformat(),
+                    'day_name': day_names[i],
+                    'clock_in': None,
+                    'clock_out': None,
+                    'duration_hours': 0,
+                    'status': 'absent'
+                }
+            
+            days.append(day_data)
+        
+        return jsonify({
+            'success': True,
+            'week_start': week_start.isoformat(),
+            'days': days,
+            'week_total_hours': round(week_total_seconds / 3600, 2)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching employee timecard: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/guild/<guild_id>/employee/<user_id>/adjustments/recent")
+@require_paid_api_access
+def api_get_employee_recent_adjustments(user_session, guild_id, user_id):
+    """
+    Get top 3 most recent adjustment requests for an employee.
+    """
+    try:
+        with bot_db() as conn:
+            cursor = conn.execute("""
+                SELECT id, request_type, status, created_at, reason,
+                       original_clock_in, original_clock_out,
+                       requested_clock_in, requested_clock_out,
+                       reviewed_by, reviewed_at
+                FROM time_adjustment_requests
+                WHERE guild_id = %s AND user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 3
+            """, (int(guild_id), user_id))
+            requests = cursor.fetchall()
+        
+        serialized_requests = []
+        for req in requests:
+            req_dict = dict(req)
+            for key, value in req_dict.items():
+                if isinstance(value, datetime):
+                    req_dict[key] = value.isoformat()
+            serialized_requests.append(req_dict)
+        
+        return jsonify({'success': True, 'requests': serialized_requests})
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching recent adjustments: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == "__main__":
