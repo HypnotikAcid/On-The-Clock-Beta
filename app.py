@@ -15,7 +15,7 @@ import threading
 import asyncio
 import concurrent.futures
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 import requests
 from flask import Flask, render_template, redirect, request, session, jsonify, url_for, make_response
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -118,6 +118,40 @@ STRIPE_PRICE_IDS = {
 
 # Bot API Configuration
 BOT_API_BASE_URL = os.getenv('BOT_API_BASE_URL', 'http://localhost:8081')
+
+def validate_bot_api_url(url):
+    """
+    Validate that a URL is safe for server-side requests (SSRF prevention).
+    Returns True if valid, False otherwise.
+    """
+    try:
+        parsed = urlparse(url)
+        
+        # Ensure scheme is http or https
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        
+        # Ensure hostname exists
+        if not parsed.hostname:
+            return False
+        
+        # In production, block requests to localhost/private IPs
+        # Allow localhost only in development
+        hostname = parsed.hostname.lower()
+        is_local = hostname in ('localhost', '127.0.0.1', '0.0.0.0', '::1')
+        
+        # Block private IP ranges in production
+        if os.environ.get('FLASK_ENV') == 'production' and is_local:
+            return False
+        
+        # Additional check: URL must start with the configured base
+        # (protects against path traversal in base URL)
+        if not url.startswith(BOT_API_BASE_URL):
+            return False
+            
+        return True
+    except Exception:
+        return False
 
 # Initialize Stripe
 if STRIPE_SECRET_KEY:
@@ -496,6 +530,12 @@ def check_user_admin_realtime(user_id, guild_id):
         
         # Call bot API to check admin status
         url = f'{BOT_API_BASE_URL}/api/guild/{guild_id}/user/{user_id}/check-admin'
+        
+        # Validate URL to prevent SSRF
+        if not validate_bot_api_url(url):
+            app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
+            return {'is_member': False, 'is_admin': False, 'reason': 'invalid_url'}
+        
         headers = {'Authorization': f'Bearer {bot_api_secret}'}
         
         response = requests.get(url, headers=headers, timeout=5)
@@ -2391,9 +2431,9 @@ def api_add_admin_role(user_session, guild_id):
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/add"
         
-        # Validate constructed URL starts with allowed base (defense in depth)
-        if not bot_api_url.startswith(BOT_API_BASE_URL):
-            app.logger.error(f"URL validation failed: {bot_api_url}")
+        # Validate URL to prevent SSRF
+        if not validate_bot_api_url(bot_api_url):
+            app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
         response = requests.post(
@@ -2450,9 +2490,9 @@ def api_remove_admin_role(user_session, guild_id):
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/remove"
         
-        # Validate constructed URL starts with allowed base (defense in depth)
-        if not bot_api_url.startswith(BOT_API_BASE_URL):
-            app.logger.error(f"URL validation failed: {bot_api_url}")
+        # Validate URL to prevent SSRF
+        if not validate_bot_api_url(bot_api_url):
+            app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
         response = requests.post(
@@ -2509,9 +2549,9 @@ def api_add_employee_role(user_session, guild_id):
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/employee-roles/add"
         
-        # Validate constructed URL starts with allowed base (defense in depth)
-        if not bot_api_url.startswith(BOT_API_BASE_URL):
-            app.logger.error(f"URL validation failed: {bot_api_url}")
+        # Validate URL to prevent SSRF
+        if not validate_bot_api_url(bot_api_url):
+            app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
         app.logger.info(f"≡ƒou Flask calling bot API: {bot_api_url} with role_id={role_id}")
@@ -2572,9 +2612,9 @@ def api_remove_employee_role(user_session, guild_id):
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/employee-roles/remove"
         
-        # Validate constructed URL starts with allowed base (defense in depth)
-        if not bot_api_url.startswith(BOT_API_BASE_URL):
-            app.logger.error(f"URL validation failed: {bot_api_url}")
+        # Validate URL to prevent SSRF
+        if not validate_bot_api_url(bot_api_url):
+            app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
         response = requests.post(
