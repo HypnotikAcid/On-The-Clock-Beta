@@ -24,6 +24,37 @@ from stripe import SignatureVerificationError
 
 app = Flask(__name__)
 
+# Version and Changelog
+__version__ = "1.5.0"
+
+# Customer-facing update notes (latest first, max 3 shown on dashboard)
+CHANGELOG = [
+    {
+        "version": "1.5.0",
+        "date": "2025-11-27",
+        "title": "Employee Detail View",
+        "description": "Click any employee card to view their complete profile with weekly timecard visualization and recent time adjustment requests.",
+        "icon": "📊",
+        "customer_benefit": "Faster access to employee information without navigating multiple pages"
+    },
+    {
+        "version": "1.4.0",
+        "date": "2025-11-26",
+        "title": "Time Adjustment Requests",
+        "description": "Employees can now request time adjustments for missed clock-ins/outs. Admins can approve or deny requests with one click.",
+        "icon": "⏳",
+        "customer_benefit": "Simplified time correction process - no more manual data entry"
+    },
+    {
+        "version": "1.3.0",
+        "date": "2025-11-25",
+        "title": "Role-Based Access Control",
+        "description": "Configure custom admin and employee roles. Control who can access admin features and use time tracking.",
+        "icon": "👥",
+        "customer_benefit": "Better security and delegation - assign managers without giving full admin access"
+    }
+]
+
 # Import helper functions from bot.py for Stripe webhook handling
 from bot import (
     check_bot_access,
@@ -1194,7 +1225,10 @@ def dashboard(user_session):
         }
         
         app.logger.info(f"Showing {len(filtered_guilds)} of {len(user_session.get('guilds', []))} guilds")
-        return render_template('dashboard.html', user=dashboard_data)
+        return render_template('dashboard.html', 
+                             user=dashboard_data, 
+                             version=__version__, 
+                             recent_updates=CHANGELOG[:3])  # Top 3 most recent updates
     except Exception as e:
         app.logger.error(f"Dashboard rendering error: {str(e)}")
         app.logger.error(traceback.format_exc())
