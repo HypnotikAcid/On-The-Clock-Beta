@@ -1,0 +1,79 @@
+ANTI GRAVITY AI BOOTSTRAP PROMPT
+================================
+
+Use this prompt when starting a coding session on this project. Copy and paste it to Anti Gravity or any AI assistant before making changes.
+
+---
+
+PROMPT TO USE:
+--------------
+
+Before making any code changes to this project, please:
+
+1. READ the playbook at `docs/anti_gravity_playbook.md` to understand:
+   - Project architecture (Flask + Discord bot + PostgreSQL)
+   - Security patterns we enforce (SSRF prevention, SQL injection prevention)
+   - Replit-specific requirements (port 5000, proxy configuration)
+   - Coding conventions and error handling patterns
+
+2. For any new feature or fix, CONFIRM you will follow these rules:
+   - Use `validate_bot_api_url()` for any server-side HTTP requests to bot API
+   - Use parameterized SQL queries (never f-strings in SQL)
+   - Never log secret values, only log that they're missing
+   - Validate Discord IDs are numeric and max 20 chars
+   - Return consistent JSON: `{'success': bool, 'data/error': ...}`
+   - Fail closed on security checks (deny access on errors)
+
+3. After implementing changes:
+   - Update `docs/anti_gravity_playbook.md` change log if you learned something new
+   - Add any new validation utilities to the Appendix
+   - Document any new security patterns
+
+4. Replit-specific reminders:
+   - Frontend must bind to 0.0.0.0:5000 (only exposed port)
+   - Use ProxyFix middleware for correct headers behind proxy
+   - Secrets go in Replit Secrets tab, not in code
+   - Run `env | grep DOMAIN` to get public URL for API calls
+
+---
+
+QUICK REFERENCE FOR AI:
+-----------------------
+
+Project files:
+- app.py: Flask web app (landing, OAuth, dashboard, API)
+- bot.py: Discord bot (slash commands, time tracking)
+- docs/anti_gravity_playbook.md: Learning document (READ THIS)
+
+Key validation function:
+```python
+from urllib.parse import urlparse
+
+def validate_bot_api_url(url):
+    parsed = urlparse(url)
+    if parsed.scheme not in ('http', 'https'):
+        return False
+    if not parsed.hostname:
+        return False
+    hostname = parsed.hostname.lower()
+    is_local = hostname in ('localhost', '127.0.0.1', '0.0.0.0', '::1')
+    if os.environ.get('FLASK_ENV') == 'production' and is_local:
+        return False
+    if not url.startswith(BOT_API_BASE_URL):
+        return False
+    return True
+```
+
+SQL pattern (ALWAYS use this):
+```python
+cursor = conn.execute("SELECT * FROM table WHERE id = %s", (id_value,))
+```
+
+Error response pattern:
+```python
+return jsonify({'success': False, 'error': 'Message'}), 400
+```
+
+---
+
+After reading docs/anti_gravity_playbook.md, acknowledge you understand the patterns and are ready to code safely.
