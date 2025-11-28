@@ -30,16 +30,16 @@ let selectedCurrentRole = null;
 // Navigation handler function (called by event delegation)
 async function handleNavigation(sectionId) {
     if (!sectionId) return;
-    
+
     const navItems = document.querySelectorAll('.nav-item');
     const contentSections = document.querySelectorAll('.content-section');
-    
+
     // Show loading for sections that fetch data
     const loadingSections = ['employees', 'email-settings', 'adjustments', 'server-overview', 'admin-roles', 'employee-roles'];
     if (loadingSections.includes(sectionId)) {
         showLoading();
     }
-    
+
     // Update active states
     navItems.forEach(nav => nav.classList.remove('active'));
     const activeNav = document.querySelector(`[data-section="${sectionId}"]`);
@@ -524,10 +524,10 @@ function renderEmailList(emails) {
                     <button class="email-remove-btn" data-email-id="${escapeHtml(email.id)}" style="background: linear-gradient(135deg, #DC2626, #B91C1C); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;">Remove</button>
                 </div>
             `).join('');
-    
+
     // Attach event listeners safely using data attributes
     emailList.querySelectorAll('.email-remove-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             const emailId = parseInt(this.dataset.emailId, 10);
             if (!isNaN(emailId)) {
                 removeEmail(emailId);
@@ -775,14 +775,14 @@ async function loadBannedUsers() {
         bannedUsersList.innerHTML = '';
         const outerDiv = document.createElement('div');
         outerDiv.style.cssText = 'text-align: center; color: #EF4444; padding: 20px;';
-        
+
         const iconDiv = document.createElement('div');
         iconDiv.style.cssText = 'font-size: 24px; margin-bottom: 8px;';
         iconDiv.textContent = '\u274C';
-        
+
         const errorDiv = document.createElement('div');
         errorDiv.textContent = 'Error: ' + error.message;
-        
+
         outerDiv.appendChild(iconDiv);
         outerDiv.appendChild(errorDiv);
         bannedUsersList.appendChild(outerDiv);
@@ -844,7 +844,7 @@ async function loadEmployeeStatus(guildId) {
 
             // Clear container and build employee cards using safe DOM methods
             container.innerHTML = '';
-            
+
             data.employees.forEach(emp => {
                 // Calculate duration
                 const clockInTime = new Date(emp.clock_in);
@@ -899,15 +899,15 @@ async function loadEmployeeStatus(guildId) {
                 const createStatRow = (label, value) => {
                     const row = document.createElement('div');
                     row.className = 'stat-row';
-                    
+
                     const labelSpan = document.createElement('span');
                     labelSpan.className = 'stat-label';
                     labelSpan.textContent = label;
-                    
+
                     const valueSpan = document.createElement('span');
                     valueSpan.className = 'stat-value';
                     valueSpan.textContent = value;
-                    
+
                     row.appendChild(labelSpan);
                     row.appendChild(valueSpan);
                     return row;
@@ -1025,11 +1025,12 @@ async function loadPendingAdjustments(guildId) {
                                     <button class="deny-btn" data-guild-id="${escapeHtml(guildId)}" data-request-id="${escapeHtml(req.id)}" data-action="deny">\u274C Deny</button>
                                 </div>
                             </div>
-                        `;}).join('');
-                
+                        `;
+                }).join('');
+
                 // Attach event listeners safely using data attributes
                 container.querySelectorAll('.approve-btn, .deny-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
+                    btn.addEventListener('click', function () {
                         const gId = parseInt(this.dataset.guildId, 10);
                         const rId = parseInt(this.dataset.requestId, 10);
                         const action = this.dataset.action;
@@ -1125,3 +1126,69 @@ document.getElementById('adjustment-form').addEventListener('submit', async (e) 
         alert('Failed to submit request.');
     }
 });
+
+// User Adjustment History
+async function loadUserAdjustmentHistory(guildId) {
+    const container = document.getElementById('user-adjustments-list');
+    if (!container) return;
+
+    // Only show loading if empty
+    if (!container.children.length) {
+        container.innerHTML = '<div class="empty-state">Loading history...</div>';
+    }
+
+    try {
+        const response = await fetch(`/api/guild/${guildId}/adjustments/history`);
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.history.length > 0) {
+                container.innerHTML = data.history.map(req => {
+                    const safeReason = escapeHtml(req.reason || '');
+                    const safeRequestType = escapeHtml(req.request_type.replace('_', ' ').toUpperCase());
+                    const statusColors = {
+                        'pending': '#F59E0B',
+                        'approved': '#10B981',
+                        'denied': '#EF4444'
+                    };
+                    const statusColor = statusColors[req.status] || '#8B949E';
+                    const statusIcon = req.status === 'approved' ? '✅' : (req.status === 'denied' ? '❌' : '⏳');
+
+                    return `
+                        <div class="adjustment-card" style="border-left: 4px solid ${statusColor};">
+                            <div class="adjustment-header">
+                                <div style="font-weight: 600; color: ${statusColor}; display: flex; align-items: center; gap: 6px;">
+                                    <span>${statusIcon}</span>
+                                    <span>${escapeHtml(req.status.toUpperCase())}</span>
+                                </div>
+                                <div style="margin-left: auto; font-size: 12px; color: #8B949E;">
+                                    ${new Date(req.created_at).toLocaleString()}
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 8px; font-size: 13px; color: #C9D1D9;">
+                                <span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 8px;">
+                                    ${safeRequestType}
+                                </span>
+                                ${safeReason}
+                            </div>
+                            
+                            ${req.reviewed_by ? `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: #8B949E;">
+                                    Reviewed by Admin on ${new Date(req.reviewed_at).toLocaleString()}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                container.innerHTML = '<div class="empty-state">No adjustment history found.</div>';
+            }
+        } else {
+            container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Error: ${escapeHtml(data.error)}</div>`;
+        }
+    } catch (error) {
+        console.error('Error loading history:', error);
+        container.innerHTML = '<div class="empty-state" style="color: #EF4444;">Failed to load history.</div>';
+    }
+}

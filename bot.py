@@ -7567,6 +7567,127 @@ async def subscription_status(interaction: discord.Interaction):
         )
 
 # =============================================================================
+# TIME ADJUSTMENT REVIEW VIEW
+# =============================================================================
+class AdjustmentReviewView(discord.ui.View):
+    """View for admins to approve/deny adjustment requests directly from Discord"""
+    def __init__(self, request_id: int, guild_id: int):
+        super().__init__(timeout=None)  # Persistent view
+        self.request_id = request_id
+        self.guild_id = guild_id
+
+    @discord.ui.button(label="✅ Approve", style=discord.ButtonStyle.success, custom_id="adj_approve")
+    async def approve_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Check permissions
+        if not user_has_admin_access(interaction.user):
+            await interaction.response.send_message("❌ You do not have permission to review adjustments.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        
+        success, message = approve_adjustment(self.request_id, self.guild_id, interaction.user.id)
+        
+        if success:
+            embed = interaction.message.embeds[0]
+            embed.color = discord.Color.green()
+            embed.set_field_at(0, name="Status", value="✅ Approved", inline=True)
+            embed.add_field(name="Reviewed By", value=interaction.user.mention, inline=True)
+            
+            # Disable buttons
+            for item in self.children:
+                item.disabled = True
+                
+            await interaction.edit_original_response(embed=embed, view=self)
+            await interaction.followup.send(f"✅ Adjustment request #{self.request_id} approved.", ephemeral=True)
+        else:
+            await interaction.followup.send(f"❌ Error: {message}", ephemeral=True)
+
+    @discord.ui.button(label="❌ Deny", style=discord.ButtonStyle.danger, custom_id="adj_deny")
+    async def deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Check permissions
+        if not user_has_admin_access(interaction.user):
+            await interaction.response.send_message("❌ You do not have permission to review adjustments.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        
+        success, message = deny_adjustment(self.request_id, self.guild_id, interaction.user.id)
+        
+        if success:
+            embed = interaction.message.embeds[0]
+            embed.color = discord.Color.red()
+            embed.set_field_at(0, name="Status", value="❌ Denied", inline=True)
+            embed.add_field(name="Reviewed By", value=interaction.user.mention, inline=True)
+            
+            # Disable buttons
+            for item in self.children:
+                item.disabled = True
+                
+            await interaction.edit_original_response(embed=embed, view=self)
+            await interaction.followup.send(f"✅ Adjustment request #{self.request_id} denied.", ephemeral=True)
+        else:
+            await interaction.followup.send(f"❌ Error: {message}", ephemeral=True)
+
+async def notify_admins_of_adjustment(guild_id: int, request_id: int):
+    """Send notification to admins about a new adjustment request"""
+    try:
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            return
+
+        # Get request details
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT r.*, u.display_name, u.username 
+                FROM time_adjustment_requests r
+                LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id
+                WHERE r.id = %s
+            """, (request_id,))
+            req = cursor.fetchone()
+            
+        if not req:
+            return
+
+        # Create Embed
+        embed = discord.Embed(
+            title="⏳ Time Adjustment Request",
+            description=f"User **{req['display_name'] or req['username']}** has requested a time adjustment.",
+            color=discord.Color.gold(),
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+        embed.add_field(name="Status", value="⏳ Pending", inline=True)
+        embed.add_field(name="Type", value=req['request_type'].replace('_', ' ').title(), inline=True)
+        embed.add_field(name="Reason", value=req['reason'], inline=False)
+        
+        if req['original_clock_in']:
+            embed.add_field(name="Original Time", value=f"{req['original_clock_in']}", inline=True)
+        if req['requested_clock_in']:
+            embed.add_field(name="Requested Time", value=f"{req['requested_clock_in']}", inline=True)
+
+        view = AdjustmentReviewView(request_id, guild_id)
+
+        # Notify via Log Channel if configured
+        log_channel_id = get_guild_setting(guild_id, "log_channel_id")
+        if log_channel_id:
+            channel = guild.get_channel(int(log_channel_id))
+            if channel:
+                await channel.send(embed=embed, view=view)
+                return
+
+        # Fallback: Notify Owner DM
+        owner_id = guild.owner_id
+        owner = guild.get_member(owner_id)
+        if owner:
+            try:
+                await owner.send(content=f"New adjustment request in **{guild.name}**:", embed=embed, view=view)
+            except:
+                pass
+
+    except Exception as e:
+        print(f"❌ Error notifying admins of adjustment: {e}")
+
+# =============================================================================
 # OWNER-ONLY SUPER ADMIN COMMANDS (Only visible to bot owner)
 # =============================================================================
 

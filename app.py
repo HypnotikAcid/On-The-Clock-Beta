@@ -3458,6 +3458,14 @@ def api_create_adjustment(user_session, guild_id):
         )
         
         if request_id:
+            # Notify admins via Discord (async)
+            from bot import notify_admins_of_adjustment, bot
+            if bot and bot.loop:
+                asyncio.run_coroutine_threadsafe(
+                    notify_admins_of_adjustment(int(guild_id), request_id),
+                    bot.loop
+                )
+            
             return jsonify({'success': True, 'request_id': request_id})
         else:
             return jsonify({'success': False, 'error': 'Failed to create request'}), 500
