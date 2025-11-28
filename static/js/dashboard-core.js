@@ -747,12 +747,21 @@ async function loadBannedUsers() {
         }
     } catch (error) {
         console.error('Error loading banned users:', error);
-        bannedUsersList.innerHTML = `
-                    <div style="text-align: center; color: #EF4444; padding: 20px;">
-                        <div style="font-size: 24px; margin-bottom: 8px;">\u274C</div>
-                        <div>Error: ${escapeHtml(error.message)}</div>
-                    </div>
-                `;
+        // Safe DOM manipulation to prevent XSS
+        bannedUsersList.innerHTML = '';
+        const outerDiv = document.createElement('div');
+        outerDiv.style.cssText = 'text-align: center; color: #EF4444; padding: 20px;';
+        
+        const iconDiv = document.createElement('div');
+        iconDiv.style.cssText = 'font-size: 24px; margin-bottom: 8px;';
+        iconDiv.textContent = '\u274C';
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.textContent = 'Error: ' + error.message;
+        
+        outerDiv.appendChild(iconDiv);
+        outerDiv.appendChild(errorDiv);
+        bannedUsersList.appendChild(outerDiv);
     }
 }
 
