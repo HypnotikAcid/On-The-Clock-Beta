@@ -3605,6 +3605,134 @@ def api_get_adjustment_history(user_session, guild_id):
         app.logger.error(f"Error fetching adjustment history: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route("/api/guild/<guild_id>/employee/<user_id>/monthly-timecard")
+@require_paid_api_access
+def api_get_monthly_timecard(user_session, guild_id, user_id):
+    """
+    Get monthly timecard data for calendar view.
+    Returns sessions grouped by date with daily totals.
+    
+    Query params:
+        year: Target year (default: current year)
+        month: Target month 1-12 (default: current month)
+        timezone: Guild timezone (default: fetch from guild settings)
+    """
+    try:
+        # Input validation
+        if not guild_id.isdigit() or len(guild_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
+        if not user_id.isdigit() or len(user_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid user ID format'}), 400
+        
+        # Get query parameters
+        now = datetime.now(timezone.utc)
+        year = int(request.args.get('year', now.year))
+        month = int(request.args.get('month', now.month))
+        
+        # Validate month/year
+        if not (1 <= month <= 12):
+            return jsonify({'success': False, 'error': 'Month must be 1-12'}), 400
+        if not (2020 <= year <= 2100):
+            return jsonify({'success': False, 'error': 'Invalid year'}), 400
+        
+        # Get guild timezone
+        guild_tz_str = request.args.get('timezone')
+        if not guild_tz_str:
+            with get_db() as conn:
+                cursor = conn.execute(
+                    "SELECT setting_value FROM guild_settings WHERE guild_id = %s AND setting_name = 'timezone'",
+                    (int(guild_id),)
+                )
+                row = cursor.fetchone()
+                guild_tz_str = row['setting_value'] if row else 'America/New_York'
+        
+        # Calculate date range for the month
+        import calendar
+        from datetime import datetime as dt
+        import pytz
+        
+        guild_tz = pytz.timezone(guild_tz_str)
+        first_day = dt(year, month, 1, 0, 0, 0)
+        last_day_num = calendar.monthrange(year, month)[1]
+        last_day = dt(year, month, last_day_num, 23, 59, 59)
+        
+        # Convert to UTC for database query (sessions stored in UTC)
+        first_day_utc = guild_tz.localize(first_day).astimezone(pytz.utc)
+        last_day_utc = guild_tz.localize(last_day).astimezone(pytz.utc)
+        
+        # Query sessions for the month
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    id,
+                    clock_in,
+                    clock_out,
+                    duration_seconds,
+                    DATE(clock_in AT TIME ZONE 'UTC' AT TIME ZONE %s) as work_date
+                FROM sessions
+                WHERE guild_id = %s
+                  AND user_id = %s
+                  AND clock_in >= %s
+                  AND clock_in <= %s
+                ORDER BY clock_in ASC
+            """, (guild_tz_str, int(guild_id), int(user_id), first_day_utc, last_day_utc))
+            
+            sessions = cursor.fetchall()
+        
+        # Group sessions by date
+        sessions_by_date = {}
+        for session in sessions:
+            date_key = session['work_date'].isoformat()
+            
+            if date_key not in sessions_by_date:
+                sessions_by_date[date_key] = {
+                    'date': date_key,
+                    'sessions': [],
+                    'total_seconds': 0,
+                    'total_hours': 0
+                }
+            
+            # Convert timestamps to guild timezone for display
+            clock_in_local = session['clock_in'].replace(tzinfo=pytz.utc).astimezone(guild_tz) if session['clock_in'] else None
+            clock_out_local = session['clock_out'].replace(tzinfo=pytz.utc).astimezone(guild_tz) if session['clock_out'] else None
+            
+            session_data = {
+                'id': session['id'],
+                'clock_in': clock_in_local.isoformat() if clock_in_local else None,
+                'clock_out': clock_out_local.isoformat() if clock_out_local else None,
+                'duration_seconds': session['duration_seconds'] or 0
+            }
+            
+            sessions_by_date[date_key]['sessions'].append(session_data)
+            if session['duration_seconds']:
+                sessions_by_date[date_key]['total_seconds'] += session['duration_seconds']
+        
+        # Calculate total hours for each date
+        for date_key in sessions_by_date:
+            total_seconds = sessions_by_date[date_key]['total_seconds']
+            sessions_by_date[date_key]['total_hours'] = round(total_seconds / 3600, 2)
+        
+        # Convert to list sorted by date
+        calendar_data = sorted(sessions_by_date.values(), key=lambda x: x['date'])
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'year': year,
+                'month': month,
+                'timezone': guild_tz_str,
+                'days': calendar_data
+            }
+        })
+        
+    except ValueError as e:
+        app.logger.error(f"Invalid parameter in monthly timecard request: {e}")
+        return jsonify({'success': False, 'error': 'Invalid parameters'}), 400
+    except Exception as e:
+        app.logger.error(f"Error fetching monthly timecard: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Failed to fetch timecard data'}), 500
+
 # Employee Detail View API Endpoints
 @app.route("/api/guild/<guild_id>/employee/<user_id>/detail")
 @require_paid_api_access
