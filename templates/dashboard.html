@@ -72,7 +72,8 @@
                         <span class="nav-item-icon">&#9200;</span>
                         <span>Timezone Settings</span>
                         <span class="badge tz-reminder" id="tz-reminder-badge"
-                            style="display:none; background:#F59E0B; color:#111; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:auto;">Set TZ!</span>
+                            style="display:none; background:#F59E0B; color:#111; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:auto;">Set
+                            TZ!</span>
                     </div>
                     <div class="nav-item" data-section="employees" data-server-menu>
                         <span class="nav-item-icon">👥</span>
@@ -517,71 +518,43 @@
                             <ul style="margin: 15px 0; padding-left: 20px;">
                                 <li>Custom email templates</li>
                                 <li>Branding and logo options</li>
-                                <li>Report formatting preferences</li>
-                                <li>Email signature customization</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                                <!-- Sync Notice -->
+                                <div class="sync-notice">
+                                    <div class="sync-notice-icon">⏳</div>
+                                    <div class="sync-notice-text">
+                                        <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with
+                                        Discord commands.
+                                        Refresh this page to see the latest updates.
+                                    </div>
+                                </div>
 
-                <!-- Action Buttons -->
-                <div class="action-buttons-container">
-                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
-                        class="btn coffee-button">
-                        <span class="coffee-icon">☕</span>
-                        <span>Buy Me a Coffee</span>
-                    </a>
-                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
-                        class="btn support-button">
-                        <span>✉️</span>
-                        <span>App Ideas & Requests</span>
-                    </a>
-                </div>
-                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
-            </section>
+                                <div class="tiles-grid">
+                                    <div class="tile">
+                                        <h2><span class="tile-icon">&#9200;</span>Timezone Settings</h2>
+                                        <p class="tile-description">Set the timezone for displaying time entries in
+                                            reports and
+                                            notifications.</p>
 
-            <!-- Timezone Settings Section -->
-            <section class="content-section" id="section-timezone-settings">
-                <div class="content-header">
-                    <h1 class="content-title">Timezone Settings</h1>
-                    <p class="content-subtitle">Configure timezone for your server</p>
-                </div>
+                                        <select id="timezone-select" class="timezone-select">
+                                            <option value="America/New_York">Eastern Time (US & Canada)</option>
+                                            <option value="America/Chicago">Central Time (US & Canada)</option>
+                                            <option value="America/Denver">Mountain Time (US & Canada)</option>
+                                            <option value="America/Phoenix">Arizona</option>
+                                            <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
+                                            <option value="America/Anchorage">Alaska</option>
+                                            <option value="Pacific/Honolulu">Hawaii</option>
+                                            <option value="Europe/London">London</option>
+                                            <option value="Europe/Paris">Paris</option>
+                                            <option value="Europe/Berlin">Berlin</option>
+                                            <option value="Asia/Tokyo">Tokyo</option>
+                                            <option value="Asia/Shanghai">Shanghai</option>
+                                            <option value="Asia/Dubai">Dubai</option>
+                                            <option value="Australia/Sydney">Sydney</option>
+                                        </select>
 
-                <!-- Sync Notice -->
-                <div class="sync-notice">
-                    <div class="sync-notice-icon">⏳</div>
-                    <div class="sync-notice-text">
-                        <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
-                        Refresh this page to see the latest updates.
-                    </div>
-                </div>
-
-                <div class="tiles-grid">
-                    <div class="tile">
-                        <h2><span class="tile-icon">&#9200;</span>Timezone Settings</h2>
-                        <p class="tile-description">Set the timezone for displaying time entries in reports and
-                            notifications.</p>
-
-                        <select id="timezone-select" class="timezone-select">
-                            <option value="America/New_York">Eastern Time (US & Canada)</option>
-                            <option value="America/Chicago">Central Time (US & Canada)</option>
-                            <option value="America/Denver">Mountain Time (US & Canada)</option>
-                            <option value="America/Phoenix">Arizona</option>
-                            <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
-                            <option value="America/Anchorage">Alaska</option>
-                            <option value="Pacific/Honolulu">Hawaii</option>
-                            <option value="Europe/London">London</option>
-                            <option value="Europe/Paris">Paris</option>
-                            <option value="Europe/Berlin">Berlin</option>
-                            <option value="Asia/Tokyo">Tokyo</option>
-                            <option value="Asia/Shanghai">Shanghai</option>
-                            <option value="Asia/Dubai">Dubai</option>
-                            <option value="Australia/Sydney">Sydney</option>
-                        </select>
-
-                        <button id="save-timezone-btn" class="save-btn">Save Timezone</button>
-                    </div>
-                </div>
+                                        <button id="save-timezone-btn" class="save-btn">Save Timezone</button>
+                                    </div>
+                                </div>
 
             </section>
 
