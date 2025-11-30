@@ -271,6 +271,61 @@
                         <p style="color: #C9D1D9; margin-top: 15px;">Select a setting from the sidebar to manage your
                             server.</p>
                     </div>
+                                      <!-- Pending Time Adjustments Tile (Admin Only) -->
+                    <div class="tile clickable" id="pending-adjustments-tile" 
+                         onclick="window.location.href='/server/{{ current_guild_id }}/adjustments/review'"
+                         style="cursor: pointer;">
+                        <h2>
+                            <span class="tile-icon">⏳</span>
+                            Pending Time Adjustments
+                            <span id="pending-adjustments-badge" class="count-badge" style="display: none;">0</span>
+                        </h2>
+                        <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
+                            Review and manage employee time adjustment requests
+                        </p>
+                        <div id="pending-adjustments-summary" style="margin-top: 15px;">
+                            <div style="text-align: center; color: #8B949E; padding: 10px;">
+                                Loading...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    // Load pending adjustments count on server overview page
+                    (function() {
+                        const guildId = '{{ current_guild_id }}';
+                        if (!guildId) return;
+                        
+                        fetch(`/api/guild/${guildId}/adjustments/pending`)
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    const count = (data.requests || []).length;
+                                    const badge = document.getElementById('pending-adjustments-badge');
+                                    const summary = document.getElementById('pending-adjustments-summary');
+                                    
+                                    if (count > 0) {
+                                        badge.textContent = count;
+                                        badge.style.display = 'inline-block';
+                                        summary.innerHTML = `
+                                            <div style="text-align: center;">
+                                                <div style="color: #F59E0B; font-size: 32px; font-weight: 600; margin-bottom: 5px;">${count}</div>
+                                                <div style="color: #8B949E; font-size: 12px;">request${count !== 1 ? 's' : ''} awaiting review</div>
+                                            </div>
+                                        `;
+                                    } else {
+                                        summary.innerHTML = '<div style="text-align: center; color: #10B981; padding: 10px;">✅ All caught up!</div>';
+                                    }
+                                }
+                            })
+                            .catch(err => {
+                                console.error('Error loading pending adjustments:', err);
+                                document.getElementById('pending-adjustments-summary').innerHTML = 
+                                    '<div style="text-align: center; color: #8B949E; padding: 10px;">--</div>';
+                            });
+                    })();
+                </script>  
                 </div>
 
                 <!-- Action Buttons -->

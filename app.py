@@ -2148,6 +2148,27 @@ def get_guild_settings(guild_id):
             'emails': []  # TODO: Add email table and fetch emails
         }
 
+@app.route("/server/<guild_id>/adjustments/review")
+@require_paid_access
+def server_adjustments_review(user_session, guild_id):
+    """Admin page for reviewing time adjustment requests"""
+    try:
+        # Get guild name from user's guilds
+        guild_name = "Server"
+        for g in user_session.get('guilds', []):
+            if str(g.get('id')) == str(guild_id):
+                guild_name = g.get('name', 'Server')
+                break
+        
+        return render_template(
+            'server_adjustments_review.html',
+            guild_id=guild_id,
+            guild_name=guild_name
+        )
+    except Exception as e:
+        app.logger.error(f"Error loading adjustments review: {e}")
+        return render_template('error.html', error="Failed to load review page"), 500
+
 @app.route("/upgrade/<guild_id>")
 @require_auth
 def upgrade_info(user_session, guild_id):
