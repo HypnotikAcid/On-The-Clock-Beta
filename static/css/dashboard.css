@@ -2438,3 +2438,372 @@
         .admin-only {
             display: block;
         }
+
+        /* ========================================
+           COMPREHENSIVE MOBILE RESPONSIVE STYLES
+           ======================================== */
+
+        /* Tablet breakpoint (1024px and below) */
+        @media (max-width: 1024px) {
+            .employee-cards-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 15px;
+            }
+
+            .coworkers-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 12px;
+            }
+
+            .view-mode-toggle {
+                right: 20px;
+                padding: 6px 12px;
+            }
+
+            .view-mode-btn {
+                padding: 5px 10px;
+                font-size: 11px;
+            }
+        }
+
+        /* Mobile breakpoint (768px and below) */
+        @media (max-width: 768px) {
+            /* Employee cards - single column on mobile */
+            .employee-cards-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .employee-card {
+                padding: 16px;
+            }
+
+            .employee-card-header {
+                gap: 12px;
+            }
+
+            .employee-avatar {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+
+            .employee-info h3 {
+                font-size: 15px;
+            }
+
+            .stat-row {
+                font-size: 13px;
+            }
+
+            /* Coworkers grid - 2 columns on mobile */
+            .coworkers-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .coworker-card {
+                padding: 12px;
+            }
+
+            .coworker-avatar {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+                margin-bottom: 8px;
+            }
+
+            .coworker-name {
+                font-size: 13px;
+            }
+
+            .coworker-status {
+                font-size: 11px;
+            }
+
+            /* View mode toggle - repositioned for mobile */
+            .view-mode-toggle {
+                top: auto;
+                bottom: 20px;
+                right: 15px;
+                left: 15px;
+                justify-content: center;
+                border-radius: 12px;
+                padding: 10px 16px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            }
+
+            .view-mode-label {
+                font-size: 12px;
+            }
+
+            .view-mode-btn {
+                padding: 8px 16px;
+                font-size: 12px;
+            }
+
+            /* Calendar - larger touch targets */
+            .calendar-day {
+                min-height: 70px;
+                padding: 10px 8px;
+                cursor: pointer;
+                -webkit-tap-highlight-color: rgba(212, 175, 55, 0.3);
+                touch-action: manipulation;
+            }
+
+            .calendar-day:active {
+                background: rgba(212, 175, 55, 0.2) !important;
+                transform: scale(0.98);
+            }
+
+            .day-no-work {
+                font-size: 10px;
+            }
+
+            /* Modal - full screen on mobile */
+            .day-edit-modal {
+                width: 100%;
+                max-width: 100%;
+                height: 100%;
+                max-height: 100%;
+                border-radius: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .modal-header {
+                padding: 16px 20px;
+                flex-shrink: 0;
+            }
+
+            .modal-header h3 {
+                font-size: 16px;
+            }
+
+            .close-modal {
+                font-size: 32px;
+                padding: 5px;
+            }
+
+            .modal-body {
+                padding: 16px 20px;
+                flex: 1;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .modal-footer {
+                padding: 16px 20px;
+                flex-shrink: 0;
+                border-top: 1px solid rgba(212, 175, 55, 0.2);
+                background: rgba(20, 25, 35, 0.95);
+            }
+
+            .modal-footer button {
+                flex: 1;
+                padding: 14px 20px;
+                font-size: 15px;
+            }
+
+            /* Session edit rows - stack on mobile */
+            .edit-session-row {
+                padding: 12px;
+            }
+
+            .session-times {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .session-times label {
+                width: 100%;
+            }
+
+            .time-input {
+                width: 100%;
+                padding: 12px;
+                font-size: 16px;
+            }
+
+            .duration-display {
+                text-align: center;
+                padding: 8px;
+                background: rgba(212, 175, 55, 0.1);
+                border-radius: 6px;
+            }
+
+            /* Day summary - stack on mobile */
+            .day-summary {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            /* Adjustment items - better mobile layout */
+            .adjustment-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                padding: 12px;
+            }
+
+            /* Pending requests list */
+            .pending-request-card,
+            .request-card {
+                padding: 14px;
+            }
+
+            /* Calendar navigation */
+            .calendar-nav {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            #calendar-month-display {
+                order: -1;
+                width: 100%;
+                text-align: center;
+                margin-bottom: 5px;
+            }
+
+            .calendar-nav-btn {
+                flex: 1;
+                padding: 10px 16px;
+                font-size: 14px;
+                min-width: 80px;
+            }
+
+            /* Adjustment reason textarea */
+            #adjustment-reason,
+            .adjustment-reason-section textarea {
+                font-size: 16px;
+                padding: 14px;
+                min-height: 100px;
+            }
+        }
+
+        /* Small phone breakpoint (480px and below) */
+        @media (max-width: 480px) {
+            /* Coworkers - still 2 columns but smaller */
+            .coworkers-grid {
+                gap: 8px;
+            }
+
+            .coworker-card {
+                padding: 10px;
+            }
+
+            .coworker-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+
+            .coworker-name {
+                font-size: 12px;
+            }
+
+            /* Calendar - even more compact */
+            .calendar-day {
+                min-height: 60px;
+                padding: 6px;
+            }
+
+            .day-number {
+                font-size: 13px;
+            }
+
+            .day-hours {
+                font-size: 11px;
+            }
+
+            .day-sessions {
+                display: none;
+            }
+
+            .day-no-work {
+                font-size: 9px;
+            }
+
+            /* View mode toggle - simplified */
+            .view-mode-toggle {
+                padding: 8px 12px;
+            }
+
+            .view-mode-label {
+                display: none;
+            }
+
+            .view-mode-btn {
+                padding: 10px 18px;
+            }
+
+            /* Modal adjustments */
+            .modal-header {
+                padding: 14px 16px;
+            }
+
+            .modal-body {
+                padding: 14px 16px;
+            }
+
+            .modal-footer {
+                padding: 14px 16px;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .modal-footer button {
+                width: 100%;
+            }
+
+            /* Employee card adjustments */
+            .employee-card {
+                padding: 14px;
+            }
+
+            .employee-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+        }
+
+        /* Touch-friendly improvements for all mobile */
+        @media (hover: none) and (pointer: coarse) {
+            /* Larger touch targets */
+            .calendar-day {
+                min-height: 70px;
+            }
+
+            .btn,
+            .btn-primary,
+            .btn-secondary {
+                min-height: 44px;
+                padding: 12px 20px;
+            }
+
+            .calendar-nav-btn {
+                min-height: 44px;
+            }
+
+            /* Remove hover effects that don't work on touch */
+            .calendar-day:hover {
+                transform: none;
+            }
+
+            .employee-card:hover {
+                transform: none;
+            }
+
+            .coworker-card:hover {
+                border-color: rgba(139, 148, 158, 0.15);
+            }
+
+            /* Add active states instead */
+            .calendar-day:active,
+            .employee-card:active,
+            .coworker-card:active {
+                background: rgba(212, 175, 55, 0.15);
+                transform: scale(0.98);
+            }
+        }
