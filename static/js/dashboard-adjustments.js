@@ -57,7 +57,7 @@ function updateUIForRole(isAdmin) {
         if (pendingSectionDesc) pendingSectionDesc.textContent = 'Review and manage time adjustment requests from all employees.';
     } else {
         if (calendarTitleText) calendarTitleText.textContent = 'My Work Calendar';
-        if (calendarHelpContent) calendarHelpContent.textContent = 'Click on any day with work sessions to view details and request adjustments.';
+        if (calendarHelpContent) calendarHelpContent.textContent = 'Click on any day to view your work sessions or add missing time for days you forgot to clock in.';
         if (pendingSectionTitle) pendingSectionTitle.textContent = 'My Pending Requests';
         if (pendingSectionDesc) pendingSectionDesc.textContent = 'Your submitted requests awaiting admin review.';
     }
@@ -626,12 +626,15 @@ function renderEmployeeDayCell(dayNumber, dayData, dateStr) {
 
 function attachEmployeeDayCellHandlers() {
     // Allow clicking ALL days (with or without sessions) to add/edit time
-    const dayCells = document.querySelectorAll('.calendar-day:not(.empty)');
+    // Use [data-date] selector to target actual calendar days, excluding placeholder cells
+    const dayCells = document.querySelectorAll('.calendar-day[data-date]');
 
     dayCells.forEach(cell => {
         cell.addEventListener('click', () => {
             const dateStr = cell.getAttribute('data-date');
-            openEmployeeDayModal(dateStr);
+            if (dateStr) {
+                openEmployeeDayModal(dateStr);
+            }
         });
         // Add visual indicator that ALL days are clickable
         cell.style.cursor = 'pointer';
