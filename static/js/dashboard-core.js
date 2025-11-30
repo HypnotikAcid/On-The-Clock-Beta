@@ -108,7 +108,7 @@ async function handleNavigation(sectionId) {
     const contentSections = document.querySelectorAll('.content-section');
 
     // Show loading for sections that fetch data
-    const loadingSections = ['employees', 'email-settings', 'adjustments', 'server-overview', 'admin-roles', 'employee-roles'];
+    const loadingSections = ['employees', 'email-settings', 'adjustments', 'server-overview', 'admin-roles', 'employee-roles', 'ban-management'];
     if (loadingSections.includes(sectionId)) {
         showLoading();
     }
@@ -146,6 +146,10 @@ async function handleNavigation(sectionId) {
                 initializeAdjustmentsCalendar(currentGuildId, currentServerData.current_user_id);
             }
         }
+
+        if (sectionId === 'ban-management') {
+            await loadBannedUsers();
+        }
     } finally {
         // Always hide loading when done
         hideLoading();
@@ -167,13 +171,15 @@ function updateNavigationForAccessLevel(accessLevel) {
         'admin-roles',
         'employee-roles', 
         'email-settings',
-        'timezone'
+        'timezone',
+        'ban-management'
     ];
     
     const employeeAllowedNavItems = [
         'server-overview',
         'employees',
-        'adjustments'
+        'adjustments',
+        'beta-settings'
     ];
     
     // Get all nav items in server nav
@@ -1057,6 +1063,60 @@ async function loadEmployeeStatus(guildId) {
 
                 card.appendChild(cardHeader);
                 card.appendChild(stats);
+
+                // Add clock-out button for admin view mode
+                const clockOutBtn = document.createElement('button');
+                clockOutBtn.className = 'admin-clock-out-btn';
+                clockOutBtn.textContent = 'Clock Out';
+                clockOutBtn.style.cssText = 'display: none; width: 100%; margin-top: 12px; padding: 8px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #EF4444; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease;';
+                clockOutBtn.dataset.userId = emp.user_id;
+                clockOutBtn.dataset.displayName = emp.display_name || 'Unknown User';
+
+                // Show button only in admin mode
+                if (window.currentViewMode === 'admin') {
+                    clockOutBtn.style.display = 'block';
+                }
+
+                clockOutBtn.onmouseover = function() {
+                    this.style.background = 'rgba(239, 68, 68, 0.35)';
+                    this.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+                };
+                clockOutBtn.onmouseout = function() {
+                    this.style.background = 'rgba(239, 68, 68, 0.2)';
+                    this.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                };
+
+                clockOutBtn.onclick = async function(event) {
+                    event.stopPropagation();
+                    const userId = this.dataset.userId;
+                    const displayName = this.dataset.displayName;
+                    
+                    if (!confirm(`Are you sure you want to clock out ${displayName}?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/guild/${guildId}/employees/${userId}/clock-out`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            loadEmployeeStatus(guildId);
+                        } else {
+                            alert('Error: ' + (data.error || 'Failed to clock out employee'));
+                        }
+                    } catch (error) {
+                        console.error('Clock out error:', error);
+                        alert('Failed to clock out employee. Please try again.');
+                    }
+                };
+
+                card.appendChild(clockOutBtn);
                 container.appendChild(card);
             });
         } else {
@@ -1067,6 +1127,16 @@ async function loadEmployeeStatus(guildId) {
         container.innerHTML = '<div class="empty-state" style="color: #EF4444;">Failed to load employee data.</div>';
     }
 }
+
+// Listen for view mode changes to update clock-out button visibility
+window.addEventListener('viewModeChanged', function(event) {
+    const clockOutButtons = document.querySelectorAll('.admin-clock-out-btn');
+    const isAdmin = event.detail.mode === 'admin';
+    
+    clockOutButtons.forEach(btn => {
+        btn.style.display = isAdmin ? 'block' : 'none';
+    });
+});
 
 // Timezone reminder badge logic
 function updateTimezoneReminder() {

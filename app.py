@@ -4367,6 +4367,83 @@ def api_clock_out(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Failed to clock out'}), 500
 
+@app.route("/api/guild/<guild_id>/employees/<user_id>/clock-out", methods=["POST"])
+@require_paid_api_access
+def api_admin_clock_out_employee(user_session, guild_id, user_id):
+    """
+    Admin endpoint to clock out a specific employee.
+    
+    This allows admins to manually clock out employees from the dashboard.
+    Validates that the target user has an active session (clock_out IS NULL)
+    and updates it with the current time as clock_out.
+    """
+    try:
+        if not guild_id.isdigit() or len(guild_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid guild ID'}), 400
+        
+        if not user_id.isdigit() or len(user_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid user ID'}), 400
+        
+        guild_id_int = int(guild_id)
+        user_id_int = int(user_id)
+        
+        access_status = check_guild_paid_access(guild_id)
+        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
+            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        
+        # CRITICAL: Verify the caller has admin access to this guild
+        admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
+        if not admin_status.get('is_admin', False):
+            app.logger.warning(f"Non-admin user {user_session.get('user_id')} attempted to clock out user {user_id} in guild {guild_id}")
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT id, clock_in, clock_out
+                FROM sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
+                ORDER BY clock_in DESC
+                LIMIT 1
+            """, (guild_id_int, user_id_int))
+            
+            active_session = cursor.fetchone()
+            
+            if not active_session:
+                return jsonify({'success': False, 'error': 'No active session found for this employee'}), 404
+            
+            session_id = active_session['id']
+            clock_in = active_session['clock_in']
+            clock_out_time = datetime.now(timezone.utc)
+            
+            if clock_in.tzinfo is None:
+                clock_in = clock_in.replace(tzinfo=timezone.utc)
+            
+            duration_seconds = int((clock_out_time - clock_in).total_seconds())
+            
+            conn.execute("""
+                UPDATE sessions
+                SET clock_out = %s, duration_seconds = %s
+                WHERE id = %s
+            """, (clock_out_time, duration_seconds, session_id))
+        
+        app.logger.info(f"Admin {user_session.get('username')} clocked out user {user_id} in guild {guild_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Employee successfully clocked out',
+            'session': {
+                'id': session_id,
+                'clock_in': clock_in.isoformat(),
+                'clock_out': clock_out_time.isoformat(),
+                'duration_seconds': duration_seconds
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in admin clock out: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Failed to clock out employee'}), 500
+
 # Employee Detail View API Endpoints
 @app.route("/api/guild/<guild_id>/employee/<user_id>/detail")
 @require_paid_api_access

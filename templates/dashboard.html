@@ -85,6 +85,14 @@
                         <span class="badge" id="pending-count"
                             style="display:none; background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">0</span>
                     </div>
+                    <div class="nav-item admin-only" data-section="ban-management" data-server-menu>
+                        <span class="nav-item-icon">🚫</span>
+                        <span>Ban Management</span>
+                    </div>
+                    <div class="nav-item" data-section="beta-settings" data-server-menu>
+                        <span class="nav-item-icon">🧪</span>
+                        <span>Beta Settings</span>
+                    </div>
                 </div>
             </nav>
 
@@ -259,49 +267,32 @@
                         <p style="color: #C9D1D9; margin-top: 15px;">Select a setting from the sidebar to manage your
                             server.</p>
                     </div>
+                </div>
 
-                    <!-- Mobile Device Restriction Tile -->
-                    <div class="tile">
-                        <h2><span class="tile-icon">📱</span>Mobile Device Restrictions</h2>
-                        <p class="tile-description">Control whether employees can clock in/out from mobile or tablet
-                            devices.</p>
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
+                        class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
+                        class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
+                </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
 
-                        <!-- Warning Notice -->
-                        <div
-                            style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; padding: 12px; margin: 15px 0; border-radius: 6px;">
-                            <div style="display: flex; align-items: start; gap: 10px;">
-                                <span style="font-size: 18px; flex-shrink: 0;">⚠️</span>
-                                <div style="font-size: 12px; color: #FCD34D; line-height: 1.6;">
-                                    <strong style="display: block; margin-bottom: 6px;">Device Detection
-                                        Limitations:</strong>
-                                    <ul style="margin: 0; padding-left: 18px;">
-                                        <li>Discord doesn't distinguish between phones and tablets (both appear as
-                                            "mobile")</li>
-                                        <li>Users on multiple devices simultaneously (e.g., desktop + phone) may bypass
-                                            this restriction</li>
-                                        <li>Users set to invisible/offline cannot be detected</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
+            <!-- Ban Management Section -->
+            <section class="content-section" id="section-ban-management">
+                <div class="content-header">
+                    <h1 class="content-title">Ban Management</h1>
+                    <p class="content-subtitle">Manage banned users and spam/abuse infractions</p>
+                </div>
 
-                        <!-- Toggle -->
-                        <div class="setting-row" style="margin-top: 20px;">
-                            <div class="setting-label">
-                                <span style="font-weight: 500; color: #C9D1D9;">Restrict Mobile/Tablet Clock-ins</span>
-                                <span class="setting-description"
-                                    style="display: block; margin-top: 4px; font-size: 12px; color: #8B949E;">
-                                    When enabled, employees must use desktop or web browser to clock in/out
-                                </span>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="restrict-mobile-toggle">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Ban Management Tile -->
+                <div class="tiles-grid">
                     <div class="tile">
                         <h2><span class="tile-icon">🚫</span>Ban Management</h2>
                         <p class="tile-description">Manage banned users and spam/abuse infractions. Monitor user
@@ -336,6 +327,107 @@
                                     <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
                                     <div>Loading banned users...</div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
+                        class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
+                        class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
+                </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
+
+            <!-- Beta Settings Section -->
+            <section class="content-section" id="section-beta-settings">
+                <div class="content-header">
+                    <h1 class="content-title">Beta Settings</h1>
+                    <p class="content-subtitle">Experimental features - may have limitations</p>
+                </div>
+
+                <!-- Beta Features Notice Banner -->
+                <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.15)); border: 2px solid rgba(245, 158, 11, 0.4); border-radius: 10px; padding: 20px; margin-bottom: 25px;">
+                    <div style="display: flex; align-items: start; gap: 15px;">
+                        <span style="font-size: 28px; flex-shrink: 0;">⚠️</span>
+                        <div>
+                            <strong style="font-size: 16px; color: #FCD34D; display: block; margin-bottom: 8px;">Beta Features Notice</strong>
+                            <p style="font-size: 14px; color: #FDE68A; line-height: 1.6; margin: 0;">
+                                These settings are experimental and may not work consistently in all scenarios. 
+                                Please report any issues and use with caution.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Beta Settings Section -->
+                <div class="beta-admin-section admin-only">
+                    <h3 style="color: #D4AF37; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span>👑</span> Admin Beta Settings
+                    </h3>
+                    <div class="tiles-grid">
+                        <!-- Mobile Device Restriction Tile -->
+                        <div class="tile">
+                            <h2><span class="tile-icon">📱</span>Mobile Device Restrictions</h2>
+                            <p class="tile-description">Control whether employees can clock in/out from mobile or tablet
+                                devices.</p>
+
+                            <!-- Warning Notice -->
+                            <div
+                                style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; padding: 12px; margin: 15px 0; border-radius: 6px;">
+                                <div style="display: flex; align-items: start; gap: 10px;">
+                                    <span style="font-size: 18px; flex-shrink: 0;">⚠️</span>
+                                    <div style="font-size: 12px; color: #FCD34D; line-height: 1.6;">
+                                        <strong style="display: block; margin-bottom: 6px;">Device Detection
+                                            Limitations:</strong>
+                                        <ul style="margin: 0; padding-left: 18px;">
+                                            <li>Discord doesn't distinguish between phones and tablets (both appear as
+                                                "mobile")</li>
+                                            <li>Users on multiple devices simultaneously (e.g., desktop + phone) may bypass
+                                                this restriction</li>
+                                            <li>Users set to invisible/offline cannot be detected</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Toggle -->
+                            <div class="setting-row" style="margin-top: 20px;">
+                                <div class="setting-label">
+                                    <span style="font-weight: 500; color: #C9D1D9;">Restrict Mobile/Tablet Clock-ins</span>
+                                    <span class="setting-description"
+                                        style="display: block; margin-top: 4px; font-size: 12px; color: #8B949E;">
+                                        When enabled, employees must use desktop or web browser to clock in/out
+                                    </span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="restrict-mobile-toggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employee Beta Settings Section -->
+                <div class="beta-employee-section" style="margin-top: 30px;">
+                    <h3 style="color: #D4AF37; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span>👷</span> Employee Beta Settings
+                    </h3>
+                    <div class="tiles-grid">
+                        <div class="tile">
+                            <div style="text-align: center; padding: 30px 20px; color: #8B949E;">
+                                <div style="font-size: 48px; margin-bottom: 15px;">🔜</div>
+                                <p style="font-size: 14px; margin: 0;">No employee beta features available yet. Check back soon!</p>
                             </div>
                         </div>
                     </div>

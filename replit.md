@@ -36,7 +36,9 @@ Preferred communication style: Simple, everyday language.
 - **Mobile Device Restriction**: Server administrators can restrict clock-in/out to desktop/web browser only.
 - **Persistent Button Architecture**: Uses `@discord.ui.button` decorators with `timeout=None` and registration in `setup_hook()` for reliable button functionality across bot restarts.
 - **Database Migrations**: Automatic schema migrations on startup using `migrations.py` with idempotent `CREATE TABLE IF NOT EXISTS` statements.
-- **Employee Status Cards**: The dashboard displays active employees with hours worked (today/week/month).
+- **Employee Status Cards**: The dashboard displays active employees with hours worked (today/week/month). Admin view includes manual clock-out buttons to force-end active sessions.
+- **Ban Management Tab**: Dedicated sidebar tab (admin-only) for viewing and managing banned users, separate from Server Overview.
+- **Beta Settings Tab**: Experimental features section with Admin and Employee sub-sections. Admin settings (like Mobile Device Restriction) are hidden from employees. Includes prominent reliability disclaimer.
 - **Time Adjustment Requests**: Employees can request time corrections, which admins can approve/deny via the dashboard with a before/after comparison.
 - **Role-Based Interactive Calendar**: The Time Adjustments section features different views based on user role:
   - **Admin View**: Calendar displays pending request counts per day (color intensity: amber for 1-2, red for 3+). Clicking a day opens a modal listing all pending requests with Approve/Deny buttons. Includes collapsible "Past Requests" section showing resolved requests across the guild.
