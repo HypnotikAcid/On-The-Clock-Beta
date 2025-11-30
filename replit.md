@@ -23,6 +23,7 @@ Preferred communication style: Simple, everyday language.
   - **Employee Landing**: Shows "My Workplaces" - servers where user has been assigned an employee role. Limited view of their own time data.
   - **View Mode Toggle**: Admins see a toggle in the top-right to switch between "Admin" and "Employee" views to preview employee experience.
   - **Access Level Detection**: `verify_guild_access()` function supports `allow_employee=True` flag to permit employee access on specific endpoints.
+  - **On the Clock Page**: Employee-only view showing co-worker avatars of who's currently clocked in (simple, privacy-respecting view with minimal data). Admins see full Employee Status with detailed stats and clock-out buttons.
 - **Subscription Management**: Three-tier model (Free, 7-day retention, 30-day retention) with a $5 one-time bot access payment per server. The dashboard displays subscription status and upgrade prompts.
 - **Concurrent Safety**: Achieved through guild-level locking, PostgreSQL connection pooling with SSL validation, and automatic transaction management.
 - **Ephemeral Interface System**: Provides new interfaces via the `/clock` command to resolve interaction timeout issues.
