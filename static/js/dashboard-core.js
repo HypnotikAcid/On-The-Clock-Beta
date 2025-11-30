@@ -6,6 +6,70 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// View Mode Toggle Functions
+function initViewModeToggle() {
+    const toggle = document.getElementById('view-mode-toggle');
+    if (!toggle) return;
+    
+    // Only show for admin/owner
+    const isAdmin = window.currentServerData && 
+        ['owner', 'admin'].includes(window.currentServerData.user_role_tier);
+    
+    if (!isAdmin) {
+        toggle.style.display = 'none';
+        return;
+    }
+    
+    toggle.style.display = 'flex';
+    
+    // Restore saved mode
+    const savedMode = localStorage.getItem('dashboard_view_mode') || 'admin';
+    setViewMode(savedMode);
+    
+    // Add click handlers
+    toggle.querySelectorAll('.view-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            setViewMode(btn.dataset.mode);
+        });
+    });
+}
+
+function setViewMode(mode) {
+    localStorage.setItem('dashboard_view_mode', mode);
+    
+    // Update button states
+    document.querySelectorAll('.view-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    
+    // Update body class
+    if (mode === 'employee') {
+        document.body.classList.add('employee-view-mode');
+    } else {
+        document.body.classList.remove('employee-view-mode');
+    }
+    
+    // Store in window for other scripts
+    window.currentViewMode = mode;
+    
+    // Dispatch event for other scripts to react
+    window.dispatchEvent(new CustomEvent('viewModeChanged', { detail: { mode } }));
+}
+
+function getViewMode() {
+    return localStorage.getItem('dashboard_view_mode') || 'admin';
+}
+
+function hideViewModeToggle() {
+    const toggle = document.getElementById('view-mode-toggle');
+    if (toggle) {
+        toggle.style.display = 'none';
+    }
+    // Reset to admin mode when hiding
+    document.body.classList.remove('employee-view-mode');
+    window.currentViewMode = 'admin';
+}
+
 // Loading overlay functions
 function showLoading(message = 'Loading...') {
     const overlay = document.getElementById('loadingOverlay');
@@ -124,6 +188,9 @@ document.querySelectorAll('.server-item').forEach(item => {
             // Load pending count
             await loadPendingAdjustments(guildId);
 
+            // Initialize view mode toggle for admin/owner users
+            initViewModeToggle();
+
             // Navigate to server overview
             document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
             document.querySelector('[data-section="server-overview"]').classList.add('active');
@@ -139,6 +206,9 @@ document.querySelectorAll('.server-item').forEach(item => {
 document.getElementById('backToServers').addEventListener('click', () => {
     currentGuildId = null;
     currentServerData = null;
+
+    // Hide view mode toggle when returning to My Servers
+    hideViewModeToggle();
 
     // Switch back to main navigation
     document.getElementById('main-nav').style.display = 'block';

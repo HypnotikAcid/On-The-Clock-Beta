@@ -56,19 +56,19 @@
                         <span class="nav-item-icon">📊</span>
                         <span>Server Overview</span>
                     </div>
-                    <div class="nav-item" data-section="admin-roles" data-server-menu>
+                    <div class="nav-item admin-only" data-section="admin-roles" data-server-menu>
                         <span class="nav-item-icon">👥</span>
                         <span>Admin Roles</span>
                     </div>
-                    <div class="nav-item" data-section="employee-roles" data-server-menu>
+                    <div class="nav-item admin-only" data-section="employee-roles" data-server-menu>
                         <span class="nav-item-icon">👷</span>
                         <span>Employee Roles</span>
                     </div>
-                    <div class="nav-item" data-section="email-settings" data-server-menu>
+                    <div class="nav-item admin-only" data-section="email-settings" data-server-menu>
                         <span class="nav-item-icon">📧</span>
                         <span>Email Settings</span>
                     </div>
-                    <div class="nav-item" data-section="timezone-settings" data-server-menu>
+                    <div class="nav-item admin-only" data-section="timezone-settings" data-server-menu>
                         <span class="nav-item-icon">&#9200;</span>
                         <span>Timezone Settings</span>
                         <span class="badge tz-reminder" id="tz-reminder-badge"
@@ -108,6 +108,15 @@
 
         <!-- Right Content Area -->
         <main class="content-area">
+            <!-- Admin/Employee View Mode Toggle -->
+            <div id="view-mode-toggle" class="view-mode-toggle" style="display: none;">
+                <span class="view-mode-label">View as:</span>
+                <div class="view-mode-switch">
+                    <button class="view-mode-btn active" data-mode="admin">Admin</button>
+                    <button class="view-mode-btn" data-mode="employee">Employee</button>
+                </div>
+            </div>
+
             <!-- My Servers Section -->
             <section class="content-section active" id="section-my-servers">
                 <div class="content-header">

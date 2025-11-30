@@ -2134,3 +2134,75 @@
         font-size: 12px;
     }
 }
+
+/* Admin/Employee View Mode Toggle */
+.view-mode-toggle {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(22, 27, 34, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 8px;
+    padding: 8px 16px;
+    backdrop-filter: blur(10px);
+}
+
+.view-mode-label {
+    color: #8B949E;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.view-mode-switch {
+    display: flex;
+    gap: 4px;
+    background: rgba(30, 35, 45, 0.8);
+    border-radius: 6px;
+    padding: 3px;
+}
+
+.view-mode-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: #8B949E;
+}
+
+.view-mode-btn.active {
+    background: linear-gradient(135deg, #D4AF37, #B8972E);
+    color: #000;
+}
+
+.view-mode-btn:hover:not(.active) {
+    background: rgba(212, 175, 55, 0.15);
+    color: #D4AF37;
+}
+
+/* Hide admin-only elements when in employee mode */
+body.employee-view-mode .admin-only {
+    display: none !important;
+}
+
+/* Show employee-only elements when in employee mode */
+body.employee-view-mode .employee-only {
+    display: block !important;
+}
+
+/* Hide employee-only elements by default */
+.employee-only {
+    display: none !important;
+}
+
+/* Show admin-only by default */
+.admin-only {
+    display: block;
+}
