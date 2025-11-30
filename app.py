@@ -3768,6 +3768,201 @@ def api_get_adjustment_history(user_session, guild_id):
         app.logger.error(f"Error fetching adjustment history: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route("/api/guild/<guild_id>/adjustments/admin-calendar")
+@require_api_auth
+def api_get_admin_calendar_adjustments(user_session, guild_id):
+    """
+    Get pending adjustment requests grouped by date for admin calendar view.
+    Returns data for the entire guild (all employees) for the specified month.
+    
+    Query params:
+        year: Target year (required, e.g. 2025)
+        month: Target month 1-12 (required, e.g. 11)
+    
+    Access control:
+    - Admin only (verified via check_user_admin_realtime)
+    """
+    try:
+        import calendar as cal_module
+        from collections import defaultdict
+        
+        # Input validation
+        if not guild_id.isdigit() or len(guild_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
+        
+        # Check guild has paid access
+        access_status = check_guild_paid_access(guild_id)
+        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
+            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        
+        # Verify admin access
+        admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
+        if not admin_status.get('is_admin', False):
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        
+        # Get and validate query parameters
+        year_str = request.args.get('year')
+        month_str = request.args.get('month')
+        
+        if not year_str or not month_str:
+            return jsonify({'success': False, 'error': 'Missing required parameters: year and month'}), 400
+        
+        try:
+            year = int(year_str)
+            month = int(month_str)
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid year or month format'}), 400
+        
+        if not (1 <= month <= 12):
+            return jsonify({'success': False, 'error': 'Month must be 1-12'}), 400
+        if not (2020 <= year <= 2100):
+            return jsonify({'success': False, 'error': 'Invalid year'}), 400
+        
+        # Calculate date range for the month
+        first_day = datetime(year, month, 1, tzinfo=timezone.utc)
+        last_day_num = cal_module.monthrange(year, month)[1]
+        last_day = datetime(year, month, last_day_num, 23, 59, 59, tzinfo=timezone.utc)
+        
+        # Query pending adjustment requests for the guild in the date range
+        # Use session_date if available, otherwise fall back to created_at date
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT r.id, r.guild_id, r.user_id, r.request_type, r.reason,
+                       r.original_session_id, r.original_clock_in, r.original_clock_out,
+                       r.requested_clock_in, r.requested_clock_out,
+                       r.session_date, r.created_at, r.status,
+                       COALESCE(r.session_date, DATE(r.created_at)) as effective_date,
+                       COALESCE(p.display_name, p.full_name, CAST(r.user_id AS TEXT)) as user_name,
+                       p.avatar_url
+                FROM time_adjustment_requests r
+                LEFT JOIN employee_profiles p ON r.user_id = p.user_id AND r.guild_id = p.guild_id
+                WHERE r.guild_id = %s 
+                  AND r.status = 'pending'
+                  AND COALESCE(r.session_date, DATE(r.created_at)) >= %s
+                  AND COALESCE(r.session_date, DATE(r.created_at)) <= %s
+                ORDER BY COALESCE(r.session_date, DATE(r.created_at)), r.created_at
+            """, (int(guild_id), first_day.date(), last_day.date()))
+            
+            rows = cursor.fetchall()
+        
+        # Group requests by date
+        days_dict = defaultdict(list)
+        total_pending = 0
+        
+        for row in rows:
+            row_dict = dict(row)
+            effective_date = row_dict.get('effective_date')
+            
+            if effective_date:
+                date_str = effective_date.isoformat() if hasattr(effective_date, 'isoformat') else str(effective_date)
+            else:
+                continue
+            
+            # Build request object
+            request_obj = {
+                'id': row_dict['id'],
+                'user_id': str(row_dict['user_id']),
+                'user_name': row_dict.get('user_name') or str(row_dict['user_id']),
+                'request_type': row_dict['request_type'],
+                'reason': row_dict.get('reason'),
+                'original_clock_in': row_dict['original_clock_in'].isoformat() if row_dict.get('original_clock_in') else None,
+                'original_clock_out': row_dict['original_clock_out'].isoformat() if row_dict.get('original_clock_out') else None,
+                'requested_clock_in': row_dict['requested_clock_in'].isoformat() if row_dict.get('requested_clock_in') else None,
+                'requested_clock_out': row_dict['requested_clock_out'].isoformat() if row_dict.get('requested_clock_out') else None,
+                'created_at': row_dict['created_at'].isoformat() if row_dict.get('created_at') else None,
+                'status': row_dict['status']
+            }
+            
+            days_dict[date_str].append(request_obj)
+            total_pending += 1
+        
+        # Build days array
+        days = []
+        for date_str, requests_list in sorted(days_dict.items()):
+            days.append({
+                'date': date_str,
+                'pending_count': len(requests_list),
+                'requests': requests_list
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'year': year,
+                'month': month,
+                'days': days,
+                'total_pending': total_pending
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching admin calendar adjustments: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/guild/<guild_id>/adjustments/resolved")
+@require_api_auth
+def api_get_resolved_adjustments(user_session, guild_id):
+    """
+    Get resolved (approved/denied) adjustment requests for the entire guild.
+    Returns the last 50 resolved requests, most recently resolved first.
+    
+    Access control:
+    - Admin only (verified via check_user_admin_realtime)
+    """
+    try:
+        if not guild_id.isdigit() or len(guild_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
+        
+        access_status = check_guild_paid_access(guild_id)
+        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
+            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        
+        admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
+        if not admin_status.get('is_admin', False):
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT r.id, r.user_id, r.request_type, r.reason, r.status,
+                       r.reviewed_at, r.reviewed_by, r.created_at,
+                       COALESCE(p.display_name, p.full_name) as display_name,
+                       p.username
+                FROM time_adjustment_requests r
+                LEFT JOIN employee_profiles p ON r.user_id = p.user_id AND r.guild_id = p.guild_id
+                WHERE r.guild_id = %s AND r.status IN ('approved', 'denied')
+                ORDER BY r.reviewed_at DESC NULLS LAST
+                LIMIT 50
+            """, (int(guild_id),))
+            
+            rows = cursor.fetchall()
+        
+        requests_list = []
+        for row in rows:
+            row_dict = dict(row)
+            requests_list.append({
+                'id': row_dict['id'],
+                'user_id': str(row_dict['user_id']),
+                'display_name': row_dict.get('display_name') or str(row_dict['user_id']),
+                'username': row_dict.get('username'),
+                'request_type': row_dict['request_type'],
+                'reason': row_dict.get('reason'),
+                'status': row_dict['status'],
+                'reviewed_at': row_dict['reviewed_at'].isoformat() if row_dict.get('reviewed_at') else None,
+                'reviewed_by': str(row_dict['reviewed_by']) if row_dict.get('reviewed_by') else None,
+                'created_at': row_dict['created_at'].isoformat() if row_dict.get('created_at') else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'requests': requests_list
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching resolved adjustments: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route("/api/guild/<guild_id>/employee/<user_id>/monthly-timecard")
 @require_api_auth
 def api_get_monthly_timecard(user_session, guild_id, user_id):
@@ -3987,6 +4182,71 @@ def api_get_monthly_timecard(user_session, guild_id, user_id):
         app.logger.error(f"Error fetching monthly timecard: {e}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Failed to fetch timecard data'}), 500
+
+@app.route("/api/guild/<guild_id>/clock-out", methods=["POST"])
+@require_api_auth
+def api_clock_out(user_session, guild_id):
+    """
+    Clock out the current user from their active session.
+    
+    Validates that the user has an active session (clock_out IS NULL)
+    and updates it with the current time as clock_out.
+    """
+    try:
+        if not guild_id.isdigit() or len(guild_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid guild ID'}), 400
+        
+        guild_id_int = int(guild_id)
+        user_id = int(user_session['user_id'])
+        
+        access_status = check_guild_paid_access(guild_id)
+        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
+            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT id, clock_in, clock_out
+                FROM sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
+                ORDER BY clock_in DESC
+                LIMIT 1
+            """, (guild_id_int, user_id))
+            
+            active_session = cursor.fetchone()
+            
+            if not active_session:
+                return jsonify({'success': False, 'error': 'No active session found'}), 404
+            
+            session_id = active_session['id']
+            clock_in = active_session['clock_in']
+            clock_out_time = datetime.now(timezone.utc)
+            
+            if clock_in.tzinfo is None:
+                clock_in = clock_in.replace(tzinfo=timezone.utc)
+            
+            duration_seconds = int((clock_out_time - clock_in).total_seconds())
+            
+            conn.execute("""
+                UPDATE sessions
+                SET clock_out = %s, duration_seconds = %s
+                WHERE id = %s
+            """, (clock_out_time, duration_seconds, session_id))
+        
+        return jsonify({
+            'success': True,
+            'message': 'Successfully clocked out',
+            'session': {
+                'id': session_id,
+                'clock_in': clock_in.isoformat(),
+                'clock_out': clock_out_time.isoformat(),
+                'duration_seconds': duration_seconds
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error clocking out: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Failed to clock out'}), 500
 
 # Employee Detail View API Endpoints
 @app.route("/api/guild/<guild_id>/employee/<user_id>/detail")
