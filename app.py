@@ -3591,6 +3591,158 @@ def api_deny_adjustment(user_session, guild_id, request_id):
         app.logger.error(f"Error denying adjustment: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route("/api/guild/<guild_id>/adjustments/submit-day", methods=["POST"])
+@require_api_auth
+def api_submit_day_adjustment(user_session, guild_id):
+    """
+    Submit adjustment request(s) for a specific day from the calendar popup.
+    Accepts multiple session changes in one request.
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        session_date = data.get('session_date')
+        reason = data.get('reason', '').strip()
+        changes = data.get('changes', [])
+        
+        if not session_date:
+            return jsonify({'success': False, 'error': 'Session date is required'}), 400
+        if not reason:
+            return jsonify({'success': False, 'error': 'Reason is required'}), 400
+        if not changes or len(changes) == 0:
+            return jsonify({'success': False, 'error': 'No changes provided'}), 400
+        
+        user_id = int(user_session['user_id'])
+        guild_id_int = int(guild_id)
+        
+        # Check guild has paid access
+        access_status = check_guild_paid_access(guild_id)
+        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
+            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        
+        created_requests = []
+        invalid_sessions = []
+        
+        with get_db() as conn:
+            # First, validate all sessions belong to the user
+            for change in changes:
+                session_id = change.get('session_id')
+                if not session_id:
+                    return jsonify({'success': False, 'error': 'Invalid session data - missing session_id'}), 400
+                
+                cursor = conn.execute("""
+                    SELECT id, clock_in, clock_out, duration_seconds
+                    FROM sessions
+                    WHERE id = %s AND guild_id = %s AND user_id = %s
+                """, (session_id, guild_id_int, user_id))
+                
+                if not cursor.fetchone():
+                    invalid_sessions.append(session_id)
+            
+            # Reject if any sessions are invalid (not owned by user)
+            if invalid_sessions:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Access denied - one or more sessions do not belong to you'
+                }), 403
+            
+            # Now process each valid change
+            for change in changes:
+                session_id = change.get('session_id')
+                new_clock_in = change.get('new_clock_in')
+                new_clock_out = change.get('new_clock_out')
+                original_clock_in = change.get('original_clock_in')
+                original_clock_out = change.get('original_clock_out')
+                
+                # Get original session data (we know it exists and belongs to user)
+                cursor = conn.execute("""
+                    SELECT id, clock_in, clock_out, duration_seconds
+                    FROM sessions
+                    WHERE id = %s AND guild_id = %s AND user_id = %s
+                """, (session_id, guild_id_int, user_id))
+                
+                original_session = cursor.fetchone()
+                
+                # Parse new times and combine with session date
+                import pytz
+                from datetime import datetime as dt
+                
+                # Get guild timezone
+                cursor = conn.execute(
+                    "SELECT setting_value FROM guild_settings WHERE guild_id = %s AND setting_name = 'timezone'",
+                    (guild_id_int,)
+                )
+                tz_row = cursor.fetchone()
+                guild_tz_str = tz_row['setting_value'] if tz_row else 'America/New_York'
+                guild_tz = pytz.timezone(guild_tz_str)
+                
+                # Parse new clock in/out times
+                requested_clock_in = None
+                requested_clock_out = None
+                
+                if new_clock_in:
+                    try:
+                        date_parts = session_date.split('-')
+                        time_parts = new_clock_in.split(':')
+                        local_dt = dt(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
+                                     int(time_parts[0]), int(time_parts[1]))
+                        requested_clock_in = guild_tz.localize(local_dt).astimezone(pytz.utc)
+                    except Exception as e:
+                        app.logger.error(f"Error parsing clock_in time: {e}")
+                
+                if new_clock_out:
+                    try:
+                        date_parts = session_date.split('-')
+                        time_parts = new_clock_out.split(':')
+                        local_dt = dt(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
+                                     int(time_parts[0]), int(time_parts[1]))
+                        requested_clock_out = guild_tz.localize(local_dt).astimezone(pytz.utc)
+                    except Exception as e:
+                        app.logger.error(f"Error parsing clock_out time: {e}")
+                
+                # Calculate new duration if both times are set
+                calculated_duration = None
+                if requested_clock_in and requested_clock_out:
+                    calculated_duration = int((requested_clock_out - requested_clock_in).total_seconds())
+                
+                # Create the adjustment request
+                cursor = conn.execute("""
+                    INSERT INTO time_adjustment_requests (
+                        guild_id, user_id, request_type, original_session_id,
+                        original_clock_in, original_clock_out, original_duration,
+                        requested_clock_in, requested_clock_out, reason,
+                        session_date, calculated_duration, status
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+                    RETURNING id
+                """, (
+                    guild_id_int, user_id, 'modify_session', session_id,
+                    original_session['clock_in'], original_session['clock_out'], 
+                    original_session['duration_seconds'],
+                    requested_clock_in, requested_clock_out, reason,
+                    session_date, calculated_duration
+                ))
+                
+                new_request_id = cursor.fetchone()['id']
+                created_requests.append(new_request_id)
+                
+                app.logger.info(f"[OK] Created adjustment request {new_request_id} for session {session_id} by user {user_id}")
+        
+        if created_requests:
+            return jsonify({
+                'success': True, 
+                'message': f'Created {len(created_requests)} adjustment request(s)',
+                'request_ids': created_requests
+            })
+        else:
+            return jsonify({'success': False, 'error': 'No valid changes to submit'}), 400
+            
+    except Exception as e:
+        app.logger.error(f"Error submitting day adjustment: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route("/api/guild/<guild_id>/adjustments/history")
 @require_api_auth
 def api_get_adjustment_history(user_session, guild_id):
@@ -3617,11 +3769,15 @@ def api_get_adjustment_history(user_session, guild_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/guild/<guild_id>/employee/<user_id>/monthly-timecard")
-@require_paid_api_access
+@require_api_auth
 def api_get_monthly_timecard(user_session, guild_id, user_id):
     """
     Get monthly timecard data for calendar view.
     Returns sessions grouped by date with daily totals.
+    
+    Access control:
+    - Employees can view their OWN calendar
+    - Admins can view any employee's calendar
     
     Query params:
         year: Target year (default: current year)
@@ -3634,6 +3790,21 @@ def api_get_monthly_timecard(user_session, guild_id, user_id):
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         if not user_id.isdigit() or len(user_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid user ID format'}), 400
+        
+        # Check guild has paid access
+        access_status = check_guild_paid_access(guild_id)
+        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
+            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        
+        # Authorization: allow if viewing own data OR if admin
+        current_user_id = str(user_session.get('user_id', ''))
+        is_own_data = current_user_id == str(user_id)
+        
+        if not is_own_data:
+            # Check if user is admin to view others' data
+            admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
+            if not admin_status.get('is_admin', False):
+                return jsonify({'success': False, 'error': 'Access denied - you can only view your own calendar'}), 403
         
         # Get query parameters
         now = datetime.now(timezone.utc)
@@ -3722,6 +3893,79 @@ def api_get_monthly_timecard(user_session, guild_id, user_id):
         for date_key in sessions_by_date:
             total_seconds = sessions_by_date[date_key]['total_seconds']
             sessions_by_date[date_key]['total_hours'] = round(total_seconds / 3600, 2)
+        
+        # Fetch adjustment requests for this month to show status on calendar
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    id,
+                    session_date,
+                    original_session_id,
+                    request_type,
+                    status,
+                    requested_clock_in,
+                    requested_clock_out,
+                    reason,
+                    reviewed_by,
+                    reviewed_at,
+                    created_at
+                FROM time_adjustment_requests
+                WHERE guild_id = %s
+                  AND user_id = %s
+                  AND (
+                      session_date >= %s AND session_date <= %s
+                      OR (session_date IS NULL AND created_at >= %s AND created_at <= %s)
+                  )
+                ORDER BY created_at DESC
+            """, (int(guild_id), int(user_id), 
+                  f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last_day_num}",
+                  first_day_utc, last_day_utc))
+            
+            adjustments = cursor.fetchall()
+        
+        # Map adjustments to their dates
+        adjustments_by_date = {}
+        for adj in adjustments:
+            if adj['session_date']:
+                adj_date_key = adj['session_date'].isoformat()
+            elif adj['requested_clock_in']:
+                # Use requested_clock_in date if session_date not set
+                adj_in_local = adj['requested_clock_in'].replace(tzinfo=pytz.utc).astimezone(guild_tz)
+                adj_date_key = adj_in_local.strftime('%Y-%m-%d')
+            else:
+                continue
+                
+            if adj_date_key not in adjustments_by_date:
+                adjustments_by_date[adj_date_key] = []
+            
+            adjustments_by_date[adj_date_key].append({
+                'id': adj['id'],
+                'request_type': adj['request_type'],
+                'status': adj['status'],
+                'reason': adj['reason'],
+                'requested_clock_in': adj['requested_clock_in'].isoformat() if adj['requested_clock_in'] else None,
+                'requested_clock_out': adj['requested_clock_out'].isoformat() if adj['requested_clock_out'] else None,
+                'reviewed_by': str(adj['reviewed_by']) if adj['reviewed_by'] else None,
+                'reviewed_at': adj['reviewed_at'].isoformat() if adj['reviewed_at'] else None,
+                'created_at': adj['created_at'].isoformat() if adj['created_at'] else None
+            })
+        
+        # Merge adjustments into session data and calculate day status
+        for date_key in sessions_by_date:
+            day_data = sessions_by_date[date_key]
+            day_adjustments = adjustments_by_date.get(date_key, [])
+            day_data['adjustments'] = day_adjustments
+            
+            # Determine overall status for the day
+            # Priority: pending > approved/denied (show most relevant)
+            if any(adj['status'] == 'pending' for adj in day_adjustments):
+                day_data['adjustment_status'] = 'pending'
+            elif any(adj['status'] == 'approved' for adj in day_adjustments):
+                day_data['adjustment_status'] = 'approved'
+            elif any(adj['status'] == 'denied' for adj in day_adjustments):
+                day_data['adjustment_status'] = 'denied'
+            else:
+                day_data['adjustment_status'] = None
         
         # Convert to list sorted by date
         calendar_data = sorted(sessions_by_date.values(), key=lambda x: x['date'])

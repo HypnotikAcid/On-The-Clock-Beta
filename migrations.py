@@ -257,6 +257,28 @@ def run_migrations():
                 ]
                 for query in alter_queries:
                     cur.execute(query)
+                
+                # 8. Add session_date column to time_adjustment_requests for calendar views
+                print("   Checking for calendar enhancement columns")
+                calendar_enhancements = [
+                    "ALTER TABLE time_adjustment_requests ADD COLUMN IF NOT EXISTS session_date DATE",
+                    "ALTER TABLE time_adjustment_requests ADD COLUMN IF NOT EXISTS admin_notes TEXT",
+                    "ALTER TABLE time_adjustment_requests ADD COLUMN IF NOT EXISTS calculated_duration INTEGER"
+                ]
+                for query in calendar_enhancements:
+                    cur.execute(query)
+                
+                # Add index for calendar date lookups
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_adjustment_requests_calendar 
+                    ON time_adjustment_requests(guild_id, user_id, session_date, status)
+                """)
+                
+                # Add index for user history lookups
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_adjustment_requests_user_history 
+                    ON time_adjustment_requests(guild_id, user_id, created_at DESC)
+                """)
 
         print("✅ Database schema is up to date")
         return True

@@ -1788,6 +1788,319 @@
     margin-top: auto;
 }
 
+/* Status indicators for adjustment requests */
+.status-indicator {
+    margin-left: 6px;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.status-indicator.pending {
+    color: #F59E0B;
+}
+
+.status-indicator.approved {
+    color: #10B981;
+}
+
+.status-indicator.denied {
+    color: #EF4444;
+}
+
+/* Day Edit Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.day-edit-modal {
+    background: linear-gradient(135deg, #1E2750, #151B2E);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 550px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.modal-header h3 {
+    color: #D4AF37;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: #8B949E;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: #EF4444;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.day-summary {
+    display: flex;
+    gap: 24px;
+    padding: 16px;
+    background: rgba(30, 35, 45, 0.5);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.day-summary span {
+    font-size: 14px;
+    color: #C9D1D9;
+}
+
+.existing-adjustments {
+    background: rgba(30, 35, 45, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.existing-adjustments h4 {
+    color: #8B949E;
+    font-size: 13px;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.adjustment-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(20, 25, 35, 0.5);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border-left: 3px solid #8B949E;
+}
+
+.adjustment-item.pending {
+    border-left-color: #F59E0B;
+}
+
+.adjustment-item.approved {
+    border-left-color: #10B981;
+}
+
+.adjustment-item.denied {
+    border-left-color: #EF4444;
+}
+
+.status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+}
+
+.adjustment-type {
+    font-size: 12px;
+    color: #C9D1D9;
+    text-transform: capitalize;
+}
+
+.adjustment-reason {
+    font-size: 12px;
+    color: #8B949E;
+    font-style: italic;
+}
+
+.sessions-edit-container h4 {
+    color: #C9D1D9;
+    font-size: 14px;
+    margin: 0 0 8px 0;
+}
+
+.edit-hint {
+    color: #8B949E;
+    font-size: 12px;
+    margin-bottom: 16px;
+}
+
+.edit-session-row {
+    background: rgba(30, 35, 45, 0.5);
+    border: 1px solid rgba(212, 175, 55, 0.15);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.session-label {
+    font-weight: 600;
+    color: #D4AF37;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.session-times {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.session-times label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #8B949E;
+}
+
+.time-input {
+    background: rgba(20, 25, 35, 0.8);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: #C9D1D9;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.time-input:focus {
+    outline: none;
+    border-color: #D4AF37;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+}
+
+.time-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.duration-display {
+    font-size: 14px;
+    font-weight: 600;
+    color: #D4AF37;
+    margin-left: auto;
+}
+
+.adjustment-reason-section {
+    margin-top: 20px;
+}
+
+.adjustment-reason-section label {
+    display: block;
+    font-size: 13px;
+    color: #C9D1D9;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.adjustment-reason-section textarea {
+    width: 100%;
+    background: rgba(20, 25, 35, 0.8);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    color: #C9D1D9;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.adjustment-reason-section textarea:focus {
+    outline: none;
+    border-color: #D4AF37;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+}
+
+.adjustment-reason-section textarea::placeholder {
+    color: #6B7280;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding: 20px 24px;
+    border-top: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.btn-secondary {
+    background: rgba(30, 35, 45, 0.8);
+    border: 1px solid rgba(139, 148, 158, 0.3);
+    color: #C9D1D9;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: rgba(40, 45, 55, 0.9);
+    border-color: rgba(139, 148, 158, 0.5);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #D4AF37, #B8962E);
+    border: none;
+    color: #0A0F1F;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Toast notifications */
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
     .calendar-grid {

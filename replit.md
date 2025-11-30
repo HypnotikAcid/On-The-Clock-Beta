@@ -33,6 +33,8 @@ Preferred communication style: Simple, everyday language.
 - **Database Migrations**: Automatic schema migrations on startup using `migrations.py` with idempotent `CREATE TABLE IF NOT EXISTS` statements.
 - **Employee Status Cards**: The dashboard displays active employees with hours worked (today/week/month).
 - **Time Adjustment Requests**: Employees can request time corrections, which admins can approve/deny via the dashboard with a before/after comparison.
+- **Interactive Visual Calendar**: The Time Adjustments section features a clickable monthly calendar showing worked days. Employees click on a day to open a popup modal with pre-filled timestamps they can edit. Changes create adjustment requests with visual status indicators (alert icon for pending, green checkmark for approved, red X for denied).
+- **Calendar Data Persistence**: Adjustment requests are stored in `time_adjustment_requests` table with session_date tracking, ensuring persistence through republishing. Status updates are reflected on the calendar when admin approves/denies.
 - **Encoding Best Practices**: Uses HTML entities (`&rarr;`, `&larr;`) for special characters in templates for cross-platform compatibility.
 
 ## Security Configuration
