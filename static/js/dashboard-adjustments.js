@@ -241,7 +241,7 @@ async function checkActiveSession(guildId, userId) {
             `/api/guild/${guildId}/employee/${userId}/monthly-timecard?year=${now.getFullYear()}&month=${now.getMonth() + 1}`
         );
         const result = await response.json();
-        
+
         if (result.success && result.data.days) {
             checkForActiveSessionInData(result.data.days);
         }
@@ -253,7 +253,7 @@ async function checkActiveSession(guildId, userId) {
 function showActiveSessionAlert(session) {
     const alert = document.getElementById('active-session-alert');
     const timeDisplay = document.getElementById('active-session-time');
-    
+
     if (alert) {
         alert.style.display = 'block';
         if (timeDisplay && session.clock_in) {
@@ -276,7 +276,7 @@ function hideActiveSessionAlert() {
 
 async function handleClockOut() {
     const { guildId, userId } = currentCalendarData;
-    
+
     if (!guildId) {
         showToast('Unable to clock out - missing guild information', 'error');
         return;
@@ -300,7 +300,7 @@ async function handleClockOut() {
             showToast('Successfully clocked out!', 'success');
             hideActiveSessionAlert();
             currentCalendarData.activeSession = null;
-            
+
             loadEmployeeCalendarMonth(currentCalendarData.year, currentCalendarData.month);
         } else {
             throw new Error(result.error || 'Failed to clock out');
@@ -370,7 +370,7 @@ function renderAdminDayCell(dayNumber, dayData, dateStr) {
 
     if (hasPending) {
         cellClass += ' has-pending';
-        
+
         if (pendingCount >= 3) {
             warningStyle = 'background: rgba(239, 68, 68, 0.2); border-color: #EF4444;';
             cellClass += ' high-pending';
@@ -478,7 +478,7 @@ function openAdminDayModal(dateStr) {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
     document.querySelectorAll('.approve-btn-modal, .deny-btn-modal').forEach(btn => {
-        btn.addEventListener('click', async function() {
+        btn.addEventListener('click', async function () {
             const requestId = this.dataset.requestId;
             const action = this.classList.contains('approve-btn-modal') ? 'approve' : 'deny';
             await handleAdminAction(requestId, action, this);
@@ -488,7 +488,7 @@ function openAdminDayModal(dateStr) {
 
 async function handleAdminAction(requestId, action, buttonEl) {
     const { guildId } = currentCalendarData;
-    
+
     if (!confirm(`Are you sure you want to ${action} this request?`)) return;
 
     buttonEl.disabled = true;
@@ -506,9 +506,9 @@ async function handleAdminAction(requestId, action, buttonEl) {
                 card.style.opacity = '0.5';
                 card.innerHTML = `<div style="text-align: center; padding: 15px; color: ${action === 'approve' ? '#10B981' : '#EF4444'};">Request ${action}d!</div>`;
             }
-            
+
             showToast(`Request ${action}d successfully!`, 'success');
-            
+
             setTimeout(() => {
                 loadAdminCalendarMonth(currentCalendarData.year, currentCalendarData.month);
                 loadPendingRequestsList(guildId, true);
@@ -610,7 +610,8 @@ function renderEmployeeDayCell(dayNumber, dayData, dateStr) {
         statusBorder = 'border-color: #EF4444 !important;';
     }
 
-    const clickable = hasData ? 'style="cursor: pointer;' + statusBorder + '"' : 'style="' + statusBorder + '"';
+    // All days are clickable now (not just ones with data)
+    const clickable = 'style="' + statusBorder + '"';
 
     return `
         <div class="calendar-day ${cellClass}" data-date="${dateStr}" data-has-sessions="${hasData}" ${clickable}>
@@ -618,27 +619,31 @@ function renderEmployeeDayCell(dayNumber, dayData, dateStr) {
             ${hasData ? `
                 <div class="day-hours">${hours}h</div>
                 <div class="day-sessions">${sessionCount} session${sessionCount !== 1 ? 's' : ''}</div>
-            ` : '<div class="day-no-work"></div>'}
+            ` : '<div class="day-no-work" style="color: #6B7280; font-size: 11px;">+ Add time</div>'}
         </div>
     `;
 }
 
 function attachEmployeeDayCellHandlers() {
-    const dayCells = document.querySelectorAll('.calendar-day[data-has-sessions="true"]');
+    // Allow clicking ALL days (with or without sessions) to add/edit time
+    const dayCells = document.querySelectorAll('.calendar-day:not(.empty)');
 
     dayCells.forEach(cell => {
         cell.addEventListener('click', () => {
             const dateStr = cell.getAttribute('data-date');
             openEmployeeDayModal(dateStr);
         });
+        // Add visual indicator that ALL days are clickable
+        cell.style.cursor = 'pointer';
     });
 }
 
 function openEmployeeDayModal(dateStr) {
     const dayData = currentCalendarData.days.find(d => d.date === dateStr);
 
+    // If no data, create empty structure for adding new sessions
     if (!dayData) {
-        console.log('No data for selected day');
+        openAddMissingTimeModal(dateStr);
         return;
     }
 
@@ -652,11 +657,11 @@ function openEmployeeDayModal(dateStr) {
 
     let sessionsHtml = '';
     dayData.sessions.forEach((session, index) => {
-        const clockInTime = session.clock_in ? new Date(session.clock_in).toLocaleTimeString('en-US', { 
-            hour: '2-digit', minute: '2-digit', hour12: false 
+        const clockInTime = session.clock_in ? new Date(session.clock_in).toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', hour12: false
         }) : '';
-        const clockOutTime = session.clock_out ? new Date(session.clock_out).toLocaleTimeString('en-US', { 
-            hour: '2-digit', minute: '2-digit', hour12: false 
+        const clockOutTime = session.clock_out ? new Date(session.clock_out).toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', hour12: false
         }) : '';
         const duration = session.duration_seconds ? `${(session.duration_seconds / 3600).toFixed(2)}h` : 'Active';
         const isActive = session.clock_in && !session.clock_out;
@@ -770,7 +775,7 @@ function updateDurationDisplay(event) {
 
 async function submitDayAdjustment(dateStr) {
     const reason = document.getElementById('adjustment-reason').value.trim();
-    
+
     if (!reason) {
         alert('Please provide a reason for the adjustment.');
         return;
@@ -827,7 +832,7 @@ async function submitDayAdjustment(dateStr) {
             closeDayEditModal();
             loadEmployeeCalendarMonth(currentCalendarData.year, currentCalendarData.month);
             loadPendingRequestsList(currentCalendarData.guildId, false);
-            
+
             showToast('Adjustment request submitted successfully!', 'success');
         } else {
             throw new Error(result.error || 'Failed to submit request');
@@ -840,6 +845,120 @@ async function submitDayAdjustment(dateStr) {
     }
 }
 
+function openAddMissingTimeModal(dateStr) {
+    const dateObj = new Date(dateStr + 'T12:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    const modalHtml = `
+        <div id="day-edit-overlay" class="modal-overlay">
+            <div class="modal-content day-edit-modal">
+                <div class="modal-header">
+                    <h3>&#128197; ${formattedDate}</h3>
+                    <button class="close-modal" onclick="closeDayEditModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="padding: 20px; text-align: center; background: rgba(212, 175, 55, 0.1); border-radius: 8px; margin-bottom: 20px;">
+                        <div style="color: #D4AF37; margin-bottom: 10px;">&#128712; No work recorded for this day</div>
+                        <div style="color: #8B949E; font-size: 13px;">Add a missing time entry by filling in the times below</div>
+                    </div>
+                    
+                    <div class="sessions-edit-container">
+                        <h4>Add Missing Time Entry</h4>
+                        <div class="edit-session-row">
+                            <div class="session-label">New Session</div>
+                            <div class="session-times">
+                                <label>
+                                    Clock In:
+                                    <input type="time" class="time-input clock-in" required>
+                                </label>
+                                <label>
+                                    Clock Out:
+                                    <input type="time" class="time-input clock-out" required>
+                                </label>
+                                <span class="duration-display">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="adjustment-reason-section">
+                        <label for="adjustment-reason">Reason for Adding This Entry:</label>
+                        <textarea id="adjustment-reason" placeholder="Explain why this time wasn't recorded (e.g., 'Forgot to clock in', 'System was offline')..." rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeDayEditModal()">Cancel</button>
+                    <button class="btn-primary" onclick="submitMissingTimeRequest('${dateStr}')">Submit Request</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existingModal = document.getElementById('day-edit-overlay');
+    if (existingModal) existingModal.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    document.querySelectorAll('.time-input').forEach(input => {
+        input.addEventListener('change', updateDurationDisplay);
+    });
+}
+
+async function submitMissingTimeRequest(dateStr) {
+    const reason = document.getElementById('adjustment-reason').value.trim();
+    const clockInInput = document.querySelector('.clock-in');
+    const clockOutInput = document.querySelector('.clock-out');
+
+    if (!reason) {
+        alert('Please provide a reason for adding this time entry.');
+        return;
+    }
+
+    if (!clockInInput.value || !clockOutInput.value) {
+        alert('Please fill in both clock in and clock out times.');
+        return;
+    }
+
+    const submitBtn = document.querySelector('.modal-footer .btn-primary');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    try {
+        const response = await fetch(`/api/guild/${currentCalendarData.guildId}/adjustments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                request_type: 'add_session',
+                reason: reason,
+                session_date: dateStr,
+                requested_clock_in: `${dateStr}T${clockInInput.value}:00`,
+                requested_clock_out: `${dateStr}T${clockOutInput.value}:00`
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            closeDayEditModal();
+            loadEmployeeCalendarMonth(currentCalendarData.year, currentCalendarData.month);
+            loadPendingRequestsList(currentCalendarData.guildId, false);
+
+            showToast('Missing time request submitted successfully!', 'success');
+        } else {
+            throw new Error(result.error || 'Failed to submit request');
+        }
+    } catch (error) {
+        console.error('Error submitting missing time:', error);
+        alert('Failed to submit request: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Request';
+    }
+}
+
 function updateCalendarHeader(year, month) {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
@@ -847,7 +966,7 @@ function updateCalendarHeader(year, month) {
     if (monthHeader) {
         monthHeader.textContent = `${monthNames[month - 1]} ${year}`;
     }
-    
+
     currentCalendarData.year = year;
     currentCalendarData.month = month;
 }
@@ -959,7 +1078,7 @@ async function loadPendingRequestsList(guildId, isAdmin) {
 
             if (isAdmin) {
                 container.querySelectorAll('.approve-btn, .deny-btn').forEach(btn => {
-                    btn.addEventListener('click', async function() {
+                    btn.addEventListener('click', async function () {
                         const gId = this.dataset.guildId;
                         const rId = this.dataset.requestId;
                         const action = this.dataset.action;
@@ -996,9 +1115,9 @@ async function handleListAdjustmentAction(guildId, requestId, action, buttonEl) 
                 card.style.opacity = '0.5';
                 card.innerHTML = `<div style="text-align: center; padding: 20px; color: ${action === 'approve' ? '#10B981' : '#EF4444'};">Request ${action}d!</div>`;
             }
-            
+
             showToast(`Request ${action}d successfully!`, 'success');
-            
+
             setTimeout(() => {
                 loadPendingRequestsList(guildId, true);
                 if (currentCalendarData.isAdminMode) {
@@ -1103,7 +1222,7 @@ function renderPastRequests(container, countBadge, allRequests, isAdmin) {
 function togglePastRequests() {
     const content = document.getElementById('past-requests-content');
     const toggle = document.getElementById('past-requests-toggle');
-    
+
     if (content && toggle) {
         const isHidden = content.style.display === 'none';
         content.style.display = isHidden ? 'block' : 'none';
