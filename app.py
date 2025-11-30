@@ -3028,11 +3028,22 @@ def api_get_server_data(user_session, guild_id):
         # Fetch current settings
         current_settings = get_guild_settings(guild_id)
         
+        # Determine user role tier (owner > admin > employee)
+        user_role_tier = 'employee'  # Default
+        if guild.get('owner', False):
+            user_role_tier = 'owner'
+        else:
+            permissions = int(guild.get('permissions', '0'))
+            if permissions & 0x8:  # Administrator permission
+                user_role_tier = 'admin'
+        
         return jsonify({
             'success': True,
             'guild': guild,
             'roles': roles,
-            'current_settings': current_settings
+            'current_settings': current_settings,
+            'current_user_id': user_session.get('user_id'),
+            'user_role_tier': user_role_tier
         })
     except Exception as e:
         app.logger.error(f"Error fetching server data: {str(e)}")

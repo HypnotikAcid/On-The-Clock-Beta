@@ -702,17 +702,19 @@
                     </form>
                 </div>
 
-                <!-- Employee View: Request History -->
+                <!-- Employee View: Past Requests (approved/denied only) -->
                 <div id="employee-adjustment-history" style="margin-top: 30px;">
-                    <h2 style="color: #C9D1D9; margin-bottom: 20px;">My Request History</h2>
+                    <h2 style="color: #C9D1D9; margin-bottom: 20px;">&#128196; My Past Requests</h2>
+                    <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">Requests that have been reviewed by an admin (approved or denied).</p>
                     <div id="user-adjustments-list">
                         <div class="empty-state">Loading history...</div>
                     </div>
                 </div>
 
-                <!-- Admin View: Pending Requests -->
+                <!-- Admin View: Pending Requests Awaiting Review -->
                 <div id="admin-adjustment-review" style="margin-top: 30px;">
-                    <h2 style="color: #C9D1D9; margin-bottom: 20px;">Pending Requests</h2>
+                    <h2 style="color: #D4AF37; margin-bottom: 20px;">&#128276; Awaiting Review</h2>
+                    <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">Requests from employees that need admin action (approve or deny).</p>
                     <div id="pending-adjustments-list">
                         <!-- Populated dynamically -->
                         <div class="empty-state">Loading requests...</div>

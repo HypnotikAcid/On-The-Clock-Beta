@@ -68,6 +68,10 @@ async function handleNavigation(sectionId) {
             if (currentServerData && (currentServerData.user_role_tier === 'admin' || currentServerData.user_role_tier === 'owner')) {
                 await loadPendingAdjustments(currentGuildId);
             }
+            // Initialize calendar if function exists and we have user ID
+            if (typeof initializeAdjustmentsCalendar === 'function' && currentServerData && currentServerData.current_user_id) {
+                initializeAdjustmentsCalendar(currentGuildId, currentServerData.current_user_id);
+            }
         }
     } finally {
         // Always hide loading when done
@@ -1132,7 +1136,7 @@ document.getElementById('adjustment-form').addEventListener('submit', async (e) 
     }
 });
 
-// User Adjustment History
+// User Adjustment History (shows only completed requests - approved/denied)
 async function loadUserAdjustmentHistory(guildId) {
     const container = document.getElementById('user-adjustments-list');
     if (!container) return;
@@ -1147,8 +1151,11 @@ async function loadUserAdjustmentHistory(guildId) {
         const data = await response.json();
 
         if (data.success) {
-            if (data.history.length > 0) {
-                container.innerHTML = data.history.map(req => {
+            // Filter out pending requests - those show in "Awaiting Review" section
+            const completedRequests = data.history.filter(req => req.status !== 'pending');
+            
+            if (completedRequests.length > 0) {
+                container.innerHTML = completedRequests.map(req => {
                     const safeReason = escapeHtml(req.reason || '');
                     const safeRequestType = escapeHtml(req.request_type.replace('_', ' ').toUpperCase());
                     const statusColors = {
@@ -1187,7 +1194,7 @@ async function loadUserAdjustmentHistory(guildId) {
                     `;
                 }).join('');
             } else {
-                container.innerHTML = '<div class="empty-state">No adjustment history found.</div>';
+                container.innerHTML = '<div class="empty-state">No past requests. Submit a request above and it will appear here once reviewed.</div>';
             }
         } else {
             container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Error: ${escapeHtml(data.error)}</div>`;
