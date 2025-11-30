@@ -3671,11 +3671,11 @@ def api_submit_day_adjustment(user_session, guild_id):
                 
                 # Get guild timezone
                 cursor = conn.execute(
-                    "SELECT setting_value FROM guild_settings WHERE guild_id = %s AND setting_name = 'timezone'",
+                    "SELECT timezone FROM guild_settings WHERE guild_id = %s",
                     (guild_id_int,)
                 )
                 tz_row = cursor.fetchone()
-                guild_tz_str = tz_row['setting_value'] if tz_row else 'America/New_York'
+                guild_tz_str = tz_row['timezone'] if tz_row else 'America/New_York'
                 guild_tz = pytz.timezone(guild_tz_str)
                 
                 # Parse new clock in/out times
@@ -3822,11 +3822,11 @@ def api_get_monthly_timecard(user_session, guild_id, user_id):
         if not guild_tz_str:
             with get_db() as conn:
                 cursor = conn.execute(
-                    "SELECT setting_value FROM guild_settings WHERE guild_id = %s AND setting_name = 'timezone'",
+                    "SELECT timezone FROM guild_settings WHERE guild_id = %s",
                     (int(guild_id),)
                 )
                 row = cursor.fetchone()
-                guild_tz_str = row['setting_value'] if row else 'America/New_York'
+                guild_tz_str = row['timezone'] if row else 'America/New_York'
         
         # Calculate date range for the month
         import calendar

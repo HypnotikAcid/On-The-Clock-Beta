@@ -1,0 +1,89 @@
+2025-11-29 23:03:20.43
+3a5d7263
+User
+[2025-11-30 04:03:20 +0000] [23] [INFO] Real-time admin check (API) for user hypnotikacid in guild 1361464331820204112: is_member=True, is_admin=True, reason=owner
+
+2025-11-29 23:03:20.75
+3a5d7263
+User
+^
+2025-11-29 23:03:20.75
+3a5d7263
+User
+LINE 1: SELECT setting_value FROM guild_settings WHERE guild_id = 13...
+2025-11-29 23:03:20.75
+3a5d7263
+User
+[2025-11-30 04:03:20 +0000] [23] [ERROR] Error fetching monthly timecard: column "setting_value" does not exist
+2025-11-29 23:03:20.75
+3a5d7263
+User
+[2025-11-30 04:03:20 +0000] [23] [ERROR] Traceback (most recent call last):
+2025-11-29 23:03:20.75
+3a5d7263
+User
+LINE 1: SELECT setting_value FROM guild_settings WHERE guild_id = 13...
+2025-11-29 23:03:20.75
+3a5d7263
+User
+File "/home/runner/workspace/app.py", line 3653, in api_get_monthly_timecard
+2025-11-29 23:03:20.75
+3a5d7263
+User
+return super().execute(query, vars)
+2025-11-29 23:03:20.75
+3a5d7263
+User
+^
+2025-11-29 23:03:20.75
+3a5d7263
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/psycopg2/extras.py", line 236, in execute
+2025-11-29 23:03:20.75
+3a5d7263
+User
+self._cursor.execute(query, params)
+2025-11-29 23:03:20.75
+3a5d7263
+User
+File "/home/runner/workspace/app.py", line 224, in execute
+2025-11-29 23:03:20.75
+3a5d7263
+User
+psycopg2.errors.UndefinedColumn: column "setting_value" does not exist
+2025-11-29 23:03:20.75
+3a5d7263
+User
+^^^^^^^^^^^^^
+2025-11-29 23:03:20.75
+3a5d7263
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29 23:03:20.75
+3a5d7263
+User
+cursor = conn.execute(
+2025-11-29 23:03:34.12
+3a5d7263
+User
+[2025-11-30 04:03:34 +0000] [23] [INFO] Real-time admin check (API) for user hypnotikacid in guild 1361464331820204112: is_member=True, is_admin=True, reason=owner
+2025-11-29 23:03:36.95
+3a5d7263
+User
+[2025-11-30 04:03:36 +0000] [23] [INFO] Real-time admin check (API) for user hypnotikacid in guild 1361464331820204112: is_member=True, is_admin=True, reason=owner
+2025-11-29 23:03:38.85
+3a5d7263
+User
+[2025-11-30 04:03:38 +0000] [23] [INFO] Real-time admin check (API) for user hypnotikacid in guild 1361464331820204112: is_member=True, is_admin=True, reason=owner
+2025-11-29 23:03:40.11
+3a5d7263
+User
+[2025-11-30 04:03:40 +0000] [23] [INFO] Real-time admin check (API) for user hypnotikacid in guild 1361464331820204112: is_member=True, is_admin=True, reason=owner
+2025-11-29 23:04:22.90
+3a5d7263
+User
+[2025-11-30 04:04:22 +0000] [23] [INFO] Real-time admin check (API) for user hypnotikacid in guild 1361464331820204112: is_member=True, is_admin=True, reason=owner
+2025-11-29 23:04:24.21
+3a5d7263
+User
+[2025-11-30 04:04:24 +0000] [23] [INFO] Real-time admin check (API) for user hypnotikacid in guild 1361464331820204112: is_member=True, is_admin=True, reason=owner
