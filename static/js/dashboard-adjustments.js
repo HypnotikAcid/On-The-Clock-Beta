@@ -393,23 +393,22 @@ function renderAdminDayCell(dayNumber, dayData, dateStr) {
 }
 
 function attachAdminDayCellHandlers() {
-    const dayCells = document.querySelectorAll('.calendar-day[data-has-pending="true"]');
+    // Allow clicking ALL days in admin calendar (with data-date attribute)
+    const dayCells = document.querySelectorAll('.calendar-day[data-date]');
 
     dayCells.forEach(cell => {
         cell.addEventListener('click', () => {
             const dateStr = cell.getAttribute('data-date');
-            openAdminDayModal(dateStr);
+            if (dateStr) {
+                openAdminDayModal(dateStr);
+            }
         });
+        cell.style.cursor = 'pointer';
     });
 }
 
 function openAdminDayModal(dateStr) {
     const dayData = currentCalendarData.days.find(d => d.date === dateStr);
-
-    if (!dayData || !dayData.requests || dayData.requests.length === 0) {
-        console.log('No pending requests for selected day');
-        return;
-    }
 
     const dateObj = new Date(dateStr + 'T12:00:00');
     const formattedDate = dateObj.toLocaleDateString('en-US', {
@@ -418,6 +417,29 @@ function openAdminDayModal(dateStr) {
         month: 'long',
         day: 'numeric'
     });
+
+    if (!dayData || !dayData.requests || dayData.requests.length === 0) {
+        const modalHtml = `
+            <div id="admin-day-overlay" class="modal-overlay">
+                <div class="modal-content day-edit-modal" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h3>&#128197; ${formattedDate}</h3>
+                        <button class="close-modal" onclick="closeAdminDayModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="text-align: center; padding: 40px 24px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">&#9989;</div>
+                        <div style="color: #10B981; font-size: 18px; font-weight: 600; margin-bottom: 8px;">All Clear!</div>
+                        <div style="color: #8B949E; font-size: 14px;">No pending adjustment requests for this day.</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingModal = document.getElementById('admin-day-overlay');
+        if (existingModal) existingModal.remove();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        return;
+    }
 
     let requestsHtml = dayData.requests.map(req => {
         const reqTypeDisplay = (req.request_type || '').replace(/_/g, ' ').toUpperCase();
@@ -1283,3 +1305,6 @@ window.closeDayEditModal = closeDayEditModal;
 window.closeAdminDayModal = closeAdminDayModal;
 window.togglePastRequests = togglePastRequests;
 window.submitDayAdjustment = submitDayAdjustment;
+window.submitMissingTimeRequest = submitMissingTimeRequest;
+window.openEmployeeDayModal = openEmployeeDayModal;
+window.openAddMissingTimeModal = openAddMissingTimeModal;

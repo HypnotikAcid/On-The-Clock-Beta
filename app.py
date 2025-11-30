@@ -4104,8 +4104,7 @@ def api_get_resolved_adjustments(user_session, guild_id):
             cursor = conn.execute("""
                 SELECT r.id, r.user_id, r.request_type, r.reason, r.status,
                        r.reviewed_at, r.reviewed_by, r.created_at,
-                       COALESCE(p.display_name, p.full_name) as display_name,
-                       p.username
+                       COALESCE(p.display_name, p.full_name, CONCAT(p.first_name, ' ', p.last_name)) as display_name
                 FROM time_adjustment_requests r
                 LEFT JOIN employee_profiles p ON r.user_id = p.user_id AND r.guild_id = p.guild_id
                 WHERE r.guild_id = %s AND r.status IN ('approved', 'denied')
@@ -4122,7 +4121,6 @@ def api_get_resolved_adjustments(user_session, guild_id):
                 'id': row_dict['id'],
                 'user_id': str(row_dict['user_id']),
                 'display_name': row_dict.get('display_name') or str(row_dict['user_id']),
-                'username': row_dict.get('username'),
                 'request_type': row_dict['request_type'],
                 'reason': row_dict.get('reason'),
                 'status': row_dict['status'],
