@@ -11,7 +11,16 @@ function initViewModeToggle() {
     const toggle = document.getElementById('view-mode-toggle');
     if (!toggle) return;
     
-    // Only show for admin/owner
+    // Check access level first - if employee access, force employee mode
+    const accessLevel = window.currentServerData && window.currentServerData.access_level;
+    
+    if (accessLevel === 'employee') {
+        toggle.style.display = 'none';
+        setViewMode('employee');
+        return;
+    }
+    
+    // Only show toggle for admin/owner with admin access level
     const isAdmin = window.currentServerData && 
         ['owner', 'admin'].includes(window.currentServerData.user_role_tier);
     
@@ -152,12 +161,49 @@ document.querySelector('.sidebar-nav').addEventListener('click', (e) => {
     }
 });
 
+// Update navigation items visibility based on access level
+function updateNavigationForAccessLevel(accessLevel) {
+    const adminOnlyNavItems = [
+        'admin-roles',
+        'employee-roles', 
+        'email-settings',
+        'timezone'
+    ];
+    
+    const employeeAllowedNavItems = [
+        'server-overview',
+        'employees',
+        'adjustments'
+    ];
+    
+    // Get all nav items in server nav
+    const serverNav = document.getElementById('server-nav');
+    if (!serverNav) return;
+    
+    const navItems = serverNav.querySelectorAll('.nav-item[data-section]');
+    
+    navItems.forEach(item => {
+        const section = item.getAttribute('data-section');
+        
+        if (accessLevel === 'employee') {
+            if (adminOnlyNavItems.includes(section)) {
+                item.style.display = 'none';
+            } else if (employeeAllowedNavItems.includes(section)) {
+                item.style.display = 'flex';
+            }
+        } else {
+            item.style.display = 'flex';
+        }
+    });
+}
+
 // Server Selection Handler
 document.querySelectorAll('.server-item').forEach(item => {
     item.addEventListener('click', async function () {
         const guildId = this.dataset.guildId;
         const guildName = this.dataset.guildName;
         const guildIcon = this.dataset.guildIcon;
+        const accessLevel = this.dataset.accessLevel || 'admin';
 
         // Show loading overlay
         showLoading('Loading server...');
@@ -182,13 +228,18 @@ document.querySelectorAll('.server-item').forEach(item => {
         document.getElementById('server-nav').style.display = 'block';
 
         try {
-            // Load server data
-            await loadServerData(guildId);
+            // Load server data and pass access level
+            await loadServerData(guildId, accessLevel);
 
-            // Load pending count
-            await loadPendingAdjustments(guildId);
+            // Update navigation visibility based on access level
+            updateNavigationForAccessLevel(accessLevel);
 
-            // Initialize view mode toggle for admin/owner users
+            // Load pending count (only if admin access)
+            if (accessLevel === 'admin') {
+                await loadPendingAdjustments(guildId);
+            }
+
+            // Initialize view mode toggle (handles access level internally)
             initViewModeToggle();
 
             // Navigate to server overview
@@ -206,9 +257,13 @@ document.querySelectorAll('.server-item').forEach(item => {
 document.getElementById('backToServers').addEventListener('click', () => {
     currentGuildId = null;
     currentServerData = null;
+    window.currentServerData = null;
 
     // Hide view mode toggle when returning to My Servers
     hideViewModeToggle();
+    
+    // Reset navigation visibility (show all nav items)
+    updateNavigationForAccessLevel('admin');
 
     // Switch back to main navigation
     document.getElementById('main-nav').style.display = 'block';
@@ -222,7 +277,7 @@ document.getElementById('backToServers').addEventListener('click', () => {
 });
 
 // Load Server Data
-async function loadServerData(guildId) {
+async function loadServerData(guildId, accessLevel = 'admin') {
     try {
         const response = await fetch(`/api/server/${guildId}/data`);
         const data = await response.json();
@@ -233,14 +288,18 @@ async function loadServerData(guildId) {
         }
 
         currentServerData = data;
+        
+        // Store access level in currentServerData and window
+        currentServerData.access_level = accessLevel;
+        window.currentServerData = currentServerData;
 
-        // Populate roles and settings
-        populateAdminRoles(data.roles, data.current_settings.admin_roles);
-        populateEmployeeRoles(data.roles, data.current_settings.employee_roles);
-        populateTimezoneSettings(data.current_settings.timezone);
-
-        // Load banned users
-        loadBannedUsers();
+        // Only populate admin-level settings if admin access
+        if (accessLevel === 'admin') {
+            populateAdminRoles(data.roles, data.current_settings.admin_roles);
+            populateEmployeeRoles(data.roles, data.current_settings.employee_roles);
+            populateTimezoneSettings(data.current_settings.timezone);
+            loadBannedUsers();
+        }
 
         // Update UI based on user role
         if (data.user_role_tier && typeof updateSidebarForRole === 'function') {

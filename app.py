@@ -846,15 +846,79 @@ def filter_user_guilds(user_session):
         if not bot_is_present and not has_paid_access:
             continue
         
-        # Add subscription info and bot presence to guild
+        # Add subscription info, bot presence, and access level to guild
         guild['bot_access_paid'] = has_paid_access
         guild['retention_tier'] = sub_info['retention_tier']
         guild['bot_is_present'] = bot_is_present
+        guild['access_level'] = 'admin'
         
         # Guild passes filters
         filtered_guilds.append(guild)
     
     return filtered_guilds
+
+def get_employee_guilds(user_id):
+    """
+    Get guilds where user has an active employee profile.
+    Cross-references with bot_guilds to ensure bot is present.
+    Returns list of guilds with format matching OAuth guild structure.
+    """
+    employee_guilds = []
+    
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    ep.guild_id,
+                    bg.guild_name,
+                    COALESCE(ss.bot_access_paid, FALSE) as bot_access_paid,
+                    COALESCE(ss.retention_tier, 'none') as retention_tier
+                FROM employee_profiles ep
+                JOIN bot_guilds bg ON bg.guild_id = CAST(ep.guild_id AS TEXT)
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = ep.guild_id
+                WHERE ep.user_id = %s AND ep.is_active = TRUE
+            """, (int(user_id),))
+            
+            for row in cursor.fetchall():
+                employee_guilds.append({
+                    'id': str(row['guild_id']),
+                    'name': row['guild_name'],
+                    'icon': None,
+                    'access_level': 'employee',
+                    'bot_access_paid': bool(row['bot_access_paid']),
+                    'retention_tier': row['retention_tier'] or 'none',
+                    'bot_is_present': True
+                })
+    except Exception as e:
+        app.logger.error(f"Error fetching employee guilds for user {user_id}: {e}")
+        app.logger.error(traceback.format_exc())
+    
+    return employee_guilds
+
+def get_all_user_guilds(user_session):
+    """
+    Get all guilds where user has access (admin or employee).
+    Deduplicates: if user is admin on a guild, don't include it as employee-only.
+    
+    Returns dict with:
+    - 'admin_guilds': guilds where user has admin access
+    - 'employee_guilds': guilds where user is employee-only (not admin)
+    """
+    user_id = user_session.get('user_id')
+    
+    admin_guilds = filter_user_guilds(user_session)
+    admin_guild_ids = set(g['id'] for g in admin_guilds)
+    
+    all_employee_guilds = get_employee_guilds(user_id)
+    employee_only_guilds = [
+        g for g in all_employee_guilds 
+        if g['id'] not in admin_guild_ids
+    ]
+    
+    return {
+        'admin_guilds': admin_guilds,
+        'employee_guilds': employee_only_guilds
+    }
 
 # Routes
 
@@ -1209,22 +1273,26 @@ def auth_logout():
 @app.route("/dashboard")
 @require_auth
 def dashboard(user_session):
-    """Protected dashboard showing user info and guilds where bot is present and user has admin access"""
+    """Protected dashboard showing user info and guilds where user has admin or employee access"""
     try:
         app.logger.info(f"Dashboard accessed by user: {user_session.get('username')}")
         
-        # Filter guilds to show only where bot is present AND user has admin access
-        filtered_guilds = filter_user_guilds(user_session)
+        # Get all guilds where user has access (admin or employee)
+        all_guilds = get_all_user_guilds(user_session)
+        admin_guilds = all_guilds['admin_guilds']
+        employee_guilds = all_guilds['employee_guilds']
         
-        # Create a modified user session with filtered guilds
+        # Create a modified user session with both admin and employee guilds
         dashboard_data = {
             **user_session,
-            'guilds': filtered_guilds,
+            'guilds': admin_guilds,  # Maintain backward compatibility
+            'admin_guilds': admin_guilds,
+            'employee_guilds': employee_guilds,
             'total_guilds': len(user_session.get('guilds', [])),
-            'filtered_count': len(filtered_guilds)
+            'filtered_count': len(admin_guilds) + len(employee_guilds)
         }
         
-        app.logger.info(f"Showing {len(filtered_guilds)} of {len(user_session.get('guilds', []))} guilds")
+        app.logger.info(f"Showing {len(admin_guilds)} admin guilds and {len(employee_guilds)} employee-only guilds")
         return render_template('dashboard.html', 
                              user=dashboard_data, 
                              version=__version__, 
@@ -1612,7 +1680,7 @@ def _test_guild_id_validation(guild_id, role_id, user_session, expect_block=Fals
                 'details': 'Please use a valid numeric Discord guild ID'
             }
     
-    guild = verify_guild_access(user_session, guild_id)
+    guild, _ = verify_guild_access(user_session, guild_id)
     if not guild:
         return {
             'success': False,
@@ -1672,7 +1740,7 @@ def _test_role_id_validation(guild_id, user_session):
             'details': 'Please use a valid numeric Discord guild ID'
         }
     
-    guild = verify_guild_access(user_session, guild_id)
+    guild, _ = verify_guild_access(user_session, guild_id)
     if not guild:
         return {
             'success': False,
@@ -1935,18 +2003,52 @@ def api_owner_revoke_access(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
-def verify_guild_access(user_session, guild_id):
+def verify_guild_access(user_session, guild_id, allow_employee=False):
     """
     Verify user has access to a specific guild.
-    Returns the guild object if user has access, None otherwise.
+    Returns tuple (guild_object, access_level) if user has access, (None, None) otherwise.
+    
+    Args:
+        user_session: Current user session
+        guild_id: Guild ID to check
+        allow_employee: If True, also checks employee_profiles for employee access
+    
+    Returns:
+        (guild_dict, access_level) or (None, None)
+        access_level is 'admin' or 'employee'
     """
     all_guilds = user_session.get('guilds', [])
+    
+    # First check admin access (from OAuth guilds)
     for guild in all_guilds:
         if guild.get('id') == guild_id:
-            # Check if user has admin access to this guild
             if user_has_admin_access(user_session['user_id'], guild_id, guild):
-                return guild
-    return None
+                return (guild, 'admin')
+    
+    # If allow_employee and no admin access, check employee_profiles
+    if allow_employee:
+        user_id = user_session.get('user_id')
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT ep.guild_id, bg.guild_name
+                FROM employee_profiles ep
+                JOIN bot_guilds bg ON bg.guild_id = CAST(ep.guild_id AS TEXT)
+                WHERE ep.user_id = %s 
+                  AND ep.guild_id = %s 
+                  AND ep.is_active = TRUE
+            """, (user_id, int(guild_id)))
+            
+            employee_guild = cursor.fetchone()
+            if employee_guild:
+                # Return a guild-like dict with employee access
+                return ({
+                    'id': guild_id,
+                    'name': employee_guild['guild_name'],
+                    'owner': False,
+                    'permissions': '0'
+                }, 'employee')
+    
+    return (None, None)
 
 def get_guild_roles_from_bot(guild_id):
     """
@@ -2054,7 +2156,7 @@ def upgrade_info(user_session, guild_id):
         import html
         
         # Verify user has access to this guild
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return "<h1>Access Denied</h1><p>You don't have admin access to this server.</p><a href='/dashboard'>Back to Dashboard</a>", 403
         
@@ -2446,7 +2548,7 @@ def api_add_admin_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2505,7 +2607,7 @@ def api_remove_admin_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2564,7 +2666,7 @@ def api_add_employee_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2627,7 +2729,7 @@ def api_remove_employee_role(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2676,7 +2778,7 @@ def api_update_timezone(user_session, guild_id):
     """API endpoint to update timezone"""
     try:
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2726,7 +2828,7 @@ def api_update_email_settings(user_session, guild_id):
     """API endpoint to update email settings"""
     try:
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2777,7 +2879,7 @@ def api_update_work_day_time(user_session, guild_id):
     """API endpoint to update work day end time"""
     try:
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2828,7 +2930,7 @@ def api_update_mobile_restriction(user_session, guild_id):
         app.logger.info(f"≡ƒoº Mobile restriction API called for guild {guild_id}")
         
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             app.logger.warning(f"[ERROR] Access denied for guild {guild_id}")
             return jsonify({'success': False, 'error': 'Access denied'}), 403
@@ -2891,7 +2993,7 @@ def api_get_email_recipients(user_session, guild_id):
     """API endpoint to fetch email recipients for a server"""
     try:
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2927,7 +3029,7 @@ def api_add_email_recipient(user_session, guild_id):
     """API endpoint to add an email recipient"""
     try:
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -2975,7 +3077,7 @@ def api_remove_email_recipient(user_session, guild_id):
     """API endpoint to remove an email recipient"""
     try:
         # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -3006,12 +3108,12 @@ def api_remove_email_recipient(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/data", methods=["GET"])
-@require_paid_api_access
+@require_api_auth  # Changed from require_paid_api_access to allow employees
 def api_get_server_data(user_session, guild_id):
     """API endpoint to fetch server roles and settings for dashboard integration"""
     try:
-        # Verify user has access
-        guild = verify_guild_access(user_session, guild_id)
+        # Verify user has access (admin OR employee)
+        guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -3020,22 +3122,38 @@ def api_get_server_data(user_session, guild_id):
         if guild_id not in bot_guild_ids:
             return jsonify({'success': False, 'error': 'Bot not present in this server'}), 404
         
-        # Fetch guild roles
+        # Determine user_role_tier based on access_level and Discord permissions
+        if access_level == 'employee':
+            user_role_tier = 'employee'
+        elif guild.get('owner', False):
+            user_role_tier = 'owner'
+        else:
+            permissions = int(guild.get('permissions', '0'))
+            if permissions & 0x8:
+                user_role_tier = 'admin'
+            else:
+                user_role_tier = 'employee'
+        
+        # For employees, only return limited data
+        if access_level == 'employee':
+            return jsonify({
+                'success': True,
+                'guild': guild,
+                'roles': [],  # Employees don't need role list
+                'current_settings': {
+                    'timezone': get_guild_settings(guild_id).get('timezone', 'America/New_York')
+                },
+                'current_user_id': user_session.get('user_id'),
+                'user_role_tier': user_role_tier,
+                'access_level': access_level
+            })
+        
+        # For admins, return full data
         roles = get_guild_roles_from_bot(guild_id)
         if not roles:
             return jsonify({'success': False, 'error': 'Could not fetch server roles'}), 500
         
-        # Fetch current settings
         current_settings = get_guild_settings(guild_id)
-        
-        # Determine user role tier (owner > admin > employee)
-        user_role_tier = 'employee'  # Default
-        if guild.get('owner', False):
-            user_role_tier = 'owner'
-        else:
-            permissions = int(guild.get('permissions', '0'))
-            if permissions & 0x8:  # Administrator permission
-                user_role_tier = 'admin'
         
         return jsonify({
             'success': True,
@@ -3043,7 +3161,8 @@ def api_get_server_data(user_session, guild_id):
             'roles': roles,
             'current_settings': current_settings,
             'current_user_id': user_session.get('user_id'),
-            'user_role_tier': user_role_tier
+            'user_role_tier': user_role_tier,
+            'access_level': access_level
         })
     except Exception as e:
         app.logger.error(f"Error fetching server data: {str(e)}")
@@ -3055,7 +3174,7 @@ def api_get_server_data(user_session, guild_id):
 def api_get_bans(user_session, guild_id):
     """API endpoint to fetch all banned users for a server"""
     try:
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -3088,7 +3207,7 @@ def api_get_bans(user_session, guild_id):
 def api_unban_user(user_session, guild_id):
     """API endpoint to unban a user"""
     try:
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
@@ -3116,7 +3235,7 @@ def api_unban_user(user_session, guild_id):
 def api_make_ban_permanent(user_session, guild_id):
     """API endpoint to make a ban permanent"""
     try:
-        guild = verify_guild_access(user_session, guild_id)
+        guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         

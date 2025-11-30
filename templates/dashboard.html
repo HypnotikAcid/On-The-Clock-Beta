@@ -121,21 +121,37 @@
             <section class="content-section active" id="section-my-servers">
                 <div class="content-header">
                     <h1 class="content-title">My Servers</h1>
-                    <p class="content-subtitle">Manage your Discord servers where On the Clock bot is active</p>
+                    <p class="content-subtitle">Your managed servers and workplaces</p>
                 </div>
 
+                {% if not user.admin_guilds and not user.employee_guilds %}
                 <div class="tiles-grid">
-                    <!-- Server List Tile -->
                     <div class="tile">
-                        <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.guilds|length }})</h2>
+                        <div class="empty-state" style="text-align: center; padding: 40px 20px; color: #8B949E;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">🏢</div>
+                            <p style="margin-bottom: 10px; font-size: 16px;"><strong>No servers found</strong></p>
+                            <p style="font-size: 13px; margin-bottom: 8px;">You don't have access to any servers yet.</p>
+                            <p style="font-size: 13px; margin-bottom: 15px;">Either:</p>
+                            <p style="font-size: 13px;">✅ Add the "On the Clock" bot to your server (as admin)</p>
+                            <p style="font-size: 13px;">✅ Or get added as an employee in a server with the bot</p>
+                            <p style="margin-top: 20px;"><a href="/invite" style="color: #D4AF37;">Add bot to your server</a></p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="tiles-grid">
+                    <!-- Managed Servers Tile (Admin) -->
+                    <div class="tile" id="managed-servers-tile">
+                        <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.admin_guilds|length }})</h2>
                         <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
-                            Showing servers where On the Clock bot is present and you have admin access
+                            Servers where you have admin access
                         </p>
-                        {% if user.guilds %}
+                        {% if user.admin_guilds %}
                         <div class="servers-list">
-                            {% for guild in user.guilds %}
+                            {% for guild in user.admin_guilds %}
                             <div class="server-item" data-guild-id="{{ guild.id }}" data-guild-name="{{ guild.name }}"
-                                data-guild-icon="{% if guild.icon %}https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64{% endif %}">
+                                data-guild-icon="{% if guild.icon %}https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64{% endif %}"
+                                data-access-level="admin">
                                 <div class="server-icon">
                                     {% if guild.icon %}
                                     <img src="https://cdn.discordapp.com/icons/{{ guild.id }}/{{ guild.icon }}.png?size=64"
@@ -165,16 +181,44 @@
                             {% endfor %}
                         </div>
                         {% else %}
-                        <div class="no-servers">
-                            <p style="margin-bottom: 10px;"><strong>No managed servers found</strong></p>
-                            <p style="font-size: 13px;">To see servers here, you need:</p>
-                            <p style="font-size: 13px;">✅ The "On the Clock" bot added to your server</p>
-                            <p style="font-size: 13px;">✅ Admin permissions in that server</p>
-                            <p style="margin-top: 15px;"><a href="/invite">Add bot to your server</a></p>
+                        <div class="empty-state" style="text-align: center; padding: 20px; color: #8B949E;">
+                            <p>No servers where you have admin access.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- My Workplaces Tile (Employee) -->
+                    <div class="tile" id="workplaces-tile">
+                        <h2><span class="tile-icon">⏰</span>My Workplaces ({{ user.employee_guilds|length }})</h2>
+                        <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
+                            Servers where you clock in/out as an employee
+                        </p>
+                        {% if user.employee_guilds %}
+                        <div class="servers-list">
+                            {% for guild in user.employee_guilds %}
+                            <div class="server-item" data-guild-id="{{ guild.id }}" data-guild-name="{{ guild.name }}"
+                                data-guild-icon=""
+                                data-access-level="employee">
+                                <div class="server-icon">
+                                    {{ guild.name[0]|upper }}
+                                </div>
+                                <div class="server-info">
+                                    <div class="server-name">{{ guild.name }}</div>
+                                    <div class="server-meta">
+                                        <span class="server-badge" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.15)); border: 1px solid rgba(59, 130, 246, 0.3); color: #3B82F6;">👷 Employee</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state" style="text-align: center; padding: 20px; color: #8B949E;">
+                            <p>You haven't been added as an employee to any servers yet.</p>
                         </div>
                         {% endif %}
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Action Buttons -->
                 <div class="action-buttons-container">
