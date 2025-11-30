@@ -53,7 +53,7 @@ CREATE TABLE time_adjustment_requests (
     id SERIAL PRIMARY KEY,
     guild_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    request_type TEXT NOT NULL,           -- 'add_session', 'modify_clockin', 'modify_clockout', 'delete_session'
+    request_type TEXT NOT NULL,           -- 'add_session', 'modify_session', 'modify_clockin', 'modify_clockout', 'delete_session'
     original_session_id INTEGER,          -- FK to sessions.id (for modify/delete)
     original_clock_in TIMESTAMPTZ,
     original_clock_out TIMESTAMPTZ,
@@ -64,12 +64,20 @@ CREATE TABLE time_adjustment_requests (
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'denied'
     reviewed_by BIGINT,
     reviewed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    -- Calendar enhancement columns (added for interactive calendar feature)
+    session_date DATE,                    -- The date the session occurred (for calendar lookups)
+    admin_notes TEXT,                     -- Notes from admin when approving/denying
+    calculated_duration INTEGER           -- Pre-calculated duration for requested times
 );
 
--- Index for faster pending request lookups
+-- Indexes for faster lookups
 CREATE INDEX idx_adjustment_requests_guild_status 
 ON time_adjustment_requests(guild_id, status);
+
+-- Index for calendar date-based queries
+CREATE INDEX idx_adjustment_requests_session_date 
+ON time_adjustment_requests(guild_id, user_id, session_date);
 ```
 
 ### Employee Profiles Table
@@ -125,25 +133,33 @@ CREATE INDEX idx_employee_profiles_active ON employee_profiles(guild_id, is_acti
 ```sql
 CREATE TABLE guild_settings (
     guild_id BIGINT PRIMARY KEY,
-    setting_name TEXT NOT NULL,
-    setting_value TEXT
+    recipient_user_id BIGINT,
+    button_channel_id BIGINT,
+    button_message_id BIGINT,
+    timezone TEXT DEFAULT 'America/New_York',
+    name_display_mode TEXT DEFAULT 'username',
+    main_admin_role_id TEXT,
+    work_day_end_time TEXT
 );
--- Common settings: 'timezone' (default: 'America/New_York')
+-- Note: Uses direct columns, NOT key-value pairs
 ```
 
 ---
 
 ## 2. Existing API Endpoints
 
-### Time Adjustment APIs (in `bot.py`)
+### Time Adjustment APIs
 
-| Method | Endpoint | Description | Function |
+| Method | Endpoint | Description | Location |
 |--------|----------|-------------|----------|
-| POST | `/api/guild/{id}/adjustments` | Create new adjustment request | `create_adjustment_request()` |
-| GET | `/api/guild/{id}/adjustments/pending` | Get pending requests for guild | `get_pending_adjustments()` |
-| GET | `/api/guild/{id}/employee/{user_id}/adjustments/recent` | Get user's adjustment history | `get_user_adjustment_history()` |
-| POST | `/api/guild/{id}/adjustments/{id}/approve` | Approve a request | `approve_adjustment()` |
-| POST | `/api/guild/{id}/adjustments/{id}/deny` | Deny a request | `deny_adjustment()` |
+| POST | `/api/guild/{id}/adjustments` | Create new adjustment request | `bot.py` |
+| GET | `/api/guild/{id}/adjustments/pending` | Get pending requests for guild | `bot.py` |
+| GET | `/api/guild/{id}/employee/{user_id}/adjustments/recent` | Get user's adjustment history | `bot.py` |
+| POST | `/api/guild/{id}/adjustments/{id}/approve` | Approve a request | `bot.py` |
+| POST | `/api/guild/{id}/adjustments/{id}/deny` | Deny a request | `bot.py` |
+| GET | `/api/guild/{id}/employee/{user_id}/monthly-timecard` | Calendar data with sessions + adjustment status | `app.py` (IMPLEMENTED) |
+| POST | `/api/guild/{id}/adjustments/submit-day` | Submit day-level adjustment requests | `app.py` (IMPLEMENTED) |
+| GET | `/api/guild/{id}/adjustments/history` | Get user's full adjustment history | `app.py` (IMPLEMENTED) |
 
 ### Key Functions in `bot.py`
 
@@ -298,20 +314,21 @@ def get_sessions_grouped_by_date(guild_id, user_id, start_date, end_date):
 
 ```python
 from datetime import datetime, timezone, timedelta
-import pytz  # If needed for named timezones
+import pytz  # For named timezones
 
 # Default timezone
 DEFAULT_TZ = "America/New_York"
 
 # Get guild's configured timezone
+# NOTE: guild_settings uses direct columns, NOT key-value pairs
 def get_guild_timezone(guild_id):
     with db() as conn:
         cursor = conn.execute(
-            "SELECT setting_value FROM guild_settings WHERE guild_id = %s AND setting_name = 'timezone'",
+            "SELECT timezone FROM guild_settings WHERE guild_id = %s",
             (guild_id,)
         )
         row = cursor.fetchone()
-        return row['setting_value'] if row else DEFAULT_TZ
+        return row['timezone'] if row else DEFAULT_TZ
 
 # Convert UTC to guild timezone
 def utc_to_guild_tz(utc_dt, guild_id):
@@ -324,51 +341,41 @@ now_utc = datetime.now(timezone.utc)
 
 ---
 
-## 6. Frontend Structure
+## 6. Frontend Structure (IMPLEMENTED)
 
-### Time Adjustments Section in `templates/dashboard.html` (lines 597-650)
+### Time Adjustments Section - Interactive Calendar
 
-```html
-<section class="content-section" id="section-adjustments">
-    <div class="section-header">
-        <h1 class="content-title">⏳ Time Adjustments</h1>
-        <p class="content-subtitle">Request changes or review pending adjustments</p>
-    </div>
-    
-    <!-- Employee adjustment request form -->
-    <div class="tile" id="employee-adjustment-form-container">
-        <h3 class="tile-title">📝 Request an Adjustment</h3>
-        <form id="adjustment-form">
-            <div class="form-group">
-                <label for="adjustment-type">Type of Adjustment</label>
-                <select id="adjustment-type" name="request_type">
-                    <option value="add_session">Add Missing Shift</option>
-                    <option value="modify_clockin">Modify Clock In Time</option>
-                    <option value="modify_clockout">Modify Clock Out Time</option>
-                    <option value="delete_session">Delete Session</option>
-                </select>
-            </div>
-            <!-- More form fields... -->
-        </form>
-    </div>
-    
-    <!-- Employee's own adjustment history -->
-    <div id="employee-adjustment-history" style="margin-top: 30px;">
-        <h3>📋 Your Adjustment Requests</h3>
-        <div id="user-adjustments-list">
-            <!-- Populated via JavaScript -->
-        </div>
-    </div>
-    
-    <!-- Admin review panel (visible to admins only) -->
-    <div id="admin-adjustment-review" style="margin-top: 30px;">
-        <h3>🔍 Pending Adjustments (Admin)</h3>
-        <div id="pending-adjustments-list">
-            <!-- Populated via JavaScript -->
-        </div>
-    </div>
-</section>
+The Time Adjustments section now features an **interactive visual calendar** instead of a basic form:
+
+**Key Components** (in `templates/dashboard.html`):
+- `#adjustment-calendar-container` - Main calendar grid with clickable days
+- `#day-edit-modal` - Popup modal for editing sessions on a specific day
+- Calendar navigation with month/year controls
+
+**JavaScript** (in `static/js/dashboard-adjustments.js`):
+```javascript
+// Calendar renders worked days with color-coded hours:
+// - Green: 8+ hours worked
+// - Orange: 4-8 hours worked  
+// - Blue: Less than 4 hours worked
+
+// Status indicators on calendar days:
+// - Alert icon (yellow): Pending adjustment request
+// - Checkmark (green): Approved adjustment
+// - X mark (red): Denied adjustment
+
+// Clicking a day with sessions opens the edit modal
+// Modal shows pre-filled clock in/out times that can be edited
+// Submitting creates a time_adjustment_request with status='pending'
 ```
+
+**API Endpoints for Calendar**:
+- `GET /api/guild/{id}/employee/{user_id}/monthly-timecard` - Gets sessions with adjustment status per day
+- `POST /api/guild/{id}/adjustments/submit-day` - Submits day-level adjustment requests
+
+**Access Control**:
+- Employees can view/edit their OWN calendar only
+- Admins can view any employee's calendar
 
 ### CSS Framework (`static/css/dashboard.css`)
 
@@ -383,50 +390,16 @@ now_utc = datetime.now(timezone.utc)
 --text-primary: #C9D1D9;
 --text-secondary: #8B949E;
 
-/* Common patterns */
-.tile {
-    background: rgba(21, 27, 46, 0.8);
-    border: 1px solid rgba(212, 175, 55, 0.2);
-    border-radius: 12px;
-    padding: 24px;
-    backdrop-filter: blur(10px);
-}
+/* Calendar-specific styles */
+.adjustment-calendar { /* Monthly calendar grid */ }
+.calendar-day.has-sessions { /* Days with work data */ }
+.calendar-day.has-pending { /* Pending adjustment indicator */ }
+.calendar-day.has-approved { /* Approved adjustment indicator */ }
+.calendar-day.has-denied { /* Denied adjustment indicator */ }
 
-.content-section {
-    padding: 30px;
-}
-
-.section-header {
-    margin-bottom: 24px;
-}
-
-.content-title {
-    font-size: 1.75rem;
-    color: #D4AF37;
-}
-
-.form-group {
-    margin-bottom: 16px;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #D4AF37, #B8962E);
-    color: #0A0F1F;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-}
-```
-
-### No existing date picker - Recommended: Add flatpickr
-
-```html
-<!-- Add to head -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-
-<!-- Add to body (before closing) -->
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+/* Modal for day editing */
+.day-edit-modal { /* Popup overlay */ }
+.session-edit-row { /* Individual session editor */ }
 ```
 
 ---
@@ -627,15 +600,18 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 
 ---
 
-## Phase 1 Implementation Checklist
+## Phase 1 Implementation Checklist (COMPLETED)
 
-- [ ] Add calendar UI component (flatpickr or similar)
-- [ ] Create endpoint: `GET /api/server/<guild_id>/sessions/by-date?start=&end=&user_id=`
-- [ ] Create endpoint: `GET /api/server/<guild_id>/sessions/daily-summary?month=&year=&user_id=`
-- [ ] Add calendar view to Time Adjustments section
-- [ ] Display sessions when a date is clicked
-- [ ] Allow selecting a session to request adjustment
-- [ ] Pre-fill adjustment form with session data
+- [x] Add interactive calendar UI with custom CSS grid layout
+- [x] Create endpoint: `GET /api/guild/{id}/employee/{user_id}/monthly-timecard` - Returns sessions + adjustment status
+- [x] Create endpoint: `POST /api/guild/{id}/adjustments/submit-day` - Submit day-level adjustments
+- [x] Add calendar view to Time Adjustments section with month navigation
+- [x] Display sessions when a date is clicked via modal popup
+- [x] Pre-fill modal with editable clock in/out times
+- [x] Submit creates adjustment request with session_date for calendar persistence
+- [x] Status indicators on calendar (pending/approved/denied)
+- [x] Access control: employees see own calendar, admins can view any employee
+- [x] Security hardening: validate session ownership before submission
 
 ---
 
@@ -643,3 +619,4 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 
 - `docs/anti_gravity_playbook.md` - Security patterns and coding conventions
 - `docs/ai_bootstrap_prompt.txt` - Prompt to use before coding sessions
+- `replit.md` - Project overview and architecture decisions
