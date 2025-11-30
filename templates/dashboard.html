@@ -272,9 +272,8 @@
                             server.</p>
                     </div>
                                       <!-- Pending Time Adjustments Tile (Admin Only) -->
-                    <div class="tile clickable" id="pending-adjustments-tile" 
-                         onclick="window.location.href='/server/{{ current_guild_id }}/adjustments/review'"
-                         style="cursor: pointer;">
+                                      <div class="tile clickable admin-only" id="pending-adjustments-tile" 
+                         onclick="window.location.href='/server/' + document.getElementById('guild-selector').value + '/adjustments/review'"                         style="cursor: pointer;">
                         <h2>
                             <span class="tile-icon">⏳</span>
                             Pending Time Adjustments
