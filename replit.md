@@ -33,8 +33,11 @@ Preferred communication style: Simple, everyday language.
 - **Database Migrations**: Automatic schema migrations on startup using `migrations.py` with idempotent `CREATE TABLE IF NOT EXISTS` statements.
 - **Employee Status Cards**: The dashboard displays active employees with hours worked (today/week/month).
 - **Time Adjustment Requests**: Employees can request time corrections, which admins can approve/deny via the dashboard with a before/after comparison.
-- **Interactive Visual Calendar**: The Time Adjustments section features a clickable monthly calendar showing worked days. Employees click on a day to open a popup modal with pre-filled timestamps they can edit. Changes create adjustment requests with visual status indicators (alert icon for pending, green checkmark for approved, red X for denied).
+- **Role-Based Interactive Calendar**: The Time Adjustments section features different views based on user role:
+  - **Admin View**: Calendar displays pending request counts per day (color intensity: amber for 1-2, red for 3+). Clicking a day opens a modal listing all pending requests with Approve/Deny buttons. Includes collapsible "Past Requests" section showing resolved requests across the guild.
+  - **Employee View**: Calendar displays personal work sessions with status indicators. Active sessions show green dot; clicking a day opens edit modal. "Clock Out Now" feature detects active sessions and allows clocking out from dashboard before making adjustments.
 - **Calendar Data Persistence**: Adjustment requests are stored in `time_adjustment_requests` table with session_date tracking, ensuring persistence through republishing. Status updates are reflected on the calendar when admin approves/denies.
+- **Real-Time Calendar Updates**: After approve/deny actions, both the pending requests list and admin calendar refresh automatically (1-second delay for UI feedback).
 - **Encoding Best Practices**: Uses HTML entities (`&rarr;`, `&larr;`) for special characters in templates for cross-platform compatibility.
 
 ## Security Configuration
