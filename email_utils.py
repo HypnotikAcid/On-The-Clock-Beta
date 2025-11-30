@@ -7,7 +7,7 @@ import base64
 import asyncio
 import aiohttp
 from typing import List, Dict, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 class ReplitMailSender:
     """Email utility using Replit's OpenInt mail service"""
@@ -136,7 +136,7 @@ class ReplitMailSender:
         csv_base64 = base64.b64encode(csv_content.encode('utf-8')).decode('utf-8')
         
         # Generate filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"timeclock_report_{guild_name}_{timestamp}.csv"
         
         # Prepare email content
@@ -146,7 +146,7 @@ class ReplitMailSender:
 Timeclock Report for {guild_name}
 
 Report Period: {report_period}
-Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}
 
 Please find the attached CSV file containing the timeclock data.
 
@@ -160,7 +160,7 @@ On the Clock Discord Bot
     <h2>Timeclock Report for {guild_name}</h2>
     
     <p><strong>Report Period:</strong> {report_period}</p>
-    <p><strong>Generated:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+    <p><strong>Generated:</strong> {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}</p>
     
     <p>Please find the attached CSV file containing the timeclock data.</p>
     
