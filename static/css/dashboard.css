@@ -2135,6 +2135,52 @@
     }
 }
 
+/* Coworkers Grid */
+.coworkers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+}
+
+.coworker-card {
+    background: rgba(139, 148, 158, 0.08);
+    border: 1px solid rgba(139, 148, 158, 0.15);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.coworker-card:hover {
+    border-color: rgba(212, 175, 55, 0.3);
+}
+
+.coworker-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #D4AF37, #B8962E);
+    color: #0A0F1F;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 auto 12px;
+}
+
+.coworker-name {
+    color: #C9D1D9;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.coworker-status {
+    color: #57F287;
+    font-size: 12px;
+}
+
 /* Admin/Employee View Mode Toggle */
 .view-mode-toggle {
     position: fixed;

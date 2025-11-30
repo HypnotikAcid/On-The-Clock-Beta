@@ -108,7 +108,7 @@ async function handleNavigation(sectionId) {
     const contentSections = document.querySelectorAll('.content-section');
 
     // Show loading for sections that fetch data
-    const loadingSections = ['employees', 'email-settings', 'adjustments', 'server-overview', 'admin-roles', 'employee-roles', 'ban-management'];
+    const loadingSections = ['employees', 'email-settings', 'adjustments', 'server-overview', 'admin-roles', 'employee-roles', 'ban-management', 'on-the-clock'];
     if (loadingSections.includes(sectionId)) {
         showLoading();
     }
@@ -132,6 +132,10 @@ async function handleNavigation(sectionId) {
 
         if (sectionId === 'employees') {
             await loadEmployeeStatus(currentGuildId);
+        }
+
+        if (sectionId === 'on-the-clock') {
+            await loadOnTheClock(currentGuildId);
         }
 
         if (sectionId === 'adjustments') {
@@ -172,12 +176,13 @@ function updateNavigationForAccessLevel(accessLevel) {
         'employee-roles', 
         'email-settings',
         'timezone',
-        'ban-management'
+        'ban-management',
+        'employees'
     ];
     
     const employeeAllowedNavItems = [
         'server-overview',
-        'employees',
+        'on-the-clock',
         'adjustments',
         'beta-settings'
     ];
@@ -960,6 +965,58 @@ window.addEventListener('resize', () => {
 if (window.innerWidth <= 768) {
     sidebar.classList.add('mobile-hidden');
 }
+// On the Clock Functionality (Employee View)
+async function loadOnTheClock(guildId) {
+    if (!guildId) return;
+    
+    const container = document.getElementById('coworkers-on-clock-container');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="empty-state">Loading...</div>';
+    
+    try {
+        const response = await fetch(`/api/guild/${guildId}/on-the-clock`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const clockedIn = data.coworkers.filter(c => c.is_clocked_in);
+            
+            if (clockedIn.length === 0) {
+                container.innerHTML = '<div class="empty-state">No co-workers currently on the clock</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            clockedIn.forEach(emp => {
+                const card = document.createElement('div');
+                card.className = 'coworker-card';
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'coworker-avatar';
+                avatar.textContent = (emp.display_name || '?').charAt(0).toUpperCase();
+                
+                const name = document.createElement('div');
+                name.className = 'coworker-name';
+                name.textContent = emp.display_name || 'Unknown';
+                
+                const status = document.createElement('div');
+                status.className = 'coworker-status';
+                status.textContent = '● On the Clock';
+                
+                card.appendChild(avatar);
+                card.appendChild(name);
+                card.appendChild(status);
+                container.appendChild(card);
+            });
+        } else {
+            container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Error: ${escapeHtml(data.error)}</div>`;
+        }
+    } catch (error) {
+        console.error('Error loading on-the-clock:', error);
+        container.innerHTML = '<div class="empty-state" style="color: #EF4444;">Failed to load data</div>';
+    }
+}
+
 // Employee Status Functionality
 async function loadEmployeeStatus(guildId) {
     if (!guildId) return;
@@ -977,7 +1034,7 @@ async function loadEmployeeStatus(guildId) {
 
         if (data.success) {
             if (data.employees.length === 0) {
-                container.innerHTML = '<div class="empty-state">No employees currently clocked in.</div>';
+                container.innerHTML = '<div class="empty-state">No employees with time records found.</div>';
                 return;
             }
 
@@ -985,15 +1042,16 @@ async function loadEmployeeStatus(guildId) {
             container.innerHTML = '';
 
             data.employees.forEach(emp => {
-                // Calculate duration
-                const clockInTime = new Date(emp.clock_in);
-                const now = new Date();
-                const durationMs = now - clockInTime;
-
-                // Format duration
-                const hours = Math.floor(durationMs / 3600000);
-                const minutes = Math.floor((durationMs % 3600000) / 60000);
-                const durationStr = `${hours}h ${minutes}m`;
+                // Calculate duration only if clocked in
+                let durationStr = '';
+                if (emp.is_clocked_in && emp.clock_in) {
+                    const clockInTime = new Date(emp.clock_in);
+                    const now = new Date();
+                    const durationMs = now - clockInTime;
+                    const hours = Math.floor(durationMs / 3600000);
+                    const minutes = Math.floor((durationMs % 3600000) / 60000);
+                    durationStr = `${hours}h ${minutes}m`;
+                }
 
                 // Format hours stats
                 const formatHours = (seconds) => {
@@ -1027,9 +1085,17 @@ async function loadEmployeeStatus(guildId) {
                 const status = document.createElement('div');
                 status.className = 'employee-status';
                 const statusDot = document.createElement('span');
-                statusDot.style.cssText = 'width: 8px; height: 8px; background: #57F287; border-radius: 50%; display: inline-block;';
-                status.appendChild(statusDot);
-                status.appendChild(document.createTextNode(` Clocked in for ${durationStr}`));
+                
+                if (emp.is_clocked_in) {
+                    statusDot.style.cssText = 'width: 8px; height: 8px; background: #57F287; border-radius: 50%; display: inline-block;';
+                    status.appendChild(statusDot);
+                    status.appendChild(document.createTextNode(` Clocked in for ${durationStr}`));
+                } else {
+                    statusDot.style.cssText = 'width: 8px; height: 8px; background: #8B949E; border-radius: 50%; display: inline-block;';
+                    status.appendChild(statusDot);
+                    const lastSeen = emp.last_clock_out ? new Date(emp.last_clock_out).toLocaleDateString() : 'Unknown';
+                    status.appendChild(document.createTextNode(` Last seen: ${lastSeen}`));
+                }
 
                 info.appendChild(nameH3);
                 info.appendChild(status);
@@ -1064,16 +1130,17 @@ async function loadEmployeeStatus(guildId) {
                 card.appendChild(cardHeader);
                 card.appendChild(stats);
 
-                // Add clock-out button for admin view mode
+                // Add clock-out button for admin view mode (only if employee IS clocked in)
                 const clockOutBtn = document.createElement('button');
                 clockOutBtn.className = 'admin-clock-out-btn';
                 clockOutBtn.textContent = 'Clock Out';
                 clockOutBtn.style.cssText = 'display: none; width: 100%; margin-top: 12px; padding: 8px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #EF4444; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease;';
                 clockOutBtn.dataset.userId = emp.user_id;
                 clockOutBtn.dataset.displayName = emp.display_name || 'Unknown User';
+                clockOutBtn.dataset.isClockedIn = emp.is_clocked_in ? 'true' : 'false';
 
-                // Show button only in admin mode
-                if (window.currentViewMode === 'admin') {
+                // Show button only in admin mode AND if employee is clocked in
+                if (emp.is_clocked_in && window.currentViewMode === 'admin') {
                     clockOutBtn.style.display = 'block';
                 }
 
@@ -1106,7 +1173,10 @@ async function loadEmployeeStatus(guildId) {
                         const data = await response.json();
                         
                         if (data.success) {
-                            loadEmployeeStatus(guildId);
+                            // Add small delay to ensure backend has processed the change
+                            setTimeout(() => {
+                                loadEmployeeStatus(guildId);
+                            }, 300);
                         } else {
                             alert('Error: ' + (data.error || 'Failed to clock out employee'));
                         }
@@ -1134,7 +1204,9 @@ window.addEventListener('viewModeChanged', function(event) {
     const isAdmin = event.detail.mode === 'admin';
     
     clockOutButtons.forEach(btn => {
-        btn.style.display = isAdmin ? 'block' : 'none';
+        // Only show button if admin mode AND employee is clocked in
+        const isClockedIn = btn.dataset.isClockedIn === 'true';
+        btn.style.display = (isAdmin && isClockedIn) ? 'block' : 'none';
     });
 });
 

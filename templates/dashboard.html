@@ -75,9 +75,13 @@
                             style="display:none; background:#F59E0B; color:#111; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:auto;">Set
                             TZ!</span>
                     </div>
-                    <div class="nav-item" data-section="employees" data-server-menu>
+                    <div class="nav-item admin-only" data-section="employees" data-server-menu>
                         <span class="nav-item-icon">👥</span>
                         <span>Employee Status</span>
+                    </div>
+                    <div class="nav-item employee-only" data-section="on-the-clock" data-server-menu>
+                        <span class="nav-item-icon">⏰</span>
+                        <span>On the Clock</span>
                     </div>
                     <div class="nav-item" data-section="adjustments" data-server-menu>
                         <span class="nav-item-icon">⏳</span>
@@ -776,6 +780,46 @@
                 <div class="employee-cards-grid" id="employee-cards-container">
                     <!-- Dynamically populated -->
                     <div class="empty-state">Loading employees...</div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons-container">
+                    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer"
+                        class="btn coffee-button">
+                        <span class="coffee-icon">☕</span>
+                        <span>Buy Me a Coffee</span>
+                    </a>
+                    <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
+                        class="btn support-button">
+                        <span>✉️</span>
+                        <span>App Ideas & Requests</span>
+                    </a>
+                </div>
+                <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
+
+            <!-- On the Clock Section (Employee View) -->
+            <section class="content-section" id="section-on-the-clock">
+                <div class="content-header">
+                    <h1 class="content-title">⏰ On the Clock</h1>
+                    <p class="content-subtitle">See who's currently working</p>
+                </div>
+                
+                <!-- Currently Clocked In Co-workers -->
+                <div class="tile" style="margin-bottom: 24px;">
+                    <h2><span class="tile-icon">👥</span> Co-workers Currently Working</h2>
+                    <div id="coworkers-on-clock-container" class="coworkers-grid">
+                        <div class="empty-state">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- My Contact Info -->
+                <div class="tile">
+                    <h2><span class="tile-icon">📇</span> My Contact Card</h2>
+                    <p style="color: #8B949E; font-size: 13px; margin-bottom: 16px;">This information is visible to your employer</p>
+                    <div id="my-contact-form">
+                        <div class="empty-state" style="color: #8B949E;">Contact card feature coming soon</div>
+                    </div>
                 </div>
 
                 <!-- Action Buttons -->

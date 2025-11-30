@@ -3584,6 +3584,44 @@ def api_get_active_employees(user_session, guild_id):
             'error': str(e)
         }), 500
 
+@app.route("/api/guild/<guild_id>/on-the-clock")
+@require_paid_api_access
+def api_get_on_the_clock(user_session, guild_id):
+    """
+    Get currently clocked-in coworkers for employee view.
+    Employees can only see who is on the clock, not detailed stats.
+    """
+    try:
+        # Verify user has access to this guild (admin or employee)
+        guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
+        if not guild:
+            app.logger.warning(f"On-the-clock access denied for user {user_session.get('user_id')} to guild {guild_id}")
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        timezone_name = request.args.get('timezone', 'America/New_York')
+        employees = get_active_employees_with_stats(int(guild_id), timezone_name)
+        
+        # For employee view, only return basic info about clocked-in coworkers
+        coworkers = []
+        for emp in employees:
+            if emp.get('is_clocked_in'):
+                coworkers.append({
+                    'user_id': emp['user_id'],
+                    'display_name': emp.get('display_name') or emp.get('full_name') or 'Unknown',
+                    'is_clocked_in': True
+                })
+        
+        return jsonify({
+            'success': True,
+            'coworkers': coworkers
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching on-the-clock: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route("/api/guild/<guild_id>/adjustments", methods=["POST"])
 @require_paid_api_access
 def api_create_adjustment(user_session, guild_id):
