@@ -622,12 +622,15 @@ function renderEmployeeDayCell(dayNumber, dayData, dateStr) {
         statusIndicator = '<span class="status-indicator active" title="Currently clocked in" style="color: #10B981;">&#9679;</span>';
         statusBorder = 'border-color: #10B981 !important;';
     } else if (adjustmentStatus === 'pending') {
+        cellClass += ' day-pending-adjustment';
         statusIndicator = '<span class="status-indicator pending" title="Adjustment pending review">&#9888;</span>';
         statusBorder = 'border-color: #F59E0B !important;';
     } else if (adjustmentStatus === 'approved') {
+        cellClass += ' day-approved-adjustment';
         statusIndicator = '<span class="status-indicator approved" title="Adjustment approved">&#10003;</span>';
         statusBorder = 'border-color: #10B981 !important;';
     } else if (adjustmentStatus === 'denied') {
+        cellClass += ' day-denied-adjustment';
         statusIndicator = '<span class="status-indicator denied" title="Adjustment denied">&#10007;</span>';
         statusBorder = 'border-color: #EF4444 !important;';
     }

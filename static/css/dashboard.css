@@ -3053,3 +3053,25 @@
             background: rgba(239, 68, 68, 0.3);
             border-color: #EF4444;
         }
+        
+/* =============================================
+   CALENDAR ADJUSTMENT STATUS INDICATORS
+   ============================================= */
+
+/* Pending adjustment - yellow outline */
+.calendar-day.day-pending-adjustment {
+    border: 2px solid #F59E0B;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+/* Approved adjustment - green outline */
+.calendar-day.day-approved-adjustment {
+    border: 2px solid #10B981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+/* Denied adjustment - red outline */
+.calendar-day.day-denied-adjustment {
+    border: 2px solid #EF4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
