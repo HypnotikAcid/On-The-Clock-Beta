@@ -127,6 +127,38 @@ function renderRequestCard(req) {
 
     const createdDate = new Date(req.created_at).toLocaleString();
 
+    // Calculate time durations
+    const calculateDuration = (clockIn, clockOut) => {
+        if (!clockIn || !clockOut) return 0;
+        const diff = new Date(clockOut) - new Date(clockIn);
+        return diff / (1000 * 60 * 60); // Convert to hours
+    };
+
+    const originalDuration = calculateDuration(req.original_clock_in, req.original_clock_out);
+    const requestedDuration = calculateDuration(req.requested_clock_in, req.requested_clock_out);
+    const adjustment = requestedDuration - originalDuration;
+
+    const adjustmentText = adjustment > 0 ? `+${adjustment.toFixed(2)}h` : `${adjustment.toFixed(2)}h`;
+    const adjustmentColor = adjustment > 0 ? '#10B981' : (adjustment < 0 ? '#EF4444' : '#8B949E');
+
+    // Format times as "HH:MM AM/PM"
+    const formatTime = (dateStr) => {
+        if (!dateStr) return 'None';
+        return new Date(dateStr).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        return new Date(dateStr).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
     return `
         <div class="request-card" data-request-id="${req.id}">
             <div class="request-header">
@@ -145,15 +177,26 @@ function renderRequestCard(req) {
             <div class="time-comparison">
                 <div class="time-before">
                     <h5>Original</h5>
-                    <div>${originalIn}</div>
-                    <div>${originalOut}</div>
+                    <div style="font-size: 13px; color: #8B949E; margin-bottom: 4px;">${formatDate(req.original_clock_in) || 'None'}</div>
+                    ${req.original_clock_in ? `
+                        <div><strong>In:</strong> ${formatTime(req.original_clock_in)}</div>
+                        <div><strong>Out:</strong> ${formatTime(req.original_clock_out)}</div>
+                        <div style="margin-top: 6px; color: #D4AF37; font-weight: 600;">${originalDuration.toFixed(2)}h</div>
+                    ` : '<div style="color: #8B949E;">No session</div>'}
                 </div>
                 <div class="arrow">→</div>
                 <div class="time-after">
                     <h5>Requested</h5>
-                    <div>${requestedIn}</div>
-                    <div>${requestedOut}</div>
+                    <div style="font-size: 13px; color: #8B949E; margin-bottom: 4px;">${formatDate(req.requested_clock_in)}</div>
+                    <div><strong>In:</strong> ${formatTime(req.requested_clock_in)}</div>
+                    <div><strong>Out:</strong> ${formatTime(req.requested_clock_out)}</div>
+                    <div style="margin-top: 6px; color: #D4AF37; font-weight: 600;">${requestedDuration.toFixed(2)}h</div>
                 </div>
+            </div>
+            
+            <div style="text-align: center; padding: 12px; margin: 12px 0; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 3px solid ${adjustmentColor};">
+                <div style="font-size: 12px; color: #8B949E; margin-bottom: 4px;">Total Adjustment</div>
+                <div style="font-size: 24px; font-weight: 600; color: ${adjustmentColor};">${adjustmentText}</div>
             </div>
             
             <div class="request-actions">
