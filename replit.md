@@ -88,3 +88,16 @@ Preferred communication style: Simple, everyday language.
 - **Row Access**: All queries use `RealDictCursor` for named column access (e.g., `row['column']`).
 - **SSL Connection Handling**: Includes built-in validation and retry logic for stale SSL connections.
 - **Query Syntax**: Utilizes PostgreSQL-specific features like `%s` placeholders, `INSERT ... ON CONFLICT DO UPDATE`, and `NOW()`.
+
+# Known Limitations & Future Improvements
+
+## Documented TODO Items
+- **Discord API Member Roles** (app.py line 801): Consider implementing Discord API call to fetch member roles in real-time if role caching becomes stale.
+- **Email Table Migration** (app.py line 2148): Email recipient fetch currently returns empty array - email table query implementation may need review.
+- **Automatic Refund Logic** (bot.py lines 967, 1047): When certain payment failures occur, automatic refund processing could be implemented instead of manual intervention.
+
+## Code Review Notes (December 2025)
+- All onclick handlers now properly exported to window scope for modal functionality
+- Calendar day click handlers work for both admin and employee views
+- Mobile responsiveness optimized with touch-friendly targets (70px calendar days, 44px minimum interactive elements)
+- All database queries use parameterized statements for security
