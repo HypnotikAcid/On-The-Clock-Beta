@@ -704,6 +704,7 @@ function openEmployeeDayModal(dateStr) {
                         <input type="time" class="time-input clock-out" value="${clockOutTime}" data-original="${clockOutTime}" ${isActive ? 'disabled placeholder="Still active"' : ''}>
                     </label>
                     <span class="duration-display">${duration}</span>
+                    ${!isActive ? `<button class="btn-delete-session" onclick="deleteSession(${index})" title="Delete session">🗑️</button>` : ''}
                 </div>
             </div>
         `;
@@ -745,6 +746,9 @@ function openEmployeeDayModal(dateStr) {
                         <h4>Edit Time Entries</h4>
                         <p class="edit-hint">Modify times below and provide a reason to submit an adjustment request.</p>
                         ${sessionsHtml}
+                        <button class="btn-add-session" onclick="addNewSession()" type="button">
+                            <span style="font-size: 18px;">+</span> Add Session
+                        </button>
                     </div>
                     
                     <div class="adjustment-reason-section">
@@ -794,6 +798,73 @@ function updateDurationDisplay(event) {
         } else {
             durationDisplay.textContent = 'Invalid';
             durationDisplay.style.color = '#EF4444';
+        }
+    }
+}
+
+function addNewSession() {
+    const container = document.querySelector('.sessions-edit-container');
+    const existingSessions = container.querySelectorAll('.edit-session-row');
+    const newIndex = existingSessions.length;
+
+    const newSessionHtml = `
+        <div class="session-card" data-session-index="${newIndex}">
+            <div class="session-header">
+                <h5>Session ${newIndex + 1}</h5>
+            </div>
+            <div class="edit-session-row">
+                <label>
+                    Clock In:
+                    <input type="time" class="time-input clock-in" value="" data-original="">
+                </label>
+                <label>
+                    Clock Out:
+                    <input type="time" class="time-input clock-out" value="" data-original="">
+                </label>
+                <span class="duration-display">0.00h</span>
+                <button class="btn-delete-session" onclick="deleteSession(${newIndex})" title="Delete session">🗑️</button>
+            </div>
+        </div>
+    `;
+
+    const addButton = container.querySelector('.btn-add-session');
+    addButton.insertAdjacentHTML('beforebegin', newSessionHtml);
+
+    // Attach event listeners to new inputs
+    const newCard = container.querySelector(`[data-session-index="${newIndex}"]`);
+    newCard.querySelectorAll('.time-input').forEach(input => {
+        input.addEventListener('change', updateDurationDisplay);
+    });
+}
+
+function deleteSession(index) {
+    const container = document.querySelector('.sessions-edit-container');
+    const sessionCard = container.querySelector(`[data-session-index="${index}"]`);
+
+    if (sessionCard) {
+        sessionCard.remove();
+
+        // Renumber remaining sessions
+        const remainingSessions = container.querySelectorAll('.session-card');
+        remainingSessions.forEach((card, idx) => {
+            card.dataset.sessionIndex = idx;
+            const header = card.querySelector('.session-header h5');
+            if (header) {
+                header.textContent = `Session ${idx + 1}`;
+            }
+            const deleteBtn = card.querySelector('.btn-delete-session');
+            if (deleteBtn) {
+                deleteBtn.setAttribute('onclick', `deleteSession(${idx})`);
+            }
+        });
+
+        // Update total sessions count
+        const summary = document.querySelector('.day-summary');
+        if (summary) {
+            const sessionsSpan = summary.querySelector('span:nth-child(2)');
+            if (sessionsSpan) {
+                sessionsSpan.innerHTML = `<strong>Sessions:</strong> ${remainingSessions.length}`;
+            }
         }
     }
 }
@@ -1309,6 +1380,8 @@ window.submitMissingTimeRequest = submitMissingTimeRequest;
 window.openEmployeeDayModal = openEmployeeDayModal;
 window.openAddMissingTimeModal = openAddMissingTimeModal;
 window.openAdminDayModal = openAdminDayModal;
+window.addNewSession = addNewSession;
+window.deleteSession = deleteSession;
 
 // Listen for view mode changes and reinitialize calendar
 window.addEventListener('viewModeChanged', function (event) {

@@ -2468,6 +2468,7 @@
 
         /* Mobile breakpoint (768px and below) */
         @media (max-width: 768px) {
+
             /* Employee cards - single column on mobile */
             .employee-cards-grid {
                 grid-template-columns: 1fr;
@@ -2683,6 +2684,7 @@
 
         /* Small phone breakpoint (480px and below) */
         @media (max-width: 480px) {
+
             /* Coworkers - still 2 columns but smaller */
             .coworkers-grid {
                 gap: 8px;
@@ -2770,6 +2772,205 @@
 
         /* Touch-friendly improvements for all mobile */
         @media (hover: none) and (pointer: coarse) {
+
+            /* Larger touch targets */
+            .calendar-day {
+                min-height: 70px;
+            }
+
+            .btn,
+            .btn-primary,
+            .btn-secondary {
+                min-height: 44px;
+                padding: 12px 20px;
+            }
+
+            .calendar-nav-btn {
+                min-height: 44px;
+            }
+
+            /* Remove hover effects that don't work on touch */
+            .calendar-day:hover {
+                transform: none;
+            }
+
+            .employee-card:hover {
+                transform: none;
+            }
+
+            .modal-footer button {
+                flex: 1;
+                padding: 14px 20px;
+                font-size: 15px;
+            }
+
+            /* Session edit rows - stack on mobile */
+            .edit-session-row {
+                padding: 12px;
+            }
+
+            .session-times {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .session-times label {
+                width: 100%;
+            }
+
+            .time-input {
+                width: 100%;
+                padding: 12px;
+                font-size: 16px;
+            }
+
+            .duration-display {
+                text-align: center;
+                padding: 8px;
+                background: rgba(212, 175, 55, 0.1);
+                border-radius: 6px;
+            }
+
+            /* Day summary - stack on mobile */
+            .day-summary {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            /* Adjustment items - better mobile layout */
+            .adjustment-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                padding: 12px;
+            }
+
+            /* Pending requests list */
+            .pending-request-card,
+            .request-card {
+                padding: 14px;
+            }
+
+            /* Calendar navigation */
+            .calendar-nav {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            #calendar-month-display {
+                order: -1;
+                width: 100%;
+                text-align: center;
+                margin-bottom: 5px;
+            }
+
+            .calendar-nav-btn {
+                flex: 1;
+                padding: 10px 16px;
+                font-size: 14px;
+                min-width: 80px;
+            }
+
+            /* Adjustment reason textarea */
+            #adjustment-reason,
+            .adjustment-reason-section textarea {
+                font-size: 16px;
+                padding: 14px;
+                min-height: 100px;
+            }
+        }
+
+        /* Small phone breakpoint (480px and below) */
+        @media (max-width: 480px) {
+
+            /* Coworkers - still 2 columns but smaller */
+            .coworkers-grid {
+                gap: 8px;
+            }
+
+            .coworker-card {
+                padding: 10px;
+            }
+
+            .coworker-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+
+            .coworker-name {
+                font-size: 12px;
+            }
+
+            /* Calendar - even more compact */
+            .calendar-day {
+                min-height: 60px;
+                padding: 6px;
+            }
+
+            .day-number {
+                font-size: 13px;
+            }
+
+            .day-hours {
+                font-size: 11px;
+            }
+
+            .day-sessions {
+                display: none;
+            }
+
+            .day-no-work {
+                font-size: 9px;
+            }
+
+            /* View mode toggle - simplified */
+            .view-mode-toggle {
+                padding: 8px 12px;
+            }
+
+            .view-mode-label {
+                display: none;
+            }
+
+            .view-mode-btn {
+                padding: 10px 18px;
+            }
+
+            /* Modal adjustments */
+            .modal-header {
+                padding: 14px 16px;
+            }
+
+            .modal-body {
+                padding: 14px 16px;
+            }
+
+            .modal-footer {
+                padding: 14px 16px;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .modal-footer button {
+                width: 100%;
+            }
+
+            /* Employee card adjustments */
+            .employee-card {
+                padding: 14px;
+            }
+
+            .employee-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+        }
+
+        /* Touch-friendly improvements for all mobile */
+        @media (hover: none) and (pointer: coarse) {
+
             /* Larger touch targets */
             .calendar-day {
                 min-height: 70px;
@@ -2806,4 +3007,49 @@
                 background: rgba(212, 175, 55, 0.15);
                 transform: scale(0.98);
             }
+        }
+
+        /* =============================================
+   ADD/DELETE SESSION BUTTONS
+   ============================================= */
+
+        /* Add Session Button */
+        .btn-add-session {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: rgba(212, 175, 55, 0.15);
+            border: 2px dashed rgba(212, 175, 55, 0.4);
+            border-radius: 8px;
+            color: #D4AF37;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-add-session:hover {
+            background: rgba(212, 175, 55, 0.25);
+            border-color: rgba(212, 175, 55, 0.6);
+        }
+
+        /* Delete Session Button */
+        .btn-delete-session {
+            padding: 6px 12px;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 6px;
+            color: #EF4444;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            min-width: 40px;
+        }
+
+        .btn-delete-session:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: #EF4444;
         }
