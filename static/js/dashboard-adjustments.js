@@ -369,7 +369,7 @@ function renderAdminDayCell(dayNumber, dayData, dateStr) {
     let warningStyle = '';
 
     if (hasPending) {
-        cellClass += ' has-pending';
+        cellClass += ' has-pending day-pending-adjustment';
 
         if (pendingCount >= 3) {
             warningStyle = 'background: rgba(239, 68, 68, 0.2); border-color: #EF4444;';
