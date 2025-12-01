@@ -24,7 +24,7 @@ function initializeAdjustments(guildId, userId) {
     currentCalendarData.guildId = guildId;
     currentCalendarData.userId = userId;
 
-    const isAdmin = ['owner', 'admin'].includes(window.currentServerData?.user_role_tier);
+    const isAdmin = window.currentViewMode === 'admin';
     currentCalendarData.isAdminMode = isAdmin;
 
     setupCalendarEventListeners();
@@ -434,7 +434,7 @@ function openAdminDayModal(dateStr) {
                 </div>
             </div>
         `;
-        
+
         const existingModal = document.getElementById('admin-day-overlay');
         if (existingModal) existingModal.remove();
         document.body.insertAdjacentHTML('beforeend', modalHtml);
@@ -1309,3 +1309,14 @@ window.submitMissingTimeRequest = submitMissingTimeRequest;
 window.openEmployeeDayModal = openEmployeeDayModal;
 window.openAddMissingTimeModal = openAddMissingTimeModal;
 window.openAdminDayModal = openAdminDayModal;
+
+// Listen for view mode changes and reinitialize calendar
+window.addEventListener('viewModeChanged', function (event) {
+    const guildId = currentCalendarData.guildId;
+    const userId = currentCalendarData.userId;
+
+    if (guildId && userId) {
+        console.log('View mode changed to:', event.detail.mode, '- Reinitializing calendar');
+        initializeAdjustments(guildId, userId);
+    }
+});
