@@ -1675,3 +1675,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+// Export functions to window scope for onclick handlers
+window.openEmployeeDetailView = openEmployeeDetailView;
+window.closeEmployeeDetailView = closeEmployeeDetailView;
+window.handleQuickApproval = handleQuickApproval;

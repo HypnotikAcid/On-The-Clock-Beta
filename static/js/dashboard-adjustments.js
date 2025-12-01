@@ -1308,3 +1308,4 @@ window.submitDayAdjustment = submitDayAdjustment;
 window.submitMissingTimeRequest = submitMissingTimeRequest;
 window.openEmployeeDayModal = openEmployeeDayModal;
 window.openAddMissingTimeModal = openAddMissingTimeModal;
+window.openAdminDayModal = openAdminDayModal;
