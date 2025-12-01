@@ -293,7 +293,8 @@
                 <script>
                     // Load pending adjustments count on server overview page
                     (function() {
-                        const guildId = '{{ current_guild_id }}';
+                        const guildSelector = document.getElementById('guild-selector');
+                        const guildId = guildSelector ? guildSelector.value : null;
                         if (!guildId) return;
                         
                         fetch(`/api/guild/${guildId}/adjustments/pending`)
