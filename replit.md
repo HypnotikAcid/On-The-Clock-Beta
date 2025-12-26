@@ -101,3 +101,10 @@ Preferred communication style: Simple, everyday language.
 - Calendar day click handlers work for both admin and employee views
 - Mobile responsiveness optimized with touch-friendly targets (70px calendar days, 44px minimum interactive elements)
 - All database queries use parameterized statements for security
+
+## Email Fail-Safe System (December 2025)
+- **Backend Validation**: Email settings API endpoints (`api_update_email_settings`, `api_update_work_day_time`) reject enabling features if no email recipients are configured
+- **Auto-Disable Logic**: When the last email recipient is removed via `api_remove_email_recipient`, all email-dependent settings are automatically disabled (auto_send_on_clockout, auto_email_before_delete, work_day_end_time)
+- **Frontend State Management**: `updateEmailControlsState()` function disables/enables toggles and time picker based on recipient count
+- **Inline Guidance**: Warning banner (`email-settings-guidance`) displayed when no recipients configured, hidden when recipients exist
+- **Preload Count**: `email_recipient_count` included in `get_guild_settings()` for initial state synchronization

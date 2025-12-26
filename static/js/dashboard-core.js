@@ -613,6 +613,44 @@ document.getElementById('save-timezone-btn').addEventListener('click', async fun
     }
 });
 
+// Track email recipient count for fail-safe validation
+let emailRecipientCount = 0;
+
+// Update email-dependent controls based on recipient availability
+function updateEmailControlsState(count) {
+    emailRecipientCount = count;
+    const hasRecipients = count > 0;
+    
+    const toggleAutoSendClockout = document.getElementById('toggle-auto-send-clockout');
+    const toggleAutoEmailDelete = document.getElementById('toggle-auto-email-delete');
+    const workDayEndTime = document.getElementById('work-day-end-time');
+    const saveWorkdayBtn = document.getElementById('save-workday-time-btn');
+    
+    // Update toggle disabled states
+    if (toggleAutoSendClockout) {
+        toggleAutoSendClockout.disabled = !hasRecipients;
+        toggleAutoSendClockout.parentElement.style.opacity = hasRecipients ? '1' : '0.5';
+    }
+    if (toggleAutoEmailDelete) {
+        toggleAutoEmailDelete.disabled = !hasRecipients;
+        toggleAutoEmailDelete.parentElement.style.opacity = hasRecipients ? '1' : '0.5';
+    }
+    if (workDayEndTime) {
+        workDayEndTime.disabled = !hasRecipients;
+        workDayEndTime.style.opacity = hasRecipients ? '1' : '0.5';
+    }
+    if (saveWorkdayBtn) {
+        saveWorkdayBtn.disabled = !hasRecipients;
+        saveWorkdayBtn.style.opacity = hasRecipients ? '1' : '0.5';
+    }
+    
+    // Show/hide inline guidance
+    const emailGuidance = document.getElementById('email-settings-guidance');
+    if (emailGuidance) {
+        emailGuidance.style.display = hasRecipients ? 'none' : 'block';
+    }
+}
+
 // Email Management Functions
 async function loadEmailRecipients() {
     if (!currentGuildId) return;
@@ -623,11 +661,14 @@ async function loadEmailRecipients() {
 
         if (response.ok && data.success) {
             renderEmailList(data.emails);
+            updateEmailControlsState(data.emails ? data.emails.length : 0);
         } else {
             console.error('Error loading emails:', data.error);
+            updateEmailControlsState(0);
         }
     } catch (error) {
         console.error('Error:', error);
+        updateEmailControlsState(0);
     }
 
     // Also load current email settings (toggles and work day time)
@@ -650,6 +691,11 @@ async function loadEmailRecipients() {
         const restrictMobileToggle = document.getElementById('restrict-mobile-toggle');
         if (restrictMobileToggle) {
             restrictMobileToggle.checked = settings.restrict_mobile_clockin || false;
+        }
+        
+        // Initialize email controls state from preloaded count if available
+        if (typeof settings.email_recipient_count === 'number') {
+            updateEmailControlsState(settings.email_recipient_count);
         }
     }
 }
@@ -727,6 +773,23 @@ async function removeEmail(emailId) {
         const data = await response.json();
         if (response.ok && data.success) {
             await loadEmailRecipients();
+            
+            // Handle auto-disable when last recipient is removed
+            if (data.email_settings_disabled) {
+                // Reset toggle states in UI
+                const toggleAutoSendClockout = document.getElementById('toggle-auto-send-clockout');
+                const toggleAutoEmailDelete = document.getElementById('toggle-auto-email-delete');
+                const workDayEndTime = document.getElementById('work-day-end-time');
+                
+                if (toggleAutoSendClockout) toggleAutoSendClockout.checked = false;
+                if (toggleAutoEmailDelete) toggleAutoEmailDelete.checked = false;
+                if (workDayEndTime) workDayEndTime.value = '';
+                
+                alert('Email automation settings have been disabled because there are no email recipients configured.');
+            }
+            
+            // Update controls state
+            updateEmailControlsState(data.remaining_count || 0);
         } else {
             alert(data.error || 'Error removing email');
         }
@@ -742,6 +805,10 @@ async function updateEmailSettings() {
 
     const toggleAutoSendClockout = document.getElementById('toggle-auto-send-clockout');
     const toggleAutoEmailDelete = document.getElementById('toggle-auto-email-delete');
+    
+    // Store previous states for rollback
+    const prevAutoSend = toggleAutoSendClockout.checked;
+    const prevAutoDelete = toggleAutoEmailDelete.checked;
 
     try {
         const response = await fetch(`/api/server/${currentGuildId}/email-settings`, {
@@ -758,7 +825,14 @@ async function updateEmailSettings() {
             console.log('Email settings updated:', data);
         } else {
             console.error('Error updating email settings:', data.error);
-            alert('Error updating email settings: ' + (data.error || 'Unknown error'));
+            
+            // Revert toggles on fail-safe error
+            if (data.requires_recipients) {
+                toggleAutoSendClockout.checked = false;
+                toggleAutoEmailDelete.checked = false;
+            }
+            
+            alert(data.error || 'Error updating email settings');
         }
     } catch (error) {
         console.error('Error:', error);
@@ -770,7 +844,8 @@ async function updateEmailSettings() {
 async function saveWorkDayTime() {
     if (!currentGuildId) return;
 
-    const workDayEndTime = document.getElementById('work-day-end-time').value;
+    const workDayEndTimeInput = document.getElementById('work-day-end-time');
+    const workDayEndTime = workDayEndTimeInput.value;
 
     try {
         const response = await fetch(`/api/server/${currentGuildId}/work-day-time`, {
@@ -783,6 +858,10 @@ async function saveWorkDayTime() {
         if (response.ok && data.success) {
             alert(data.message || 'Work day end time updated successfully!');
         } else {
+            // Clear input on fail-safe error
+            if (data.requires_recipients) {
+                workDayEndTimeInput.value = '';
+            }
             alert(data.error || 'Error updating work day end time');
         }
     } catch (error) {

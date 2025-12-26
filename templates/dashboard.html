@@ -664,6 +664,19 @@
                             </p>
                         </div>
 
+                        <!-- Fail-safe guidance - shown when no email recipients configured -->
+                        <div id="email-settings-guidance"
+                            style="margin-top: 15px; padding: 15px; background: rgba(245, 158, 11, 0.15); border: 2px solid rgba(245, 158, 11, 0.5); border-radius: 8px; display: block;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <span style="font-size: 20px;">⚠️</span>
+                                <span style="color: #F59E0B; font-weight: 600; font-size: 14px;">Email Recipients Required</span>
+                            </div>
+                            <p style="color: #C9D1D9; font-size: 13px; margin: 0;">
+                                Add at least one email address above to enable email automation features. 
+                                The toggles and work day end time settings below will be enabled once you add a recipient.
+                            </p>
+                        </div>
+
                         <div class="toggle-group"
                             style="background: rgba(10, 15, 31, 0.5); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 8px; padding: 15px; margin-top: 15px; display: flex; flex-direction: column; gap: 12px;">
                             <div class="toggle-item"
@@ -673,7 +686,7 @@
                                     on clock-out</span>
                                 <label class="toggle-switch" style="position: relative; width: 50px; height: 26px;">
                                     <input type="checkbox" id="toggle-auto-send-clockout"
-                                        style="opacity: 0; width: 0; height: 0;">
+                                        style="opacity: 0; width: 0; height: 0;" disabled>
                                     <span class="toggle-slider"
                                         style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 35, 45, 0.5); transition: 0.4s; border-radius: 34px; border: 1px solid rgba(212, 175, 55, 0.2);"></span>
                                 </label>
@@ -685,7 +698,7 @@
                                     data deletion</span>
                                 <label class="toggle-switch" style="position: relative; width: 50px; height: 26px;">
                                     <input type="checkbox" id="toggle-auto-email-delete"
-                                        style="opacity: 0; width: 0; height: 0;">
+                                        style="opacity: 0; width: 0; height: 0;" disabled>
                                     <span class="toggle-slider"
                                         style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 35, 45, 0.5); transition: 0.4s; border-radius: 34px; border: 1px solid rgba(212, 175, 55, 0.2);"></span>
                                 </label>
@@ -694,9 +707,7 @@
 
                         <div class="email-note"
                             style="margin-top: 15px; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; color: #9CA3AF; font-size: 13px;">
-                            ℹ️ <strong>Note:</strong> Email functionality requires email addresses to be configured.
-                            Add
-                            recipient emails above to enable auto-send features.
+                            ℹ️ <strong>Note:</strong> Email automation features require configured recipients. The system will automatically disable these settings if all email recipients are removed.
                         </div>
                     </div>
 

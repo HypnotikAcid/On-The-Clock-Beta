@@ -2134,6 +2134,16 @@ def get_guild_settings(guild_id):
         except:
             mobile_restriction_row = None
         
+        # Get email recipient count for fail-safe validation
+        try:
+            recipient_count_cursor = conn.execute(
+                "SELECT COUNT(*) as count FROM report_recipients WHERE guild_id = %s AND recipient_type = 'email'",
+                (guild_id,)
+            )
+            email_recipient_count = recipient_count_cursor.fetchone()['count']
+        except:
+            email_recipient_count = 0
+        
         return {
             'admin_roles': admin_roles,
             'employee_roles': employee_roles,
@@ -2145,7 +2155,8 @@ def get_guild_settings(guild_id):
             'auto_send_on_clockout': bool(email_settings_row['auto_send_on_clockout']) if email_settings_row else False,
             'auto_email_before_delete': bool(email_settings_row['auto_email_before_delete']) if email_settings_row else False,
             'restrict_mobile_clockin': bool(mobile_restriction_row['restrict_mobile_clockin']) if mobile_restriction_row else False,
-            'emails': []  # TODO: Add email table and fetch emails
+            'email_recipient_count': email_recipient_count,
+            'emails': []
         }
 
 @app.route("/server/<guild_id>/adjustments/review")
@@ -2861,6 +2872,22 @@ def api_update_email_settings(user_session, guild_id):
         auto_send_on_clockout = bool(data.get('auto_send_on_clockout', False))
         auto_email_before_delete = bool(data.get('auto_email_before_delete', False))
         
+        # FAIL-SAFE: Check if any email recipients are configured before enabling email features
+        if auto_send_on_clockout or auto_email_before_delete:
+            with get_db() as conn:
+                cursor = conn.execute(
+                    "SELECT COUNT(*) as count FROM report_recipients WHERE guild_id = %s AND recipient_type = 'email'",
+                    (guild_id,)
+                )
+                recipient_count = cursor.fetchone()['count']
+                
+                if recipient_count == 0:
+                    return jsonify({
+                        'success': False, 
+                        'error': 'Please add at least one email recipient before enabling email automation features.',
+                        'requires_recipients': True
+                    }), 400
+        
         # Update or insert email settings
         with get_db() as conn:
             # Check if settings exist
@@ -2913,8 +2940,23 @@ def api_update_work_day_time(user_session, guild_id):
         
         # Validate time format (HH:MM)
         import re
-        if not re.match(r'^([01]%s[0-9]|2[0-3]):[0-5][0-9]$', work_day_end_time):
+        if not re.match(r'^([01][0-9]|2[0-3]):[0-5][0-9]$', work_day_end_time):
             return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
+        
+        # FAIL-SAFE: Check if any email recipients are configured (work day end time triggers email reports)
+        with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT COUNT(*) as count FROM report_recipients WHERE guild_id = %s AND recipient_type = 'email'",
+                (guild_id,)
+            )
+            recipient_count = cursor.fetchone()['count']
+            
+            if recipient_count == 0:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Please add at least one email recipient before setting work day end time for automated reports.',
+                    'requires_recipients': True
+                }), 400
         
         # Update or insert guild settings
         with get_db() as conn:
@@ -3122,7 +3164,33 @@ def api_remove_email_recipient(user_session, guild_id):
             
             app.logger.info(f"[OK] Email recipient removed: {recipient_id} for guild {guild_id}")
             
-            return jsonify({'success': True, 'message': 'Email recipient removed successfully'})
+            # FAIL-SAFE: Check remaining recipients and auto-disable email settings if none left
+            remaining_cursor = conn.execute(
+                "SELECT COUNT(*) as count FROM report_recipients WHERE guild_id = %s AND recipient_type = 'email'",
+                (guild_id,)
+            )
+            remaining_count = remaining_cursor.fetchone()['count']
+            
+            email_settings_disabled = False
+            if remaining_count == 0:
+                # Auto-disable all email-dependent settings
+                conn.execute(
+                    "UPDATE email_settings SET auto_send_on_clockout = FALSE, auto_email_before_delete = FALSE WHERE guild_id = %s",
+                    (guild_id,)
+                )
+                conn.execute(
+                    "UPDATE guild_settings SET work_day_end_time = NULL WHERE guild_id = %s",
+                    (guild_id,)
+                )
+                email_settings_disabled = True
+                app.logger.info(f"[OK] Auto-disabled email settings for guild {guild_id} (no recipients remaining)")
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Email recipient removed successfully',
+                'remaining_count': remaining_count,
+                'email_settings_disabled': email_settings_disabled
+            })
     except Exception as e:
         app.logger.error(f"Error removing email recipient: {str(e)}")
         app.logger.error(traceback.format_exc())
