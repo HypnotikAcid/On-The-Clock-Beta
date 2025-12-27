@@ -4669,6 +4669,11 @@ async def setup_hook():
     bot.add_view(SetupInstructionsView())
     print("✅ SetupInstructionsView registered")
     
+    # Register TimeclockHubView for bulletproof button persistence
+    # Uses stable "tc:" prefixed custom_ids for maximum reliability
+    bot.add_view(TimeclockHubView())
+    print("✅ TimeclockHubView registered with bulletproof persistence")
+    
     print("✅ Persistent view setup complete - ephemeral interface mode")
 
 bot.setup_hook = setup_hook
@@ -5774,6 +5779,421 @@ class SetupInstructionsView(discord.ui.View):
                 pass
 
 
+# --- Timeclock Hub View (Bulletproof Button Persistence) ---
+# Uses stable custom_ids with "tc:" prefix for maximum reliability
+SUPPORT_DISCORD_URL = "https://discord.gg/KdTRTqdPcj"
+
+class TimeclockHubView(discord.ui.View):
+    """
+    Bulletproof timeclock hub with persistent buttons.
+    
+    Follows 2025 Discord best practices:
+    - timeout=None for never-expiring buttons
+    - Stable custom_id values with "tc:" prefix
+    - Fast ACK (defer immediately in handlers)
+    - Registered in setup_hook for post-restart reliability
+    """
+    def __init__(self):
+        super().__init__(timeout=None)  # Never timeout - critical for persistence
+    
+    @discord.ui.button(
+        label="Clock In",
+        style=discord.ButtonStyle.success,
+        custom_id="tc:clock_in",
+        emoji="⏰",
+        row=0
+    )
+    async def clock_in_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Clock in button - ACK fast, then process"""
+        await handle_tc_clock_in(interaction)
+    
+    @discord.ui.button(
+        label="Clock Out",
+        style=discord.ButtonStyle.secondary,
+        custom_id="tc:clock_out",
+        emoji="🏁",
+        row=0
+    )
+    async def clock_out_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Clock out button - ACK fast, then process"""
+        await handle_tc_clock_out(interaction)
+    
+    @discord.ui.button(
+        label="My Adjustments",
+        style=discord.ButtonStyle.primary,
+        custom_id="tc:adjustments",
+        emoji="📝",
+        row=1
+    )
+    async def adjustments_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Link to dashboard adjustments page"""
+        await handle_tc_adjustments(interaction)
+    
+    @discord.ui.button(
+        label="My Hours",
+        style=discord.ButtonStyle.primary,
+        custom_id="tc:my_hours",
+        emoji="📊",
+        row=1
+    )
+    async def my_hours_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Link to dashboard user hours"""
+        await handle_tc_my_hours(interaction)
+    
+    @discord.ui.button(
+        label="Support",
+        style=discord.ButtonStyle.danger,
+        custom_id="tc:support",
+        emoji="🆘",
+        row=1
+    )
+    async def support_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Link to support Discord server"""
+        await handle_tc_support(interaction)
+
+
+# --- Timeclock Hub Button Handlers ---
+# Separated from view class for reuse in on_interaction fallback
+
+async def handle_tc_clock_in(interaction: discord.Interaction):
+    """Handle clock in from TimeclockHubView - ACK fast, then process"""
+    # ACK immediately before any database work
+    if not await robust_defer(interaction, ephemeral=True):
+        return
+    
+    if not interaction.guild:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    guild_id = interaction.guild.id
+    user_id = interaction.user.id
+    
+    # Check rate limit
+    is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "tc_clock_in")
+    if not is_allowed:
+        await handle_rate_limit_response(interaction, action)
+        return
+    
+    # Check permissions
+    server_tier = get_server_tier(guild_id)
+    if not isinstance(interaction.user, discord.Member):
+        await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
+        return
+    
+    if not user_has_clock_access(interaction.user, server_tier):
+        await interaction.followup.send(
+            "🔒 **Access Restricted**\n"
+            "You need an employee role to use the timeclock.\n"
+            "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+            ephemeral=True
+        )
+        return
+    
+    # Check if already clocked in
+    try:
+        with db() as conn:
+            cursor = conn.execute(
+                "SELECT id, clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
+                (user_id, guild_id)
+            )
+            existing = cursor.fetchone()
+        
+        if existing:
+            clock_in_time = safe_parse_timestamp(existing['clock_in'])
+            await interaction.followup.send(
+                f"⚠️ **Already Clocked In**\n\n"
+                f"You clocked in at <t:{int(clock_in_time.timestamp())}:f>\n"
+                f"Use **Clock Out** to end your shift first.",
+                ephemeral=True
+            )
+            return
+        
+        # Perform clock in
+        now = datetime.now(timezone.utc)
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO sessions (user_id, guild_id, clock_in) VALUES (%s, %s, %s)",
+                (user_id, guild_id, now.isoformat())
+            )
+        
+        # Ensure employee profile exists
+        member = interaction.user
+        ensure_employee_profile(
+            guild_id, user_id,
+            member.name, member.display_name,
+            str(member.avatar.url) if member.avatar else str(member.default_avatar.url)
+        )
+        
+        await interaction.followup.send(
+            f"✅ **Clocked In!**\n\n"
+            f"**Time:** <t:{int(now.timestamp())}:f>\n"
+            f"Have a productive shift!",
+            ephemeral=True
+        )
+        print(f"✅ [TC Hub] User {user_id} clocked in at guild {guild_id}")
+        
+    except Exception as e:
+        print(f"❌ [TC Hub] Clock in error for {user_id}: {e}")
+        await interaction.followup.send(
+            "❌ **Error**\nFailed to clock in. Please try again.",
+            ephemeral=True
+        )
+
+
+async def handle_tc_clock_out(interaction: discord.Interaction):
+    """Handle clock out from TimeclockHubView - ACK fast, then process"""
+    # ACK immediately
+    if not await robust_defer(interaction, ephemeral=True):
+        return
+    
+    if not interaction.guild:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    guild_id = interaction.guild.id
+    user_id = interaction.user.id
+    
+    # Check rate limit
+    is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "tc_clock_out")
+    if not is_allowed:
+        await handle_rate_limit_response(interaction, action)
+        return
+    
+    # Check permissions
+    server_tier = get_server_tier(guild_id)
+    if not isinstance(interaction.user, discord.Member):
+        await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
+        return
+    
+    if not user_has_clock_access(interaction.user, server_tier):
+        await interaction.followup.send(
+            "🔒 **Access Restricted**\n"
+            "You need an employee role to use the timeclock.",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        # Find active session
+        with db() as conn:
+            cursor = conn.execute(
+                "SELECT id, clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
+                (user_id, guild_id)
+            )
+            session = cursor.fetchone()
+        
+        if not session:
+            await interaction.followup.send(
+                "⚠️ **Not Clocked In**\n\n"
+                "You're not currently on the clock.\n"
+                "Use **Clock In** to start a shift.",
+                ephemeral=True
+            )
+            return
+        
+        # Clock out
+        now = datetime.now(timezone.utc)
+        clock_in_time = safe_parse_timestamp(session['clock_in'])
+        if clock_in_time.tzinfo is None:
+            clock_in_time = clock_in_time.replace(tzinfo=timezone.utc)
+        
+        elapsed = now - clock_in_time
+        hours = elapsed.total_seconds() / 3600
+        hours_int = int(hours)
+        minutes = int((hours - hours_int) * 60)
+        
+        with db() as conn:
+            conn.execute(
+                "UPDATE sessions SET clock_out = %s WHERE id = %s",
+                (now.isoformat(), session['id'])
+            )
+        
+        await interaction.followup.send(
+            f"✅ **Clocked Out!**\n\n"
+            f"**Started:** <t:{int(clock_in_time.timestamp())}:f>\n"
+            f"**Ended:** <t:{int(now.timestamp())}:f>\n"
+            f"**Duration:** {hours_int}h {minutes}m\n\n"
+            f"Great work today!",
+            ephemeral=True
+        )
+        print(f"✅ [TC Hub] User {user_id} clocked out at guild {guild_id} ({hours:.2f}h)")
+        
+    except Exception as e:
+        print(f"❌ [TC Hub] Clock out error for {user_id}: {e}")
+        await interaction.followup.send(
+            "❌ **Error**\nFailed to clock out. Please try again.",
+            ephemeral=True
+        )
+
+
+async def handle_tc_adjustments(interaction: discord.Interaction):
+    """Handle adjustments button - link to dashboard"""
+    # ACK immediately
+    if not await robust_defer(interaction, ephemeral=True):
+        return
+    
+    if not interaction.guild:
+        await interaction.followup.send("❌ Use this in a server.", ephemeral=True)
+        return
+    
+    domain = get_domain()
+    guild_id = interaction.guild.id
+    dashboard_url = f"https://{domain}/dashboard/{guild_id}"
+    
+    embed = discord.Embed(
+        title="📝 My Adjustments",
+        description="View and request time adjustments through the dashboard.",
+        color=0x5865F2
+    )
+    embed.add_field(
+        name="🔗 Dashboard Link",
+        value=f"[Open Dashboard]({dashboard_url})\n\nLog in with Discord to view your time entries and request adjustments.",
+        inline=False
+    )
+    embed.set_footer(text="Tip: Admins can approve adjustments from the dashboard")
+    
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+async def handle_tc_my_hours(interaction: discord.Interaction):
+    """Handle my hours button - show summary and link to dashboard"""
+    # ACK immediately
+    if not await robust_defer(interaction, ephemeral=True):
+        return
+    
+    if not interaction.guild:
+        await interaction.followup.send("❌ Use this in a server.", ephemeral=True)
+        return
+    
+    guild_id = interaction.guild.id
+    user_id = interaction.user.id
+    domain = get_domain()
+    dashboard_url = f"https://{domain}/dashboard/{guild_id}"
+    
+    try:
+        # Get hours summary for this pay period (last 14 days)
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    COALESCE(SUM(
+                        EXTRACT(EPOCH FROM (COALESCE(clock_out, NOW()) - clock_in)) / 3600
+                    ), 0) as total_hours,
+                    COUNT(*) as session_count
+                FROM sessions 
+                WHERE user_id = %s AND guild_id = %s 
+                AND clock_in >= NOW() - INTERVAL '14 days'
+            """, (user_id, guild_id))
+            row = cursor.fetchone()
+        
+        total_hours = float(row['total_hours']) if row['total_hours'] else 0
+        session_count = row['session_count'] if row else 0
+        
+        embed = discord.Embed(
+            title="📊 My Hours",
+            description="Your time tracking summary",
+            color=0xD4AF37
+        )
+        embed.add_field(
+            name="📅 Last 14 Days",
+            value=f"**Total Hours:** {total_hours:.2f}h\n**Sessions:** {session_count}",
+            inline=False
+        )
+        embed.add_field(
+            name="🔗 Full Details",
+            value=f"[View Dashboard]({dashboard_url})\n\nSee complete time history and reports.",
+            inline=False
+        )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        print(f"❌ [TC Hub] My hours error for {user_id}: {e}")
+        await interaction.followup.send(
+            f"❌ **Error**\nCouldn't load hours summary.\n\n[Try Dashboard]({dashboard_url})",
+            ephemeral=True
+        )
+
+
+async def handle_tc_support(interaction: discord.Interaction):
+    """Handle support button - link to Discord support server"""
+    # ACK immediately
+    if not await robust_defer(interaction, ephemeral=True):
+        return
+    
+    embed = discord.Embed(
+        title="🆘 Need Help?",
+        description="Join our support Discord for assistance!",
+        color=0xED4245
+    )
+    embed.add_field(
+        name="📞 Support Server",
+        value=f"**[Join Support Discord]({SUPPORT_DISCORD_URL})**\n\nGet help with:\n• Setup and configuration\n• Billing questions\n• Bug reports\n• Feature requests",
+        inline=False
+    )
+    embed.set_footer(text="On the Clock • Professional Time Tracking")
+    
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+# --- Global on_interaction Fallback Handler ---
+# Catches button interactions that might have lost their view reference after bot restart
+
+@bot.event
+async def on_interaction(interaction: discord.Interaction):
+    """
+    Global fallback handler for button interactions.
+    
+    This catches tc: prefixed buttons that might have lost their view
+    reference after a bot restart, ensuring bulletproof reliability.
+    """
+    # Only handle component (button) interactions
+    if interaction.type != discord.InteractionType.component:
+        return
+    
+    # Get the custom_id from interaction data
+    custom_id = interaction.data.get('custom_id', '') if interaction.data else ''
+    
+    # Only handle our tc: prefixed buttons as fallback
+    if not custom_id.startswith('tc:'):
+        return
+    
+    # Check if interaction is already handled by the view
+    if interaction.response.is_done():
+        return
+    
+    print(f"🔄 [Fallback] Handling orphaned button: {custom_id}")
+    
+    try:
+        if custom_id == 'tc:clock_in':
+            await handle_tc_clock_in(interaction)
+        elif custom_id == 'tc:clock_out':
+            await handle_tc_clock_out(interaction)
+        elif custom_id == 'tc:adjustments':
+            await handle_tc_adjustments(interaction)
+        elif custom_id == 'tc:my_hours':
+            await handle_tc_my_hours(interaction)
+        elif custom_id == 'tc:support':
+            await handle_tc_support(interaction)
+        else:
+            print(f"⚠️ [Fallback] Unknown tc: button: {custom_id}")
+            
+    except Exception as e:
+        print(f"❌ [Fallback] Error handling {custom_id}: {e}")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ An error occurred. Please try again.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    "❌ An error occurred. Please try again.",
+                    ephemeral=True
+                )
+        except Exception:
+            pass
+
+
 @bot.event
 async def on_ready():
     # Persistent views are now registered in setup_hook (both new and legacy views)
@@ -6262,6 +6682,124 @@ async def clock_interface(interaction: discord.Interaction):
             "Please try again, or contact your administrator if the problem persists.",
             ephemeral=True
         )
+
+
+@tree.command(name="timeclock", description="Open your personal timeclock hub with bulletproof buttons")
+@app_commands.guild_only()
+async def timeclock_hub(interaction: discord.Interaction):
+    """
+    Personal timeclock hub command with bulletproof button persistence.
+    
+    Uses the new TimeclockHubView with stable custom_ids and fast ACK
+    for maximum reliability across bot restarts.
+    """
+    # ACK immediately - fast response is critical
+    if not await robust_defer(interaction, ephemeral=True):
+        return
+    
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    # Check permissions
+    server_tier = get_server_tier(guild_id)
+    if not isinstance(interaction.user, discord.Member):
+        await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
+        return
+    
+    if not user_has_clock_access(interaction.user, server_tier):
+        if server_tier == "free":
+            await interaction.followup.send(
+                "⚠️ **Free Tier Limitation**\n\n"
+                "Only administrators can use timeclock on the free tier.\n"
+                "Use `/upgrade` to unlock full team access!",
+                ephemeral=True
+            )
+        else:
+            await interaction.followup.send(
+                "❌ **Access Denied**\n\n"
+                "You need an employee role to use the timeclock.\n"
+                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                ephemeral=True
+            )
+        return
+    
+    try:
+        user_id = interaction.user.id
+        
+        # Get current status
+        with db() as conn:
+            cursor = conn.execute(
+                "SELECT clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
+                (user_id, guild_id)
+            )
+            active_session = cursor.fetchone()
+        
+        # Build status embed
+        if active_session:
+            clock_in_time = safe_parse_timestamp(active_session['clock_in'])
+            if clock_in_time.tzinfo is None:
+                clock_in_time = clock_in_time.replace(tzinfo=timezone.utc)
+            elapsed = datetime.now(timezone.utc) - clock_in_time
+            hours, remainder = divmod(int(elapsed.total_seconds()), 3600)
+            minutes, _ = divmod(remainder, 60)
+            
+            embed = discord.Embed(
+                title="⏰ Timeclock Hub",
+                description="Your personal time management center",
+                color=0x57F287  # Green for clocked in
+            )
+            embed.add_field(
+                name="🟢 Status: Clocked In",
+                value=f"**Started:** <t:{int(clock_in_time.timestamp())}:f>\n"
+                      f"**Elapsed:** {hours}h {minutes}m",
+                inline=False
+            )
+        else:
+            embed = discord.Embed(
+                title="⏰ Timeclock Hub",
+                description="Your personal time management center",
+                color=0xD4AF37  # Gold
+            )
+            embed.add_field(
+                name="⚪ Status: Not Clocked In",
+                value="Ready to start your shift!",
+                inline=False
+            )
+        
+        # Get quick stats (last 7 days)
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT COALESCE(SUM(
+                    EXTRACT(EPOCH FROM (COALESCE(clock_out, NOW()) - clock_in)) / 3600
+                ), 0) as week_hours
+                FROM sessions 
+                WHERE user_id = %s AND guild_id = %s 
+                AND clock_in >= NOW() - INTERVAL '7 days'
+            """, (user_id, guild_id))
+            row = cursor.fetchone()
+            week_hours = float(row['week_hours']) if row and row['week_hours'] else 0
+        
+        embed.add_field(
+            name="📊 This Week",
+            value=f"**Hours:** {week_hours:.1f}h",
+            inline=True
+        )
+        
+        embed.set_footer(text="Buttons below work even after bot restarts • On the Clock")
+        
+        # Send with bulletproof view
+        await interaction.followup.send(embed=embed, view=TimeclockHubView(), ephemeral=True)
+        print(f"✅ [TC Hub] Sent timeclock hub to {interaction.user} in guild {guild_id}")
+        
+    except Exception as e:
+        print(f"❌ [TC Hub] Error creating hub for {interaction.user}: {e}")
+        await interaction.followup.send(
+            "❌ **Error**\nCouldn't load timeclock hub. Please try again.",
+            ephemeral=True
+        )
+
 
 @tree.command(name="set_recipient", description="Set who receives private time entries (DMs)")
 @app_commands.describe(user="Manager/admin who should receive time entries via DM")
