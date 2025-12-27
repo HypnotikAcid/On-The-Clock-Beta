@@ -1,6 +1,6 @@
 # Overview
 
-"On the Clock 1.5" is a professional Discord timeclock bot for businesses, offering subscription management, robust error handling, and enterprise-grade reliability. It provides an easy-to-use time tracking solution within Discord, featuring a three-tier subscription model (Free/Basic/Pro), Stripe payment integration, role-based access control, and a simple, unauthenticated landing page. Its primary purpose is to streamline time tracking for businesses using Discord.
+"On the Clock 2.0" is a professional Discord timeclock bot for businesses, offering subscription management, robust error handling, and enterprise-grade reliability. It provides an easy-to-use time tracking solution within Discord, featuring a simplified two-tier subscription model (Dashboard Premium + optional Pro Retention), Stripe payment integration, role-based access control, and an informative landing page with pricing comparison. Its primary purpose is to streamline time tracking for businesses using Discord.
 
 # User Preferences
 
@@ -24,7 +24,11 @@ Preferred communication style: Simple, everyday language.
   - **View Mode Toggle**: Admins see a toggle in the top-right to switch between "Admin" and "Employee" views to preview employee experience.
   - **Access Level Detection**: `verify_guild_access()` function supports `allow_employee=True` flag to permit employee access on specific endpoints.
   - **On the Clock Page**: Employee-only view showing co-worker avatars of who's currently clocked in (simple, privacy-respecting view with minimal data). Admins see full Employee Status with detailed stats and clock-out buttons.
-- **Subscription Management**: Three-tier model (Free, 7-day retention, 30-day retention) with a $5 one-time bot access payment per server. The dashboard displays subscription status and upgrade prompts.
+- **Subscription Management**: Simplified two-tier pricing model:
+  - **Free Tier**: 24-hour data retention, basic clock in/out, limited dashboard
+  - **Dashboard Premium** ($5 one-time): 7-day retention, full dashboard access, CSV reports, time adjustments, email automation
+  - **Pro Retention** ($5/month add-on): 30-day retention for long-term tracking
+  - Legacy: All existing $5 purchasers automatically upgraded to 7-day retention
 - **Concurrent Safety**: Achieved through guild-level locking, PostgreSQL connection pooling with SSL validation, and automatic transaction management.
 - **Ephemeral Interface System**: Provides new interfaces via the `/clock` command to resolve interaction timeout issues.
 - **Custom Jinja2 Permission Filter**: Addresses Jinja2's lack of bitwise operator support for Discord permission checking.
@@ -35,7 +39,22 @@ Preferred communication style: Simple, everyday language.
 - **Webhook Monitoring & Owner Notifications**: Comprehensive logging of webhook events (Stripe payments, cancellations, failures) with automatic DM notifications to the bot owner.
 - **Owner Dashboard**: A web-based owner-only dashboard (`/owner` route) provides visibility into servers, subscriptions, active sessions, and webhook events, including manual subscription management capabilities.
 - **Mobile Device Restriction**: Server administrators can restrict clock-in/out to desktop/web browser only.
-- **Persistent Button Architecture**: Uses `@discord.ui.button` decorators with `timeout=None` and registration in `setup_hook()` for reliable button functionality across bot restarts.
+- **Bulletproof Button Persistence (December 2025)**: Enterprise-grade button reliability:
+  - **TimeclockHubView**: Consolidated hub with stable custom_ids (tc:clock_in, tc:clock_out, tc:adjustments, tc:my_hours, tc:support)
+  - **Stable Custom IDs**: All button custom_ids use "tc:" prefix for consistent routing
+  - **timeout=None**: Views never expire
+  - **setup_hook() Registration**: Views registered on bot startup via bot.add_view()
+  - **Global on_interaction Fallback**: Catches orphaned buttons after restart and routes to correct handlers
+  - **Fast ACK Pattern**: All handlers call defer() immediately before database work
+- **Signed Deep-Link System**: Secure Discord-to-Dashboard navigation:
+  - **generate_dashboard_deeplink()**: Creates signed URLs with timestamp and SHA256 signature
+  - **/deeplink Route**: Flask validates signature, checks 24-hour expiry, routes to correct tab
+  - **Session Intent Storage**: Preserves user navigation intent through OAuth flow
+- **Context Menu Commands**: Right-click user actions for admins:
+  - **View Hours**: See user's 7-day hours summary
+  - **Force Clock Out**: End user's active session
+  - **Ban from Timeclock**: 24-hour ban from clock functions
+- **Pre-Deletion Warning System**: Hourly scheduler job sends DMs to free tier admins before 24-hour data deletion with upgrade CTA
 - **Database Migrations**: Automatic schema migrations on startup using `migrations.py` with idempotent `CREATE TABLE IF NOT EXISTS` statements.
 - **Employee Status Cards**: The dashboard displays active employees with hours worked (today/week/month). Admin view includes manual clock-out buttons to force-end active sessions.
 - **Ban Management Tab**: Dedicated sidebar tab (admin-only) for viewing and managing banned users, separate from Server Overview.
