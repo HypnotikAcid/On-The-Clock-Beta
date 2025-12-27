@@ -17,6 +17,8 @@ import concurrent.futures
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, urlparse
 import requests
+import hashlib
+import time as time_module
 from flask import Flask, render_template, redirect, request, session, jsonify, url_for, make_response
 from werkzeug.middleware.proxy_fix import ProxyFix
 import stripe
@@ -1166,6 +1168,39 @@ def handle_payment_failure(invoice):
     except Exception as e:
         app.logger.error(f"[ERROR] Error processing payment failure: {e}")
         app.logger.error(traceback.format_exc())
+
+@app.route('/deeplink/<page>')
+def handle_deeplink(page):
+    """Handle signed deep-links from Discord buttons"""
+    guild_id = request.args.get('guild')
+    user_id = request.args.get('user')
+    timestamp = request.args.get('t')
+    signature = request.args.get('sig')
+    
+    # Verify signature
+    secret = os.environ.get('SESSION_SECRET', 'fallback-secret')
+    data = f"{guild_id}:{user_id}:{page}:{timestamp}"
+    expected_sig = hashlib.sha256(f"{data}:{secret}".encode()).hexdigest()[:16]
+    
+    if signature != expected_sig:
+        return redirect('/auth/login?error=invalid_link')
+    
+    # Check timestamp (valid for 24 hours)
+    if int(time_module.time()) - int(timestamp) > 86400:
+        return redirect('/auth/login?error=link_expired')
+    
+    # Store intent in session and redirect to auth
+    session['deeplink_guild'] = guild_id
+    session['deeplink_page'] = page
+    
+    # Redirect to appropriate dashboard page
+    if page == 'adjustments':
+        return redirect(f'/dashboard?guild={guild_id}&tab=adjustments')
+    elif page == 'profile':
+        return redirect(f'/dashboard?guild={guild_id}&tab=employees&user={user_id}')
+    else:
+        return redirect(f'/dashboard?guild={guild_id}')
+
 
 @app.route("/")
 def index():

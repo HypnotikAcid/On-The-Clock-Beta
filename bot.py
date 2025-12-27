@@ -295,6 +295,21 @@ def get_domain() -> str:
         return domains.split(',')[0] if domains else 'localhost:5000'
 
 
+def generate_dashboard_deeplink(guild_id: int, user_id: int, page: str, secret: str = None) -> str:
+    """Generate a signed deep-link URL for dashboard navigation"""
+    if secret is None:
+        secret = os.getenv('SESSION_SECRET', 'fallback-secret')
+    
+    # Create timestamp and signature
+    timestamp = int(time.time())
+    data = f"{guild_id}:{user_id}:{page}:{timestamp}"
+    signature = hashlib.sha256(f"{data}:{secret}".encode()).hexdigest()[:16]
+    
+    # Build URL
+    base_url = "https://on-the-clock.replit.app"
+    return f"{base_url}/deeplink/{page}?guild={guild_id}&user={user_id}&t={timestamp}&sig={signature}"
+
+
 def create_secure_checkout_session(guild_id: int, product_type: str, guild_name: str = "") -> str:
     """Create a secure Stripe checkout session with proper validation
     
@@ -6027,7 +6042,7 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
 
 
 async def handle_tc_adjustments(interaction: discord.Interaction):
-    """Handle adjustments button - link to dashboard"""
+    """Handle adjustments button - link to dashboard with signed URL"""
     # ACK immediately
     if not await robust_defer(interaction, ephemeral=True):
         return
@@ -6036,27 +6051,26 @@ async def handle_tc_adjustments(interaction: discord.Interaction):
         await interaction.followup.send("❌ Use this in a server.", ephemeral=True)
         return
     
-    domain = get_domain()
-    guild_id = interaction.guild.id
-    dashboard_url = f"https://{domain}/dashboard/{guild_id}"
+    url = generate_dashboard_deeplink(
+        interaction.guild.id,
+        interaction.user.id,
+        'adjustments'
+    )
     
     embed = discord.Embed(
-        title="📝 My Adjustments",
-        description="View and request time adjustments through the dashboard.",
-        color=0x5865F2
+        title="📝 Time Adjustments",
+        description="Click the button below to manage your time adjustments in the dashboard.",
+        color=0xD4AF37
     )
-    embed.add_field(
-        name="🔗 Dashboard Link",
-        value=f"[Open Dashboard]({dashboard_url})\n\nLog in with Discord to view your time entries and request adjustments.",
-        inline=False
-    )
-    embed.set_footer(text="Tip: Admins can approve adjustments from the dashboard")
     
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label="Open Dashboard", url=url, style=discord.ButtonStyle.link))
+    
+    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
 async def handle_tc_my_hours(interaction: discord.Interaction):
-    """Handle my hours button - show summary and link to dashboard"""
+    """Handle my hours button - show summary and link to dashboard with signed URL"""
     # ACK immediately
     if not await robust_defer(interaction, ephemeral=True):
         return
@@ -6067,8 +6081,12 @@ async def handle_tc_my_hours(interaction: discord.Interaction):
     
     guild_id = interaction.guild.id
     user_id = interaction.user.id
-    domain = get_domain()
-    dashboard_url = f"https://{domain}/dashboard/{guild_id}"
+    
+    url = generate_dashboard_deeplink(
+        guild_id,
+        user_id,
+        'profile'
+    )
     
     try:
         # Get hours summary for this pay period (last 14 days)
@@ -6098,20 +6116,22 @@ async def handle_tc_my_hours(interaction: discord.Interaction):
             value=f"**Total Hours:** {total_hours:.2f}h\n**Sessions:** {session_count}",
             inline=False
         )
-        embed.add_field(
-            name="🔗 Full Details",
-            value=f"[View Dashboard]({dashboard_url})\n\nSee complete time history and reports.",
-            inline=False
-        )
         
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="View Full Details", url=url, style=discord.ButtonStyle.link))
+        
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         
     except Exception as e:
         print(f"❌ [TC Hub] My hours error for {user_id}: {e}")
-        await interaction.followup.send(
-            f"❌ **Error**\nCouldn't load hours summary.\n\n[Try Dashboard]({dashboard_url})",
-            ephemeral=True
+        embed = discord.Embed(
+            title="❌ Error",
+            description="Couldn't load hours summary. Click below to view in dashboard.",
+            color=0xED4245
         )
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="Try Dashboard", url=url, style=discord.ButtonStyle.link))
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
 async def handle_tc_support(interaction: discord.Interaction):
@@ -7197,74 +7217,89 @@ async def help_command(interaction: discord.Interaction):
         await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
         return
     
+    guild_id = interaction.guild_id
+    
+    has_bot_access = check_bot_access(guild_id)
+    retention_tier = get_retention_tier(guild_id)
+    
+    if retention_tier == '30day':
+        tier_display = "🚀 PRO RETENTION"
+        tier_color = discord.Color.gold()
+    elif has_bot_access:
+        tier_display = "💎 DASHBOARD PREMIUM"
+        tier_color = discord.Color.blue()
+    else:
+        tier_display = "🆓 FREE TIER"
+        tier_color = discord.Color.greyple()
+    
     embed = discord.Embed(
-        title="📋 Command Reference",
-        description="All available slash commands organized by category:",
-        color=discord.Color.blue()
+        title="📋 On the Clock - Command Help",
+        description=f"**Your Server:** {tier_display}",
+        color=tier_color
     )
     
     embed.add_field(
-        name="⏰ Timeclock Commands",
+        name="🆓 FREE TIER (All Users)",
         value=(
-            "`/clock` - Access your personal timeclock interface\n"
-            "`/setup` - View onboarding and setup information"
+            "• `/clock` - Quick clock in/out\n"
+            "• `/setup` - View onboarding info\n"
+            "• Clock in/out buttons work\n"
+            "• 24-hour data retention ⚠️"
         ),
         inline=False
     )
     
     embed.add_field(
-        name="⚙️ Setup & Configuration",
+        name="💎 DASHBOARD PREMIUM ($5 One-Time)",
         value=(
-            "`/set_recipient <user>` - Set who receives private time entries\n"
-            "`/set_timezone <timezone>` - Set display timezone\n"
-            "`/toggle_name_display` - Toggle username/nickname display\n"
-            "`/help` - Show this command list"
+            "• Everything in Free, plus:\n"
+            "• 7-day data retention\n"
+            "• Full dashboard access\n"
+            "• CSV reports\n"
+            "• Time adjustment requests\n"
+            "• Email automation"
         ),
         inline=False
     )
     
     embed.add_field(
-        name="👤 Admin Role Management",
+        name="🚀 PRO RETENTION ($5/month)",
         value=(
-            "`/add_admin_role <role>` - Grant admin access to a role\n"
-            "`/remove_admin_role <role>` - Remove admin access from a role\n"
-            "`/list_admin_roles` - List all roles with admin access\n"
-            "`/set_main_role <role>` - Set the primary admin role\n"
-            "`/show_main_role` - View the current main admin role\n"
-            "`/clear_main_role` - Remove main admin role designation"
+            "• Everything in Premium, plus:\n"
+            "• 30-day data retention\n"
+            "• Long-term tracking"
         ),
         inline=False
     )
     
-    embed.add_field(
-        name="👥 Employee Role Management",
-        value=(
-            "`/add_employee_role <role>` - Grant timeclock access to a role\n"
-            "`/remove_employee_role <role>` - Remove timeclock access from a role\n"
-            "`/list_employee_roles` - List all roles with timeclock access"
-        ),
-        inline=False
-    )
+    is_admin = False
+    if isinstance(interaction.user, discord.Member):
+        is_admin = interaction.user.guild_permissions.administrator
     
-    embed.add_field(
-        name="📊 Reports & Data Management",
-        value=(
-            "`/report <user> <start_date> <end_date>` - Generate CSV timesheet report\n"
-            "`/data_cleanup` - Manually trigger data cleanup\n"
-            "`/purge` - Permanently delete timeclock data"
-        ),
-        inline=False
-    )
+    if is_admin:
+        embed.add_field(
+            name="🔧 ADMIN COMMANDS",
+            value=(
+                "**Role Management:**\n"
+                "`/add_admin_role` `/remove_admin_role` `/list_admin_roles`\n"
+                "`/add_employee_role` `/remove_employee_role` `/list_employee_roles`\n"
+                "`/set_main_role` `/show_main_role` `/clear_main_role`\n\n"
+                "**Configuration:**\n"
+                "`/set_recipient` `/set_timezone` `/toggle_name_display`\n\n"
+                "**Reports & Data:**\n"
+                "`/report` `/data_cleanup` `/purge`\n\n"
+                "**Subscription:**\n"
+                "`/upgrade` `/subscription_status` `/cancel_subscription`"
+            ),
+            inline=False
+        )
     
-    embed.add_field(
-        name="💳 Subscription Management",
-        value=(
-            "`/upgrade` - Upgrade your server plan\n"
-            "`/cancel_subscription` - Learn how to cancel subscription\n"
-            "`/subscription_status` - View subscription status"
-        ),
-        inline=False
-    )
+    if not has_bot_access:
+        embed.add_field(
+            name="⬆️ Upgrade Your Server",
+            value="Use `/upgrade` to unlock premium features!",
+            inline=False
+        )
     
     await send_reply(interaction, embed=embed, ephemeral=True)
 
