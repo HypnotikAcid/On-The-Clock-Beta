@@ -79,6 +79,54 @@ function hideViewModeToggle() {
     window.currentViewMode = 'admin';
 }
 
+// Premium Feature Locked Overlays
+function applyLockedOverlays() {
+    const tier = window.currentServerData?.tier || 'free';
+    
+    // Remove any existing locked overlays first
+    removeLockedOverlays();
+    
+    // Paid users get full access
+    if (tier !== 'free') return;
+    
+    // Section IDs that require premium
+    const premiumSections = [
+        'section-adjustments',
+        'section-email-settings',
+        'section-employees',
+        'section-ban-management'
+    ];
+    
+    premiumSections.forEach(sectionId => {
+        const section = document.getElementById(sectionId);
+        if (section && !section.classList.contains('feature-locked')) {
+            section.classList.add('feature-locked');
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'locked-overlay';
+            overlay.innerHTML = `
+                <h3>🔒 Dashboard Premium Required</h3>
+                <p>Unlock this feature with Dashboard Premium</p>
+                <p><span class="price-strike">$10</span> <span class="price-beta">$5 One-Time (Beta!)</span></p>
+                <p style="color: #888; font-size: 0.9em;">Includes 7-day data retention!</p>
+                <a href="/purchase/bot_access" class="upgrade-btn">Upgrade Now</a>
+            `;
+            section.appendChild(overlay);
+        }
+    });
+}
+
+function removeLockedOverlays() {
+    // Remove locked class and overlays from all sections
+    document.querySelectorAll('.feature-locked').forEach(section => {
+        section.classList.remove('feature-locked');
+        const overlay = section.querySelector('.locked-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    });
+}
+
 // Loading overlay functions
 function showLoading(message = 'Loading...') {
     const overlay = document.getElementById('loadingOverlay');
@@ -273,6 +321,9 @@ document.getElementById('backToServers').addEventListener('click', () => {
     // Hide view mode toggle when returning to My Servers
     hideViewModeToggle();
     
+    // Remove locked overlays when leaving server view
+    removeLockedOverlays();
+    
     // Reset navigation visibility (show all nav items)
     updateNavigationForAccessLevel('admin');
 
@@ -316,6 +367,9 @@ async function loadServerData(guildId, accessLevel = 'admin') {
         if (data.user_role_tier && typeof updateSidebarForRole === 'function') {
             updateSidebarForRole(data.user_role_tier);
         }
+        
+        // Apply locked overlays for free tier users
+        applyLockedOverlays();
 
     } catch (error) {
         console.error('Error loading server data:', error);
