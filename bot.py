@@ -8207,8 +8207,140 @@ async def notify_admins_of_adjustment(guild_id: int, request_id: int):
         print(f"❌ Error notifying admins of adjustment: {e}")
 
 # =============================================================================
+# BROADCAST FUNCTION (Called from Flask API)
+# =============================================================================
+
+async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) -> dict:
+    """
+    Send a broadcast message to multiple guilds.
+    Returns dict with sent_count and failed_count.
+    """
+    sent_count = 0
+    failed_count = 0
+    
+    for guild_id in guild_ids:
+        try:
+            guild = bot.get_guild(int(guild_id))
+            if not guild:
+                logger.warning(f"[BROADCAST] Guild {guild_id} not found in cache")
+                failed_count += 1
+                continue
+            
+            # Create the broadcast embed
+            embed = discord.Embed(
+                title=f"📢 {title}",
+                description=message,
+                color=discord.Color.gold(),
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.set_footer(text="On the Clock Bot Announcement")
+            
+            # Find a channel to send to
+            channel_to_use = None
+            
+            # First, try to use the log channel if configured
+            log_channel_id = get_guild_setting(guild_id, "log_channel_id")
+            if log_channel_id:
+                channel_to_use = guild.get_channel(int(log_channel_id))
+            
+            # If no log channel, try to find system channel
+            if not channel_to_use and guild.system_channel:
+                if guild.system_channel.permissions_for(guild.me).send_messages:
+                    channel_to_use = guild.system_channel
+            
+            # If still no channel, find first text channel we can send to
+            if not channel_to_use:
+                for channel in guild.text_channels:
+                    if channel.permissions_for(guild.me).send_messages:
+                        channel_to_use = channel
+                        break
+            
+            if channel_to_use:
+                await channel_to_use.send(embed=embed)
+                logger.info(f"[BROADCAST] Sent to {guild.name} (#{channel_to_use.name})")
+                sent_count += 1
+            else:
+                logger.warning(f"[BROADCAST] No sendable channel found in {guild.name}")
+                failed_count += 1
+                
+        except discord.Forbidden:
+            logger.warning(f"[BROADCAST] Permission denied for guild {guild_id}")
+            failed_count += 1
+        except Exception as e:
+            logger.error(f"[BROADCAST] Error sending to guild {guild_id}: {e}")
+            failed_count += 1
+    
+    logger.info(f"[BROADCAST] Complete: {sent_count} sent, {failed_count} failed")
+    return {'sent_count': sent_count, 'failed_count': failed_count}
+
+# =============================================================================
 # OWNER-ONLY SUPER ADMIN COMMANDS (Only visible to bot owner)
 # =============================================================================
+
+@tree.command(name="owner_broadcast", description="[OWNER] Send announcement to all servers")
+@app_commands.describe(
+    title="Title of the broadcast message",
+    message="The message content to send",
+    target="Which servers to send to"
+)
+@app_commands.choices(target=[
+    app_commands.Choice(name="All Servers", value="all"),
+    app_commands.Choice(name="Paid Servers Only", value="paid"),
+    app_commands.Choice(name="Free Tier Only", value="free")
+])
+async def owner_broadcast_command(interaction: discord.Interaction, title: str, message: str, target: str = "all"):
+    """Owner-only command to broadcast messages to all servers"""
+    if interaction.user.id != BOT_OWNER_ID:
+        await send_reply(interaction, "❌ Access denied.", ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        # Get guild IDs based on target
+        with db() as conn:
+            if target == 'all':
+                cursor = conn.execute("""
+                    SELECT DISTINCT guild_id FROM bot_guilds WHERE is_present = TRUE
+                """)
+            elif target == 'paid':
+                cursor = conn.execute("""
+                    SELECT bg.guild_id FROM bot_guilds bg
+                    JOIN server_subscriptions ss ON bg.guild_id = ss.guild_id
+                    WHERE bg.is_present = TRUE AND ss.bot_access_paid = TRUE
+                """)
+            else:  # free
+                cursor = conn.execute("""
+                    SELECT bg.guild_id FROM bot_guilds bg
+                    LEFT JOIN server_subscriptions ss ON bg.guild_id = ss.guild_id
+                    WHERE bg.is_present = TRUE AND (ss.bot_access_paid IS NULL OR ss.bot_access_paid = FALSE)
+                """)
+            
+            guild_rows = cursor.fetchall()
+            guild_ids = [row['guild_id'] for row in guild_rows]
+        
+        if not guild_ids:
+            await interaction.followup.send("❌ No servers found matching the target filter.", ephemeral=True)
+            return
+        
+        # Send the broadcast
+        result = await send_broadcast_to_guilds(guild_ids, title, message)
+        
+        embed = discord.Embed(
+            title="📢 Broadcast Complete",
+            color=discord.Color.gold() if result['failed_count'] == 0 else discord.Color.orange()
+        )
+        embed.add_field(name="Target", value=target.title(), inline=True)
+        embed.add_field(name="Sent", value=str(result['sent_count']), inline=True)
+        embed.add_field(name="Failed", value=str(result['failed_count']), inline=True)
+        embed.add_field(name="Title", value=title[:100], inline=False)
+        embed.add_field(name="Message Preview", value=message[:200] + ("..." if len(message) > 200 else ""), inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        logger.error(f"Broadcast command error: {e}")
+        await interaction.followup.send(f"❌ Broadcast failed: {str(e)}", ephemeral=True)
 
 @tree.command(name="owner_grant", description="[OWNER] Grant subscription tier to current server")
 @app_commands.describe(tier="Subscription tier to grant")

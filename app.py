@@ -2147,6 +2147,123 @@ def api_owner_revoke_access(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+@app.route("/api/owner/broadcast", methods=["POST"])
+@require_api_auth
+def api_owner_broadcast(user_session):
+    """Owner-only API endpoint to broadcast messages to all servers"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        # Security check: Only allow bot owner
+        if user_session['user_id'] != bot_owner_id:
+            app.logger.warning(f"Unauthorized broadcast attempt by user {user_session['user_id']}")
+            return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
+        
+        data = request.get_json()
+        title = data.get('title', '').strip()
+        message = data.get('message', '').strip()
+        target = data.get('target', 'all')  # 'all', 'paid', or 'free'
+        
+        if not title or not message:
+            return jsonify({'success': False, 'error': 'Title and message are required'}), 400
+        
+        if len(title) > 100:
+            return jsonify({'success': False, 'error': 'Title must be 100 characters or less'}), 400
+            
+        if len(message) > 2000:
+            return jsonify({'success': False, 'error': 'Message must be 2000 characters or less'}), 400
+        
+        if target not in ['all', 'paid', 'free']:
+            return jsonify({'success': False, 'error': 'Invalid target. Must be all, paid, or free'}), 400
+        
+        app.logger.info(f"Owner {user_session.get('username')} initiating broadcast to {target} servers")
+        app.logger.info(f"Broadcast title: {title}")
+        
+        # Get target guild IDs based on filter
+        with bot_db() as conn:
+            if target == 'all':
+                cursor = conn.execute("""
+                    SELECT DISTINCT guild_id FROM bot_guilds WHERE is_present = TRUE
+                """)
+            elif target == 'paid':
+                cursor = conn.execute("""
+                    SELECT bg.guild_id FROM bot_guilds bg
+                    JOIN server_subscriptions ss ON bg.guild_id = ss.guild_id
+                    WHERE bg.is_present = TRUE AND ss.bot_access_paid = TRUE
+                """)
+            else:  # free
+                cursor = conn.execute("""
+                    SELECT bg.guild_id FROM bot_guilds bg
+                    LEFT JOIN server_subscriptions ss ON bg.guild_id = ss.guild_id
+                    WHERE bg.is_present = TRUE AND (ss.bot_access_paid IS NULL OR ss.bot_access_paid = FALSE)
+                """)
+            
+            guild_rows = cursor.fetchall()
+            guild_ids = [row['guild_id'] for row in guild_rows]
+        
+        if not guild_ids:
+            return jsonify({'success': False, 'error': 'No servers found matching the target filter'}), 400
+        
+        app.logger.info(f"Broadcasting to {len(guild_ids)} servers")
+        
+        # Send broadcast via bot API using the bot's event loop
+        try:
+            broadcast_func = _get_bot_func('send_broadcast_to_guilds')
+            
+            # Run the async broadcast function using the bot's event loop
+            import asyncio
+            if bot and bot.loop and bot.loop.is_running():
+                future = asyncio.run_coroutine_threadsafe(
+                    broadcast_func(guild_ids, title, message),
+                    bot.loop
+                )
+                try:
+                    result = future.result(timeout=60.0)  # 60 second timeout for broadcasts
+                except concurrent.futures.TimeoutError:
+                    app.logger.error("Broadcast timed out after 60 seconds")
+                    return jsonify({'success': False, 'error': 'Broadcast timed out'}), 500
+            else:
+                app.logger.error("Bot event loop not available")
+                return jsonify({'success': False, 'error': 'Bot is not ready. Please try again later.'}), 503
+            
+            sent_count = result.get('sent_count', 0)
+            failed_count = result.get('failed_count', 0)
+            
+            app.logger.info(f"Broadcast complete: {sent_count} sent, {failed_count} failed")
+            
+            if sent_count == 0 and failed_count > 0:
+                return jsonify({
+                    'success': False,
+                    'error': f'Failed to send to all {failed_count} servers',
+                    'sent_count': sent_count,
+                    'failed_count': failed_count
+                }), 500
+            elif failed_count > 0:
+                return jsonify({
+                    'success': True,
+                    'partial': True,
+                    'message': f'Broadcast partially complete',
+                    'sent_count': sent_count,
+                    'failed_count': failed_count
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'message': f'Broadcast sent successfully',
+                    'sent_count': sent_count,
+                    'failed_count': 0
+                })
+                
+        except Exception as broadcast_error:
+            app.logger.error(f"Broadcast execution error: {str(broadcast_error)}")
+            app.logger.error(traceback.format_exc())
+            return jsonify({'success': False, 'error': f'Broadcast failed: {str(broadcast_error)}'}), 500
+    
+    except Exception as e:
+        app.logger.error(f"Broadcast API error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 def verify_guild_access(user_session, guild_id, allow_employee=False):
     """
     Verify user has access to a specific guild.

@@ -38,6 +38,13 @@ Preferred communication style: Simple, everyday language.
 - **Email Automation**: APScheduler handles automated email tasks (clock-out, scheduled reports, pre-deletion warnings).
 - **Webhook Monitoring & Owner Notifications**: Comprehensive logging of webhook events (Stripe payments, cancellations, failures) with automatic DM notifications to the bot owner.
 - **Owner Dashboard**: A web-based owner-only dashboard (`/owner` route) provides visibility into servers, subscriptions, active sessions, and webhook events, including manual subscription management capabilities.
+- **Owner Broadcast System (December 2025)**: Allows bot owner to send announcements to all servers:
+  - **Dashboard UI**: Broadcast section in `/owner` dashboard with title, message, and target filter (all/paid/free servers)
+  - **Preview Mode**: Preview embed before sending
+  - **/owner_broadcast Command**: Discord slash command for direct broadcasting
+  - **API Endpoint**: `/api/owner/broadcast` for programmatic access
+  - **Smart Channel Selection**: Tries log channel first, then system channel, then first available text channel
+  - **Async Bridge Pattern**: Uses `asyncio.run_coroutine_threadsafe` to call bot functions from Flask
 - **Mobile Device Restriction**: Server administrators can restrict clock-in/out to desktop/web browser only.
 - **Bulletproof Button Persistence (December 2025)**: Enterprise-grade button reliability:
   - **TimeclockHubView**: Consolidated hub with stable custom_ids (tc:clock_in, tc:clock_out, tc:adjustments, tc:my_hours, tc:support)

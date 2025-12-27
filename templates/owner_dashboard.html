@@ -446,6 +446,207 @@
             cursor: not-allowed;
         }
 
+        /* Broadcast Section Styles */
+        .broadcast-form {
+            max-width: 800px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #D4AF37;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            color: #C9D1D9;
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            color: #C9D1D9;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .char-count {
+            text-align: right;
+            font-size: 12px;
+            color: #8B949E;
+            margin-top: 5px;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 10px 16px;
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .radio-option:hover {
+            border-color: rgba(212, 175, 55, 0.4);
+        }
+
+        .radio-option input[type="radio"] {
+            accent-color: #D4AF37;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .preview-btn {
+            padding: 12px 24px;
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 8px;
+            color: #D4AF37;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preview-btn:hover {
+            background: rgba(212, 175, 55, 0.1);
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .broadcast-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #D4AF37, #B8962E);
+            border: none;
+            border-radius: 8px;
+            color: #0A0F1F;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .broadcast-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .broadcast-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .broadcast-preview {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(30, 35, 45, 0.4);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+        }
+
+        .preview-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #8B949E;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .preview-embed {
+            background: rgba(10, 15, 31, 0.6);
+            border-left: 4px solid #D4AF37;
+            border-radius: 4px;
+            padding: 16px;
+        }
+
+        .preview-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #D4AF37;
+            margin-bottom: 10px;
+        }
+
+        .preview-content {
+            color: #C9D1D9;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .preview-footer {
+            font-size: 12px;
+            color: #8B949E;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .broadcast-result {
+            margin-top: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .broadcast-result.success {
+            background: rgba(52, 211, 153, 0.1);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            color: #34D399;
+        }
+
+        .broadcast-result.error {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            color: #FF6B6B;
+        }
+
+        .broadcast-result.partial {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #FBBF24;
+        }
+
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -463,6 +664,14 @@
             
             .grant-buttons {
                 grid-template-columns: 1fr;
+            }
+
+            .radio-group {
+                flex-direction: column;
+            }
+
+            .button-row {
+                flex-direction: column;
             }
         }
     </style>
@@ -687,6 +896,61 @@
             <div class="no-data">No webhook events recorded yet</div>
             {% endif %}
         </div>
+
+        <!-- Broadcast Message Section -->
+        <div class="section">
+            <div class="section-title">📢 Broadcast Message</div>
+            <p style="color: #8B949E; margin-bottom: 20px;">Send an announcement to all servers where the bot is present. Messages are sent to the first available text channel in each server.</p>
+            
+            <div class="broadcast-form">
+                <div class="form-group">
+                    <label for="broadcastTitle" class="form-label">Message Title</label>
+                    <input type="text" id="broadcastTitle" class="form-input" placeholder="e.g., Important Update" maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="broadcastMessage" class="form-label">Message Content</label>
+                    <textarea id="broadcastMessage" class="form-textarea" placeholder="Enter your announcement message here..." rows="5" maxlength="2000"></textarea>
+                    <div class="char-count"><span id="charCount">0</span>/2000</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Target Servers</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="broadcastTarget" value="all" checked>
+                            <span>All Servers ({{ stats.total_servers }})</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="broadcastTarget" value="paid">
+                            <span>Paid Servers Only ({{ stats.paid_servers }})</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="broadcastTarget" value="free">
+                            <span>Free Tier Only</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="broadcast-preview" id="broadcastPreview" style="display: none;">
+                    <div class="preview-label">Preview</div>
+                    <div class="preview-embed">
+                        <div class="preview-title" id="previewTitle"></div>
+                        <div class="preview-content" id="previewContent"></div>
+                        <div class="preview-footer">From: On the Clock Bot</div>
+                    </div>
+                </div>
+                
+                <div class="button-row">
+                    <button class="preview-btn" onclick="togglePreview()">Preview</button>
+                    <button class="broadcast-btn" onclick="sendBroadcast()" id="broadcastBtn">
+                        <span class="btn-icon">📢</span> Send Broadcast
+                    </button>
+                </div>
+                
+                <div class="broadcast-result" id="broadcastResult" style="display: none;"></div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -851,6 +1115,87 @@
                     row.style.display = row.dataset.type.includes('payment') ? '' : 'none';
                 }
             });
+        }
+
+        // Broadcast message character counter
+        document.getElementById('broadcastMessage').addEventListener('input', function(e) {
+            document.getElementById('charCount').textContent = e.target.value.length;
+        });
+
+        // Toggle preview visibility
+        function togglePreview() {
+            const preview = document.getElementById('broadcastPreview');
+            const title = document.getElementById('broadcastTitle').value || 'Announcement';
+            const message = document.getElementById('broadcastMessage').value || 'No message content';
+            
+            document.getElementById('previewTitle').textContent = title;
+            document.getElementById('previewContent').textContent = message;
+            
+            preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Send broadcast message
+        async function sendBroadcast() {
+            const title = document.getElementById('broadcastTitle').value.trim();
+            const message = document.getElementById('broadcastMessage').value.trim();
+            const target = document.querySelector('input[name="broadcastTarget"]:checked').value;
+            const button = document.getElementById('broadcastBtn');
+            const resultDiv = document.getElementById('broadcastResult');
+
+            if (!title) {
+                alert('Please enter a message title.');
+                return;
+            }
+
+            if (!message) {
+                alert('Please enter a message to broadcast.');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to send this broadcast to ${target === 'all' ? 'ALL' : target.toUpperCase()} servers?`)) {
+                return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = '<span class="btn-icon">⏳</span> Sending...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/owner/broadcast', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        message: message,
+                        target: target
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'broadcast-result success';
+                    resultDiv.innerHTML = `✅ Broadcast sent successfully!<br>Sent to ${data.sent_count} servers${data.failed_count > 0 ? `, ${data.failed_count} failed` : ''}`;
+                } else if (data.partial) {
+                    resultDiv.className = 'broadcast-result partial';
+                    resultDiv.innerHTML = `⚠️ Partial broadcast: ${data.sent_count} sent, ${data.failed_count} failed`;
+                } else {
+                    resultDiv.className = 'broadcast-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.error || 'Unknown error'}`;
+                }
+
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Broadcast error:', error);
+                resultDiv.className = 'broadcast-result error';
+                resultDiv.innerHTML = `❌ Failed to send broadcast: ${error.message}`;
+                resultDiv.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<span class="btn-icon">📢</span> Send Broadcast';
+            }
         }
     </script>
 </body>
