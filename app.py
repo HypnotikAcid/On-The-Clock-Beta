@@ -26,6 +26,24 @@ from stripe import SignatureVerificationError
 
 app = Flask(__name__)
 
+# Health check endpoint - responds immediately without waiting for bot
+# This MUST be defined early, before any slow initialization
+@app.route('/health')
+def health_check():
+    """Quick health check for deployment - responds before bot is ready."""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'on-the-clock',
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    }), 200
+
+# Track bot initialization status
+bot_status = {
+    'initialized': False,
+    'error': None,
+    'started_at': None
+}
+
 # Version and Changelog
 __version__ = "1.5.0"
 
@@ -57,55 +75,143 @@ CHANGELOG = [
     }
 ]
 
-# Import helper functions from bot.py for Stripe webhook handling
-from bot import (
-    check_bot_access,
-    set_bot_access,
-    set_retention_tier,
-    purge_timeclock_data_only,
-    create_secure_checkout_session,
-    notify_server_owner_bot_access,
-    get_active_employees_with_stats,
-    create_adjustment_request,
-    get_pending_adjustments,
-    get_user_adjustment_history,
-    approve_adjustment,
-    deny_adjustment,
-    db as bot_db,
-    bot
-)
+# LAZY IMPORTS: Bot module imports are deferred to allow fast Flask startup
+# This enables the /health endpoint to respond immediately before bot is loaded
+_bot_module = None
+_bot_functions = {}
 
-# Import and run database migrations on startup
-from migrations import run_migrations
+def _get_bot_module():
+    """Lazy import of bot module - only loads when first needed."""
+    global _bot_module
+    if _bot_module is None:
+        print("[LAZY] Loading bot module...")
+        import bot as _bot_module
+        print("[LAZY] Bot module loaded")
+    return _bot_module
+
+def _get_bot_func(name):
+    """Get a function from the bot module with lazy loading."""
+    if name not in _bot_functions:
+        _bot_functions[name] = getattr(_get_bot_module(), name)
+    return _bot_functions[name]
+
+# Wrapper functions for lazy bot imports
+def check_bot_access(*args, **kwargs):
+    return _get_bot_func('check_bot_access')(*args, **kwargs)
+
+def set_bot_access(*args, **kwargs):
+    return _get_bot_func('set_bot_access')(*args, **kwargs)
+
+def set_retention_tier(*args, **kwargs):
+    return _get_bot_func('set_retention_tier')(*args, **kwargs)
+
+def purge_timeclock_data_only(*args, **kwargs):
+    return _get_bot_func('purge_timeclock_data_only')(*args, **kwargs)
+
+def create_secure_checkout_session(*args, **kwargs):
+    return _get_bot_func('create_secure_checkout_session')(*args, **kwargs)
+
+def notify_server_owner_bot_access(*args, **kwargs):
+    return _get_bot_func('notify_server_owner_bot_access')(*args, **kwargs)
+
+def get_active_employees_with_stats(*args, **kwargs):
+    return _get_bot_func('get_active_employees_with_stats')(*args, **kwargs)
+
+def create_adjustment_request(*args, **kwargs):
+    return _get_bot_func('create_adjustment_request')(*args, **kwargs)
+
+def get_pending_adjustments(*args, **kwargs):
+    return _get_bot_func('get_pending_adjustments')(*args, **kwargs)
+
+def get_user_adjustment_history(*args, **kwargs):
+    return _get_bot_func('get_user_adjustment_history')(*args, **kwargs)
+
+def approve_adjustment(*args, **kwargs):
+    return _get_bot_func('approve_adjustment')(*args, **kwargs)
+
+def deny_adjustment(*args, **kwargs):
+    return _get_bot_func('deny_adjustment')(*args, **kwargs)
+
+def bot_db():
+    """Lazy access to bot database context manager - returns the callable that produces the context manager."""
+    return _get_bot_func('db')()
+
+# Lazy access to Discord bot instance - use get_bot() for property access
+def get_bot():
+    """Lazy access to Discord bot instance."""
+    return _get_bot_module().bot
+
+# Create a bot proxy that lazily loads the real bot
+class _BotProxy:
+    """Proxy object that lazily loads the bot module's bot instance."""
+    def __getattr__(self, name):
+        return getattr(_get_bot_module().bot, name)
+    
+    def __bool__(self):
+        try:
+            return bool(_get_bot_module().bot)
+        except:
+            return False
+
+bot = _BotProxy()
+
+# These modules are lightweight and can be imported at startup
+# Import and run database migrations on startup (deferred to Gunicorn init)
+# from migrations import run_migrations  # Moved to Gunicorn init block
 
 # Import entitlements system for consistent access checking
 from entitlements import Entitlements, UserTier, UserRole
 
 # Start Discord bot in background daemon thread
 def start_discord_bot():
-    """Start the Discord bot in a background daemon thread."""
+    """Start the Discord bot in a background daemon thread with robust error handling."""
+    global bot_status
+    bot_status['started_at'] = datetime.now(timezone.utc).isoformat()
+    
     try:
         import asyncio
+        print("[STARTUP] Discord bot thread starting...")
+        print("[STARTUP] Importing bot module...")
         from bot import run_bot_with_api
-        app.logger.info("≡ƒnû Starting Discord bot in background thread...")
+        print("[STARTUP] Bot module imported successfully")
+        print("[STARTUP] Starting Discord bot event loop...")
+        bot_status['initialized'] = True
         asyncio.run(run_bot_with_api())
-    except Exception as e:
-        app.logger.error(f"[ERROR] Error starting Discord bot: {e}")
+    except ImportError as e:
+        error_msg = f"Failed to import bot module: {e}"
+        print(f"[ERROR] {error_msg}")
+        bot_status['error'] = error_msg
         import traceback
         traceback.print_exc()
+    except Exception as e:
+        error_msg = f"Discord bot error: {e}"
+        print(f"[ERROR] {error_msg}")
+        bot_status['error'] = error_msg
+        import traceback
+        traceback.print_exc()
+        # Don't re-raise - let Flask continue serving even if bot fails
 
 # Start bot thread when running under Gunicorn (only in first worker)
 if __name__ != '__main__':
     import os
+    print("[STARTUP] Flask app initializing under Gunicorn...")
+    print(f"[STARTUP] Health check endpoint ready at /health")
+    
     worker_id = os.environ.get('GUNICORN_WORKER_ID', '1')
     # Only start bot in first worker to avoid multiple instances
     if worker_id == '1' or 'GUNICORN_WORKER_ID' not in os.environ:
-        # Run database migrations before starting bot
-        run_migrations()
+        print("[STARTUP] Running database migrations...")
+        try:
+            from migrations import run_migrations
+            run_migrations()
+            print("[STARTUP] Database migrations complete")
+        except Exception as e:
+            print(f"[WARNING] Migration error (non-fatal): {e}")
         
+        print("[STARTUP] Starting Discord bot thread (non-blocking)...")
         bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
         bot_thread.start()
-        app.logger.info("[OK] Discord bot thread started in worker")
+        print("[STARTUP] Discord bot thread started - Flask ready to serve requests")
 
 # Configure logging to work with Gunicorn
 if __name__ != '__main__':
