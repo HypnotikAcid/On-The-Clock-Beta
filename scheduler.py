@@ -16,6 +16,13 @@ from email_utils import send_timeclock_report_email
 DATABASE_URL = os.getenv("DATABASE_URL")
 db_pool = None
 
+# Discord bot reference (set by start_scheduler)
+discord_bot = None
+
+# Track guilds that have been warned in the current 24h cycle to prevent spam
+# Format: {guild_id: last_warning_timestamp}
+predeletion_warning_tracker = {}
+
 def init_db_pool():
     """Initialize PostgreSQL connection pool"""
     global db_pool
@@ -272,8 +279,99 @@ This is an automated reminder from On the Clock Discord Bot.
     except Exception as e:
         logger.error(f"Error sending deletion warning email for guild {guild_id}: {e}")
 
-def start_scheduler():
-    """Initialize and start the scheduler"""
+
+async def send_predeletion_dm_warnings():
+    """Send DM warnings to free tier server owners before data deletion"""
+    global predeletion_warning_tracker
+    
+    if discord_bot is None:
+        logger.warning("⚠️ Discord bot not available for pre-deletion DM warnings")
+        return
+    
+    logger.info("📧 Running pre-deletion DM warning check...")
+    
+    try:
+        import discord
+        
+        current_time = datetime.now(timezone.utc)
+        
+        with db() as cursor:
+            cursor.execute("""
+                SELECT DISTINCT s.guild_id, bg.guild_name
+                FROM sessions s
+                JOIN bot_guilds bg ON CAST(s.guild_id AS TEXT) = bg.guild_id
+                LEFT JOIN server_subscriptions ss ON s.guild_id = ss.guild_id
+                WHERE COALESCE(ss.tier, 'free') = 'free'
+                AND s.clock_in < NOW() - INTERVAL '20 hours'
+                AND s.clock_in > NOW() - INTERVAL '24 hours'
+            """)
+            guilds_to_warn = cursor.fetchall()
+        
+        warned_count = 0
+        skipped_count = 0
+        
+        for row in guilds_to_warn:
+            guild_id = row['guild_id']
+            guild_name = row['guild_name']
+            
+            last_warning = predeletion_warning_tracker.get(guild_id)
+            if last_warning:
+                hours_since_warning = (current_time - last_warning).total_seconds() / 3600
+                if hours_since_warning < 20:
+                    skipped_count += 1
+                    continue
+            
+            guild = discord_bot.get_guild(int(guild_id))
+            if guild and guild.owner:
+                try:
+                    embed = discord.Embed(
+                        title="⚠️ Data Deletion Warning",
+                        description=f"Time entries for **{guild_name}** will be automatically deleted in ~4 hours.",
+                        color=0xFFAA00
+                    )
+                    embed.add_field(
+                        name="💎 Upgrade to Keep Your Data",
+                        value="Get Dashboard Premium for just ~~$10~~ **$5** (Beta Price!) to keep 7 days of data!",
+                        inline=False
+                    )
+                    embed.add_field(
+                        name="How to Upgrade",
+                        value="Use `/upgrade` in your server or visit the dashboard.",
+                        inline=False
+                    )
+                    embed.set_footer(text="On the Clock • Free tier has 24-hour data retention")
+                    
+                    await guild.owner.send(embed=embed)
+                    
+                    predeletion_warning_tracker[guild_id] = current_time
+                    warned_count += 1
+                    logger.info(f"📧 Sent pre-deletion warning to owner of {guild_name}")
+                    
+                except discord.Forbidden:
+                    logger.info(f"   Could not DM owner of {guild_name} (DMs disabled)")
+                except Exception as e:
+                    logger.error(f"   Error sending warning to {guild_name}: {e}")
+        
+        old_entries = [gid for gid, ts in predeletion_warning_tracker.items() 
+                       if (current_time - ts).total_seconds() / 3600 > 24]
+        for gid in old_entries:
+            del predeletion_warning_tracker[gid]
+        
+        if warned_count > 0 or skipped_count > 0:
+            logger.info(f"📧 Pre-deletion warnings: {warned_count} sent, {skipped_count} skipped (already warned)")
+            
+    except Exception as e:
+        logger.error(f"❌ Pre-deletion DM warning job failed: {e}")
+
+def start_scheduler(bot=None):
+    """Initialize and start the scheduler
+    
+    Args:
+        bot: Discord bot instance (optional, needed for DM warnings)
+    """
+    global discord_bot
+    discord_bot = bot
+    
     scheduler.add_job(
         send_work_day_end_reports,
         trigger=CronTrigger(minute='*'),
@@ -290,8 +388,18 @@ def start_scheduler():
         replace_existing=True
     )
     
+    scheduler.add_job(
+        send_predeletion_dm_warnings,
+        trigger=CronTrigger(hour='*'),
+        id='predeletion_dm_warnings',
+        name='Send pre-deletion DM warnings to free tier owners',
+        replace_existing=True
+    )
+    
     scheduler.start()
     logger.info("✅ Email scheduler started successfully")
+    if discord_bot:
+        logger.info("✅ Pre-deletion DM warnings enabled (bot connected)")
 
 def stop_scheduler():
     """Stop the scheduler"""

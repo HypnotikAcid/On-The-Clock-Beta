@@ -6221,7 +6221,7 @@ async def on_ready():
     
     # Start email scheduler for automated reports and warnings
     try:
-        start_scheduler()
+        start_scheduler(bot)
         print("✅ Email scheduler started successfully")
     except Exception as e:
         print(f"⚠️ Failed to start email scheduler: {e}")
@@ -8499,6 +8499,86 @@ async def owner_server_listings(interaction: discord.Interaction):
         
     except Exception as e:
         await interaction.followup.send(f"❌ Error fetching server listings: {str(e)}", ephemeral=True)
+
+
+# --- Context Menu Commands (Right-Click Actions) ---
+
+@tree.context_menu(name="View Hours")
+async def context_view_hours(interaction: discord.Interaction, user: discord.Member):
+    """Right-click context menu to view a user's hours"""
+    await interaction.response.defer(ephemeral=True)
+    
+    # Check if invoker is admin
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.followup.send("❌ Only admins can use this.", ephemeral=True)
+        return
+    
+    # Get user's hours for last 7 days
+    with db() as conn:
+        cursor = conn.execute("""
+            SELECT 
+                SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out, NOW()) - clock_in))/3600) as total_hours
+            FROM time_sessions
+            WHERE guild_id = %s AND user_id = %s
+            AND clock_in > NOW() - INTERVAL '7 days'
+        """, (interaction.guild_id, user.id))
+        result = cursor.fetchone()
+        hours = result['total_hours'] if result and result['total_hours'] else 0
+    
+    embed = discord.Embed(
+        title=f"📊 Hours for {user.display_name}",
+        description=f"Last 7 days: **{hours:.1f} hours**",
+        color=0xD4AF37
+    )
+    
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+@tree.context_menu(name="Force Clock Out")
+async def context_force_clockout(interaction: discord.Interaction, user: discord.Member):
+    """Right-click context menu to force clock out a user"""
+    await interaction.response.defer(ephemeral=True)
+    
+    # Check if invoker is admin
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.followup.send("❌ Only admins can use this.", ephemeral=True)
+        return
+    
+    # Find active session and clock out
+    with db() as conn:
+        cursor = conn.execute("""
+            UPDATE time_sessions 
+            SET clock_out = NOW()
+            WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
+            RETURNING id
+        """, (interaction.guild_id, user.id))
+        result = cursor.fetchone()
+    
+    if result:
+        await interaction.followup.send(f"✅ Force clocked out {user.display_name}", ephemeral=True)
+    else:
+        await interaction.followup.send(f"ℹ️ {user.display_name} wasn't clocked in.", ephemeral=True)
+
+
+@tree.context_menu(name="Ban from Timeclock")
+async def context_ban_user(interaction: discord.Interaction, user: discord.Member):
+    """Right-click context menu to ban a user from timeclock (24-hour ban)"""
+    await interaction.response.defer(ephemeral=True)
+    
+    # Check if invoker is admin
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.followup.send("❌ Only admins can use this.", ephemeral=True)
+        return
+    
+    # Check if user is already banned
+    if is_user_banned(interaction.guild_id, user.id):
+        await interaction.followup.send(f"ℹ️ {user.display_name} is already banned from the timeclock.", ephemeral=True)
+        return
+    
+    # Ban user for 24 hours using existing function
+    ban_user_24h(interaction.guild_id, user.id, "Banned via admin context menu")
+    
+    await interaction.followup.send(f"🚫 {user.display_name} has been banned from the timeclock for 24 hours.", ephemeral=True)
 
 
 # --- Bot HTTP API Server for Dashboard Integration ---
