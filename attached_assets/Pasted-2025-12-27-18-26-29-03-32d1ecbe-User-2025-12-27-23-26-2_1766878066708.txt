@@ -1,0 +1,96 @@
+2025-12-27 18:26:29.03
+32d1ecbe
+User
+[2025-12-27 23:26:29 +0000] [22] [INFO] Exchanging code for token with redirect_uri: https://on-the-clock.replit.app/auth/callback
+2025-12-27 18:26:29.95
+32d1ecbe
+User
+[2025-12-27 23:26:29 +0000] [22] [INFO] Fetching user info from Discord
+2025-12-27 18:26:30.12
+32d1ecbe
+User
+[2025-12-27 23:26:30 +0000] [22] [INFO] Fetching user guilds
+2025-12-27 18:26:30.12
+32d1ecbe
+User
+[2025-12-27 23:26:30 +0000] [22] [INFO] User authenticated: hypnotikacid
+2025-12-27 18:26:30.53
+32d1ecbe
+User
+[2025-12-27 23:26:30 +0000] [22] [INFO] Found 18 guilds
+2025-12-27 18:26:30.82
+32d1ecbe
+User
+[2025-12-27 23:26:30 +0000] [22] [INFO] Session created: M0_AvCEK...
+2025-12-27 18:26:31.35
+32d1ecbe
+User
+[2025-12-27 23:26:31 +0000] [22] [INFO] Dashboard accessed by user: hypnotikacid
+2025-12-27 18:26:32.28
+32d1ecbe
+User
+[2025-12-27 23:26:32 +0000] [22] [INFO] Showing 5 admin guilds and 0 employee-only guilds
+2025-12-27 18:26:38.51
+32d1ecbe
+User
+[2025-12-27 23:26:38 +0000] [22] [INFO] ≡ƒôï Fetched 1 employee roles for guild 1361859331351511083: ['1389666130720849930']
+2025-12-27 18:26:38.87
+32d1ecbe
+User
+[2025-12-27 23:26:38 +0000] [22] [ERROR] Error fetching server data: Object of type function is not JSON serializable
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/json/provider.py", line 214, in response
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+File "/home/runner/workspace/app.py", line 3402, in api_get_server_data
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+return jsonify({
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/json/provider.py", line 179, in dumps
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+^^^^^^^^^^^^^^^^^
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+chunks = self.iterencode(o, _one_shot=True)
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+^^^^^^^^^^^
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/json/__init__.py", line 170, in jsonify
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+^^^^^^^^^
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+return _iterencode(o, 0)
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+[2025-12-27 23:26:39 +0000] [22] [ERROR] Traceback (most recent call last):
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-12-27 18:26:39.08
+32d1ecbe
+User
+return current_app.json.response(*args, **kwargs) # type: ignore[return-value]

@@ -2424,11 +2424,9 @@ def get_guild_settings(guild_id):
             'email_recipient_count': email_recipient_count,
             'emails': [],
             'tier': guild_tier.value,
-            'tier_enum': guild_tier,
             'bot_access_paid': bot_access_paid,
             'retention_tier': retention_tier,
-            'retention_days': Entitlements.get_retention_days(guild_tier),
-            'can_access': lambda feature, role=UserRole.ADMIN: Entitlements.can_access_feature(guild_tier, role, feature)
+            'retention_days': Entitlements.get_retention_days(guild_tier)
         }
 
 @app.route("/server/<guild_id>/adjustments/review")

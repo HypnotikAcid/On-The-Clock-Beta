@@ -5865,6 +5865,17 @@ class TimeclockHubView(discord.ui.View):
     async def support_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Link to support Discord server"""
         await handle_tc_support(interaction)
+    
+    @discord.ui.button(
+        label="Upgrade",
+        style=discord.ButtonStyle.success,
+        custom_id="tc:upgrade",
+        emoji="🚀",
+        row=2
+    )
+    async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show upgrade options"""
+        await handle_tc_upgrade(interaction)
 
 
 # --- Timeclock Hub Button Handlers ---
@@ -6155,6 +6166,70 @@ async def handle_tc_support(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
+async def handle_tc_upgrade(interaction: discord.Interaction):
+    """Handle upgrade button - show subscription options"""
+    # ACK immediately
+    if not await robust_defer(interaction, ephemeral=True):
+        return
+    
+    if not interaction.guild:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    guild_id = interaction.guild.id
+    
+    # Check current subscription status
+    has_bot_access = check_bot_access(guild_id)
+    retention_tier = get_retention_tier(guild_id)
+    
+    # Build upgrade embed based on current status
+    embed = discord.Embed(
+        title="🚀 Upgrade Your Server",
+        color=0x57F287
+    )
+    
+    if not has_bot_access:
+        embed.description = "Unlock powerful time tracking features!"
+        embed.add_field(
+            name="📊 Dashboard Premium ($5 one-time)",
+            value="• 7-day data retention\n• Full dashboard access\n• CSV reports & exports\n• Time adjustment requests\n• Email automation",
+            inline=False
+        )
+        embed.add_field(
+            name="📈 Pro Retention ($5/month add-on)",
+            value="• 30-day data retention\n• Perfect for long-term tracking",
+            inline=False
+        )
+    elif retention_tier != '30day':
+        embed.description = "You have Dashboard Premium! Consider adding Pro Retention."
+        embed.add_field(
+            name="📈 Pro Retention ($5/month)",
+            value="• Upgrade to 30-day data retention\n• Keep your time records longer",
+            inline=False
+        )
+        embed.add_field(
+            name="✅ Your Current Plan",
+            value="Dashboard Premium (7-day retention)",
+            inline=False
+        )
+    else:
+        embed.description = "You're on the best plan! Thank you for your support."
+        embed.add_field(
+            name="✅ Your Current Plan",
+            value="Dashboard Premium + Pro Retention (30-day)",
+            inline=False
+        )
+    
+    embed.set_footer(text="On the Clock • Professional Time Tracking")
+    
+    # Add upgrade button linking to the upgrade page
+    view = discord.ui.View()
+    upgrade_url = f"https://on-the-clock.replit.app/upgrade/{guild_id}"
+    view.add_item(discord.ui.Button(label="View Upgrade Options", url=upgrade_url, style=discord.ButtonStyle.link))
+    
+    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+
 # --- Global on_interaction Fallback Handler ---
 # Catches button interactions that might have lost their view reference after bot restart
 
@@ -6194,6 +6269,8 @@ async def on_interaction(interaction: discord.Interaction):
             await handle_tc_my_hours(interaction)
         elif custom_id == 'tc:support':
             await handle_tc_support(interaction)
+        elif custom_id == 'tc:upgrade':
+            await handle_tc_upgrade(interaction)
         else:
             print(f"⚠️ [Fallback] Unknown tc: button: {custom_id}")
             
@@ -6606,102 +6683,9 @@ async def setup(interaction: discord.Interaction):
 @app_commands.guild_only()
 async def clock_interface(interaction: discord.Interaction):
     """
-    Provides users with their personal timeclock interface.
-    Shows fresh buttons that never timeout - the new reliable way to clock in/out.
+    Redirects to /timeclock - kept for backwards compatibility.
     """
-    # Check if user has permission to use timeclock
-    guild_id = interaction.guild_id
-    if guild_id is None:
-        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
-        return
-    
-    # Check if user has permission to use timeclock functions
-    server_tier = get_server_tier(guild_id)
-    
-    # Type guard: ensure we have a Member for guild-specific functions
-    if not isinstance(interaction.user, discord.Member):
-        await send_reply(interaction,
-            "❌ Unable to verify access permissions. Please try again.",
-            ephemeral=True
-        )
-        return
-    
-    if not user_has_clock_access(interaction.user, server_tier):
-        if server_tier == "free":
-            await send_reply(interaction,
-                "⚠️ **Free Tier Limitation**\n\n"
-                "Only administrators can use timeclock functions on the free tier.\n"
-                "Upgrade to Basic or Pro to unlock full team access!\n\n"
-                "Use `/upgrade` to see subscription options.",
-                ephemeral=True
-            )
-        else:
-            await send_reply(interaction,
-                "❌ **Access Denied**\n\n"
-                "You don't have permission to use timeclock functions.\n"
-                "Contact your server administrator to:\n"
-                "• Add you to an employee role using `/add_employee_role`\n"
-                "• Or grant you administrator permissions",
-                ephemeral=True
-            )
-        return
-    
-    # Create fresh timeclock interface for this user
-    try:
-        # Create persistent view instance - all buttons are always available
-        # Tier-specific logic is handled in the callback functions
-        view = TimeClockView()
-        
-        # Get current clock status for user
-        user_id = interaction.user.id
-        active_session = None
-        
-        with db() as conn:
-            cursor = conn.execute(
-                "SELECT clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
-                (user_id, guild_id)
-            )
-            active_session = cursor.fetchone()
-        
-        # Build status message
-        if active_session:
-            clock_in_time = safe_parse_timestamp(active_session['clock_in'])
-            if clock_in_time.tzinfo is None:
-                clock_in_time = clock_in_time.replace(tzinfo=timezone.utc)
-            elapsed = datetime.now(timezone.utc) - clock_in_time
-            hours, remainder = divmod(int(elapsed.total_seconds()), 3600)
-            minutes, _ = divmod(remainder, 60)
-            
-            status_message = (
-                f"🟢 **You're Currently Clocked In**\n\n"
-                f"**Started:** <t:{int(clock_in_time.timestamp())}:f>\n"
-                f"**Elapsed Time:** {hours}h {minutes}m\n\n"
-                f"Use the buttons below to manage your time:"
-            )
-        else:
-            status_message = (
-                f"⚪ **Ready to Clock In**\n\n"
-                f"You're not currently clocked in.\n"
-                f"Use the buttons below to start tracking your time:"
-            )
-        
-        # Send ephemeral response with fresh buttons
-        await send_reply(interaction, 
-            content=status_message,
-            view=view, 
-            ephemeral=True
-        )
-        
-        print(f"✅ Provided fresh timeclock interface to {interaction.user} in guild {guild_id}")
-        
-    except Exception as e:
-        print(f"❌ Error creating timeclock interface for {interaction.user}: {e}")
-        await send_reply(interaction,
-            "❌ **Error Creating Timeclock Interface**\n\n"
-            "Something went wrong while creating your timeclock interface.\n"
-            "Please try again, or contact your administrator if the problem persists.",
-            ephemeral=True
-        )
+    await timeclock_hub(interaction)
 
 
 @tree.command(name="timeclock", description="Open your personal timeclock hub with bulletproof buttons")
