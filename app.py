@@ -76,6 +76,9 @@ from bot import (
 # Import and run database migrations on startup
 from migrations import run_migrations
 
+# Import entitlements system for consistent access checking
+from entitlements import Entitlements, UserTier, UserRole
+
 # Start Discord bot in background daemon thread
 def start_discord_bot():
     """Start the Discord bot in a background daemon thread."""
@@ -2124,15 +2127,20 @@ def get_guild_settings(guild_id):
         except:
             email_settings_row = None
         
-        # Get mobile restriction setting
+        # Get subscription info including mobile restriction, bot_access, and retention tier
         try:
-            mobile_restriction_cursor = conn.execute(
-                "SELECT restrict_mobile_clockin FROM server_subscriptions WHERE guild_id = %s",
+            subscription_cursor = conn.execute(
+                "SELECT restrict_mobile_clockin, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = %s",
                 (int(guild_id),)
             )
-            mobile_restriction_row = mobile_restriction_cursor.fetchone()
+            subscription_row = subscription_cursor.fetchone()
         except:
-            mobile_restriction_row = None
+            subscription_row = None
+        
+        # Calculate tier using entitlements helper
+        bot_access_paid = bool(subscription_row['bot_access_paid']) if subscription_row else False
+        retention_tier = subscription_row['retention_tier'] if subscription_row else 'none'
+        guild_tier = Entitlements.get_guild_tier(bot_access_paid, retention_tier or 'none')
         
         # Get email recipient count for fail-safe validation
         try:
@@ -2154,9 +2162,15 @@ def get_guild_settings(guild_id):
             'work_day_end_time': (settings_row['work_day_end_time'] if settings_row else None) or '17:00',
             'auto_send_on_clockout': bool(email_settings_row['auto_send_on_clockout']) if email_settings_row else False,
             'auto_email_before_delete': bool(email_settings_row['auto_email_before_delete']) if email_settings_row else False,
-            'restrict_mobile_clockin': bool(mobile_restriction_row['restrict_mobile_clockin']) if mobile_restriction_row else False,
+            'restrict_mobile_clockin': bool(subscription_row['restrict_mobile_clockin']) if subscription_row else False,
             'email_recipient_count': email_recipient_count,
-            'emails': []
+            'emails': [],
+            'tier': guild_tier.value,
+            'tier_enum': guild_tier,
+            'bot_access_paid': bot_access_paid,
+            'retention_tier': retention_tier,
+            'retention_days': Entitlements.get_retention_days(guild_tier),
+            'can_access': lambda feature, role=UserRole.ADMIN: Entitlements.can_access_feature(guild_tier, role, feature)
         }
 
 @app.route("/server/<guild_id>/adjustments/review")

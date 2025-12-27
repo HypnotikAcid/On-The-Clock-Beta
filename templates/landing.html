@@ -102,27 +102,121 @@
             font-weight: 400;
         }
 
-        /* Beta Warning - Minimal */
-        .beta-warning {
-            background: rgba(212, 175, 55, 0.08);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 10px;
-            padding: 1rem 1.5rem;
-            margin: 0 auto 3rem;
-            max-width: 500px;
-            text-align: center;
+        /* Beta Notice - Subtle inline badge */
+        .beta-notice {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 20px;
+            padding: 0.4rem 1rem;
+            font-size: 0.85rem;
+            color: #8B949E;
         }
 
-        .beta-warning h3 {
+        .beta-notice span {
             color: #D4AF37;
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 0.3rem;
         }
 
-        .beta-warning p {
+        /* Pricing Styles */
+        .price-strikethrough {
+            text-decoration: line-through;
+            color: #6B7280;
+            font-size: 1.4rem;
+            font-weight: 400;
+        }
+
+        .price-beta-tag {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 3rem;
+            background: rgba(30, 35, 45, 0.4);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+        }
+
+        .comparison-table th {
+            color: #D4AF37;
+            font-weight: 600;
+            font-size: 0.9rem;
+            background: rgba(30, 35, 45, 0.6);
+        }
+
+        .comparison-table th.highlight {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10B981;
+        }
+
+        .comparison-table td {
             color: #8B949E;
             font-size: 0.9rem;
+        }
+
+        .comparison-table td.highlight {
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .comparison-table .feature-name {
+            text-align: left;
+            color: #C9D1D9;
+            font-weight: 500;
+            padding-left: 1.5rem;
+        }
+
+        .comparison-table .check {
+            color: #10B981;
+            font-size: 1.2rem;
+        }
+
+        .comparison-table .cross {
+            color: #EF4444;
+            font-size: 1.1rem;
+        }
+
+        .comparison-table .locked {
+            color: #F59E0B;
+            font-size: 0.8rem;
+        }
+
+        .comparison-table tbody tr:hover {
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        @media (max-width: 900px) {
+            .pricing-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .comparison-table {
+                font-size: 0.8rem;
+            }
+            .comparison-table th,
+            .comparison-table td {
+                padding: 0.6rem 0.4rem;
+            }
+            .comparison-table .feature-name {
+                padding-left: 0.5rem;
+            }
         }
 
         /* Action Buttons - Primary Focus */
@@ -298,10 +392,11 @@
                 <div class="subtitle">Professional Discord Timeclock Management</div>
             </div>
 
-            <!-- Beta Warning -->
-            <div class="beta-warning">
-                <h3>⚠️ Beta Version</h3>
-                <p>Currently in beta testing. Report issues to support.</p>
+            <!-- Beta Notice - Subtle -->
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div class="beta-notice">
+                    <span>🧪</span> Beta · <a href="https://discord.gg/KdTRTqdPcj" style="color: #A78BFA; text-decoration: none;">Report issues</a>
+                </div>
             </div>
 
             <!-- Action Buttons -->
@@ -329,65 +424,107 @@
                 <h2 style="text-align: center; font-size: 1.8rem; font-weight: 700; color: #D4AF37; margin-bottom: 1rem;">Simple, Transparent Pricing</h2>
                 <p style="text-align: center; color: #8B949E; margin-bottom: 3rem; font-size: 1rem;">Start free, upgrade when you're ready</p>
                 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; max-width: 1000px; margin: 0 auto;">
+                <div class="pricing-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; max-width: 1000px; margin: 0 auto;">
                     <!-- Free Tier -->
                     <div style="background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s ease;">
                         <div style="font-size: 2rem; margin-bottom: 1rem;">🆓</div>
                         <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">Free Tier</h3>
                         <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 1rem;">$0</div>
                         <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
-                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Employee management</li>
-                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Basic /clock access</li>
-                            <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>⚠️</span> 24-hour data deletion</li>
+                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Basic clock in/out</li>
+                            <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>⚠️</span> 24-hour data retention</li>
+                            <li style="padding: 0.5rem 0; color: #F59E0B; display: flex; align-items: center; gap: 8px;"><span>🔒</span> Dashboard visible (locked)</li>
                             <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>✗</span> Reports locked</li>
                         </ul>
                     </div>
 
-                    <!-- Bot Access -->
-                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05)); border: 2px solid #10B981; border-radius: 12px; padding: 2rem; text-align: center; position: relative; transition: all 0.3s ease; transform: scale(1.05);">
-                        <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">POPULAR</div>
-                        <div style="font-size: 2rem; margin-bottom: 1rem;">🔓</div>
-                        <h3 style="color: #10B981; font-size: 1.3rem; margin-bottom: 0.5rem;">Full Bot Access</h3>
-                        <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 0.3rem;">$5</div>
+                    <!-- Dashboard Premium - HIGHLIGHTED -->
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); border: 2px solid #10B981; border-radius: 12px; padding: 2rem; text-align: center; position: relative; transition: all 0.3s ease; transform: scale(1.05); box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2);">
+                        <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 4px 16px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">⭐ BEST VALUE</div>
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">💎</div>
+                        <h3 style="color: #10B981; font-size: 1.3rem; margin-bottom: 0.5rem;">Dashboard Premium</h3>
+                        <div style="margin-bottom: 0.3rem;">
+                            <span class="price-strikethrough">$10</span>
+                            <span style="font-size: 2rem; font-weight: 700; color: #C9D1D9;">$5</span>
+                            <span class="price-beta-tag">Beta Price!</span>
+                        </div>
                         <div style="font-size: 0.9rem; color: #8B949E; margin-bottom: 1rem;">one-time per server</div>
                         <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Full bot features</li>
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Full dashboard access</li>
+                            <li style="padding: 0.5rem 0; color: #10B981; display: flex; align-items: center; gap: 8px; font-weight: 600;"><span>🎁</span> 7-day retention INCLUDED!</li>
                             <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> CSV reports unlocked</li>
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Dashboard access</li>
-                            <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>⚠️</span> 24-hour data deletion</li>
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Time adjustment requests</li>
                         </ul>
-                        <a href="/purchase/bot_access" style="display: inline-block; width: 100%; background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin-top: 1rem; transition: all 0.3s ease;">Purchase Now</a>
+                        <a href="/purchase/bot_access" style="display: inline-block; width: 100%; background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin-top: 1rem; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">Get Dashboard Premium</a>
                     </div>
 
-                    <!-- 7-Day Retention -->
+                    <!-- Pro Retention -->
                     <div style="background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s ease;">
-                        <div style="font-size: 2rem; margin-bottom: 1rem;">📊</div>
-                        <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">7-Day Retention</h3>
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📈</div>
+                        <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">Pro Retention</h3>
                         <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 0.3rem;">$5</div>
                         <div style="font-size: 0.9rem; color: #8B949E; margin-bottom: 1rem;">per month</div>
                         <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> All bot access features</li>
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> 7-day data retention</li>
-                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #8B949E;">ℹ️</span> Requires bot access</li>
-                        </ul>
-                    </div>
-
-                    <!-- 30-Day Retention -->
-                    <div style="background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s ease;">
-                        <div style="font-size: 2rem; margin-bottom: 1rem;">📈</div>
-                        <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">30-Day Retention</h3>
-                        <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 0.3rem;">$10</div>
-                        <div style="font-size: 0.9rem; color: #8B949E; margin-bottom: 1rem;">per month</div>
-                        <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> All bot access features</li>
                             <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> 30-day data retention</li>
-                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #8B949E;">ℹ️</span> Requires bot access</li>
+                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Extended history access</li>
+                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #F59E0B;">ℹ️</span> Requires Dashboard Premium</li>
                         </ul>
+                        <div style="display: inline-block; width: 100%; background: rgba(212, 175, 55, 0.1); color: #8B949E; padding: 12px 24px; border-radius: 8px; font-weight: 500; margin-top: 1rem; border: 1px solid rgba(212, 175, 55, 0.3);">Add-on in Dashboard</div>
                     </div>
                 </div>
+
+                <!-- Comparison Table -->
+                <table class="comparison-table" style="max-width: 900px; margin: 3rem auto 0;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding-left: 1.5rem;">Feature</th>
+                            <th>Free</th>
+                            <th class="highlight">Dashboard Premium</th>
+                            <th>Pro Retention</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="feature-name">Clock In/Out</td>
+                            <td><span class="check">✓</span></td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">Dashboard Access</td>
+                            <td><span class="locked">🔒 Locked</span></td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">CSV Reports</td>
+                            <td><span class="cross">✗</span></td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">Time Adjustments</td>
+                            <td><span class="cross">✗</span></td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">Data Retention</td>
+                            <td>24 hours</td>
+                            <td class="highlight" style="color: #10B981; font-weight: 600;">7 days</td>
+                            <td style="color: #D4AF37; font-weight: 600;">30 days</td>
+                        </tr>
+                        <tr>
+                            <td class="feature-name">Price</td>
+                            <td style="color: #C9D1D9;">$0</td>
+                            <td class="highlight" style="color: #10B981; font-weight: 600;"><s style="color: #6B7280;">$10</s> $5 once</td>
+                            <td style="color: #D4AF37;">$5/mo</td>
+                        </tr>
+                    </tbody>
+                </table>
                 
                 <p style="text-align: center; color: #8B949E; margin-top: 2rem; font-size: 0.95rem;">
-                    💡 Purchase here or use the <strong>/upgrade</strong> command in Discord
+                    💡 Purchase here or use the <strong style="color: #D4AF37;">/upgrade</strong> command in Discord
                 </p>
             </div>
 
