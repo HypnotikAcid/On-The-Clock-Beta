@@ -614,18 +614,18 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     </div>
                     
                     <div class="pricing-info">
-            <h3>💰 Subscription Plans</h3>
+            <h3>💰 Pricing Plans</h3>
             <div class="pricing-tier free-tier">
-                <strong>Free - Testing Only</strong><br>
-                Server admin can test all features • Sample reports only • No data retention
+                <strong>Free Tier</strong><br>
+                24-hour data retention • Dashboard features visible but locked • Perfect for testing
             </div>
             <div class="pricing-tier">
-                <strong>Basic - $5/month</strong><br>
-                Full team access • Timeclock functions • CSV Reports • 1 week data retention
+                <strong>Dashboard Premium - <s>$10</s> $5 One-Time (Beta Price!)</strong><br>
+                Full dashboard access • 7-day data retention • CSV Reports • All features unlocked
             </div>
             <div class="pricing-tier pro-tier">
-                <strong>Pro - $10/month</strong><br>
-                Everything in Basic • Extended CSV Reports • Multiple Managers • 30 days data retention
+                <strong>Pro Retention - $5/month</strong><br>
+                30-day data retention • Extended reporting • Perfect for monthly payroll
             </div>
                     </div>
                     
@@ -932,84 +932,43 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     )
                 
             elif product_type == 'retention_7day':
-                # 7-day retention subscription
-                print(f"   🔍 Verifying bot access before granting retention...")
-                # CRITICAL: Server-side enforcement - verify bot access before granting retention
-                if not check_bot_access(guild_id):
-                    print(f"❌ WEBHOOK FAILED: Retention purchase blocked - bot access not paid for server {guild_id}")
-                    print(f"   Customer {customer_email} must purchase bot access first")
+                # DEPRECATED: 7-day retention subscription is retired
+                # New pricing model grants 7-day retention automatically with bot_access purchase
+                # This handler exists only to gracefully handle any legacy/orphaned checkout sessions
+                print(f"⚠️ WEBHOOK: retention_7day product is DEPRECATED - redirecting to 30-day tier")
+                print(f"   Session: {session_id}, Customer: {customer_email}")
+                
+                # Treat as 30-day subscription for any legacy purchases
+                if check_bot_access(guild_id):
+                    subscription_id = session.get('subscription')
+                    customer_id = session.get('customer')
+                    set_retention_tier(guild_id, '30day')
                     
-                    # Log webhook event as failed
+                    with db() as conn:
+                        conn.execute("""
+                            INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
+                            VALUES (%s, %s, %s, 'active')
+                            ON CONFLICT(guild_id) DO UPDATE SET 
+                                subscription_id = %s,
+                                customer_id = %s,
+                                status = 'active'
+                        """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
+                    
+                    print(f"✅ WEBHOOK SUCCESS: Legacy 7-day upgraded to 30-day for {guild_name}")
+                    
+                    self.log_webhook_event('checkout.session.completed', event_id, guild_id, 'success', {
+                        'session_id': session_id,
+                        'product_type': 'retention_7day_upgraded_to_30day',
+                        'guild_name': guild_name,
+                        'customer_email': customer_email
+                    })
+                else:
+                    print(f"❌ WEBHOOK FAILED: Bot access not paid for deprecated 7-day product")
                     self.log_webhook_event('checkout.session.completed', event_id, guild_id, 'failed', {
                         'session_id': session_id,
                         'product_type': product_type,
-                        'guild_name': guild_name,
-                        'customer_email': customer_email,
-                        'error': 'Bot access not paid - retention purchase blocked'
+                        'error': 'Deprecated product + no bot access'
                     })
-                    
-                    # Notify owner of blocked purchase
-                    bot_instance = getattr(type(self), 'bot', None)
-                    if bot_instance and bot_instance.loop:
-                        asyncio.run_coroutine_threadsafe(
-                            self.notify_owner("purchase", False, {
-                                'guild_id': guild_id,
-                                'guild_name': guild_name,
-                                'product_type': product_type,
-                                'customer_email': customer_email,
-                                'customer_id': customer_id,
-                                'session_id': session_id,
-                                'error': 'Retention purchase blocked - bot access required first'
-                            }),
-                            bot_instance.loop
-                        )
-                    
-                    # TODO: Consider refunding the payment automatically here
-                    return
-                
-                print(f"   ✓ Bot access verified")
-                subscription_id = session.get('subscription')
-                customer_id = session.get('customer')
-                print(f"   🔧 Setting 7-day retention tier...")
-                set_retention_tier(guild_id, '7day')
-                
-                # Store subscription_id and customer_id in database
-                with db() as conn:
-                    conn.execute("""
-                        INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
-                        VALUES (%s, %s, %s, 'active')
-                        ON CONFLICT(guild_id) DO UPDATE SET 
-                            subscription_id = %s,
-                            customer_id = %s,
-                            status = 'active'
-                    """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
-                
-                print(f"✅ WEBHOOK SUCCESS: 7-day retention granted to {guild_name} (ID: {guild_id})")
-                print(f"   Customer: {customer_email}, Subscription: {subscription_id}")
-                
-                # Log webhook event
-                self.log_webhook_event('checkout.session.completed', event_id, guild_id, 'success', {
-                    'session_id': session_id,
-                    'product_type': product_type,
-                    'guild_name': guild_name,
-                    'customer_email': customer_email,
-                    'subscription_id': subscription_id
-                })
-                
-                # Notify owner
-                bot_instance = getattr(type(self), 'bot', None)
-                if bot_instance and bot_instance.loop:
-                    asyncio.run_coroutine_threadsafe(
-                        self.notify_owner("purchase", True, {
-                            'guild_id': guild_id,
-                            'guild_name': guild_name,
-                            'product_type': product_type,
-                            'customer_email': customer_email,
-                            'customer_id': customer_id,
-                            'session_id': session_id
-                        }),
-                        bot_instance.loop
-                    )
                 
             elif product_type == 'retention_30day':
                 # 30-day retention subscription
@@ -3492,17 +3451,33 @@ def is_server_admin(user: discord.Member) -> bool:
 # --- Data Retention Management ---
 def get_retention_days(guild_id: int) -> int:
     """
-    Get data retention days for a server based on retention tier.
-    Returns 0 for 'none', 7 for '7day', 30 for '30day'.
-    This makes it easy to check retention periods.
+    Get data retention days for a server based on bot_access_paid and retention tier.
+    
+    NEW PRICING MODEL:
+    - bot_access_paid = false AND no subscription → 1 day (24 hours)
+    - bot_access_paid = true AND no subscription → 7 days
+    - Active subscription (30day tier) → 30 days
+    
+    The 7-day subscription tier is retired; 7-day retention is now granted
+    automatically with bot_access_paid = true.
     """
+    has_bot_access = check_bot_access(guild_id)
     tier = get_retention_tier(guild_id)
-    retention_map = {
-        'none': 0,
-        '7day': 7,
-        '30day': 30
-    }
-    return retention_map.get(tier, 0)
+    
+    # 30-day subscription active
+    if tier == '30day':
+        return 30
+    
+    # Legacy 7-day subscription (treat same as 30-day for backwards compat)
+    if tier == '7day':
+        return 7
+    
+    # Bot access paid but no subscription = 7 days
+    if has_bot_access:
+        return 7
+    
+    # Free tier = 1 day (24 hours)
+    return 1
 
 def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
     """Clean up old session data based on retention policy. Returns count of deleted records."""
@@ -5505,7 +5480,7 @@ class TimeClockView(discord.ui.View):
             
                 await interaction.followup.send(
                     f"📊 **Free Tier Sample Report**\n"
-                    f"🎯 This is sample data. Upgrade to Basic ($5/month) or Pro ($10/month) for real reports!\n"
+                    f"🎯 This is sample data. Upgrade to Dashboard Premium (~~$10~~ $5 one-time) for real reports!\n"
                     f"📅 Date Range: Last 30 days",
                     file=file,
                     ephemeral=True
@@ -5688,21 +5663,20 @@ class TimeClockView(discord.ui.View):
         )
         
         embed.add_field(
-            name="💎 Bot Access - $5 One-Time Payment",
+            name="💎 Dashboard Premium - ~~$10~~ $5 One-Time (Beta Price!)",
             value="• **Unlimited team members** can use timeclock\n"
                   "• **All admin commands** unlocked\n"
                   "• **CSV Reports** for tracking\n"
                   "• **Role management** features\n"
                   "• **Dashboard access** for settings\n"
-                  "• **24-hour data retention** (default)",
+                  "• **7-day data retention** (included!)",
             inline=False
         )
         
         embed.add_field(
-            name="📦 Optional Add-Ons (Monthly Subscriptions)",
-            value="**7-Day Retention:** $5/month - Keep data for 7 days\n"
-                  "**30-Day Retention:** $10/month - Keep data for 30 days\n\n"
-                  "*These are optional and can be added after bot access purchase*",
+            name="📦 Optional Add-On",
+            value="**Pro Retention:** $5/month - Extend to 30-day data retention\n\n"
+                  "*Can be added after Dashboard Premium purchase*",
             inline=False
         )
         
@@ -5960,14 +5934,13 @@ def create_setup_embed() -> discord.Embed:
     embed.add_field(
         name="💼 Upgrade Options",
         value=(
-            "**🔓 Full Bot Access ($5 one-time per server):**\n"
+            "**🔓 Dashboard Premium (~~$10~~ $5 one-time - Beta Price!):**\n"
             "• Unlock real reports & CSV exports\n"
             "• Full dashboard access\n"
-            "• One-time payment, lifetime access\n"
-            "• Still 24-hour deletion (buy retention separately)\n\n"
-            "**📁 Data Retention Add-Ons (require bot access):**\n"
-            "• **Basic ($5/month):** 7-day rolling retention\n"
-            "• **Pro ($10/month):** 30-day rolling retention\n\n"
+            "• 7-day data retention included\n"
+            "• One-time payment, lifetime access\n\n"
+            "**📁 Optional: Pro Retention ($5/month):**\n"
+            "• Extend to 30-day data retention\n\n"
             "Use `/upgrade` to unlock features!"
         ),
         inline=False
@@ -6139,13 +6112,13 @@ async def setup(interaction: discord.Interaction):
         embed.add_field(
             name="💰 Step 3: Understand Pricing",
             value=(
-                "**Bot Access** - $5 one-time payment per server\n"
+                "**Dashboard Premium** - ~~$10~~ $5 one-time (Beta Price!)\n"
                 "• Unlocks full bot functionality for your entire team\n"
-                "• One-time payment, no recurring charges for basic access\n\n"
-                "**Optional Data Retention** (subscriptions):\n"
-                "• **7-Day Retention** - $5/month\n"
-                "• **30-Day Retention** - $10/month\n\n"
-                "💡 Free tier available for testing (admin-only access)\n"
+                "• Includes 7-day data retention\n"
+                "• One-time payment, no recurring charges\n\n"
+                "**Optional: Pro Retention** - $5/month\n"
+                "• Extend to 30-day data retention\n\n"
+                "💡 Free tier available for testing (24-hour data retention)\n"
                 f"🛒 Purchase: {payment_url}"
             ),
             inline=False
@@ -6826,12 +6799,10 @@ async def generate_report(
         )
         return
     
-    # Bot access is paid - check retention tier for data availability
+    # Bot access is paid - use get_retention_days for proper retention calculation
+    # NEW MODEL: bot_access_paid = true automatically gets 7 days, subscription gets 30 days
+    max_days = get_retention_days(guild_id)
     retention_tier = get_retention_tier(guild_id)
-    
-    # Map retention tiers to day limits (NEW MODEL: 'none', '7day', '30day')
-    tier_limits = {"none": 1, "7day": 7, "30day": 30}
-    max_days = tier_limits.get(retention_tier, 1)
     
     try:
         # Validate date format and order
@@ -6849,10 +6820,12 @@ async def generate_report(
         days_requested = (end_dt - start_dt).days + 1
         if days_requested > max_days:
             # Create appropriate upgrade message based on current tier
-            if retention_tier == "none":
-                upgrade_msg = "\n\n💡 Add **7-day** ($5/month) or **30-day** ($10/month) retention via `/upgrade` to access longer reports!"
-            elif retention_tier == "7day":
-                upgrade_msg = "\n\n💡 Upgrade to **30-day retention** ($10/month) via `/upgrade` for extended reports!"
+            if max_days == 1:
+                # Free tier - suggest Dashboard Premium
+                upgrade_msg = "\n\n💡 Upgrade to **Dashboard Premium** (~~$10~~ $5 one-time) to unlock 7-day retention!"
+            elif max_days == 7:
+                # Dashboard Premium - suggest Pro Retention
+                upgrade_msg = "\n\n💡 Upgrade to **Pro Retention** ($5/month) for 30-day data retention!"
             else:
                 upgrade_msg = ""
             
@@ -7235,39 +7208,39 @@ async def upgrade_server(interaction: discord.Interaction):
         retention_tier = get_retention_tier(guild_id)
         
         if not has_bot_access:
-            # STEP 1: Offer bot access first ($5 one-time)
+            # STEP 1: Offer Dashboard Premium ($5 one-time with 7-day retention)
             checkout_url = create_secure_checkout_session(guild_id, "bot_access")
             
             embed = discord.Embed(
-                title="🔓 Unlock Full Bot Access",
+                title="🔓 Dashboard Premium",
                 description=(
-                    "**Get full access to On the Clock for just $5 (one-time payment)!**\n\n"
+                    "**Unlock full access to On the Clock!**\n\n"
                     "Currently on **Free Tier** with 24-hour data deletion.\n"
-                    "Upgrade to unlock real reports and full functionality."
+                    "Upgrade to unlock the dashboard and 7-day retention."
                 ),
                 color=discord.Color.gold()
             )
             embed.add_field(
                 name="✨ What You Get:",
                 value=(
-                    "✅ Real CSV reports & exports\n"
                     "✅ Full dashboard access\n"
+                    "✅ 7-day data retention (up from 24 hours)\n"
+                    "✅ Real CSV reports & exports\n"
                     "✅ All bot features unlocked\n"
-                    "✅ One-time payment, lifetime access\n"
-                    "✅ Still 24-hour deletion (add retention separately)"
+                    "✅ One-time payment, lifetime access"
                 ),
                 inline=False
             )
             embed.add_field(
                 name="💳 Pricing:",
-                value="**$5 one-time per server** - No recurring fees!",
+                value="~~$10~~ **$5 one-time** (Beta Price!) - No recurring fees!",
                 inline=False
             )
             
             # Create button for bot access checkout
             view = discord.ui.View()
             button = discord.ui.Button(
-                label="Unlock Bot Access - $5 One-Time",
+                label="Dashboard Premium - $5 One-Time",
                 style=discord.ButtonStyle.success,
                 url=checkout_url
             )
@@ -7276,96 +7249,69 @@ async def upgrade_server(interaction: discord.Interaction):
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             
         else:
-            # STEP 2: Bot access paid, offer retention add-ons
-            embed = discord.Embed(
-                title="📁 Add Data Retention",
-                description=(
-                    "**✅ Full Bot Access Active!**\n\n"
-                    f"Current retention: **{retention_tier if retention_tier != 'none' else 'None (24-hour deletion)'}**\n\n"
-                    "Add a retention plan to keep your time tracking data longer:"
-                ),
-                color=discord.Color.blue()
-            )
+            # STEP 2: Bot access paid - they already have 7-day retention, offer 30-day upgrade
+            current_retention_display = "7 days" if retention_tier in ('none', '7day') else "30 days"
             
-            # Show available retention options
-            if retention_tier == "none":
+            if retention_tier == "30day":
+                # Already have 30-day (max tier)
+                embed = discord.Embed(
+                    title="✅ Pro Retention Active",
+                    description=(
+                        "**You're on the maximum plan!**\n\n"
+                        "• Dashboard Premium: ✅ Active\n"
+                        "• Pro Retention (30-day): ✅ Active\n\n"
+                        "Thank you for supporting On the Clock! 🎉"
+                    ),
+                    color=discord.Color.green()
+                )
+                
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                
+            else:
+                # Has bot access (7-day retention), offer Pro Retention upgrade
+                embed = discord.Embed(
+                    title="⬆️ Upgrade to Pro Retention",
+                    description=(
+                        "**✅ Dashboard Premium Active!**\n\n"
+                        "You currently have **7-day data retention** included with Dashboard Premium.\n\n"
+                        "Upgrade to **Pro Retention** for full month reporting!"
+                    ),
+                    color=discord.Color.blue()
+                )
+                
                 embed.add_field(
-                    name="📊 7-Day Retention - $5/month",
+                    name="📊 Current Plan",
                     value=(
-                        "• Rolling 7-day data retention\n"
-                        "• Perfect for weekly payroll\n"
-                        "• Export reports up to 7 days back"
+                        "✅ Dashboard Premium (one-time)\n"
+                        "✅ 7-day data retention (included)\n"
+                        "✅ Full dashboard access\n"
+                        "✅ CSV reports & exports"
                     ),
                     inline=False
                 )
+                
                 embed.add_field(
-                    name="📈 30-Day Retention - $10/month",
+                    name="📈 Pro Retention - $5/month",
                     value=(
-                        "• Rolling 30-day data retention\n"
+                        "• **30-day data retention**\n"
                         "• Full month reporting\n"
-                        "• Export reports up to 30 days back"
+                        "• Extended historical data\n"
+                        "• Perfect for monthly payroll"
                     ),
                     inline=False
                 )
                 
-                # Create buttons for both retention options
-                view = discord.ui.View()
-                
-                checkout_url_7day = create_secure_checkout_session(guild_id, "retention_7day")
-                button_7day = discord.ui.Button(
-                    label="7-Day Retention - $5/month",
-                    style=discord.ButtonStyle.primary,
-                    url=checkout_url_7day
-                )
-                view.add_item(button_7day)
-                
-                checkout_url_30day = create_secure_checkout_session(guild_id, "retention_30day")
-                button_30day = discord.ui.Button(
-                    label="30-Day Retention - $10/month",
-                    style=discord.ButtonStyle.primary,
-                    url=checkout_url_30day
-                )
-                view.add_item(button_30day)
-                
-                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-                
-            elif retention_tier == "7day":
-                # Already have 7-day, offer 30-day upgrade
-                embed.add_field(
-                    name="⬆️ Upgrade to 30-Day Retention",
-                    value=(
-                        "**Current:** 7-day retention ($5/month)\n\n"
-                        "**Upgrade to 30-Day - $10/month:**\n"
-                        "• Rolling 30-day data retention\n"
-                        "• Full month reporting\n"
-                        "• Export reports up to 30 days back"
-                    ),
-                    inline=False
-                )
-                
+                # Create button for 30-day retention
                 view = discord.ui.View()
                 checkout_url_30day = create_secure_checkout_session(guild_id, "retention_30day")
                 button_30day = discord.ui.Button(
-                    label="Upgrade to 30-Day - $10/month",
+                    label="Pro Retention - $5/month",
                     style=discord.ButtonStyle.success,
                     url=checkout_url_30day
                 )
                 view.add_item(button_30day)
                 
                 await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-                
-            else:
-                # Already have 30-day (max tier)
-                embed.add_field(
-                    name="✅ Maximum Plan Active",
-                    value=(
-                        "You're on the **30-day retention plan** - the highest tier available!\n\n"
-                        "Thank you for supporting On the Clock! 🎉"
-                    ),
-                    inline=False
-                )
-                
-                await interaction.followup.send(embed=embed, ephemeral=True)
         
     except Exception as e:
         await interaction.followup.send(
@@ -7694,9 +7640,8 @@ async def notify_admins_of_adjustment(guild_id: int, request_id: int):
 @tree.command(name="owner_grant", description="[OWNER] Grant subscription tier to current server")
 @app_commands.describe(tier="Subscription tier to grant")
 @app_commands.choices(tier=[
-    app_commands.Choice(name="Bot Access ($5 one-time)", value="bot_access"),
-    app_commands.Choice(name="7-Day Retention ($5/month)", value="basic"),
-    app_commands.Choice(name="30-Day Retention ($10/month)", value="pro")
+    app_commands.Choice(name="Dashboard Premium (7-day retention)", value="bot_access"),
+    app_commands.Choice(name="Pro Retention (30-day)", value="pro")
 ])
 async def owner_grant_tier(interaction: discord.Interaction, tier: str):
     """Owner-only command to grant subscription tiers"""
@@ -7781,9 +7726,8 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
     tier="Subscription tier to grant"
 )
 @app_commands.choices(tier=[
-    app_commands.Choice(name="Bot Access ($5 one-time)", value="bot_access"),
-    app_commands.Choice(name="7-Day Retention ($5/month)", value="basic"),
-    app_commands.Choice(name="30-Day Retention ($10/month)", value="pro")
+    app_commands.Choice(name="Dashboard Premium (7-day retention)", value="bot_access"),
+    app_commands.Choice(name="Pro Retention (30-day)", value="pro")
 ])
 async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: str, tier: str):
     """Owner-only command to grant subscriptions to any server by ID"""
