@@ -1,0 +1,54 @@
+
+Log
+12-27 22:40:44
+[2025-12-28 03:40:44 +0000] [27] [INFO] Checkout created for guild 909556751639150592, product bot_access, by user hypnotikacid
+12-27 23:19:14
+forwarding local port 5000 to external port 80 (mapped as 1104)
+12-27 23:19:28
+[2025-12-28 04:19:28 +0000] [18] [INFO] [OK] PostgreSQL connection pool initialized for Flask
+12-27 23:19:28
+[2025-12-28 04:19:28 +0000] [18] [INFO] Starting gunicorn 23.0.0
+12-27 23:19:28
+[2025-12-28 04:19:28 +0000] [18] [INFO] Listening at: http://0.0.0.0:5000 (18)
+12-27 23:19:28
+[2025-12-28 04:19:28 +0000] [18] [INFO] Using worker: sync
+12-27 23:19:28
+[2025-12-28 04:19:28 +0000] [23] [INFO] Booting worker with pid: 23
+12-27 23:19:30
+warnings.warn("Can not find any timezone configuration, defaulting to UTC.")
+12-27 23:19:30
+/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/tzlocal/unix.py:207: UserWarning: Can not find any timezone configuration, defaulting to UTC.
+12-27 23:19:30
+[2025-12-28 04:19:30 +0000] [23] [INFO] OAuth login initiated - Redirect URI: https://on-the-clock.replit.app/auth/callback
+12-27 23:19:34
+[2025-12-28 04:19:34 +0000] [23] [INFO] OAuth callback received - code: present, state: present, error: None
+12-27 23:19:34
+[2025-12-28 04:19:34 +0000] [23] [INFO] Exchanging code for token with redirect_uri: https://on-the-clock.replit.app/auth/callback
+12-27 23:19:34
+[2025-12-28 04:19:34 +0000] [23] [INFO] Fetching user info from Discord
+12-27 23:19:34
+[2025-12-28 04:19:34 +0000] [23] [INFO] User authenticated: hypnotikacid
+12-27 23:19:34
+[2025-12-28 04:19:34 +0000] [23] [INFO] Fetching user guilds
+12-27 23:19:34
+[2025-12-28 04:19:34 +0000] [23] [INFO] Found 18 guilds
+12-27 23:19:35
+[2025-12-28 04:19:35 +0000] [23] [INFO] Session created: 8ebaWLOi...
+12-27 23:19:35
+[2025-12-28 04:19:35 +0000] [23] [INFO] Dashboard accessed by user: hypnotikacid
+12-27 23:19:36
+[2025-12-28 04:19:36 +0000] [23] [INFO] Showing 5 admin guilds and 0 employee-only guilds
+12-27 23:19:43
+[2025-12-28 04:19:43 +0000] [23] [INFO] ≡ƒôï Fetched 1 employee roles for guild 1361859331351511083: ['1389666130720849930']
+12-27 23:19:44
+[2025-12-28 04:19:44 +0000] [23] [ERROR] Error fetching server data: name 'email_recipient_count' is not defined
+12-27 23:19:44
+File "/home/runner/workspace/app.py", line 3515, in api_get_server_data
+12-27 23:19:44
+File "/home/runner/workspace/app.py", line 2424, in get_guild_settings
+12-27 23:19:44
+'email_recipient_count': email_recipient_count,
+12-27 23:19:44
+NameError: name 'email_recipient_count' is not defined
+12-27 23:19:44
+[2025-12-28 04:19:44 +0000] [23] [ERROR] Traceback (most recent call last):

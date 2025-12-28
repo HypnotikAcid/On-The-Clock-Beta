@@ -2398,7 +2398,7 @@ def get_guild_settings(guild_id):
         # Get subscription info including mobile restriction, bot_access, and retention tier
         try:
             subscription_cursor = conn.execute(
-                "SELECT restrict_mobile_clockin, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = %s",
+                "SELECT restrict_mobile_clockin, bot_access_paid, retention_tier, status FROM server_subscriptions WHERE guild_id = %s",
                 (int(guild_id),)
             )
             subscription_row = subscription_cursor.fetchone()
@@ -2406,9 +2406,19 @@ def get_guild_settings(guild_id):
             subscription_row = None
         
         # Calculate tier using entitlements helper
-        has_bot_access = (bool(subscription_row['bot_access_paid']) if subscription_row else False) or (subscription_row['status'] == 'active' if subscription_row else False)
+        has_bot_access = (bool(subscription_row['bot_access_paid']) if subscription_row else False) or (subscription_row.get('status') == 'active' if subscription_row else False)
         retention_tier = subscription_row['retention_tier'] if subscription_row else 'none'
         guild_tier = Entitlements.get_guild_tier(has_bot_access, retention_tier or 'none')
+        
+        # Get email recipient count for fail-safe validation
+        try:
+            recipient_count_cursor = conn.execute(
+                "SELECT COUNT(*) as count FROM report_recipients WHERE guild_id = %s AND recipient_type = 'email'",
+                (guild_id,)
+            )
+            email_recipient_count = recipient_count_cursor.fetchone()['count']
+        except:
+            email_recipient_count = 0
         
         return {
             'admin_roles': admin_roles,
