@@ -1299,13 +1299,13 @@ def handle_deeplink(page):
     session['deeplink_guild'] = guild_id
     session['deeplink_page'] = page
     
-    # Redirect to appropriate dashboard page
+    # Redirect to appropriate dashboard page (using url_for for proper URL encoding)
     if page == 'adjustments':
-        return redirect(f'/dashboard?guild={guild_id}&tab=adjustments')
+        return redirect(url_for('dashboard', guild=guild_id, tab='adjustments'))
     elif page == 'profile':
-        return redirect(f'/dashboard?guild={guild_id}&tab=employees&user={user_id}')
+        return redirect(url_for('dashboard', guild=guild_id, tab='employees', user=user_id))
     else:
-        return redirect(f'/dashboard?guild={guild_id}')
+        return redirect(url_for('dashboard', guild=guild_id))
 
 
 @app.route("/")
