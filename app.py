@@ -995,6 +995,7 @@ def get_employee_guilds(user_id):
                 JOIN bot_guilds bg ON bg.guild_id = CAST(ep.guild_id AS TEXT)
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = ep.guild_id
                 WHERE ep.user_id = %s AND ep.is_active = TRUE
+                AND (bg.is_present = TRUE OR bg.is_present IS NULL)
             """, (int(user_id),))
             
             for row in cursor.fetchall():
