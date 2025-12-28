@@ -881,10 +881,10 @@ def require_paid_api_access(f):
     return decorated_function
 
 def get_bot_guild_ids():
-    """Get list of guild IDs where the bot is present (as strings for OAuth comparison)"""
+    """Get list of guild IDs where the bot is currently present (as strings for OAuth comparison)"""
     try:
         with get_db() as conn:
-            cursor = conn.execute("SELECT guild_id FROM bot_guilds")
+            cursor = conn.execute("SELECT guild_id FROM bot_guilds WHERE is_present = TRUE OR is_present IS NULL")
             # Cast to string to match Discord OAuth guild IDs (which are strings)
             return set(str(row['guild_id']) for row in cursor.fetchall())
     except Exception as e:
@@ -1538,8 +1538,7 @@ def owner_dashboard(user_session):
             except Exception as reconcile_error:
                 app.logger.error(f"Database reconciliation error: {reconcile_error}")
                 # Continue anyway - reconciliation failure shouldn't block dashboard
-            # Get servers where bot is currently present
-            # Only show servers that are in bot_guilds table (bot is actually there)
+            # Get all servers from bot_guilds (including archived paid servers where bot left)
             cursor = conn.execute("""
                 SELECT 
                     CAST(bg.guild_id AS BIGINT) as guild_id,
@@ -1550,18 +1549,20 @@ def owner_dashboard(user_session):
                     ss.subscription_id,
                     ss.customer_id,
                     COUNT(DISTINCT s.id) as active_sessions,
-                    TRUE as bot_is_present
+                    COALESCE(bg.is_present, TRUE) as bot_is_present,
+                    bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
                 LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
-                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id
-                ORDER BY guild_name
+                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, bg.is_present, bg.left_at
+                ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
             """)
             servers = []
             for row in cursor.fetchall():
                 guild_id = row['guild_id']
                 guild_name = row['guild_name']
                 bot_is_present = bool(row['bot_is_present'])
+                left_at = row.get('left_at')
                 
                 servers.append({
                     'guild_id': guild_id,
@@ -1572,7 +1573,8 @@ def owner_dashboard(user_session):
                     'subscription_id': row['subscription_id'],
                     'customer_id': row['customer_id'],
                     'active_sessions': row['active_sessions'],
-                    'bot_is_present': bot_is_present
+                    'bot_is_present': bot_is_present,
+                    'left_at': left_at.isoformat() if left_at else None
                 })
             
             # Get recent webhook events (last 100) - only for servers where bot is present
@@ -1618,7 +1620,9 @@ def owner_dashboard(user_session):
                     SUM(CASE WHEN COALESCE(ss.bot_access_paid, FALSE) = TRUE THEN 1 ELSE 0 END) as paid_servers,
                     SUM(CASE WHEN ss.retention_tier = '7day' THEN 1 ELSE 0 END) as retention_7day_count,
                     SUM(CASE WHEN ss.retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
-                    SUM(CASE WHEN ss.status = 'past_due' THEN 1 ELSE 0 END) as past_due_count
+                    SUM(CASE WHEN ss.status = 'past_due' THEN 1 ELSE 0 END) as past_due_count,
+                    SUM(CASE WHEN COALESCE(bg.is_present, TRUE) = TRUE THEN 1 ELSE 0 END) as active_servers,
+                    SUM(CASE WHEN COALESCE(bg.is_present, TRUE) = FALSE THEN 1 ELSE 0 END) as inactive_servers
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
             """)
@@ -1628,7 +1632,9 @@ def owner_dashboard(user_session):
                 'paid_servers': stats_row['paid_servers'],
                 'retention_7day_count': stats_row['retention_7day_count'],
                 'retention_30day_count': stats_row['retention_30day_count'],
-                'past_due_count': stats_row['past_due_count']
+                'past_due_count': stats_row['past_due_count'],
+                'active_servers': stats_row['active_servers'],
+                'inactive_servers': stats_row['inactive_servers']
             }
             
             # Get total active sessions across all servers

@@ -719,19 +719,20 @@
             <input type="text" id="serverSearch" class="search-box" placeholder="Search servers by name or ID...">
             
             <div class="filter-tabs">
-                <div class="filter-tab active" onclick="filterServers(event, 'all')">All</div>
-                <div class="filter-tab" onclick="filterServers(event, 'paid')">Paid</div>
+                <div class="filter-tab active" onclick="filterServers(event, 'all')">All ({{ stats.total_servers }})</div>
+                <div class="filter-tab" onclick="filterServers(event, 'active')">🟢 Active ({{ stats.active_servers }})</div>
+                <div class="filter-tab" onclick="filterServers(event, 'inactive')">🔴 Inactive ({{ stats.inactive_servers }})</div>
+                <div class="filter-tab" onclick="filterServers(event, 'paid')">💰 Paid ({{ stats.paid_servers }})</div>
                 <div class="filter-tab" onclick="filterServers(event, 'unpaid')">Unpaid</div>
-                <div class="filter-tab" onclick="filterServers(event, 'free')">Free Tier</div>
-                <div class="filter-tab" onclick="filterServers(event, '7day')">7-Day Retention</div>
-                <div class="filter-tab" onclick="filterServers(event, '30day')">30-Day Retention</div>
-                <div class="filter-tab" onclick="filterServers(event, 'past_due')">Past Due</div>
+                <div class="filter-tab" onclick="filterServers(event, '7day')">7-Day</div>
+                <div class="filter-tab" onclick="filterServers(event, '30day')">30-Day</div>
+                <div class="filter-tab" onclick="filterServers(event, 'past_due')">Past Due ({{ stats.past_due_count }})</div>
             </div>
 
             {% if servers %}
             <div id="serversContainer">
                 {% for server in servers %}
-                <div class="server-card" data-retention="{{ server.retention_tier or 'free' }}" data-status="{{ server.status or 'active' }}" data-paid="{{ '1' if server.bot_access else '0' }}" data-guild-id="{{ server.guild_id }}">
+                <div class="server-card" data-retention="{{ server.retention_tier or 'free' }}" data-status="{{ server.status or 'active' }}" data-paid="{{ '1' if server.bot_access else '0' }}" data-guild-id="{{ server.guild_id }}" data-present="{{ '1' if server.bot_is_present else '0' }}">
                     <div class="server-card-header" onclick="toggleServerCard(this)">
                         <div class="server-icon">{{ server.guild_name[0]|upper if server.guild_name and server.guild_name != 'Unknown Server' else '?' }}</div>
                         <div class="server-info">
@@ -788,6 +789,15 @@
                         <div class="detail-row">
                             <div class="detail-label">Stripe Customer ID</div>
                             <div class="detail-value"><code>{{ server.customer_id }}</code></div>
+                        </div>
+                        {% endif %}
+                        {% if not server.bot_is_present %}
+                        <div class="detail-row" style="background: rgba(220, 53, 69, 0.1); padding: 10px; border-radius: 6px; margin-top: 10px;">
+                            <div class="detail-label" style="color: #dc3545;">Bot Status</div>
+                            <div class="detail-value" style="color: #dc3545;">
+                                🔴 <strong>Inactive</strong>
+                                {% if server.left_at %} - Left on {{ server.left_at[:10] }}{% endif %}
+                            </div>
                         </div>
                         {% endif %}
                         
@@ -1079,6 +1089,10 @@
             cards.forEach(card => {
                 if (filterType === 'all') {
                     card.style.display = '';
+                } else if (filterType === 'active') {
+                    card.style.display = card.dataset.present === '1' ? '' : 'none';
+                } else if (filterType === 'inactive') {
+                    card.style.display = card.dataset.present === '0' ? '' : 'none';
                 } else if (filterType === 'paid') {
                     card.style.display = card.dataset.paid === '1' ? '' : 'none';
                 } else if (filterType === 'unpaid') {

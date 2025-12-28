@@ -279,6 +279,18 @@ def run_migrations():
                     CREATE INDEX IF NOT EXISTS idx_adjustment_requests_user_history 
                     ON time_adjustment_requests(guild_id, user_id, created_at DESC)
                 """)
+                
+                # 9. Add is_present and left_at columns to bot_guilds for tracking inactive servers
+                print("   Checking for bot_guilds presence tracking columns")
+                bot_guilds_enhancements = [
+                    "ALTER TABLE bot_guilds ADD COLUMN IF NOT EXISTS is_present BOOLEAN DEFAULT TRUE",
+                    "ALTER TABLE bot_guilds ADD COLUMN IF NOT EXISTS left_at TIMESTAMPTZ"
+                ]
+                for query in bot_guilds_enhancements:
+                    cur.execute(query)
+                
+                # Update existing rows to set is_present = TRUE if null
+                cur.execute("UPDATE bot_guilds SET is_present = TRUE WHERE is_present IS NULL")
 
         print("✅ Database schema is up to date")
         return True

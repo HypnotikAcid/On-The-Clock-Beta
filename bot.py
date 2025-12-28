@@ -6364,10 +6364,10 @@ async def on_ready():
         with db() as conn:
             for guild in bot.guilds:
                 conn.execute("""
-                    INSERT INTO bot_guilds (guild_id, guild_name, joined_at)
-                    VALUES (%s, %s, NOW())
+                    INSERT INTO bot_guilds (guild_id, guild_name, joined_at, is_present, left_at)
+                    VALUES (%s, %s, NOW(), TRUE, NULL)
                     ON CONFLICT (guild_id) DO UPDATE 
-                    SET guild_name = EXCLUDED.guild_name, joined_at = NOW()
+                    SET guild_name = EXCLUDED.guild_name, joined_at = NOW(), is_present = TRUE, left_at = NULL
                 """, (str(guild.id), guild.name))
         print(f"✅ Updated bot_guilds table with {len(bot.guilds)} guilds")
     except Exception as e:
@@ -6550,10 +6550,10 @@ async def on_guild_join(guild):
     try:
         with db() as conn:
             conn.execute("""
-                INSERT INTO bot_guilds (guild_id, guild_name, joined_at)
-                VALUES (%s, %s, NOW())
+                INSERT INTO bot_guilds (guild_id, guild_name, joined_at, is_present, left_at)
+                VALUES (%s, %s, NOW(), TRUE, NULL)
                 ON CONFLICT (guild_id) DO UPDATE 
-                SET guild_name = EXCLUDED.guild_name, joined_at = NOW()
+                SET guild_name = EXCLUDED.guild_name, joined_at = NOW(), is_present = TRUE, left_at = NULL
             """, (str(guild.id), guild.name))
         print(f"✅ Added {guild.name} to bot_guilds table")
     except Exception as e:
@@ -6561,15 +6561,66 @@ async def on_guild_join(guild):
 
 @bot.event
 async def on_guild_remove(guild):
-    """Remove guild from bot_guilds table when bot leaves a server"""
+    """Handle bot being removed from a server - archive paid servers, delete non-paid server data"""
     print(f"👋 Bot removed from server: {guild.name} (ID: {guild.id})")
+    guild_id_str = str(guild.id)
+    guild_id_int = guild.id
     
     try:
         with db() as conn:
-            conn.execute("DELETE FROM bot_guilds WHERE guild_id = %s", (str(guild.id),))
-        print(f"✅ Removed {guild.name} from bot_guilds table")
+            # Check if this server has paid access
+            cursor = conn.execute(
+                "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = %s",
+                (guild_id_int,)
+            )
+            result = cursor.fetchone()
+            has_paid_access = result and result.get('bot_access_paid', False)
+            
+            if has_paid_access:
+                # PAID SERVER: Just mark as not present (archive) - keep all data for potential re-add
+                conn.execute("""
+                    UPDATE bot_guilds 
+                    SET is_present = FALSE, left_at = NOW() 
+                    WHERE guild_id = %s
+                """, (guild_id_str,))
+                print(f"📁 Archived paid server {guild.name} - subscription data preserved")
+            else:
+                # NON-PAID SERVER: Delete all server data
+                print(f"🗑️ Cleaning up non-paid server {guild.name}...")
+                
+                # Delete employee profiles
+                conn.execute("DELETE FROM employee_profiles WHERE guild_id = %s", (guild_id_int,))
+                print(f"   - Deleted employee profiles")
+                
+                # Delete time adjustment requests
+                conn.execute("DELETE FROM time_adjustment_requests WHERE guild_id = %s", (guild_id_int,))
+                print(f"   - Deleted time adjustment requests")
+                
+                # Delete admin roles
+                conn.execute("DELETE FROM admin_roles WHERE guild_id = %s", (guild_id_int,))
+                print(f"   - Deleted admin roles")
+                
+                # Delete employee roles  
+                conn.execute("DELETE FROM employee_roles WHERE guild_id = %s", (guild_id_int,))
+                print(f"   - Deleted employee roles")
+                
+                # Delete guild settings
+                conn.execute("DELETE FROM guild_settings WHERE guild_id = %s", (guild_id_int,))
+                print(f"   - Deleted guild settings")
+                
+                # Delete sessions
+                conn.execute("DELETE FROM sessions WHERE guild_id = %s", (guild_id_int,))
+                print(f"   - Deleted sessions")
+                
+                # Delete server subscription record (if any non-paid entry exists)
+                conn.execute("DELETE FROM server_subscriptions WHERE guild_id = %s AND (bot_access_paid = FALSE OR bot_access_paid IS NULL)", (guild_id_int,))
+                
+                # Delete from bot_guilds entirely
+                conn.execute("DELETE FROM bot_guilds WHERE guild_id = %s", (guild_id_str,))
+                print(f"✅ Completely removed non-paid server {guild.name} and all data")
+                
     except Exception as e:
-        print(f"❌ Error removing guild from bot_guilds table: {e}")
+        print(f"❌ Error handling guild removal for {guild.name}: {e}")
 
 @tree.command(name="setup", description="View timeclock setup information and instructions")
 @app_commands.default_permissions(administrator=True)
