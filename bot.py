@@ -6362,12 +6362,21 @@ async def on_ready():
     # Update bot_guilds table with all connected guilds
     try:
         with db() as conn:
+            # First, mark ALL guilds as not present (to catch any the bot has left)
+            conn.execute("""
+                UPDATE bot_guilds 
+                SET is_present = FALSE, left_at = COALESCE(left_at, NOW())
+                WHERE is_present = TRUE OR is_present IS NULL
+            """)
+            
+            # Then mark only the guilds we're actually in as present
+            current_guild_ids = [str(guild.id) for guild in bot.guilds]
             for guild in bot.guilds:
                 conn.execute("""
                     INSERT INTO bot_guilds (guild_id, guild_name, joined_at, is_present, left_at)
                     VALUES (%s, %s, NOW(), TRUE, NULL)
                     ON CONFLICT (guild_id) DO UPDATE 
-                    SET guild_name = EXCLUDED.guild_name, joined_at = NOW(), is_present = TRUE, left_at = NULL
+                    SET guild_name = EXCLUDED.guild_name, is_present = TRUE, left_at = NULL
                 """, (str(guild.id), guild.name))
         print(f"✅ Updated bot_guilds table with {len(bot.guilds)} guilds")
     except Exception as e:
