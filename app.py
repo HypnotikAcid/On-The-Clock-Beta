@@ -635,12 +635,19 @@ def check_guild_paid_access(guild_id):
             bot_invited = cursor.fetchone() is not None
             
             # Check if guild has paid bot access (server_subscriptions table)
+            # Use string for comparison if the DB stores it that way, or ensure types match
             cursor = conn.execute(
-                "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = %s",
-                (int(guild_id),)
+                "SELECT bot_access_paid, status FROM server_subscriptions WHERE CAST(guild_id AS TEXT) = %s",
+                (str(guild_id),)
             )
             result = cursor.fetchone()
-            bot_access_paid = bool(result['bot_access_paid']) if result else False
+            
+            # A server is considered paid if bot_access_paid is True OR status is 'active'
+            bot_access_paid = False
+            if result:
+                is_paid_flag = bool(result.get('bot_access_paid'))
+                is_active_status = result.get('status') == 'active'
+                bot_access_paid = is_paid_flag or is_active_status
             
             return {
                 'bot_invited': bot_invited,

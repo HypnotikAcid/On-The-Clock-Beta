@@ -3431,10 +3431,12 @@ def set_bot_access(guild_id: int, paid: bool):
     """
     with db() as conn:
         conn.execute("""
-            INSERT INTO server_subscriptions (guild_id, bot_access_paid)
-            VALUES (%s, %s)
-            ON CONFLICT(guild_id) DO UPDATE SET bot_access_paid = %s
-        """, (guild_id, paid, paid))
+            INSERT INTO server_subscriptions (guild_id, bot_access_paid, status)
+            VALUES (%s, %s, %s)
+            ON CONFLICT(guild_id) DO UPDATE SET 
+                bot_access_paid = %s,
+                status = EXCLUDED.status
+        """, (guild_id, paid, 'active' if paid else 'free', paid))
 
 def set_retention_tier(guild_id: int, tier: str):
     """
