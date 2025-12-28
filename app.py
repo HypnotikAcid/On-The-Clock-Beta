@@ -1292,8 +1292,11 @@ def handle_deeplink(page):
         return redirect('/auth/login?error=invalid_link')
     
     # Check timestamp (valid for 24 hours)
-    if int(time_module.time()) - int(timestamp) > 86400:
-        return redirect('/auth/login?error=link_expired')
+    try:
+        if not timestamp or int(time_module.time()) - int(timestamp) > 86400:
+            return redirect(url_for('auth_login', error='link_expired'))
+    except (ValueError, TypeError):
+        return redirect(url_for('auth_login', error='invalid_link'))
     
     # Store intent in session and redirect to auth
     session['deeplink_guild'] = guild_id
@@ -4718,6 +4721,10 @@ def api_clock_out(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
         
         with get_db() as conn:
+            if conn is None:
+                app.logger.error("Database connection failed in api_clock_out")
+                return jsonify({'success': False, 'error': 'Database connection error'}), 500
+                
             cursor = conn.execute("""
                 SELECT id, clock_in, clock_out
                 FROM sessions
@@ -4793,6 +4800,10 @@ def api_admin_clock_out_employee(user_session, guild_id, user_id):
             return jsonify({'success': False, 'error': 'Admin access required'}), 403
         
         with get_db() as conn:
+            if conn is None:
+                app.logger.error("Database connection failed in api_admin_clock_out_employee")
+                return jsonify({'success': False, 'error': 'Database connection error'}), 500
+                
             cursor = conn.execute("""
                 SELECT id, clock_in, clock_out
                 FROM sessions
