@@ -82,12 +82,13 @@ function hideViewModeToggle() {
 // Premium Feature Locked Overlays
 function applyLockedOverlays() {
     const tier = window.currentServerData?.tier || 'free';
+    const botAccessPaid = window.currentServerData?.bot_access_paid || false;
     
     // Remove any existing locked overlays first
     removeLockedOverlays();
     
-    // Paid users get full access
-    if (tier !== 'free') return;
+    // Paid users get full access (tier 'basic' or 'pro', or botAccessPaid flag is true)
+    if (tier !== 'free' || botAccessPaid) return;
     
     // Section IDs that require premium
     const premiumSections = [
