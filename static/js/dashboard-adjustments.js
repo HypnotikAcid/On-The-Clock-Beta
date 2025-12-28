@@ -884,29 +884,40 @@ async function submitDayAdjustment(dateStr) {
     if (!dayData) return;
 
     const changedSessions = [];
+    const newSessions = [];
+    
     document.querySelectorAll('.edit-session-row').forEach(row => {
         const sessionId = row.dataset.sessionId;
         const clockInInput = row.querySelector('.clock-in');
         const clockOutInput = row.querySelector('.clock-out');
 
-        const newClockIn = clockInInput.value;
-        const originalClockIn = clockInInput.dataset.original;
-        const newClockOut = clockOutInput.value;
-        const originalClockOut = clockOutInput.dataset.original;
+        const newClockIn = clockInInput ? clockInInput.value : '';
+        const originalClockIn = clockInInput ? (clockInInput.dataset.original || '') : '';
+        const newClockOut = clockOutInput ? clockOutInput.value : '';
+        const originalClockOut = clockOutInput ? (clockOutInput.dataset.original || '') : '';
 
-        if (newClockIn !== originalClockIn || newClockOut !== originalClockOut) {
-            changedSessions.push({
-                session_id: parseInt(sessionId),
-                new_clock_in: newClockIn,
-                new_clock_out: newClockOut,
-                original_clock_in: originalClockIn,
-                original_clock_out: originalClockOut
-            });
+        if (sessionId && !isNaN(parseInt(sessionId))) {
+            if (newClockIn !== originalClockIn || newClockOut !== originalClockOut) {
+                changedSessions.push({
+                    session_id: parseInt(sessionId),
+                    new_clock_in: newClockIn,
+                    new_clock_out: newClockOut,
+                    original_clock_in: originalClockIn,
+                    original_clock_out: originalClockOut
+                });
+            }
+        } else {
+            if (newClockIn) {
+                newSessions.push({
+                    clock_in: newClockIn,
+                    clock_out: newClockOut
+                });
+            }
         }
     });
 
-    if (changedSessions.length === 0) {
-        alert('No changes detected. Modify at least one time entry.');
+    if (changedSessions.length === 0 && newSessions.length === 0) {
+        alert('No changes detected. Modify at least one time entry or add a new session.');
         return;
     }
 
@@ -915,27 +926,50 @@ async function submitDayAdjustment(dateStr) {
     submitBtn.textContent = 'Submitting...';
 
     try {
-        const response = await fetch(`/api/guild/${currentCalendarData.guildId}/adjustments/submit-day`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                session_date: dateStr,
-                reason: reason,
-                changes: changedSessions
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            closeDayEditModal();
-            loadEmployeeCalendarMonth(currentCalendarData.year, currentCalendarData.month);
-            loadPendingRequestsList(currentCalendarData.guildId, false);
-
-            showToast('Adjustment request submitted successfully!', 'success');
-        } else {
-            throw new Error(result.error || 'Failed to submit request');
+        const promises = [];
+        
+        if (changedSessions.length > 0) {
+            promises.push(
+                fetch(`/api/guild/${currentCalendarData.guildId}/adjustments/submit-day`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_date: dateStr,
+                        reason: reason,
+                        changes: changedSessions
+                    })
+                }).then(r => r.json())
+            );
         }
+        
+        for (const newSession of newSessions) {
+            promises.push(
+                fetch(`/api/guild/${currentCalendarData.guildId}/adjustments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        request_type: 'add_session',
+                        reason: reason,
+                        session_date: dateStr,
+                        requested_clock_in: `${dateStr}T${newSession.clock_in}:00`,
+                        requested_clock_out: newSession.clock_out ? `${dateStr}T${newSession.clock_out}:00` : null
+                    })
+                }).then(r => r.json())
+            );
+        }
+
+        const results = await Promise.all(promises);
+        
+        const errors = results.filter(r => !r.success);
+        if (errors.length > 0) {
+            throw new Error(errors[0].error || 'Failed to submit one or more requests');
+        }
+
+        closeDayEditModal();
+        loadEmployeeCalendarMonth(currentCalendarData.year, currentCalendarData.month);
+        loadPendingRequestsList(currentCalendarData.guildId, false);
+
+        showToast('Adjustment request submitted successfully!', 'success');
     } catch (error) {
         console.error('Error submitting adjustment:', error);
         alert('Failed to submit adjustment: ' + error.message);
