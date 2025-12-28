@@ -6679,23 +6679,16 @@ async def setup(interaction: discord.Interaction):
         )
 
 
-@tree.command(name="clock", description="Access your personal timeclock interface")
+@tree.command(name="clock", description="Open your personal timeclock hub")
 @app_commands.guild_only()
-async def clock_interface(interaction: discord.Interaction):
-    """
-    Redirects to /timeclock - kept for backwards compatibility.
-    """
-    await timeclock_hub(interaction)
-
-
-@tree.command(name="timeclock", description="Open your personal timeclock hub with bulletproof buttons")
-@app_commands.guild_only()
-async def timeclock_hub(interaction: discord.Interaction):
+async def clock_command(interaction: discord.Interaction):
     """
     Personal timeclock hub command with bulletproof button persistence.
     
-    Uses the new TimeclockHubView with stable custom_ids and fast ACK
+    Uses the TimeclockHubView with stable custom_ids and fast ACK
     for maximum reliability across bot restarts.
+    
+    Buttons: Clock In, Clock Out, My Adjustments, My Hours, Support, Upgrade
     """
     # ACK immediately - fast response is critical
     if not await robust_defer(interaction, ephemeral=True):

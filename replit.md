@@ -47,7 +47,8 @@ Preferred communication style: Simple, everyday language.
   - **Async Bridge Pattern**: Uses `asyncio.run_coroutine_threadsafe` to call bot functions from Flask
 - **Mobile Device Restriction**: Server administrators can restrict clock-in/out to desktop/web browser only.
 - **Bulletproof Button Persistence (December 2025)**: Enterprise-grade button reliability:
-  - **TimeclockHubView**: Consolidated hub with stable custom_ids (tc:clock_in, tc:clock_out, tc:adjustments, tc:my_hours, tc:support)
+  - **Single `/clock` Command**: Unified timeclock interface with 6 buttons (Clock In, Clock Out, My Adjustments, My Hours, Support, Upgrade)
+  - **TimeclockHubView**: Consolidated hub with stable custom_ids (tc:clock_in, tc:clock_out, tc:adjustments, tc:my_hours, tc:support, tc:upgrade)
   - **Stable Custom IDs**: All button custom_ids use "tc:" prefix for consistent routing
   - **timeout=None**: Views never expire
   - **setup_hook() Registration**: Views registered on bot startup via bot.add_view()
