@@ -5393,7 +5393,7 @@ class TimeClockView(discord.ui.View):
             embed.add_field(
                 name="💳 Subscription Management",
                 value=(
-                    "`/upgrade` - Upgrade your server to Basic or Pro plan\n"
+                    "`/upgrade` - Upgrade your server to Dashboard Premium or Pro Retention\n"
                     "`/cancel_subscription` - Learn how to cancel your subscription\n"
                     "`/subscription_status` - View current subscription status"
                 ),
@@ -5405,15 +5405,15 @@ class TimeClockView(discord.ui.View):
             if server_tier == "free":
                 tier_info += (
                     "🆓 **Free Tier:** Admin-only testing • Sample reports • Employee roles configured but inactive\n"
-                    "💡 **Upgrade Benefits:** Basic ($5/mo) unlocks full team access & real CSV reports"
+                    "💡 **Upgrade Benefits:** Dashboard Premium ($5 one-time) unlocks full team access & real CSV reports"
                 )
             elif server_tier == "basic":
                 tier_info += (
-                    "💙 **Basic Tier:** Full team access • Real CSV reports • 7-day data retention\n"
-                    "💡 **Pro Benefits:** 30-day retention • Multiple manager notifications • Extended features"
+                    "💙 **Dashboard Premium:** Full team access • Real CSV reports • 7-day data retention\n"
+                    "💡 **Pro Retention Benefits:** 30-day retention • Multiple manager notifications • Extended features"
                 )
             else:  # pro tier
-                tier_info += "💜 **Pro Tier:** All features unlocked • 30-day retention • Multiple managers • Priority support"
+                tier_info += "💜 **Pro Retention:** All features unlocked • 30-day retention • Multiple managers • Priority support"
             
             embed.add_field(
                 name="🔘 Interactive Timeclock Buttons",
@@ -5421,7 +5421,7 @@ class TimeClockView(discord.ui.View):
                     "🟢 **Clock In** - Start tracking your time\n"
                     "🔴 **Clock Out** - Stop tracking and log your shift\n"
                     "📊 **Reports** - Generate timesheet reports (admin access)\n"
-                    "⬆️ **Upgrade** - Upgrade to Basic/Pro plans\n" + 
+                    "⬆️ **Upgrade** - Upgrade to Dashboard Premium/Pro Retention\n" + 
                     tier_info
                 ),
                 inline=False
@@ -7237,10 +7237,10 @@ async def list_employee_roles(interaction: discord.Interaction):
         embed.add_field(name="Custom Employee Roles", value="\n".join(employee_roles), inline=False)
         
         if server_tier == "free":
-            embed.add_field(name="⚠️ Free Tier Limitation", value="These roles are configured but won't take effect until you upgrade to Basic/Pro. Currently only admins can use timeclock functions.", inline=False)
+            embed.add_field(name="⚠️ Free Tier Limitation", value="These roles are configured but won't take effect until you upgrade to Dashboard Premium. Currently only admins can use timeclock functions.", inline=False)
     else:
         if server_tier == "free":
-            embed.add_field(name="Custom Employee Roles", value="*No custom employee roles configured.*\nUpgrade to Basic/Pro to configure roles for team access!", inline=False)
+            embed.add_field(name="Custom Employee Roles", value="*No custom employee roles configured.*\nUpgrade to Dashboard Premium to configure roles for team access!", inline=False)
         else:
             embed.add_field(name="Custom Employee Roles", value="*No custom employee roles configured.*\nUse `/add_employee_role @role` to grant access to your team!", inline=False)
     
@@ -7619,7 +7619,7 @@ async def manual_cleanup(interaction: discord.Interaction, user: Optional[discor
             embed.add_field(name="Data Retention", value=f"{retention_days} days", inline=True)
             embed.add_field(
                 name="Retention Policy",
-                value="**Free:** No retention (test only)\n**Basic:** 7 days (1 week)\n**Pro:** 30 days (1 month)",
+                value="**Free:** No retention (test only)\n**Dashboard Premium:** 7 days (1 week)\n**Pro Retention:** 30 days (1 month)",
                 inline=False
             )
         
@@ -7772,7 +7772,7 @@ async def purge_data(interaction: discord.Interaction):
     embed.add_field(
         name="What will be preserved:",
         value=(
-            "• **Subscription status** (Basic/Pro plans remain active)\n"
+            "• **Subscription status** (Dashboard Premium/Pro Retention remain active)\n"
             "• **Server settings** (timezone, recipients, etc.)\n"
             "• **Role permissions** for buttons"
         ),
@@ -7967,7 +7967,7 @@ async def cancel_subscription(interaction: discord.Interaction):
             
             embed.add_field(
                 name="Want to upgrade?",
-                value="Use `/upgrade basic` or `/upgrade pro` to start a subscription",
+                value="Use `/upgrade` to get Dashboard Premium ($5 one-time) or Pro Retention ($5/month)",
                 inline=False
             )
             
@@ -8074,13 +8074,14 @@ async def subscription_status(interaction: discord.Interaction):
         
         tier_colors = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
         tier_emojis = {"free": "🆓", "basic": "💼", "pro": "⭐"}
+        tier_display_names = {"free": "Free Tier", "basic": "Dashboard Premium", "pro": "Pro Retention"}
         
         embed = discord.Embed(
             title=f"{tier_emojis.get(tier, '❓')} Subscription Status",
             color=tier_colors.get(tier, discord.Color.greyple())
         )
         
-        embed.add_field(name="Current Plan", value=tier.title(), inline=True)
+        embed.add_field(name="Current Plan", value=tier_display_names.get(tier, tier.title()), inline=True)
         embed.add_field(name="Status", value=status.title(), inline=True)
         
         if subscription_id:
@@ -8092,8 +8093,8 @@ async def subscription_status(interaction: discord.Interaction):
         # Show plan features
         plan_features = {
             'free': "• Admin-only testing\n• Sample reports\n• No data retention",
-            'basic': "• Full team access\n• All admin commands\n• CSV Reports\n• Role management\n• 1 week data retention",
-            'pro': "• Everything in Basic\n• Extended CSV reports\n• Multiple managers\n• 30 days data retention"
+            'basic': "• Full team access\n• All admin commands\n• CSV Reports\n• Role management\n• 7-day data retention",
+            'pro': "• Everything in Dashboard Premium\n• Extended CSV reports\n• Multiple managers\n• 30-day data retention"
         }
         
         embed.add_field(
@@ -8106,13 +8107,13 @@ async def subscription_status(interaction: discord.Interaction):
         if tier == "free":
             embed.add_field(
                 name="Upgrade Options",
-                value="Use `/upgrade basic` or `/upgrade pro` to upgrade your server!",
+                value="Use `/upgrade` to get Dashboard Premium ($5 one-time) or Pro Retention ($5/month)!",
                 inline=False
             )
         elif tier == "basic":
             embed.add_field(
                 name="Upgrade Option",
-                value="Use `/upgrade pro` to upgrade to Pro plan!",
+                value="Use `/upgrade` to add Pro Retention ($5/month) for 30-day data storage!",
                 inline=False
             )
         

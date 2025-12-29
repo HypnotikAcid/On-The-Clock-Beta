@@ -261,9 +261,8 @@ event = json.loads(request.data)  # Unsafe!
 - Owner-only dashboard (`/owner`) for bot owner
 
 ### Payment System (Stripe)
-- $5 one-time bot access payment per server
-- $5/month 7-day data retention
-- $10/month 30-day data retention
+- **Dashboard Premium**: $5 one-time per server (includes 7-day data retention)
+- **Pro Retention**: $5/month add-on (extends to 30-day data retention)
 - Webhook handling for `checkout.session.completed` and `customer.subscription.deleted`
 
 ### Email Automation

@@ -2560,15 +2560,13 @@ def upgrade_info(user_session, guild_id):
                     {'''
                     <h3 style="margin-top: 30px;">≡ƒÆí What You Get:</h3>
                     <ul style="text-align: left;">
-                        <li><strong>$5 One-Time:</strong> Full bot access, real reports, dashboard unlocked</li>
-                        <li><strong>$5/Month:</strong> 7-day data retention</li>
-                        <li><strong>$10/Month:</strong> 30-day data retention</li>
+                        <li><strong>Dashboard Premium ($5 One-Time):</strong> Full bot access, real reports, dashboard unlocked, 7-day data retention</li>
+                        <li><strong>Pro Retention ($5/Month Add-On):</strong> Extend to 30-day data retention</li>
                     </ul>
                     ''' if not has_bot_access else '''
                     <h3 style="margin-top: 30px;">≡ƒôu Add Data Retention:</h3>
                     <ul style="text-align: left;">
-                        <li><strong>$5/Month:</strong> 7-day rolling retention</li>
-                        <li><strong>$10/Month:</strong> 30-day rolling retention</li>
+                        <li><strong>Pro Retention ($5/Month):</strong> 30-day rolling retention</li>
                     </ul>
                     '''}
                 </div>
@@ -2816,7 +2814,7 @@ def purchase_page(guild_id):
                         </tr>
                     </table>
                     <p style="margin-top: 20px; color: #9CA3AF; font-size: 0.9em;">
-                        *Add retention subscriptions for 7-day ($5/mo) or 30-day ($10/mo) data storage
+                        *Dashboard Premium includes 7-day retention. Add Pro Retention ($5/mo) for 30-day storage.
                     </p>
                 </div>
 
