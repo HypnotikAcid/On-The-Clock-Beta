@@ -253,6 +253,13 @@ async def send_deletion_warning_email(guild_id: int, session_count: int, days_to
             from email_utils import send_email
             
             subject = f"⚠️ Data Deletion Warning - {guild_name}"
+            # Pricing model:
+            # Dashboard Access: $5/mo (per server)
+            # 7-Day Retention: $5/mo
+            # 30-Day Retention: $15/mo
+            # Total for 7-day: $10/mo
+            # Total for 30-day: $20/mo
+            
             text_content = f"""
 Data Deletion Warning
 
@@ -263,7 +270,7 @@ Retention Period: {days_to_keep} days
 
 To preserve this data:
 - Generate reports now using the /report command
-- Upgrade to a higher tier for longer retention (Basic: 7 days, Pro: 30 days)
+- Upgrade to a higher tier for longer retention (Basic/7-Day: $10/mo, Pro/30-Day: $20/mo)
 
 This is an automated reminder from On the Clock Discord Bot.
 """
@@ -331,7 +338,7 @@ async def send_predeletion_dm_warnings():
                     )
                     embed.add_field(
                         name="💎 Upgrade to Keep Your Data",
-                        value="Get Dashboard Premium for just ~~$10~~ **$5** (Beta Price!) to keep 7 days of data!",
+                        value="Get 7-Day Retention for just **$10/mo** or 30-Day for **$20/mo**!",
                         inline=False
                     )
                     embed.add_field(
