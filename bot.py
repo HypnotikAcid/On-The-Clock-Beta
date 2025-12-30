@@ -4706,7 +4706,7 @@ async def on_member_remove(member):
 
 @bot.event
 async def on_member_update(before, after):
-    """Handle member updates - check for role changes to reactivate"""
+    """Handle member updates - check for role changes to reactivate and send welcome DM"""
     if before.roles == after.roles:
         return
         
@@ -4721,12 +4721,29 @@ async def on_member_update(before, after):
         if not had_role and has_role:
             # Employee role added - reactivate if archived
             reactivate_employee(guild_id, after.id)
-            # Also ensure profile exists
-            ensure_employee_profile(
+            
+            # Ensure profile exists (creates new if needed)
+            is_new_employee = ensure_employee_profile(
                 guild_id, after.id, 
                 after.name, after.display_name, 
                 str(after.avatar.url) if after.avatar else str(after.default_avatar.url)
             )
+            
+            # Check if welcome DM was already sent (for existing profiles)
+            should_send_dm = is_new_employee
+            if not is_new_employee:
+                with db() as conn:
+                    cursor = conn.execute(
+                        "SELECT welcome_dm_sent FROM employee_profiles WHERE guild_id = %s AND user_id = %s",
+                        (guild_id, after.id)
+                    )
+                    row = cursor.fetchone()
+                    should_send_dm = not (row and row.get('welcome_dm_sent', False))
+            
+            # Send welcome DM to new employees
+            if should_send_dm:
+                await send_employee_welcome_dm(after, after.guild)
+                print(f"New employee role assigned: {after} in {after.guild.name}")
             
     except Exception as e:
         print(f"Error in on_member_update for {after.id}: {e}")
@@ -6505,6 +6522,80 @@ def create_setup_embed() -> discord.Embed:
     
     return embed
 
+def create_employee_welcome_embed(guild_name: str, dashboard_url: str = None) -> discord.Embed:
+    """Create a welcome embed for new employees when they're assigned an employee role."""
+    embed = discord.Embed(
+        title="Welcome to the Team!",
+        description=(
+            f"You've been added as an employee on **{guild_name}**'s timeclock system.\n\n"
+            "Use the `/clock` command in Discord to track your work hours."
+        ),
+        color=0x57F287  # Green
+    )
+    
+    embed.add_field(
+        name="Getting Started",
+        value=(
+            "**How to use the timeclock:**\n"
+            "1. Type `/clock` in any channel to open your personal timeclock\n"
+            "2. Click **Clock In** when you start work\n"
+            "3. Click **Clock Out** when you're done\n"
+            "4. Use **My Hours** to view your time summary"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="Available Features",
+        value=(
+            "**Clock In/Out** - Track your work sessions\n"
+            "**My Hours** - View weekly hour summary\n"
+            "**My Adjustments** - Request time corrections if needed"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="Quick Tips",
+        value=(
+            "Your timeclock is private - only you can see your status.\n"
+            "Admins can view team hours and generate reports.\n"
+            "Questions? Ask your server administrator for help."
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(
+        text="On the Clock - Professional Time Tracking for Discord",
+        icon_url=bot.user.avatar.url if bot.user and bot.user.avatar else None
+    )
+    
+    return embed
+
+async def send_employee_welcome_dm(member: discord.Member, guild: discord.Guild) -> bool:
+    """Send a welcome DM to a new employee. Returns True if sent successfully."""
+    try:
+        embed = create_employee_welcome_embed(guild.name)
+        await member.send(embed=embed)
+        
+        # Mark as sent in database
+        with db() as conn:
+            conn.execute("""
+                UPDATE employee_profiles 
+                SET welcome_dm_sent = TRUE 
+                WHERE guild_id = %s AND user_id = %s
+            """, (guild.id, member.id))
+        
+        print(f"Employee welcome DM sent to {member} for {guild.name}")
+        return True
+        
+    except discord.Forbidden:
+        print(f"Could not DM {member} - DMs disabled")
+        return False
+    except Exception as e:
+        print(f"Error sending employee welcome DM to {member}: {e}")
+        return False
+
 @bot.event
 async def on_guild_join(guild):
     """Send welcome message with setup instructions when bot joins a new server"""
@@ -6786,6 +6877,55 @@ async def clock_command(interaction: discord.Interaction):
     
     try:
         user_id = interaction.user.id
+        
+        # Check if this is the user's first time using /clock
+        is_first_clock_use = False
+        with db() as conn:
+            cursor = conn.execute(
+                "SELECT first_clock_used FROM employee_profiles WHERE guild_id = %s AND user_id = %s",
+                (guild_id, user_id)
+            )
+            row = cursor.fetchone()
+            if row and not row.get('first_clock_used', True):
+                is_first_clock_use = True
+                # Mark as used
+                conn.execute("""
+                    UPDATE employee_profiles 
+                    SET first_clock_used = TRUE, first_clock_at = NOW()
+                    WHERE guild_id = %s AND user_id = %s
+                """, (guild_id, user_id))
+        
+        # Show first-time onboarding guide
+        if is_first_clock_use:
+            welcome_embed = discord.Embed(
+                title="Welcome to Your Timeclock!",
+                description="This is your personal time management hub. Here's a quick guide:",
+                color=0x57F287
+            )
+            welcome_embed.add_field(
+                name="How It Works",
+                value=(
+                    "**Clock In** - Start tracking your work time\n"
+                    "**Clock Out** - End your shift and log your hours\n"
+                    "**My Hours** - View your weekly summary\n"
+                    "**My Adjustments** - Request time corrections"
+                ),
+                inline=False
+            )
+            welcome_embed.add_field(
+                name="Tips",
+                value=(
+                    "Your timeclock is private - only you see your interface.\n"
+                    "Buttons work even if the bot restarts.\n"
+                    "Use `/clock` anytime to access your hub."
+                ),
+                inline=False
+            )
+            welcome_embed.set_footer(text="Click any button below to get started!")
+            
+            await interaction.followup.send(embed=welcome_embed, view=TimeclockHubView(), ephemeral=True)
+            print(f"First-time /clock onboarding sent to {interaction.user} in guild {guild_id}")
+            return
         
         # Get current status
         with db() as conn:

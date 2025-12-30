@@ -74,6 +74,12 @@ Preferred communication style: Simple, everyday language.
 - **Calendar Data Persistence**: Adjustment requests are stored in `time_adjustment_requests` table with session_date tracking, ensuring persistence through republishing. Status updates are reflected on the calendar when admin approves/denies.
 - **Real-Time Calendar Updates**: After approve/deny actions, both the pending requests list and admin calendar refresh automatically (1-second delay for UI feedback).
 - **Encoding Best Practices**: Uses HTML entities (`&rarr;`, `&larr;`) for special characters in templates for cross-platform compatibility.
+- **Employee Onboarding System (December 2025)**: Automated onboarding for new employees:
+  - **Welcome DM**: When a user is assigned an employee role, they receive a DM explaining how to use the timeclock
+  - **on_member_update Event**: Detects role changes and triggers welcome messages for new employees
+  - **First-Time /clock Guide**: Users see a special onboarding embed the first time they use `/clock`
+  - **Tracking Columns**: `welcome_dm_sent`, `first_clock_used`, `first_clock_at` in employee_profiles table
+  - **No New Permissions Required**: Uses existing `intents.members` to detect role changes
 
 ## Security Configuration
 - **Code Analysis**: Semgrep rules for static analysis and secret management.

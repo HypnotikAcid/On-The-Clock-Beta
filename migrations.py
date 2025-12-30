@@ -291,6 +291,16 @@ def run_migrations():
                 
                 # Update existing rows to set is_present = TRUE if null
                 cur.execute("UPDATE bot_guilds SET is_present = TRUE WHERE is_present IS NULL")
+                
+                # 10. Add employee onboarding tracking columns
+                print("   Checking for employee onboarding columns")
+                onboarding_columns = [
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS welcome_dm_sent BOOLEAN DEFAULT FALSE",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS first_clock_used BOOLEAN DEFAULT FALSE",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS first_clock_at TIMESTAMPTZ"
+                ]
+                for query in onboarding_columns:
+                    cur.execute(query)
 
         print("✅ Database schema is up to date")
         return True
