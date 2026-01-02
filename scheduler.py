@@ -232,6 +232,7 @@ async def send_deletion_warnings():
 
 async def send_deletion_warning_email(guild_id: int, session_count: int, days_to_keep: int):
     """Send warning email about upcoming data deletion"""
+    logger.info(f"📧 DELETION WARNING EMAIL - Starting for guild {guild_id}")
     try:
         with db() as cursor:
             cursor.execute(
@@ -240,18 +241,28 @@ async def send_deletion_warning_email(guild_id: int, session_count: int, days_to
             )
             guild_row = cursor.fetchone()
             guild_name = guild_row['guild_name'] if guild_row else f"Guild {guild_id}"
+            logger.info(f"   Guild name: {guild_name}")
             
+            # Log the exact query being used
+            logger.info(f"   Querying recipients for guild_id={guild_id} (type: {type(guild_id).__name__})")
             cursor.execute(
                 "SELECT email_address FROM report_recipients WHERE guild_id = %s AND recipient_type = 'email'",
                 (guild_id,)
             )
-            recipients = [row['email_address'] for row in cursor.fetchall()]
+            raw_results = cursor.fetchall()
+            recipients = [row['email_address'] for row in raw_results]
+            
+            # Log exactly what was found
+            logger.info(f"   Database query returned {len(raw_results)} rows")
+            logger.info(f"   Recipients found: {recipients}")
             
             if not recipients:
+                logger.info(f"   No recipients configured - skipping email for guild {guild_id}")
                 return
             
             from email_utils import send_email
             
+            logger.info(f"   Sending deletion warning to: {recipients}")
             subject = f"⚠️ Data Deletion Warning - {guild_name}"
             
             text_content = f"""

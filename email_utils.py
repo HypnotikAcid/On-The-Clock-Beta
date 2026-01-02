@@ -6,8 +6,11 @@ import json
 import base64
 import asyncio
 import aiohttp
+import logging
 from typing import List, Dict, Optional, Union
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 class ReplitMailSender:
     """Email utility using Replit's OpenInt mail service"""
@@ -84,6 +87,16 @@ class ReplitMailSender:
         if attachments:
             payload["attachments"] = attachments
         
+        # DETAILED EMAIL LOGGING - Track all emails being sent
+        recipient_list = to if isinstance(to, list) else [to]
+        logger.info(f"📧 EMAIL SEND REQUEST:")
+        logger.info(f"   Subject: {subject}")
+        logger.info(f"   Recipients ({len(recipient_list)}): {recipient_list}")
+        logger.info(f"   Timestamp: {datetime.now(timezone.utc).isoformat()}")
+        if cc:
+            cc_list = cc if isinstance(cc, list) else [cc]
+            logger.info(f"   CC: {cc_list}")
+        
         headers = {
             "Content-Type": "application/json",
             "X_REPLIT_TOKEN": self.auth_token
@@ -104,12 +117,15 @@ class ReplitMailSender:
                             error_message = error_data.get('message', 'Failed to send email')
                         except:
                             error_message = f"HTTP {response.status}: {error_text}"
+                        logger.error(f"   EMAIL FAILED: {error_message}")
                         raise Exception(f"Email send failed: {error_message}")
                     
                     result = await response.json()
+                    logger.info(f"   EMAIL SENT SUCCESSFULLY to: {recipient_list}")
                     return result
                     
             except aiohttp.ClientError as e:
+                logger.error(f"   EMAIL NETWORK ERROR: {str(e)}")
                 raise Exception(f"Network error sending email: {str(e)}")
 
     async def send_timeclock_report(
