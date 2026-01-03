@@ -2281,6 +2281,100 @@ def api_owner_broadcast(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+@app.route("/api/owner/email-logs", methods=["GET"])
+@require_api_auth
+def api_owner_email_logs(user_session):
+    """Owner-only API endpoint to view persistent email logs"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        from pathlib import Path
+        import json
+        
+        log_file = Path("data/email_logs/email_audit.log")
+        
+        if not log_file.exists():
+            return jsonify({
+                'success': True,
+                'logs': [],
+                'message': 'No email logs found yet'
+            })
+        
+        # Read last 100 lines
+        lines = log_file.read_text().strip().split('\n')
+        recent_lines = lines[-100:] if len(lines) > 100 else lines
+        
+        logs = []
+        for line in recent_lines:
+            if line.strip():
+                try:
+                    logs.append(json.loads(line))
+                except json.JSONDecodeError:
+                    logs.append({"raw": line})
+        
+        # Reverse so newest first
+        logs.reverse()
+        
+        return jsonify({
+            'success': True,
+            'logs': logs,
+            'total_entries': len(lines)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Email logs API error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route("/api/owner/trigger-deletion-check", methods=["POST"])
+@require_api_auth
+def api_owner_trigger_deletion_check(user_session):
+    """Owner-only API endpoint to manually trigger deletion warning check"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        data = request.get_json() or {}
+        guild_id = data.get('guild_id')
+        
+        app.logger.info(f"Owner triggered deletion warning check" + (f" for guild {guild_id}" if guild_id else " for all guilds"))
+        
+        import asyncio
+        from scheduler import send_deletion_warnings
+        
+        if bot and bot.loop and bot.loop.is_running():
+            # Use bot's event loop if available
+            future = asyncio.run_coroutine_threadsafe(
+                send_deletion_warnings(),
+                bot.loop
+            )
+            try:
+                future.result(timeout=30.0)
+            except concurrent.futures.TimeoutError:
+                return jsonify({'success': False, 'error': 'Check timed out'}), 500
+        else:
+            # Fallback: run in a new event loop if bot isn't ready
+            app.logger.info("Bot loop not available, running in standalone event loop")
+            try:
+                asyncio.run(send_deletion_warnings())
+            except Exception as async_error:
+                app.logger.error(f"Standalone async execution failed: {async_error}")
+                return jsonify({'success': False, 'error': f'Async execution failed: {str(async_error)}'}), 500
+        
+        return jsonify({
+            'success': True,
+            'message': 'Deletion warning check triggered. Check email logs for results.'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Trigger deletion check error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 def verify_guild_access(user_session, guild_id, allow_employee=False):
     """
     Verify user has access to a specific guild.

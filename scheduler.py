@@ -260,7 +260,21 @@ async def send_deletion_warning_email(guild_id: int, session_count: int, days_to
                 logger.info(f"   No recipients configured - skipping email for guild {guild_id}")
                 return
             
-            from email_utils import send_email
+            from email_utils import send_email, log_email_to_file
+            
+            # Log to persistent file with full context BEFORE sending
+            log_email_to_file(
+                event_type="deletion_warning_attempt",
+                recipients=recipients,
+                subject=f"⚠️ Data Deletion Warning - {guild_name}",
+                context={
+                    "guild_id": str(guild_id),
+                    "guild_name": guild_name,
+                    "session_count": session_count,
+                    "days_to_keep": days_to_keep,
+                    "source": "scheduler.send_deletion_warning_email"
+                }
+            )
             
             logger.info(f"   Sending deletion warning to: {recipients}")
             subject = f"⚠️ Data Deletion Warning - {guild_name}"

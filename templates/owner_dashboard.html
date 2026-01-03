@@ -961,6 +961,25 @@
                 <div class="broadcast-result" id="broadcastResult" style="display: none;"></div>
             </div>
         </div>
+
+        <!-- Email Audit Logs Section -->
+        <div class="section">
+            <div class="section-title">📧 Email Audit Logs</div>
+            <p style="color: #8B949E; margin-bottom: 20px;">View all emails sent by the system and manually trigger deletion warning checks for debugging.</p>
+            
+            <div class="button-row" style="margin-bottom: 20px;">
+                <button class="preview-btn" onclick="loadEmailLogs()">🔄 Refresh Logs</button>
+                <button class="broadcast-btn" onclick="triggerDeletionCheck()" id="deletionCheckBtn">
+                    <span class="btn-icon">⚡</span> Trigger Deletion Check
+                </button>
+            </div>
+            
+            <div class="broadcast-result" id="emailActionResult" style="display: none;"></div>
+            
+            <div id="emailLogsContainer">
+                <div class="no-data">Click "Refresh Logs" to load email audit logs</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1209,6 +1228,103 @@
             } finally {
                 button.disabled = false;
                 button.innerHTML = '<span class="btn-icon">📢</span> Send Broadcast';
+            }
+        }
+
+        // Load email audit logs
+        async function loadEmailLogs() {
+            const container = document.getElementById('emailLogsContainer');
+            const resultDiv = document.getElementById('emailActionResult');
+            
+            container.innerHTML = '<div class="no-data">Loading logs...</div>';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/owner/email-logs');
+                const data = await response.json();
+                
+                if (data.success && data.logs.length > 0) {
+                    let html = `<p style="color: #8B949E; margin-bottom: 15px;">Total entries: ${data.total_entries} (showing last 100)</p>`;
+                    html += '<table class="table"><thead><tr>';
+                    html += '<th>Time</th><th>Event</th><th>Recipients</th><th>Subject</th><th>Status</th>';
+                    html += '</tr></thead><tbody>';
+                    
+                    for (const log of data.logs) {
+                        const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown';
+                        const event = log.event || 'unknown';
+                        const recipients = Array.isArray(log.recipients) ? log.recipients.join(', ') : (log.recipients || 'N/A');
+                        const subject = log.subject || 'N/A';
+                        const success = log.success !== false;
+                        const error = log.error || '';
+                        const context = log.context || {};
+                        
+                        html += '<tr>';
+                        html += `<td class="timestamp">${time}</td>`;
+                        html += `<td><span class="badge ${event.includes('success') ? 'success' : event.includes('fail') || event.includes('error') ? 'failed' : 'active'}">${event}</span></td>`;
+                        html += `<td style="max-width: 200px; word-break: break-all; font-size: 12px;">${recipients}</td>`;
+                        html += `<td style="max-width: 300px; font-size: 12px;">${subject}`;
+                        if (context.guild_name) {
+                            html += `<div class="event-details">Guild: ${context.guild_name}</div>`;
+                        }
+                        html += '</td>';
+                        html += `<td><span class="badge ${success ? 'success' : 'failed'}">${success ? 'OK' : 'Failed'}</span>`;
+                        if (error) {
+                            html += `<div class="event-details" style="color: #FF6B6B;">${error}</div>`;
+                        }
+                        html += '</td>';
+                        html += '</tr>';
+                    }
+                    
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="no-data">No email logs found yet. Logs will appear here after emails are sent.</div>';
+                }
+            } catch (error) {
+                console.error('Load email logs error:', error);
+                container.innerHTML = `<div class="no-data" style="color: #FF6B6B;">Failed to load logs: ${error.message}</div>`;
+            }
+        }
+
+        // Trigger deletion warning check
+        async function triggerDeletionCheck() {
+            const button = document.getElementById('deletionCheckBtn');
+            const resultDiv = document.getElementById('emailActionResult');
+            
+            if (!confirm('This will run the deletion warning check for all guilds. Emails may be sent if sessions are near expiry. Continue?')) {
+                return;
+            }
+            
+            button.disabled = true;
+            button.innerHTML = '<span class="btn-icon">⏳</span> Running...';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/owner/trigger-deletion-check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'broadcast-result success';
+                    resultDiv.innerHTML = `✅ ${data.message}`;
+                    // Auto-refresh logs after check
+                    setTimeout(() => loadEmailLogs(), 1000);
+                } else {
+                    resultDiv.className = 'broadcast-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.error}`;
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Deletion check error:', error);
+                resultDiv.className = 'broadcast-result error';
+                resultDiv.innerHTML = `❌ Failed: ${error.message}`;
+                resultDiv.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<span class="btn-icon">⚡</span> Trigger Deletion Check';
             }
         }
     </script>

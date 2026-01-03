@@ -7,10 +7,52 @@ import base64
 import asyncio
 import aiohttp
 import logging
+from logging.handlers import RotatingFileHandler
 from typing import List, Dict, Optional, Union
 from datetime import datetime, timezone
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Persistent email log file - survives workflow restarts
+EMAIL_LOG_DIR = Path("data/email_logs")
+EMAIL_LOG_FILE = EMAIL_LOG_DIR / "email_audit.log"
+
+def _setup_email_file_logger():
+    """Setup a file logger that persists email records to disk"""
+    EMAIL_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    
+    email_logger = logging.getLogger("email_audit")
+    email_logger.setLevel(logging.INFO)
+    
+    # Avoid duplicate handlers
+    if not email_logger.handlers:
+        handler = RotatingFileHandler(
+            EMAIL_LOG_FILE,
+            maxBytes=5*1024*1024,  # 5MB
+            backupCount=14  # Keep 2 weeks of logs
+        )
+        handler.setFormatter(logging.Formatter('%(message)s'))
+        email_logger.addHandler(handler)
+    
+    return email_logger
+
+email_file_logger = _setup_email_file_logger()
+
+def log_email_to_file(event_type: str, recipients: list, subject: str, context: dict = None, success: bool = True, error: str = None):
+    """Write email event to persistent log file"""
+    log_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": event_type,
+        "recipients": recipients,
+        "subject": subject,
+        "success": success,
+        "context": context or {},
+    }
+    if error:
+        log_entry["error"] = error
+    
+    email_file_logger.info(json.dumps(log_entry))
 
 class ReplitMailSender:
     """Email utility using Replit's OpenInt mail service"""
@@ -87,15 +129,12 @@ class ReplitMailSender:
         if attachments:
             payload["attachments"] = attachments
         
-        # DETAILED EMAIL LOGGING - Track all emails being sent
+        # Normalize recipient list
         recipient_list = to if isinstance(to, list) else [to]
-        logger.info(f"📧 EMAIL SEND REQUEST:")
-        logger.info(f"   Subject: {subject}")
-        logger.info(f"   Recipients ({len(recipient_list)}): {recipient_list}")
-        logger.info(f"   Timestamp: {datetime.now(timezone.utc).isoformat()}")
-        if cc:
-            cc_list = cc if isinstance(cc, list) else [cc]
-            logger.info(f"   CC: {cc_list}")
+        cc_list = (cc if isinstance(cc, list) else [cc]) if cc else []
+        
+        # Console logging
+        logger.info(f"📧 EMAIL SEND REQUEST: {subject} -> {recipient_list}")
         
         headers = {
             "Content-Type": "application/json",
@@ -117,15 +156,38 @@ class ReplitMailSender:
                             error_message = error_data.get('message', 'Failed to send email')
                         except:
                             error_message = f"HTTP {response.status}: {error_text}"
-                        logger.error(f"   EMAIL FAILED: {error_message}")
+                        
+                        # Log failure to persistent file
+                        log_email_to_file(
+                            event_type="send_failed",
+                            recipients=recipient_list + cc_list,
+                            subject=subject,
+                            success=False,
+                            error=error_message
+                        )
                         raise Exception(f"Email send failed: {error_message}")
                     
                     result = await response.json()
+                    
+                    # Log success to persistent file
+                    log_email_to_file(
+                        event_type="send_success",
+                        recipients=recipient_list + cc_list,
+                        subject=subject,
+                        success=True
+                    )
                     logger.info(f"   EMAIL SENT SUCCESSFULLY to: {recipient_list}")
                     return result
                     
             except aiohttp.ClientError as e:
-                logger.error(f"   EMAIL NETWORK ERROR: {str(e)}")
+                # Log network error to persistent file
+                log_email_to_file(
+                    event_type="network_error",
+                    recipients=recipient_list + cc_list,
+                    subject=subject,
+                    success=False,
+                    error=str(e)
+                )
                 raise Exception(f"Network error sending email: {str(e)}")
 
     async def send_timeclock_report(
