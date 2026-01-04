@@ -2248,10 +2248,10 @@ def api_owner_broadcast(user_session):
                     bot.loop
                 )
                 try:
-                    result = future.result(timeout=60.0)  # 60 second timeout for broadcasts
+                    result = future.result(timeout=300.0)  # 5 minute timeout for broadcasts
                 except concurrent.futures.TimeoutError:
-                    app.logger.error("Broadcast timed out after 60 seconds")
-                    return jsonify({'success': False, 'error': 'Broadcast timed out'}), 500
+                    app.logger.error("Broadcast timed out after 300 seconds")
+                    return jsonify({'success': False, 'error': 'Broadcast timed out'}), 504
             else:
                 app.logger.error("Bot event loop not available")
                 return jsonify({'success': False, 'error': 'Bot is not ready. Please try again later.'}), 503

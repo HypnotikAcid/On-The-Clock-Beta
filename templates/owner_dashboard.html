@@ -1454,7 +1454,7 @@
 
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 90000);
+                const timeoutId = setTimeout(() => controller.abort(), 300000);
                 
                 const response = await fetch('/api/owner/broadcast', {
                     method: 'POST',
