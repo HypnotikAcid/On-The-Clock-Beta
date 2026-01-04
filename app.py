@@ -2209,6 +2209,7 @@ def api_owner_broadcast(user_session):
         app.logger.info(f"Broadcast title: {title}")
         
         # Get target guild IDs based on filter
+        # Note: bot_guilds.guild_id is TEXT, server_subscriptions.guild_id is BIGINT - must cast for JOIN
         with bot_db() as conn:
             if target == 'all':
                 cursor = conn.execute("""
@@ -2217,13 +2218,13 @@ def api_owner_broadcast(user_session):
             elif target == 'paid':
                 cursor = conn.execute("""
                     SELECT bg.guild_id FROM bot_guilds bg
-                    JOIN server_subscriptions ss ON bg.guild_id = ss.guild_id
+                    JOIN server_subscriptions ss ON CAST(bg.guild_id AS BIGINT) = ss.guild_id
                     WHERE bg.is_present = TRUE AND ss.bot_access_paid = TRUE
                 """)
             else:  # free
                 cursor = conn.execute("""
                     SELECT bg.guild_id FROM bot_guilds bg
-                    LEFT JOIN server_subscriptions ss ON bg.guild_id = ss.guild_id
+                    LEFT JOIN server_subscriptions ss ON CAST(bg.guild_id AS BIGINT) = ss.guild_id
                     WHERE bg.is_present = TRUE AND (ss.bot_access_paid IS NULL OR ss.bot_access_paid = FALSE)
                 """)
             

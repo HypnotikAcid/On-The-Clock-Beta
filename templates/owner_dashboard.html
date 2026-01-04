@@ -1453,6 +1453,9 @@
             resultDiv.style.display = 'none';
 
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 90000);
+                
                 const response = await fetch('/api/owner/broadcast', {
                     method: 'POST',
                     headers: {
@@ -1462,8 +1465,11 @@
                         title: title,
                         message: message,
                         target: target
-                    })
+                    }),
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
 
                 const data = await response.json();
 
