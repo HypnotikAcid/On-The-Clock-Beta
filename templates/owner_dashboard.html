@@ -1181,6 +1181,15 @@
                         Remove Stray Email Now
                     </button>
                 </div>
+                
+                <div class="tool-card" style="border-color: #f59e0b;">
+                    <h4 style="color: #f59e0b;">⚠️ Audit Email Settings</h4>
+                    <p>Find and fix guilds that have email automation enabled but no recipients configured. This prevents orphan emails.</p>
+                    <button class="tool-btn" onclick="auditEmailSettings(this)" id="auditEmailBtn" style="background: #f59e0b; color: #000;">
+                        Run Email Settings Audit
+                    </button>
+                    <div class="tool-result" id="emailAuditResult" style="display: none; margin-top: 10px;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1651,6 +1660,52 @@
                 resultDiv.className = 'broadcast-result error';
                 resultDiv.innerHTML = `❌ Failed: ${error.message}`;
                 resultDiv.style.display = 'block';
+            }
+        }
+        
+        async function auditEmailSettings(button) {
+            if (!confirm('This will find and disable email automation for guilds with no recipients configured. Continue?')) {
+                return;
+            }
+            
+            button.disabled = true;
+            button.textContent = 'Auditing...';
+            
+            const resultDiv = document.getElementById('emailAuditResult');
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/owner/audit-email-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.style.display = 'block';
+                if (data.success) {
+                    if (data.fixed_count > 0) {
+                        let orphanedList = data.orphaned_guilds.map(g => 
+                            `<li>${escapeHtml(g.guild_name)} (${g.guild_id}) - clockout: ${g.auto_send_on_clockout}, delete: ${g.auto_email_before_delete}</li>`
+                        ).join('');
+                        resultDiv.className = 'tool-result success';
+                        resultDiv.innerHTML = `<strong>✅ Fixed ${data.fixed_count} guilds:</strong><ul style="margin: 10px 0; padding-left: 20px; font-size: 12px;">${orphanedList}</ul>`;
+                    } else {
+                        resultDiv.className = 'tool-result success';
+                        resultDiv.innerHTML = '✅ No orphaned email settings found - all guilds with automation have recipients configured.';
+                    }
+                } else {
+                    resultDiv.className = 'tool-result error';
+                    resultDiv.innerHTML = `<strong>❌ Error:</strong> ${data.error}`;
+                }
+            } catch (error) {
+                console.error('Audit error:', error);
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'tool-result error';
+                resultDiv.innerHTML = `❌ Failed: ${error.message}`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Run Email Settings Audit';
             }
         }
         

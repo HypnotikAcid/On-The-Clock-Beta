@@ -2567,6 +2567,63 @@ def api_owner_list_all_email_recipients(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+@app.route("/api/owner/audit-email-settings", methods=["POST"])
+@require_api_auth
+def api_owner_audit_email_settings(user_session):
+    """Owner-only API endpoint to audit and fix guilds with email settings enabled but no recipients"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        app.logger.info("Owner initiating email settings audit")
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT es.guild_id, es.auto_send_on_clockout, es.auto_email_before_delete,
+                       bg.guild_name,
+                       (SELECT COUNT(*) FROM report_recipients rr 
+                        WHERE rr.guild_id = es.guild_id AND rr.recipient_type = 'email') as recipient_count
+                FROM email_settings es
+                LEFT JOIN bot_guilds bg ON CAST(es.guild_id AS TEXT) = bg.guild_id
+                WHERE (es.auto_send_on_clockout = TRUE OR es.auto_email_before_delete = TRUE)
+            """)
+            guilds_with_settings = cursor.fetchall()
+            
+            orphaned_guilds = []
+            fixed_guilds = []
+            
+            for guild in guilds_with_settings:
+                if guild['recipient_count'] == 0:
+                    orphaned_guilds.append({
+                        'guild_id': str(guild['guild_id']),
+                        'guild_name': guild['guild_name'] or f"Unknown Guild {guild['guild_id']}",
+                        'auto_send_on_clockout': guild['auto_send_on_clockout'],
+                        'auto_email_before_delete': guild['auto_email_before_delete']
+                    })
+                    
+                    conn.execute("""
+                        UPDATE email_settings 
+                        SET auto_send_on_clockout = FALSE, auto_email_before_delete = FALSE 
+                        WHERE guild_id = %s
+                    """, (guild['guild_id'],))
+                    fixed_guilds.append(str(guild['guild_id']))
+            
+            app.logger.info(f"Email settings audit complete: Found {len(orphaned_guilds)} orphaned guilds, fixed {len(fixed_guilds)}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Audit complete. Found and fixed {len(fixed_guilds)} guilds with email settings but no recipients.',
+            'orphaned_guilds': orphaned_guilds,
+            'fixed_count': len(fixed_guilds)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Email settings audit error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 def verify_guild_access(user_session, guild_id, allow_employee=False):
     """
     Verify user has access to a specific guild.
