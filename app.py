@@ -2375,6 +2375,120 @@ def api_owner_trigger_deletion_check(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+@app.route("/api/owner/purge-email-recipient", methods=["POST"])
+@require_api_auth
+def api_owner_purge_email_recipient(user_session):
+    """Owner-only API endpoint to remove a specific email recipient from any guild"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        data = request.get_json() or {}
+        guild_id = data.get('guild_id')
+        email = data.get('email')
+        
+        if not guild_id or not email:
+            return jsonify({'success': False, 'error': 'Missing guild_id or email'}), 400
+        
+        email = email.lower().strip()
+        
+        app.logger.info(f"Owner purging email recipient: {email} from guild {guild_id}")
+        
+        with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT id, email_address FROM report_recipients WHERE guild_id = %s AND email_address = %s",
+                (guild_id, email)
+            )
+            existing = cursor.fetchone()
+            
+            if not existing:
+                return jsonify({
+                    'success': False, 
+                    'error': f'Email {email} not found for guild {guild_id}',
+                    'checked_guild': guild_id,
+                    'checked_email': email
+                }), 404
+            
+            cursor = conn.execute(
+                "DELETE FROM report_recipients WHERE guild_id = %s AND email_address = %s",
+                (guild_id, email)
+            )
+            deleted_count = cursor.rowcount
+            
+            app.logger.info(f"[OK] Purged {deleted_count} email recipient(s): {email} from guild {guild_id}")
+            
+            from email_utils import log_email_to_file
+            log_email_to_file(
+                event_type="owner_purge_recipient",
+                recipients=[email],
+                subject=f"Purged from guild {guild_id}",
+                context={
+                    "guild_id": str(guild_id),
+                    "deleted_count": deleted_count,
+                    "action": "owner_manual_purge"
+                }
+            )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully removed {email} from guild {guild_id}',
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Purge email recipient error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route("/api/owner/list-all-email-recipients", methods=["GET"])
+@require_api_auth
+def api_owner_list_all_email_recipients(user_session):
+    """Owner-only API endpoint to list ALL email recipients across ALL guilds"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    rr.id,
+                    rr.guild_id,
+                    bg.guild_name,
+                    rr.email_address,
+                    rr.recipient_type,
+                    rr.created_at
+                FROM report_recipients rr
+                LEFT JOIN bot_guilds bg ON CAST(rr.guild_id AS TEXT) = bg.guild_id
+                WHERE rr.recipient_type = 'email'
+                ORDER BY rr.guild_id, rr.created_at
+            """)
+            recipients = cursor.fetchall()
+        
+        result = []
+        for row in recipients:
+            result.append({
+                'id': row['id'],
+                'guild_id': str(row['guild_id']),
+                'guild_name': row['guild_name'] or f"Unknown Guild {row['guild_id']}",
+                'email': row['email_address'],
+                'created_at': row['created_at'].isoformat() if row['created_at'] else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'recipients': result,
+            'total': len(result)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"List email recipients error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 def verify_guild_access(user_session, guild_id, allow_employee=False):
     """
     Verify user has access to a specific guild.

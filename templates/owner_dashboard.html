@@ -980,6 +980,29 @@
                 <div class="no-data">Click "Refresh Logs" to load email audit logs</div>
             </div>
         </div>
+        
+        <!-- Email Recipient Management Section -->
+        <div class="section">
+            <div class="section-title">🗑️ Email Recipient Management</div>
+            <p style="color: #8B949E; margin-bottom: 20px;">View and remove email recipients across all guilds. Use this to fix stray or incorrect email configurations.</p>
+            
+            <div class="button-row" style="margin-bottom: 20px;">
+                <button class="preview-btn" onclick="loadAllEmailRecipients()" id="loadRecipientsBtn">📋 Load All Recipients</button>
+            </div>
+            
+            <div class="broadcast-result" id="recipientActionResult" style="display: none;"></div>
+            
+            <div id="emailRecipientsContainer">
+                <div class="no-data">Click "Load All Recipients" to see email recipients across all guilds</div>
+            </div>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #21262D; border-radius: 8px; border: 1px solid #30363D;">
+                <div style="font-weight: 600; margin-bottom: 10px; color: #F0F6FC;">Quick Purge: Remove txclone@gmail.com from Corvynexis Studios</div>
+                <button class="broadcast-btn" onclick="purgeStrayEmail()" id="purgeBtn" style="background: #DA3633;">
+                    <span class="btn-icon">🗑️</span> Remove Stray Email Now
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1326,6 +1349,133 @@
                 button.disabled = false;
                 button.innerHTML = '<span class="btn-icon">⚡</span> Trigger Deletion Check';
             }
+        }
+        
+        async function loadAllEmailRecipients() {
+            const button = document.getElementById('loadRecipientsBtn');
+            const container = document.getElementById('emailRecipientsContainer');
+            
+            button.disabled = true;
+            button.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch('/api/owner/list-all-email-recipients');
+                const data = await response.json();
+                
+                if (data.success && data.recipients.length > 0) {
+                    let html = '<table class="log-table" style="width: 100%; border-collapse: collapse;">';
+                    html += '<thead><tr style="background: #21262D;"><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Guild</th><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Email</th><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Action</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    data.recipients.forEach(r => {
+                        const guildName = escapeHtml(r.guild_name);
+                        const email = escapeHtml(r.email);
+                        html += `<tr style="border-bottom: 1px solid #30363D;">
+                            <td style="padding: 10px;">${guildName}<br><span style="color: #8B949E; font-size: 0.8em;">${r.guild_id}</span></td>
+                            <td style="padding: 10px;">${email}</td>
+                            <td style="padding: 10px;"><button onclick="purgeRecipient('${r.guild_id}', '${r.email}')" class="preview-btn" style="background: #DA3633; padding: 5px 10px; font-size: 0.9em;">Remove</button></td>
+                        </tr>`;
+                    });
+                    
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                } else if (data.success) {
+                    container.innerHTML = '<div class="no-data">No email recipients configured in any guild</div>';
+                } else {
+                    container.innerHTML = `<div class="no-data" style="color: #F85149;">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                console.error('Load recipients error:', error);
+                container.innerHTML = `<div class="no-data" style="color: #F85149;">Failed to load: ${error.message}</div>`;
+            } finally {
+                button.disabled = false;
+                button.textContent = '📋 Load All Recipients';
+            }
+        }
+        
+        async function purgeRecipient(guildId, email) {
+            if (!confirm(`Remove ${email} from guild ${guildId}?`)) {
+                return;
+            }
+            
+            const resultDiv = document.getElementById('recipientActionResult');
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/owner/purge-email-recipient', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: guildId, email: email })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'broadcast-result success';
+                    resultDiv.innerHTML = `✅ ${data.message}`;
+                    setTimeout(() => loadAllEmailRecipients(), 500);
+                } else {
+                    resultDiv.className = 'broadcast-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.error}`;
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Purge error:', error);
+                resultDiv.className = 'broadcast-result error';
+                resultDiv.innerHTML = `❌ Failed: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+        
+        async function purgeStrayEmail() {
+            if (!confirm('This will remove txclone@gmail.com from Corvynexis Studios (guild 1420225996405342301). Continue?')) {
+                return;
+            }
+            
+            const button = document.getElementById('purgeBtn');
+            const resultDiv = document.getElementById('recipientActionResult');
+            
+            button.disabled = true;
+            button.innerHTML = '<span class="btn-icon">⏳</span> Removing...';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/owner/purge-email-recipient', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        guild_id: '1420225996405342301', 
+                        email: 'txclone@gmail.com' 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'broadcast-result success';
+                    resultDiv.innerHTML = `✅ ${data.message}`;
+                    setTimeout(() => loadAllEmailRecipients(), 500);
+                } else {
+                    resultDiv.className = 'broadcast-result error';
+                    resultDiv.innerHTML = `❌ ${data.error}`;
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Purge stray email error:', error);
+                resultDiv.className = 'broadcast-result error';
+                resultDiv.innerHTML = `❌ Failed: ${error.message}`;
+                resultDiv.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<span class="btn-icon">🗑️</span> Remove Stray Email Now';
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
