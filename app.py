@@ -2289,10 +2289,13 @@ def api_owner_broadcast(user_session):
             app.logger.error(traceback.format_exc())
             return jsonify({'success': False, 'error': f'Broadcast failed: {str(broadcast_error)}'}), 500
     
-    except Exception as e:
-        app.logger.error(f"Broadcast API error: {str(e)}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        except asyncio.TimeoutError:
+            app.logger.error("Broadcast timeout after 60 seconds")
+            return jsonify({'success': False, 'error': 'Broadcast timed out. Some messages may have been sent.'}), 504
+        except Exception as e:
+            app.logger.error(f"Broadcast API error: {str(e)}")
+            app.logger.error(traceback.format_exc())
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/owner/email-logs", methods=["GET"])
 @require_api_auth

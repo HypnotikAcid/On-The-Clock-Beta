@@ -8453,7 +8453,7 @@ async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) ->
             failed_count += 1
     
     logger.info(f"[BROADCAST] Complete: {sent_count} sent, {failed_count} failed")
-    return {'sent_count': sent_count, 'failed_count': failed_count}
+    return {'success': True, 'sent_count': sent_count, 'failed_count': failed_count}
 
 # =============================================================================
 # OWNER-ONLY SUPER ADMIN COMMANDS (Only visible to bot owner)
