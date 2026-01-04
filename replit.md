@@ -26,6 +26,7 @@ Preferred communication style: Simple, everyday language.
 - **Employee Status Cards**: Dashboard displays active employees with current hours, including manual clock-out buttons for admins.
 - **Time Adjustment Requests**: Employees can submit time correction requests, which admins can approve/deny via an interactive, role-based calendar in the dashboard.
 - **Employee Onboarding System**: Automated welcome DMs and first-time `/clock` guides for new employees detected via role changes.
+- **Broadcast Channel Configuration**: Admins can configure which text channel receives bot announcements via the dashboard Timezone Settings section. Falls back to system channel, then first available text channel.
 
 ## Security Configuration
 - **Code Analysis**: Uses Semgrep for static analysis and secret management.

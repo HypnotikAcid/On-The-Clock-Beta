@@ -363,6 +363,7 @@ async function loadServerData(guildId, accessLevel = 'admin') {
             populateAdminRoles(data.roles, data.current_settings.admin_roles);
             populateEmployeeRoles(data.roles, data.current_settings.employee_roles);
             populateTimezoneSettings(data.current_settings.timezone);
+            populateBroadcastChannelSettings(data.text_channels, data.current_settings.broadcast_channel_id);
             loadBannedUsers();
         }
 
@@ -667,6 +668,51 @@ document.getElementById('save-timezone-btn').addEventListener('click', async fun
     } catch (error) {
         console.error('Error:', error);
         alert('Error updating timezone');
+    }
+});
+
+// Populate Broadcast Channel Selector
+function populateBroadcastChannelSettings(channels, currentChannelId) {
+    const select = document.getElementById('broadcast-channel-select');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">Use default (system channel)</option>';
+    
+    if (channels && channels.length > 0) {
+        channels.forEach(channel => {
+            const option = document.createElement('option');
+            option.value = channel.id;
+            option.textContent = '#' + escapeHtml(channel.name);
+            if (currentChannelId && channel.id === currentChannelId) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    }
+}
+
+// Broadcast Channel Save Handler
+document.getElementById('save-broadcast-channel-btn').addEventListener('click', async function () {
+    if (!currentGuildId) return;
+
+    const channelId = document.getElementById('broadcast-channel-select').value;
+
+    try {
+        const response = await fetch(`/api/server/${currentGuildId}/broadcast-channel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel_id: channelId || null })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            alert(data.message || 'Broadcast channel updated successfully!');
+        } else {
+            alert(data.error || 'Error updating broadcast channel');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating broadcast channel');
     }
 });
 

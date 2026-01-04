@@ -2708,6 +2708,37 @@ def get_guild_roles_from_bot(guild_id):
         app.logger.error(traceback.format_exc())
         return None
 
+def get_guild_text_channels(guild_id):
+    """
+    Fetch guild text channels using Discord bot token.
+    Returns list of text channels (id, name), or empty list if error.
+    """
+    bot_token = os.environ.get('DISCORD_TOKEN')
+    if not bot_token:
+        app.logger.error("DISCORD_TOKEN not found in environment")
+        return []
+    
+    headers = {'Authorization': f'Bot {bot_token}'}
+    try:
+        channels_response = requests.get(
+            f'{DISCORD_API_BASE}/guilds/{guild_id}/channels',
+            headers=headers,
+            timeout=5
+        )
+        channels_response.raise_for_status()
+        channels = channels_response.json()
+        
+        # Filter to text channels only (type 0) and return simplified list
+        text_channels = [
+            {'id': str(ch['id']), 'name': ch['name']}
+            for ch in channels 
+            if ch.get('type') == 0  # 0 = text channel
+        ]
+        return sorted(text_channels, key=lambda x: x['name'])
+    except Exception as e:
+        app.logger.error(f"Error fetching guild channels: {str(e)}")
+        return []
+
 def get_guild_settings(guild_id):
     """
     Fetch guild settings from database.
@@ -2729,9 +2760,9 @@ def get_guild_settings(guild_id):
         employee_roles = [str(row['role_id']) for row in employee_cursor.fetchall()]
         app.logger.info(f"≡ƒôï Fetched {len(employee_roles)} employee roles for guild {guild_id}: {employee_roles}")
         
-        # Get guild settings (timezone, recipient_user_id, work_day_end_time, etc.)
+        # Get guild settings (timezone, recipient_user_id, work_day_end_time, broadcast_channel_id, etc.)
         settings_cursor = conn.execute(
-            "SELECT timezone, recipient_user_id, name_display_mode, main_admin_role_id, work_day_end_time FROM guild_settings WHERE guild_id = %s",
+            "SELECT timezone, recipient_user_id, name_display_mode, main_admin_role_id, work_day_end_time, broadcast_channel_id FROM guild_settings WHERE guild_id = %s",
             (guild_id,)
         )
         settings_row = settings_cursor.fetchone()
@@ -2779,6 +2810,7 @@ def get_guild_settings(guild_id):
             'name_display_mode': (settings_row['name_display_mode'] if settings_row else None) or 'username',
             'main_admin_role_id': settings_row['main_admin_role_id'] if settings_row else None,
             'work_day_end_time': (settings_row['work_day_end_time'] if settings_row else None) or '17:00',
+            'broadcast_channel_id': str(settings_row['broadcast_channel_id']) if settings_row and settings_row['broadcast_channel_id'] else None,
             'auto_send_on_clockout': bool(email_settings_row['auto_send_on_clockout']) if email_settings_row else False,
             'auto_email_before_delete': bool(email_settings_row['auto_email_before_delete']) if email_settings_row else False,
             'restrict_mobile_clockin': bool(subscription_row['restrict_mobile_clockin']) if subscription_row else False,
@@ -3483,6 +3515,52 @@ def api_update_timezone(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
+@app.route("/api/server/<guild_id>/broadcast-channel", methods=["POST"])
+@require_paid_api_access
+def api_update_broadcast_channel(user_session, guild_id):
+    """API endpoint to update broadcast channel setting"""
+    try:
+        # Verify user has access
+        guild, _ = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Get channel_id from request
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': 'Missing data'}), 400
+        
+        channel_id = data.get('channel_id')
+        
+        # Validate channel_id format (should be null or a numeric string)
+        if channel_id is not None:
+            if not isinstance(channel_id, str) or not channel_id.isdigit():
+                return jsonify({'success': False, 'error': 'Invalid channel ID'}), 400
+            channel_id = int(channel_id)
+        
+        # Update or insert guild settings
+        with get_db() as conn:
+            cursor = conn.execute("SELECT guild_id FROM guild_settings WHERE guild_id = %s", (guild_id,))
+            exists = cursor.fetchone()
+            
+            if exists:
+                conn.execute(
+                    "UPDATE guild_settings SET broadcast_channel_id = %s WHERE guild_id = %s",
+                    (channel_id, guild_id)
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO guild_settings (guild_id, broadcast_channel_id) VALUES (%s, %s)",
+                    (guild_id, channel_id)
+                )
+        
+        app.logger.info(f"Updated broadcast channel to {channel_id} for guild {guild_id} by user {user_session.get('username')}")
+        return jsonify({'success': True, 'message': 'Broadcast channel updated successfully'})
+    except Exception as e:
+        app.logger.error(f"Error updating broadcast channel: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
 @app.route("/api/server/<guild_id>/email-settings", methods=["POST"])
 @require_paid_api_access
 def api_update_email_settings(user_session, guild_id):
@@ -3858,6 +3936,7 @@ def api_get_server_data(user_session, guild_id):
                 'success': True,
                 'guild': guild,
                 'roles': [],  # Employees don't need role list
+                'text_channels': [],  # Employees don't need channel list
                 'current_settings': {
                     'timezone': get_guild_settings(guild_id).get('timezone', 'America/New_York')
                 },
@@ -3872,11 +3951,13 @@ def api_get_server_data(user_session, guild_id):
             return jsonify({'success': False, 'error': 'Could not fetch server roles'}), 500
         
         current_settings = get_guild_settings(guild_id)
+        text_channels = get_guild_text_channels(guild_id)
         
         return jsonify({
             'success': True,
             'guild': guild,
             'roles': roles,
+            'text_channels': text_channels,
             'current_settings': current_settings,
             'current_user_id': user_session.get('user_id'),
             'user_role_tier': user_role_tier,

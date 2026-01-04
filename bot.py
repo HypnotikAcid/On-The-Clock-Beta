@@ -3589,7 +3589,8 @@ def get_guild_setting(guild_id: int, key: str, default=None):
         'recipient_user_id': "SELECT recipient_user_id FROM guild_settings WHERE guild_id=%s",
         'timezone': "SELECT timezone FROM guild_settings WHERE guild_id=%s",
         'name_display_mode': "SELECT name_display_mode FROM guild_settings WHERE guild_id=%s",
-        'main_admin_role_id': "SELECT main_admin_role_id FROM guild_settings WHERE guild_id=%s"
+        'main_admin_role_id': "SELECT main_admin_role_id FROM guild_settings WHERE guild_id=%s",
+        'broadcast_channel_id': "SELECT broadcast_channel_id FROM guild_settings WHERE guild_id=%s"
     }
     
     if key not in column_queries:
@@ -4094,7 +4095,8 @@ def set_guild_setting(guild_id: int, key: str, value):
         'recipient_user_id': "UPDATE guild_settings SET recipient_user_id=%s WHERE guild_id=%s",
         'timezone': "UPDATE guild_settings SET timezone=%s WHERE guild_id=%s",
         'name_display_mode': "UPDATE guild_settings SET name_display_mode=%s WHERE guild_id=%s",
-        'main_admin_role_id': "UPDATE guild_settings SET main_admin_role_id=%s WHERE guild_id=%s"
+        'main_admin_role_id': "UPDATE guild_settings SET main_admin_role_id=%s WHERE guild_id=%s",
+        'broadcast_channel_id': "UPDATE guild_settings SET broadcast_channel_id=%s WHERE guild_id=%s"
     }
     
     if key not in update_queries:
@@ -8418,12 +8420,12 @@ async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) ->
             # Find a channel to send to
             channel_to_use = None
             
-            # First, try to use the log channel if configured
-            log_channel_id = get_guild_setting(guild_id, "log_channel_id")
-            if log_channel_id:
-                channel_to_use = guild.get_channel(int(log_channel_id))
+            # First, try to use the broadcast channel if configured
+            broadcast_channel_id = get_guild_setting(int(guild_id), "broadcast_channel_id")
+            if broadcast_channel_id:
+                channel_to_use = guild.get_channel(int(broadcast_channel_id))
             
-            # If no log channel, try to find system channel
+            # If no broadcast channel, try to find system channel
             if not channel_to_use and guild.system_channel:
                 if guild.system_channel.permissions_for(guild.me).send_messages:
                     channel_to_use = guild.system_channel

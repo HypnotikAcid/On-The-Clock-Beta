@@ -301,6 +301,10 @@ def run_migrations():
                 ]
                 for query in onboarding_columns:
                     cur.execute(query)
+                
+                # 11. Add broadcast_channel_id to guild_settings for owner announcements
+                print("   Checking for broadcast channel column")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS broadcast_channel_id BIGINT")
 
         print("✅ Database schema is up to date")
         return True
