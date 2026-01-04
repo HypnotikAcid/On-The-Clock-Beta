@@ -1549,13 +1549,16 @@ def owner_dashboard(user_session):
                     COALESCE(ss.status, 'free') as status,
                     ss.subscription_id,
                     ss.customer_id,
+                    COALESCE(ss.manually_granted, FALSE) as manually_granted,
+                    ss.granted_by,
+                    ss.granted_at,
                     COUNT(DISTINCT s.id) as active_sessions,
                     COALESCE(bg.is_present, TRUE) as bot_is_present,
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
                 LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
-                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, bg.is_present, bg.left_at
+                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, bg.is_present, bg.left_at
                 ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
             """)
             servers = []
@@ -1565,6 +1568,11 @@ def owner_dashboard(user_session):
                 bot_is_present = bool(row['bot_is_present'])
                 left_at = row.get('left_at')
                 
+                # Determine payment source
+                has_stripe = bool(row['subscription_id'] or row['customer_id'])
+                is_manual = bool(row['manually_granted'])
+                payment_source = 'stripe' if has_stripe else ('manual' if is_manual else None)
+                
                 servers.append({
                     'guild_id': guild_id,
                     'guild_name': guild_name or f'Unknown Server (ID: {guild_id})',
@@ -1573,6 +1581,10 @@ def owner_dashboard(user_session):
                     'status': row['status'],
                     'subscription_id': row['subscription_id'],
                     'customer_id': row['customer_id'],
+                    'manually_granted': is_manual,
+                    'granted_by': row['granted_by'],
+                    'granted_at': row['granted_at'].isoformat() if row.get('granted_at') else None,
+                    'payment_source': payment_source,
                     'active_sessions': row['active_sessions'],
                     'bot_is_present': bot_is_present,
                     'left_at': left_at.isoformat() if left_at else None
@@ -2372,6 +2384,72 @@ def api_owner_trigger_deletion_check(user_session):
         
     except Exception as e:
         app.logger.error(f"Trigger deletion check error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route("/api/owner/bulk-upgrade-paid", methods=["POST"])
+@require_api_auth
+def api_owner_bulk_upgrade_paid(user_session):
+    """Owner-only API endpoint to upgrade all paid servers to 7-day retention"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        app.logger.info(f"Owner initiating bulk upgrade of paid servers to 7-day retention")
+        
+        with get_db() as conn:
+            # Find all paid servers that don't have 7day or 30day retention
+            cursor = conn.execute("""
+                SELECT guild_id, retention_tier, subscription_id, customer_id, manually_granted
+                FROM server_subscriptions
+                WHERE bot_access_paid = TRUE 
+                AND (retention_tier IS NULL OR retention_tier = 'none' OR retention_tier = '')
+            """)
+            servers_to_upgrade = cursor.fetchall()
+            
+            if not servers_to_upgrade:
+                return jsonify({
+                    'success': True,
+                    'message': 'No servers need upgrading - all paid servers already have retention',
+                    'upgraded_count': 0
+                })
+            
+            # Upgrade each server to 7-day retention using parameterized queries
+            upgraded_count = 0
+            upgraded_guilds = []
+            for server in servers_to_upgrade:
+                guild_id = server['guild_id']
+                # Validate guild_id is a proper integer to be extra safe
+                try:
+                    guild_id = int(guild_id)
+                except (ValueError, TypeError):
+                    app.logger.warning(f"Skipping invalid guild_id: {guild_id}")
+                    continue
+                
+                cursor = conn.execute("""
+                    UPDATE server_subscriptions 
+                    SET retention_tier = '7day', 
+                        tier = 'basic',
+                        status = 'active'
+                    WHERE guild_id = %s
+                """, (guild_id,))
+                if cursor.rowcount > 0:
+                    upgraded_count += 1
+                    upgraded_guilds.append(str(guild_id))
+            
+            app.logger.info(f"Bulk upgraded {upgraded_count} servers to 7-day retention: {upgraded_guilds}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Successfully upgraded {upgraded_count} paid servers to 7-day retention',
+                'upgraded_count': upgraded_count,
+                'upgraded_guilds': upgraded_guilds
+            })
+            
+    except Exception as e:
+        app.logger.error(f"Bulk upgrade error: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 

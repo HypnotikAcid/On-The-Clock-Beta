@@ -206,6 +206,135 @@
             border: 1px solid rgba(212, 175, 55, 0.4);
         }
 
+        .badge.stripe {
+            background: rgba(99, 91, 255, 0.2);
+            color: #635bff;
+            border: 1px solid rgba(99, 91, 255, 0.3);
+        }
+
+        .badge.manual {
+            background: rgba(168, 85, 247, 0.2);
+            color: #A855F7;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        /* Collapsible Section Styles */
+        .collapsible-section {
+            background: rgba(10, 15, 31, 0.85);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 25px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .collapsible-header:hover {
+            background: rgba(30, 35, 45, 0.3);
+        }
+
+        .collapsible-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #D4AF37;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .collapsible-toggle {
+            font-size: 20px;
+            color: #D4AF37;
+            transition: transform 0.3s ease;
+        }
+
+        .collapsible-section.collapsed .collapsible-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            padding: 0 25px 25px 25px;
+            max-height: 5000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .collapsible-section.collapsed .collapsible-content {
+            max-height: 0;
+            padding: 0 25px;
+        }
+
+        /* Subscription Tools */
+        .tool-card {
+            background: rgba(30, 35, 45, 0.4);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .tool-card h4 {
+            color: #D4AF37;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .tool-card p {
+            color: #8B949E;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .tool-btn {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #D4AF37, #B8962E);
+            border: none;
+            border-radius: 8px;
+            color: #0A0F1F;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tool-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .tool-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .tool-result {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .tool-result.success {
+            background: rgba(52, 211, 153, 0.1);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            color: #34D399;
+        }
+
+        .tool-result.error {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            color: #FF6B6B;
+        }
+
         .event-details {
             font-size: 12px;
             color: #8B949E;
@@ -714,20 +843,43 @@
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-title">🏰 All Servers ({{ servers|length }})</div>
-            <input type="text" id="serverSearch" class="search-box" placeholder="Search servers by name or ID...">
-            
-            <div class="filter-tabs">
-                <div class="filter-tab active" onclick="filterServers(event, 'all')">All ({{ stats.total_servers }})</div>
-                <div class="filter-tab" onclick="filterServers(event, 'active')">🟢 Active ({{ stats.active_servers }})</div>
-                <div class="filter-tab" onclick="filterServers(event, 'inactive')">🔴 Inactive ({{ stats.inactive_servers }})</div>
-                <div class="filter-tab" onclick="filterServers(event, 'paid')">💰 Paid ({{ stats.paid_servers }})</div>
-                <div class="filter-tab" onclick="filterServers(event, 'unpaid')">Unpaid</div>
-                <div class="filter-tab" onclick="filterServers(event, '7day')">7-Day</div>
-                <div class="filter-tab" onclick="filterServers(event, '30day')">30-Day</div>
-                <div class="filter-tab" onclick="filterServers(event, 'past_due')">Past Due ({{ stats.past_due_count }})</div>
+        <!-- Subscription Tools Section -->
+        <div class="collapsible-section collapsed" id="subscriptionToolsSection">
+            <div class="collapsible-header" onclick="toggleSection('subscriptionToolsSection')">
+                <div class="collapsible-title">🛠️ Subscription Tools</div>
+                <span class="collapsible-toggle">▼</span>
             </div>
+            <div class="collapsible-content">
+                <div class="tool-card">
+                    <h4>Bulk Upgrade Paid Servers</h4>
+                    <p>Find all paid servers without retention and automatically upgrade them to 7-day retention. This fixes servers where the automatic upgrade didn't run properly.</p>
+                    <button class="tool-btn" onclick="bulkUpgradePaid(this)">
+                        Upgrade All Paid Servers to 7-Day
+                    </button>
+                    <div class="tool-result" id="bulkUpgradeResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Server Management Section -->
+        <div class="collapsible-section" id="serverManagementSection">
+            <div class="collapsible-header" onclick="toggleSection('serverManagementSection')">
+                <div class="collapsible-title">🏰 All Servers ({{ servers|length }})</div>
+                <span class="collapsible-toggle">▼</span>
+            </div>
+            <div class="collapsible-content">
+                <input type="text" id="serverSearch" class="search-box" placeholder="Search servers by name or ID...">
+                
+                <div class="filter-tabs">
+                    <div class="filter-tab active" onclick="filterServers(event, 'all')">All ({{ stats.total_servers }})</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'active')">🟢 Active ({{ stats.active_servers }})</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'inactive')">🔴 Inactive ({{ stats.inactive_servers }})</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'paid')">💰 Paid ({{ stats.paid_servers }})</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'unpaid')">Unpaid</div>
+                    <div class="filter-tab" onclick="filterServers(event, '7day')">7-Day</div>
+                    <div class="filter-tab" onclick="filterServers(event, '30day')">30-Day</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'past_due')">Past Due ({{ stats.past_due_count }})</div>
+                </div>
 
             {% if servers %}
             <div id="serversContainer">
@@ -742,6 +894,12 @@
                                     <span class="badge success">💰 Paid</span>
                                 {% else %}
                                     <span class="badge failed">Unpaid</span>
+                                {% endif %}
+                                
+                                {% if server.payment_source == 'stripe' %}
+                                    <span class="badge stripe">Stripe</span>
+                                {% elif server.payment_source == 'manual' %}
+                                    <span class="badge manual">Manual</span>
                                 {% endif %}
                                 
                                 {% if server.bot_is_present %}
@@ -840,20 +998,26 @@
             {% else %}
             <div class="no-data">No servers with bot access found</div>
             {% endif %}
+            </div>
         </div>
 
-        <div class="section">
-            <div class="section-title">📊 Recent Webhook Events (Last 100)</div>
-            <input type="text" id="webhookSearch" class="search-box" placeholder="Search webhook events by type, server, or status...">
-            
-            <div class="filter-tabs">
-                <div class="filter-tab active" onclick="filterWebhooks(event, 'all')">All</div>
-                <div class="filter-tab" onclick="filterWebhooks(event, 'success')">Success</div>
-                <div class="filter-tab" onclick="filterWebhooks(event, 'failed')">Failed</div>
-                <div class="filter-tab" onclick="filterWebhooks(event, 'checkout')">Checkout</div>
-                <div class="filter-tab" onclick="filterWebhooks(event, 'subscription')">Subscriptions</div>
-                <div class="filter-tab" onclick="filterWebhooks(event, 'payment')">Payments</div>
+        <!-- Webhook Events Section -->
+        <div class="collapsible-section collapsed" id="webhookEventsSection">
+            <div class="collapsible-header" onclick="toggleSection('webhookEventsSection')">
+                <div class="collapsible-title">📊 Recent Webhook Events (Last 100)</div>
+                <span class="collapsible-toggle">▼</span>
             </div>
+            <div class="collapsible-content">
+                <input type="text" id="webhookSearch" class="search-box" placeholder="Search webhook events by type, server, or status...">
+                
+                <div class="filter-tabs">
+                    <div class="filter-tab active" onclick="filterWebhooks(event, 'all')">All</div>
+                    <div class="filter-tab" onclick="filterWebhooks(event, 'success')">Success</div>
+                    <div class="filter-tab" onclick="filterWebhooks(event, 'failed')">Failed</div>
+                    <div class="filter-tab" onclick="filterWebhooks(event, 'checkout')">Checkout</div>
+                    <div class="filter-tab" onclick="filterWebhooks(event, 'subscription')">Subscriptions</div>
+                    <div class="filter-tab" onclick="filterWebhooks(event, 'payment')">Payments</div>
+                </div>
 
             {% if webhook_events %}
             <table class="table">
@@ -905,14 +1069,19 @@
             {% else %}
             <div class="no-data">No webhook events recorded yet</div>
             {% endif %}
+            </div>
         </div>
 
         <!-- Broadcast Message Section -->
-        <div class="section">
-            <div class="section-title">📢 Broadcast Message</div>
-            <p style="color: #8B949E; margin-bottom: 20px;">Send an announcement to all servers where the bot is present. Messages are sent to the first available text channel in each server.</p>
-            
-            <div class="broadcast-form">
+        <div class="collapsible-section collapsed" id="broadcastSection">
+            <div class="collapsible-header" onclick="toggleSection('broadcastSection')">
+                <div class="collapsible-title">📢 Broadcast Message</div>
+                <span class="collapsible-toggle">▼</span>
+            </div>
+            <div class="collapsible-content">
+                <p style="color: #8B949E; margin-bottom: 20px;">Send an announcement to all servers where the bot is present. Messages are sent to the first available text channel in each server.</p>
+                
+                <div class="broadcast-form">
                 <div class="form-group">
                     <label for="broadcastTitle" class="form-label">Message Title</label>
                     <input type="text" id="broadcastTitle" class="form-input" placeholder="e.g., Important Update" maxlength="100">
@@ -959,53 +1128,111 @@
                 </div>
                 
                 <div class="broadcast-result" id="broadcastResult" style="display: none;"></div>
+                </div>
             </div>
         </div>
 
-        <!-- Email Audit Logs Section -->
-        <div class="section">
-            <div class="section-title">📧 Email Audit Logs</div>
-            <p style="color: #8B949E; margin-bottom: 20px;">View all emails sent by the system and manually trigger deletion warning checks for debugging.</p>
-            
-            <div class="button-row" style="margin-bottom: 20px;">
-                <button class="preview-btn" onclick="loadEmailLogs()">🔄 Refresh Logs</button>
-                <button class="broadcast-btn" onclick="triggerDeletionCheck()" id="deletionCheckBtn">
-                    <span class="btn-icon">⚡</span> Trigger Deletion Check
-                </button>
+        <!-- Email Debugging Section -->
+        <div class="collapsible-section collapsed" id="emailDebuggingSection">
+            <div class="collapsible-header" onclick="toggleSection('emailDebuggingSection')">
+                <div class="collapsible-title">📧 Email Debugging</div>
+                <span class="collapsible-toggle">▼</span>
             </div>
+            <div class="collapsible-content">
+                <!-- Email Audit Logs -->
+                <div class="tool-card">
+                    <h4>Email Audit Logs</h4>
+                    <p>View all emails sent by the system and manually trigger deletion warning checks for debugging.</p>
+                    
+                    <div class="button-row" style="margin-bottom: 15px;">
+                        <button class="preview-btn" onclick="loadEmailLogs()">🔄 Refresh Logs</button>
+                        <button class="tool-btn" onclick="triggerDeletionCheck()" id="deletionCheckBtn">
+                            Trigger Deletion Check
+                        </button>
+                    </div>
+                    
+                    <div class="tool-result" id="emailActionResult"></div>
+                    
+                    <div id="emailLogsContainer">
+                        <div class="no-data">Click "Refresh Logs" to load email audit logs</div>
+                    </div>
+                </div>
+                
+                <!-- Email Recipient Management -->
+                <div class="tool-card">
+                    <h4>Email Recipient Management</h4>
+                    <p>View and remove email recipients across all guilds. Use this to fix stray or incorrect email configurations.</p>
+                    
+                    <div class="button-row" style="margin-bottom: 15px;">
+                        <button class="preview-btn" onclick="loadAllEmailRecipients()" id="loadRecipientsBtn">📋 Load All Recipients</button>
+                    </div>
+                    
+                    <div class="tool-result" id="recipientActionResult"></div>
+                    
+                    <div id="emailRecipientsContainer">
+                        <div class="no-data">Click "Load All Recipients" to see email recipients across all guilds</div>
+                    </div>
+                </div>
             
-            <div class="broadcast-result" id="emailActionResult" style="display: none;"></div>
-            
-            <div id="emailLogsContainer">
-                <div class="no-data">Click "Refresh Logs" to load email audit logs</div>
-            </div>
-        </div>
-        
-        <!-- Email Recipient Management Section -->
-        <div class="section">
-            <div class="section-title">🗑️ Email Recipient Management</div>
-            <p style="color: #8B949E; margin-bottom: 20px;">View and remove email recipients across all guilds. Use this to fix stray or incorrect email configurations.</p>
-            
-            <div class="button-row" style="margin-bottom: 20px;">
-                <button class="preview-btn" onclick="loadAllEmailRecipients()" id="loadRecipientsBtn">📋 Load All Recipients</button>
-            </div>
-            
-            <div class="broadcast-result" id="recipientActionResult" style="display: none;"></div>
-            
-            <div id="emailRecipientsContainer">
-                <div class="no-data">Click "Load All Recipients" to see email recipients across all guilds</div>
-            </div>
-            
-            <div style="margin-top: 20px; padding: 15px; background: #21262D; border-radius: 8px; border: 1px solid #30363D;">
-                <div style="font-weight: 600; margin-bottom: 10px; color: #F0F6FC;">Quick Purge: Remove txclone@gmail.com from Corvynexis Studios</div>
-                <button class="broadcast-btn" onclick="purgeStrayEmail()" id="purgeBtn" style="background: #DA3633;">
-                    <span class="btn-icon">🗑️</span> Remove Stray Email Now
-                </button>
+                <div class="tool-card" style="border-color: #da3633;">
+                    <h4 style="color: #da3633;">Quick Purge</h4>
+                    <p>Remove txclone@gmail.com from Corvynexis Studios (known stray email)</p>
+                    <button class="tool-btn" onclick="purgeStrayEmail()" id="purgeBtn" style="background: #da3633;">
+                        Remove Stray Email Now
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        // Toggle collapsible sections
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            section.classList.toggle('collapsed');
+        }
+
+        // Bulk upgrade paid servers to 7-day retention
+        async function bulkUpgradePaid(button) {
+            if (!confirm('This will upgrade ALL paid servers without retention to 7-day retention. Continue?')) {
+                return;
+            }
+            
+            button.disabled = true;
+            button.textContent = 'Upgrading...';
+            
+            const resultEl = document.getElementById('bulkUpgradeResult');
+            resultEl.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/owner/bulk-upgrade-paid', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                resultEl.style.display = 'block';
+                if (data.success) {
+                    resultEl.className = 'tool-result success';
+                    resultEl.innerHTML = '<strong>Success!</strong> ' + data.message;
+                    if (data.upgraded_count > 0) {
+                        setTimeout(() => location.reload(), 2000);
+                    }
+                } else {
+                    resultEl.className = 'tool-result error';
+                    resultEl.innerHTML = '<strong>Error:</strong> ' + data.error;
+                }
+            } catch (error) {
+                resultEl.style.display = 'block';
+                resultEl.className = 'tool-result error';
+                resultEl.innerHTML = '<strong>Error:</strong> ' + error.message;
+            }
+            
+            button.disabled = false;
+            button.textContent = 'Upgrade All Paid Servers to 7-Day';
+        }
+
         // Toggle server card expand/collapse
         function toggleServerCard(element) {
             const card = element.closest('.server-card');
