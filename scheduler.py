@@ -23,6 +23,10 @@ discord_bot = None
 # Format: {guild_id: last_warning_timestamp}
 predeletion_warning_tracker = {}
 
+# Track guilds that have received email warnings to prevent hourly spam
+# Format: {guild_id: last_email_warning_timestamp}
+email_warning_tracker = {}
+
 def init_db_pool():
     """Initialize PostgreSQL connection pool"""
     global db_pool
@@ -186,7 +190,11 @@ async def send_daily_report_for_guild(guild_id: int):
 
 async def send_deletion_warnings():
     """Send warning emails before data deletion based on retention tier"""
+    global email_warning_tracker
+    
     logger.info("⚠️ Running deletion warning check...")
+    
+    current_time = datetime.now(timezone.utc)
     
     with db() as cursor:
         cursor.execute("""
@@ -199,9 +207,20 @@ async def send_deletion_warnings():
         """)
         guilds_with_warnings = cursor.fetchall()
     
+    sent_count = 0
+    skipped_count = 0
+    
     for row in guilds_with_warnings:
         guild_id = row['guild_id']
         try:
+            # Check if we already warned this guild recently (within 20 hours)
+            last_warning = email_warning_tracker.get(guild_id)
+            if last_warning:
+                hours_since_warning = (current_time - last_warning).total_seconds() / 3600
+                if hours_since_warning < 20:
+                    skipped_count += 1
+                    continue
+            
             retention_tier = get_retention_tier(guild_id)
             
             days_to_keep = {
@@ -226,9 +245,20 @@ async def send_deletion_warnings():
                 
                 if count > 0:
                     await send_deletion_warning_email(guild_id, count, days_to_keep)
+                    email_warning_tracker[guild_id] = current_time
+                    sent_count += 1
                     
         except Exception as e:
             logger.error(f"Error checking deletion warnings for guild {guild_id}: {e}")
+    
+    # Clean up old tracker entries (older than 24 hours)
+    old_entries = [gid for gid, ts in email_warning_tracker.items() 
+                   if (current_time - ts).total_seconds() / 3600 > 24]
+    for gid in old_entries:
+        del email_warning_tracker[gid]
+    
+    if sent_count > 0 or skipped_count > 0:
+        logger.info(f"⚠️ Deletion email warnings: {sent_count} sent, {skipped_count} skipped (already warned)")
 
 async def send_deletion_warning_email(guild_id: int, session_count: int, days_to_keep: int):
     """Send warning email about upcoming data deletion"""
