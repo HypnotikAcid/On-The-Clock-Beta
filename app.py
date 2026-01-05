@@ -2236,35 +2236,44 @@ def api_owner_broadcast(user_session):
         
         app.logger.info(f"Broadcasting to {len(guild_ids)} servers")
         
-        # Send broadcast via bot API using the bot's event loop
+        # Send broadcast via bot's internal HTTP API (more reliable than cross-thread async)
         try:
-            broadcast_func = _get_bot_func('send_broadcast_to_guilds')
+            import requests
+            bot_api_port = os.getenv("BOT_API_PORT", "8081")
+            bot_api_secret = os.getenv("BOT_API_SECRET", "")
             
-            # Run the async broadcast function using the bot's event loop
-            import asyncio
-            if bot and bot.loop and bot.loop.is_running():
-                future = asyncio.run_coroutine_threadsafe(
-                    broadcast_func(guild_ids, title, message),
-                    bot.loop
-                )
+            # If no secret configured, try to get it from the bot module
+            if not bot_api_secret:
                 try:
-                    result = future.result(timeout=300.0)  # 5 minute timeout for broadcasts
-                except concurrent.futures.TimeoutError:
-                    app.logger.error("Broadcast timed out after 300 seconds")
-                    return jsonify({'success': False, 'error': 'Broadcast timed out'}), 504
-            else:
-                app.logger.error("Bot event loop not available")
-                return jsonify({'success': False, 'error': 'Bot is not ready. Please try again later.'}), 503
+                    bot_api_secret = _get_bot_module().BOT_API_SECRET
+                except:
+                    pass
+            
+            response = requests.post(
+                f"http://127.0.0.1:{bot_api_port}/api/broadcast",
+                json={
+                    'guild_ids': guild_ids,
+                    'title': title,
+                    'message': message
+                },
+                headers={
+                    'Authorization': f'Bearer {bot_api_secret}',
+                    'Content-Type': 'application/json'
+                },
+                timeout=300  # 5 minute timeout for broadcasts
+            )
+            
+            result = response.json()
             
             sent_count = result.get('sent_count', 0)
             failed_count = result.get('failed_count', 0)
             
             app.logger.info(f"Broadcast complete: {sent_count} sent, {failed_count} failed")
             
-            if sent_count == 0 and failed_count > 0:
+            if not result.get('success', True) and sent_count == 0:
                 return jsonify({
                     'success': False,
-                    'error': f'Failed to send to all {failed_count} servers',
+                    'error': result.get('error', f'Failed to send to all {failed_count} servers'),
                     'sent_count': sent_count,
                     'failed_count': failed_count
                 }), 500
@@ -2284,6 +2293,12 @@ def api_owner_broadcast(user_session):
                     'failed_count': 0
                 })
                 
+        except requests.exceptions.Timeout:
+            app.logger.error("Broadcast timed out after 300 seconds")
+            return jsonify({'success': False, 'error': 'Broadcast timed out'}), 504
+        except requests.exceptions.ConnectionError:
+            app.logger.error("Could not connect to bot API")
+            return jsonify({'success': False, 'error': 'Bot is not ready. Please try again later.'}), 503
         except Exception as broadcast_error:
             app.logger.error(f"Broadcast execution error: {str(broadcast_error)}")
             app.logger.error(traceback.format_exc())

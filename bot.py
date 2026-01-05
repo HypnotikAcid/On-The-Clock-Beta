@@ -9006,6 +9006,38 @@ async def handle_remove_employee_role(request: web.Request):
         print(f"❌ Error removing employee role via API (guild {request.match_info.get('guild_id')}): {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+async def handle_broadcast(request: web.Request):
+    """HTTP endpoint: Send broadcast message to guilds"""
+    if not verify_api_request(request):
+        print(f"⚠️ Unauthorized broadcast attempt via API")
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        data = await request.json()
+        guild_ids = data.get('guild_ids', [])
+        title = data.get('title', '').strip()
+        message = data.get('message', '').strip()
+        
+        if not guild_ids:
+            return web.json_response({'success': False, 'error': 'No guild IDs provided'}, status=400)
+        
+        if not title or not message:
+            return web.json_response({'success': False, 'error': 'Title and message are required'}, status=400)
+        
+        print(f"📢 API Broadcast request: {len(guild_ids)} guilds, title: {title[:50]}...")
+        
+        result = await send_broadcast_to_guilds(guild_ids, title, message)
+        
+        print(f"📢 API Broadcast complete: {result.get('sent_count', 0)} sent, {result.get('failed_count', 0)} failed")
+        
+        return web.json_response(result)
+        
+    except Exception as e:
+        print(f"❌ Error in broadcast API: {e}")
+        import traceback
+        traceback.print_exc()
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
 async def handle_check_user_admin(request: web.Request):
     """HTTP endpoint: Check if user has admin permissions in a guild (real-time check)"""
     if not verify_api_request(request):
@@ -9090,6 +9122,7 @@ async def start_bot_api_server():
     app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
     app.router.add_post('/api/guild/{guild_id}/employee-roles/remove', handle_remove_employee_role)
     app.router.add_get('/api/guild/{guild_id}/user/{user_id}/check-admin', handle_check_user_admin)
+    app.router.add_post('/api/broadcast', handle_broadcast)
     
     runner = web.AppRunner(app)
     await runner.setup()
