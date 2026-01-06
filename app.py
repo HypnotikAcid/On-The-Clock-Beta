@@ -450,6 +450,22 @@ def init_dashboard_tables():
         except psycopg2.OperationalError:
             pass
         
+        # Purchase history table for tracking all purchases
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS purchase_history (
+                id SERIAL PRIMARY KEY NOT NULL,
+                guild_id BIGINT NOT NULL,
+                guild_name VARCHAR(255),
+                customer_email VARCHAR(255),
+                customer_id VARCHAR(255),
+                product_type VARCHAR(50) NOT NULL,
+                amount_cents INTEGER,
+                currency VARCHAR(10) DEFAULT 'usd',
+                stripe_session_id VARCHAR(255),
+                purchased_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
         # Clean up expired sessions and states
         conn.execute("DELETE FROM oauth_states WHERE expires_at < %s", 
                     (datetime.now(timezone.utc).isoformat(),))
