@@ -1041,6 +1041,75 @@ def get_all_user_guilds(user_session):
 
 # Routes
 
+def log_purchase_and_notify(guild_id, guild_name, customer_email, customer_id, product_type, amount_cents, stripe_session_id):
+    """Log purchase to history table and send email notification to owner"""
+    try:
+        # Log to purchase_history table
+        with bot_db() as conn:
+            conn.execute("""
+                INSERT INTO purchase_history 
+                (guild_id, guild_name, customer_email, customer_id, product_type, amount_cents, stripe_session_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (guild_id, guild_name, customer_email, customer_id, product_type, amount_cents, stripe_session_id))
+        
+        app.logger.info(f"[OK] Purchase logged: {product_type} for guild {guild_id}")
+        
+        # Send email notification to owner
+        owner_email = os.getenv('OWNER_EMAIL')
+        if owner_email:
+            from email_utils import send_email
+            import asyncio
+            
+            product_display = {
+                'bot_access': 'Bot Access ($5)',
+                'retention_7day': '7-Day Retention ($5/mo)',
+                'retention_30day': '30-Day Retention ($5/mo)'
+            }.get(product_type, product_type)
+            
+            amount_display = f"${amount_cents / 100:.2f}" if amount_cents else "N/A"
+            
+            subject = f"New Purchase: {product_display}"
+            text_content = f"""
+New Purchase Notification
+
+Product: {product_display}
+Amount: {amount_display}
+
+Server Details:
+- Guild ID: {guild_id}
+- Guild Name: {guild_name}
+
+Customer Details:
+- Email: {customer_email or 'N/A'}
+- Stripe Customer ID: {customer_id or 'N/A'}
+
+Stripe Session: {stripe_session_id}
+
+This purchase has been automatically processed and the customer should now have access.
+
+---
+On the Clock Bot - Purchase Notification
+"""
+            
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            loop.run_until_complete(send_email(
+                to=[owner_email],
+                subject=subject,
+                text=text_content
+            ))
+            app.logger.info(f"[OK] Purchase notification email sent to owner for guild {guild_id}")
+        else:
+            app.logger.warning("[WARN] OWNER_EMAIL not configured - skipping purchase notification")
+            
+    except Exception as e:
+        app.logger.error(f"[ERROR] Failed to log purchase or send notification: {e}")
+        app.logger.error(traceback.format_exc())
+
 @app.route("/webhook", methods=["POST"])
 def stripe_webhook():
     """Handle Stripe webhook events"""
@@ -1100,10 +1169,12 @@ def handle_checkout_completed(session):
         
         # Extract price_id from session
         price_id = None
+        amount_cents = None
         if full_session.line_items and full_session.line_items.data:
             line_item = full_session.line_items.data[0]
             if line_item.price:
                 price_id = line_item.price.id
+            amount_cents = line_item.amount_total if hasattr(line_item, 'amount_total') else None
         
         if not price_id:
             app.logger.error("[ERROR] No price ID found in checkout session")
@@ -1121,12 +1192,30 @@ def handle_checkout_completed(session):
             return
         
         guild_id = session.get('metadata', {}).get('guild_id')
+        guild_name = session.get('metadata', {}).get('guild_name', 'Unknown Server')
         
         if not guild_id:
             app.logger.error("[ERROR] No guild_id found in session metadata")
             return
         
         guild_id = int(guild_id)
+        
+        # Extract customer details
+        customer_email = None
+        customer_id = session.get('customer')
+        if full_session.customer_details:
+            customer_email = full_session.customer_details.get('email')
+        
+        # Log purchase to history and send owner notification
+        log_purchase_and_notify(
+            guild_id=guild_id,
+            guild_name=guild_name,
+            customer_email=customer_email,
+            customer_id=customer_id,
+            product_type=product_type,
+            amount_cents=amount_cents,
+            stripe_session_id=session['id']
+        )
         
         # Process based on product type
         if product_type == 'bot_access':
@@ -1657,11 +1746,38 @@ def owner_dashboard(user_session):
                 WHERE clock_out IS NULL
             """)
             stats['total_active_sessions'] = cursor.fetchone()['total_active_sessions']
+            
+            # Get purchase history (last 100 purchases)
+            cursor = conn.execute("""
+                SELECT 
+                    id,
+                    guild_id,
+                    guild_name,
+                    customer_email,
+                    product_type,
+                    amount_cents,
+                    purchased_at
+                FROM purchase_history
+                ORDER BY purchased_at DESC
+                LIMIT 100
+            """)
+            purchase_history = []
+            for row in cursor.fetchall():
+                purchase_history.append({
+                    'id': row['id'],
+                    'guild_id': row['guild_id'],
+                    'guild_name': row['guild_name'] or 'Unknown',
+                    'customer_email': row['customer_email'] or 'N/A',
+                    'product_type': row['product_type'],
+                    'amount_cents': row['amount_cents'],
+                    'purchased_at': row['purchased_at']
+                })
         
         return render_template('owner_dashboard.html', 
                              user=user_session,
                              servers=servers,
                              webhook_events=webhook_events,
+                             purchase_history=purchase_history,
                              stats=stats)
     
     except Exception as e:
