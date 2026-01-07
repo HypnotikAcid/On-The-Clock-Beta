@@ -305,6 +305,10 @@ def run_migrations():
                 # 11. Add broadcast_channel_id to guild_settings for owner announcements
                 print("   Checking for broadcast channel column")
                 cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS broadcast_channel_id BIGINT")
+                
+                # 12. Add grant_source column to server_subscriptions for tracking Stripe vs manual grants
+                print("   Checking for grant_source column")
+                cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS grant_source TEXT")
 
         print("✅ Database schema is up to date")
         return True

@@ -818,8 +818,8 @@
 
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">Total Servers</div>
-                <div class="stat-value">{{ stats.total_servers }}</div>
+                <div class="stat-label">Active Servers</div>
+                <div class="stat-value">{{ stats.active_servers }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Paid Servers</div>
@@ -834,30 +834,12 @@
                 <div class="stat-value">{{ stats.retention_30day_count }}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Past Due</div>
-                <div class="stat-value {% if stats.past_due_count > 0 %}warning{% endif %}">{{ stats.past_due_count }}</div>
-            </div>
-            <div class="stat-card">
                 <div class="stat-label">Active Sessions</div>
                 <div class="stat-value">{{ stats.total_active_sessions }}</div>
             </div>
-        </div>
-
-        <!-- Subscription Tools Section -->
-        <div class="collapsible-section collapsed" id="subscriptionToolsSection">
-            <div class="collapsible-header" onclick="toggleSection('subscriptionToolsSection')">
-                <div class="collapsible-title">🛠️ Subscription Tools</div>
-                <span class="collapsible-toggle">▼</span>
-            </div>
-            <div class="collapsible-content">
-                <div class="tool-card">
-                    <h4>Bulk Upgrade Paid Servers</h4>
-                    <p>Find all paid servers without retention and automatically upgrade them to 7-day retention. This fixes servers where the automatic upgrade didn't run properly.</p>
-                    <button class="tool-btn" onclick="bulkUpgradePaid(this)">
-                        Upgrade All Paid Servers to 7-Day
-                    </button>
-                    <div class="tool-result" id="bulkUpgradeResult"></div>
-                </div>
+            <div class="stat-card">
+                <div class="stat-label">Historical (Bot Left)</div>
+                <div class="stat-value" style="font-size: 24px; color: #8B949E;">{{ stats.inactive_servers }}</div>
             </div>
         </div>
 
@@ -871,14 +853,15 @@
                 <input type="text" id="serverSearch" class="search-box" placeholder="Search servers by name or ID...">
                 
                 <div class="filter-tabs">
-                    <div class="filter-tab active" onclick="filterServers(event, 'all')">All ({{ stats.total_servers }})</div>
-                    <div class="filter-tab" onclick="filterServers(event, 'active')">🟢 Active ({{ stats.active_servers }})</div>
-                    <div class="filter-tab" onclick="filterServers(event, 'inactive')">🔴 Inactive ({{ stats.inactive_servers }})</div>
-                    <div class="filter-tab" onclick="filterServers(event, 'paid')">💰 Paid ({{ stats.paid_servers }})</div>
-                    <div class="filter-tab" onclick="filterServers(event, 'unpaid')">Unpaid</div>
+                    <div class="filter-tab active" onclick="filterServers(event, 'active')">Active ({{ stats.active_servers }})</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'paid')">Paid ({{ stats.paid_servers }})</div>
                     <div class="filter-tab" onclick="filterServers(event, '7day')">7-Day</div>
                     <div class="filter-tab" onclick="filterServers(event, '30day')">30-Day</div>
-                    <div class="filter-tab" onclick="filterServers(event, 'past_due')">Past Due ({{ stats.past_due_count }})</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'all')">All ({{ stats.total_servers }})</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'inactive')">Historical ({{ stats.inactive_servers }})</div>
+                    {% if stats.past_due_count > 0 %}
+                    <div class="filter-tab" onclick="filterServers(event, 'past_due')" style="border-color: #FBBF24;">Past Due ({{ stats.past_due_count }})</div>
+                    {% endif %}
                 </div>
 
             {% if servers %}
@@ -891,29 +874,27 @@
                             <div class="server-name">{{ server.guild_name }}</div>
                             <div class="server-badges">
                                 {% if server.bot_access %}
-                                    <span class="badge success">💰 Paid</span>
+                                    <span class="badge success">Paid</span>
                                 {% else %}
                                     <span class="badge failed">Unpaid</span>
                                 {% endif %}
                                 
-                                {% if server.payment_source == 'stripe' %}
+                                {% if server.grant_source == 'stripe' %}
                                     <span class="badge stripe">Stripe</span>
-                                {% elif server.payment_source == 'manual' %}
-                                    <span class="badge manual">Manual</span>
+                                {% elif server.grant_source == 'granted' %}
+                                    <span class="badge manual">Granted</span>
                                 {% endif %}
                                 
                                 {% if server.bot_is_present %}
-                                    <span class="badge" style="background: #28a745; color: white;">🟢 Bot Active</span>
+                                    <span class="badge" style="background: #28a745; color: white;">Active</span>
                                 {% else %}
-                                    <span class="badge" style="background: #dc3545; color: white;">🔴 Bot Left</span>
+                                    <span class="badge" style="background: #dc3545; color: white;">Left</span>
                                 {% endif %}
                                 
                                 {% if server.retention_tier == '7day' %}
                                     <span class="badge retention-7">7-Day</span>
                                 {% elif server.retention_tier == '30day' %}
                                     <span class="badge retention-30">30-Day</span>
-                                {% else %}
-                                    <span class="badge free">Free</span>
                                 {% endif %}
                                 
                                 {% if server.status == 'past_due' %}
@@ -922,6 +903,10 @@
                                 
                                 {% if server.active_sessions > 0 %}
                                     <span class="badge active">{{ server.active_sessions }} Active</span>
+                                {% endif %}
+                                
+                                {% if server.email_recipients %}
+                                    <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.3);">📧 {{ server.email_recipients|length }}</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -955,6 +940,38 @@
                             <div class="detail-value" style="color: #dc3545;">
                                 🔴 <strong>Inactive</strong>
                                 {% if server.left_at %} - Left on {{ server.left_at[:10] }}{% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if server.email_recipients %}
+                        <div class="detail-row">
+                            <div class="detail-label">Email Recipients</div>
+                            <div class="detail-value">
+                                {% for email in server.email_recipients %}
+                                    <code style="margin-right: 5px;">{{ email }}</code>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if server.webhook_events %}
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(212, 175, 55, 0.1);">
+                            <div class="detail-label" style="margin-bottom: 10px;">Webhook History (Last {{ server.webhook_events|length }})</div>
+                            <div style="max-height: 200px; overflow-y: auto;">
+                                {% for event in server.webhook_events %}
+                                <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(212, 175, 55, 0.05); font-size: 12px;">
+                                    <span>
+                                        {% if event.status == 'success' %}
+                                            <span style="color: #34D399;">✓</span>
+                                        {% else %}
+                                            <span style="color: #FF6B6B;">✗</span>
+                                        {% endif %}
+                                        {{ event.event_type }}
+                                    </span>
+                                    <span style="color: #8B949E;">{{ event.timestamp.strftime('%m/%d %H:%M') if event.timestamp else 'N/A' }}</span>
+                                </div>
+                                {% endfor %}
                             </div>
                         </div>
                         {% endif %}
@@ -1060,77 +1077,6 @@
             </table>
             {% else %}
             <div class="no-data">No purchases recorded yet. Purchases will appear here when customers complete Stripe checkout.</div>
-            {% endif %}
-            </div>
-        </div>
-
-        <!-- Webhook Events Section -->
-        <div class="collapsible-section collapsed" id="webhookEventsSection">
-            <div class="collapsible-header" onclick="toggleSection('webhookEventsSection')">
-                <div class="collapsible-title">📊 Recent Webhook Events (Last 100)</div>
-                <span class="collapsible-toggle">▼</span>
-            </div>
-            <div class="collapsible-content">
-                <input type="text" id="webhookSearch" class="search-box" placeholder="Search webhook events by type, server, or status...">
-                
-                <div class="filter-tabs">
-                    <div class="filter-tab active" onclick="filterWebhooks(event, 'all')">All</div>
-                    <div class="filter-tab" onclick="filterWebhooks(event, 'success')">Success</div>
-                    <div class="filter-tab" onclick="filterWebhooks(event, 'failed')">Failed</div>
-                    <div class="filter-tab" onclick="filterWebhooks(event, 'checkout')">Checkout</div>
-                    <div class="filter-tab" onclick="filterWebhooks(event, 'subscription')">Subscriptions</div>
-                    <div class="filter-tab" onclick="filterWebhooks(event, 'payment')">Payments</div>
-                </div>
-
-            {% if webhook_events %}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Event Type</th>
-                        <th>Server</th>
-                        <th>Status</th>
-                        <th>Timestamp</th>
-                        <th>Details</th>
-                    </tr>
-                </thead>
-                <tbody id="webhooksTable">
-                    {% for event in webhook_events %}
-                    <tr data-status="{{ event.status }}" data-type="{{ event.event_type }}">
-                        <td><code style="font-size: 12px;">{{ event.event_type }}</code></td>
-                        <td>
-                            {{ event.guild_name }}
-                            <div class="event-details"><code>{{ event.guild_id }}</code></div>
-                        </td>
-                        <td>
-                            {% if event.status == 'success' %}
-                                <span class="badge success">Success</span>
-                            {% else %}
-                                <span class="badge failed">Failed</span>
-                            {% endif %}
-                        </td>
-                        <td class="timestamp">{{ event.timestamp }}</td>
-                        <td>
-                            <div class="event-details">
-                                {% if event.details.product_type %}
-                                    <strong>Product:</strong> {{ event.details.product_type }}<br>
-                                {% endif %}
-                                {% if event.details.customer_email %}
-                                    <strong>Customer:</strong> {{ event.details.customer_email }}<br>
-                                {% endif %}
-                                {% if event.details.session_id %}
-                                    <strong>Session:</strong> <code>{{ event.details.session_id[:20] }}...</code><br>
-                                {% endif %}
-                                {% if event.details.error %}
-                                    <strong style="color: #FF6B6B;">Error:</strong> {{ event.details.error }}
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="no-data">No webhook events recorded yet</div>
             {% endif %}
             </div>
         </div>
@@ -1264,47 +1210,6 @@
             section.classList.toggle('collapsed');
         }
 
-        // Bulk upgrade paid servers to 7-day retention
-        async function bulkUpgradePaid(button) {
-            if (!confirm('This will upgrade ALL paid servers without retention to 7-day retention. Continue?')) {
-                return;
-            }
-            
-            button.disabled = true;
-            button.textContent = 'Upgrading...';
-            
-            const resultEl = document.getElementById('bulkUpgradeResult');
-            resultEl.style.display = 'none';
-            
-            try {
-                const response = await fetch('/api/owner/bulk-upgrade-paid', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                const data = await response.json();
-                
-                resultEl.style.display = 'block';
-                if (data.success) {
-                    resultEl.className = 'tool-result success';
-                    resultEl.innerHTML = '<strong>Success!</strong> ' + data.message;
-                    if (data.upgraded_count > 0) {
-                        setTimeout(() => location.reload(), 2000);
-                    }
-                } else {
-                    resultEl.className = 'tool-result error';
-                    resultEl.innerHTML = '<strong>Error:</strong> ' + data.error;
-                }
-            } catch (error) {
-                resultEl.style.display = 'block';
-                resultEl.className = 'tool-result error';
-                resultEl.innerHTML = '<strong>Error:</strong> ' + error.message;
-            }
-            
-            button.disabled = false;
-            button.textContent = 'Upgrade All Paid Servers to 7-Day';
-        }
-
         // Toggle server card expand/collapse
         function toggleServerCard(element) {
             const card = element.closest('.server-card');
@@ -1409,14 +1314,12 @@
             });
         });
 
-        // Webhook search functionality
-        document.getElementById('webhookSearch').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#webhooksTable tr');
-            
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
+        // Default to showing only active servers on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Apply active filter on page load
+            const cards = document.querySelectorAll('.server-card');
+            cards.forEach(card => {
+                card.style.display = card.dataset.present === '1' ? '' : 'none';
             });
         });
 
@@ -1450,28 +1353,6 @@
             });
         }
 
-        // Webhook filter functionality
-        function filterWebhooks(evt, filterType) {
-            const tabs = document.querySelectorAll('.section:last-child .filter-tabs .filter-tab');
-            tabs.forEach(tab => tab.classList.remove('active'));
-            evt.target.classList.add('active');
-            
-            const rows = document.querySelectorAll('#webhooksTable tr');
-            rows.forEach(row => {
-                if (filterType === 'all') {
-                    row.style.display = '';
-                } else if (filterType === 'success' || filterType === 'failed') {
-                    row.style.display = row.dataset.status === filterType ? '' : 'none';
-                } else if (filterType === 'checkout') {
-                    row.style.display = row.dataset.type.includes('checkout') ? '' : 'none';
-                } else if (filterType === 'subscription') {
-                    row.style.display = row.dataset.type.includes('subscription') ? '' : 'none';
-                } else if (filterType === 'payment') {
-                    row.style.display = row.dataset.type.includes('payment') ? '' : 'none';
-                }
-            });
-        }
-        
         // Purchase history filter functionality
         function filterPurchases(evt, filterType) {
             const section = document.getElementById('purchaseHistorySection');

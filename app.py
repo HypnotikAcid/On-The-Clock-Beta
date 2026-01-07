@@ -150,29 +150,44 @@ def flask_check_bot_access(guild_id: int) -> bool:
             return False
         return bool(result['bot_access_paid'])
 
-def flask_set_bot_access(guild_id: int, paid: bool):
-    """Update bot_access_paid status using Flask's database connection."""
+def flask_set_bot_access(guild_id: int, paid: bool, source: str = 'stripe'):
+    """Update bot_access_paid status using Flask's database connection.
+    
+    Args:
+        guild_id: The Discord guild ID
+        paid: Whether bot access is paid
+        source: The source of the grant ('stripe' for payments, 'granted' for manual)
+    """
     with get_db() as conn:
         conn.execute("""
-            INSERT INTO server_subscriptions (guild_id, bot_access_paid, status)
-            VALUES (%s, %s, %s)
+            INSERT INTO server_subscriptions (guild_id, bot_access_paid, status, grant_source)
+            VALUES (%s, %s, %s, %s)
             ON CONFLICT(guild_id) DO UPDATE SET 
                 bot_access_paid = %s,
-                status = EXCLUDED.status
-        """, (guild_id, paid, 'active' if paid else 'free', paid))
+                status = EXCLUDED.status,
+                grant_source = EXCLUDED.grant_source
+        """, (guild_id, paid, 'active' if paid else 'free', source if paid else None, paid))
 
-def flask_set_retention_tier(guild_id: int, tier: str):
-    """Update retention tier using Flask's database connection."""
+def flask_set_retention_tier(guild_id: int, tier: str, source: str = 'stripe'):
+    """Update retention tier using Flask's database connection.
+    
+    Args:
+        guild_id: The Discord guild ID
+        tier: The retention tier ('none', '7day', '30day')
+        source: The source of the grant ('stripe' for payments, 'granted' for manual)
+    """
     valid_tiers = ('none', '7day', '30day')
     if tier not in valid_tiers:
         raise ValueError(f"Invalid retention tier: {tier}. Must be one of {valid_tiers}")
     
     with get_db() as conn:
         conn.execute("""
-            INSERT INTO server_subscriptions (guild_id, retention_tier)
-            VALUES (%s, %s)
-            ON CONFLICT(guild_id) DO UPDATE SET retention_tier = %s
-        """, (guild_id, tier, tier))
+            INSERT INTO server_subscriptions (guild_id, retention_tier, grant_source)
+            VALUES (%s, %s, %s)
+            ON CONFLICT(guild_id) DO UPDATE SET 
+                retention_tier = %s,
+                grant_source = COALESCE(server_subscriptions.grant_source, %s)
+        """, (guild_id, tier, source if tier != 'none' else None, tier, source if tier != 'none' else None))
 
 # Lazy access to Discord bot instance - use get_bot() for property access
 def get_bot():
@@ -1686,6 +1701,7 @@ def owner_dashboard(user_session):
                 app.logger.error(f"Database reconciliation error: {reconcile_error}")
                 # Continue anyway - reconciliation failure shouldn't block dashboard
             # Get all servers from bot_guilds (including archived paid servers where bot left)
+            # Also fetch email recipients for bundling with server info
             cursor = conn.execute("""
                 SELECT 
                     CAST(bg.guild_id AS BIGINT) as guild_id,
@@ -1698,13 +1714,14 @@ def owner_dashboard(user_session):
                     COALESCE(ss.manually_granted, FALSE) as manually_granted,
                     ss.granted_by,
                     ss.granted_at,
+                    ss.grant_source,
                     COUNT(DISTINCT s.id) as active_sessions,
                     COALESCE(bg.is_present, TRUE) as bot_is_present,
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
                 LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
-                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, bg.is_present, bg.left_at
+                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
                 ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
             """)
             servers = []
@@ -1714,10 +1731,8 @@ def owner_dashboard(user_session):
                 bot_is_present = bool(row['bot_is_present'])
                 left_at = row.get('left_at')
                 
-                # Determine payment source
-                has_stripe = bool(row['subscription_id'] or row['customer_id'])
-                is_manual = bool(row['manually_granted'])
-                payment_source = 'stripe' if has_stripe else ('manual' if is_manual else None)
+                # Use grant_source column directly (stripe, granted, or None)
+                grant_source = row.get('grant_source')
                 
                 servers.append({
                     'guild_id': guild_id,
@@ -1727,14 +1742,60 @@ def owner_dashboard(user_session):
                     'status': row['status'],
                     'subscription_id': row['subscription_id'],
                     'customer_id': row['customer_id'],
-                    'manually_granted': is_manual,
+                    'manually_granted': bool(row['manually_granted']),
                     'granted_by': row['granted_by'],
                     'granted_at': row['granted_at'].isoformat() if row.get('granted_at') else None,
-                    'payment_source': payment_source,
+                    'grant_source': grant_source,
                     'active_sessions': row['active_sessions'],
                     'bot_is_present': bot_is_present,
-                    'left_at': left_at.isoformat() if left_at else None
+                    'left_at': left_at.isoformat() if left_at else None,
+                    'email_recipients': [],  # Will be populated below
+                    'webhook_events': []  # Will be populated below
                 })
+            
+            # Get email recipients per guild
+            cursor = conn.execute("""
+                SELECT guild_id, email 
+                FROM email_recipients 
+                ORDER BY guild_id
+            """)
+            email_recipients_by_guild = {}
+            for row in cursor.fetchall():
+                gid = row['guild_id']
+                if gid not in email_recipients_by_guild:
+                    email_recipients_by_guild[gid] = []
+                email_recipients_by_guild[gid].append(row['email'])
+            
+            # Get webhook events per guild (last 10 per guild)
+            cursor = conn.execute("""
+                SELECT we.guild_id, we.event_type, we.status, we.timestamp, we.details
+                FROM webhook_events we
+                ORDER BY we.guild_id, we.timestamp DESC
+            """)
+            webhooks_by_guild = {}
+            for row in cursor.fetchall():
+                gid = str(row['guild_id'])
+                if gid not in webhooks_by_guild:
+                    webhooks_by_guild[gid] = []
+                if len(webhooks_by_guild[gid]) < 10:  # Limit to 10 per guild
+                    details = {}
+                    if row['details']:
+                        try:
+                            details = json.loads(row['details'])
+                        except:
+                            details = {}
+                    webhooks_by_guild[gid].append({
+                        'event_type': row['event_type'],
+                        'status': row['status'],
+                        'timestamp': row['timestamp'],
+                        'details': details
+                    })
+            
+            # Attach email recipients and webhooks to each server
+            for server in servers:
+                gid = str(server['guild_id'])
+                server['email_recipients'] = email_recipients_by_guild.get(int(gid), [])
+                server['webhook_events'] = webhooks_by_guild.get(gid, [])
             
             # Get recent webhook events (last 100) - only for servers where bot is present
             cursor = conn.execute("""
@@ -1781,7 +1842,8 @@ def owner_dashboard(user_session):
                     SUM(CASE WHEN ss.retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
                     SUM(CASE WHEN ss.status = 'past_due' THEN 1 ELSE 0 END) as past_due_count,
                     SUM(CASE WHEN COALESCE(bg.is_present, TRUE) = TRUE THEN 1 ELSE 0 END) as active_servers,
-                    SUM(CASE WHEN COALESCE(bg.is_present, TRUE) = FALSE THEN 1 ELSE 0 END) as inactive_servers
+                    SUM(CASE WHEN COALESCE(bg.is_present, TRUE) = FALSE THEN 1 ELSE 0 END) as inactive_servers,
+                    SUM(CASE WHEN COALESCE(bg.is_present, TRUE) = FALSE AND COALESCE(ss.bot_access_paid, FALSE) = FALSE THEN 1 ELSE 0 END) as departed_unpaid_servers
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
             """)
@@ -1793,7 +1855,8 @@ def owner_dashboard(user_session):
                 'retention_30day_count': stats_row['retention_30day_count'],
                 'past_due_count': stats_row['past_due_count'],
                 'active_servers': stats_row['active_servers'],
-                'inactive_servers': stats_row['inactive_servers']
+                'inactive_servers': stats_row['inactive_servers'],
+                'departed_unpaid_servers': stats_row['departed_unpaid_servers'] or 0
             }
             
             # Get total active sessions across all servers
@@ -2168,7 +2231,8 @@ def api_owner_grant_access(user_session):
                     SET bot_access_paid = TRUE,
                         manually_granted = TRUE,
                         granted_by = %s,
-                        granted_at = NOW()
+                        granted_at = NOW(),
+                        grant_source = 'granted'
                     WHERE guild_id = %s
                 """, (user_session['user_id'], guild_id))
                 app.logger.info(f"[OK] Granted bot access to guild {guild_id}")
@@ -2188,7 +2252,8 @@ def api_owner_grant_access(user_session):
                         manually_granted = TRUE,
                         granted_by = %s,
                         granted_at = NOW(),
-                        status = 'active'
+                        status = 'active',
+                        grant_source = 'granted'
                     WHERE guild_id = %s
                 """, (access_type, user_session['user_id'], guild_id))
                 app.logger.info(f"[OK] Granted {access_type} retention to guild {guild_id}")
