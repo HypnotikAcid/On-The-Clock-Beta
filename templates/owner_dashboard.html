@@ -511,6 +511,193 @@
             color: #D4AF37;
         }
 
+        .server-actions {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+        }
+        
+        .server-actions-title {
+            color: #D4AF37;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            padding: 10px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #60A5FA;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .action-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .action-btn.download {
+            background: rgba(52, 211, 153, 0.1);
+            border-color: rgba(52, 211, 153, 0.3);
+            color: #34D399;
+        }
+        
+        .action-btn.download:hover {
+            background: rgba(52, 211, 153, 0.2);
+            border-color: rgba(52, 211, 153, 0.5);
+        }
+        
+        .date-range-picker {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(10, 15, 31, 0.6);
+            border-radius: 8px;
+            border: 1px solid rgba(212, 175, 55, 0.1);
+        }
+        
+        .date-range-picker.active {
+            display: block;
+        }
+        
+        .date-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .date-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .date-input-group label {
+            color: #8B949E;
+            font-size: 11px;
+        }
+        
+        .date-input-group input {
+            padding: 8px 12px;
+            background: rgba(10, 15, 31, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 6px;
+            color: #C9D1D9;
+            font-size: 13px;
+        }
+        
+        .quick-range-btns {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .quick-range-btn {
+            padding: 6px 12px;
+            background: rgba(139, 148, 158, 0.1);
+            border: 1px solid rgba(139, 148, 158, 0.3);
+            border-radius: 4px;
+            color: #8B949E;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .quick-range-btn:hover, .quick-range-btn.active {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: rgba(212, 175, 55, 0.5);
+            color: #D4AF37;
+        }
+        
+        .employee-list-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .employee-list-modal.active {
+            display: flex;
+        }
+        
+        .employee-list-content {
+            background: #161B2E;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .employee-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .employee-list-header h3 {
+            color: #D4AF37;
+            margin: 0;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            color: #8B949E;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .employee-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .employee-table th {
+            text-align: left;
+            padding: 10px;
+            background: rgba(10, 15, 31, 0.6);
+            color: #D4AF37;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .employee-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            color: #C9D1D9;
+            font-size: 13px;
+        }
+
         .grant-buttons {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1008,6 +1195,39 @@
                                 Revoke 30-Day
                             </button>
                         </div>
+                        
+                        <div class="server-actions">
+                            <div class="server-actions-title">📊 Data Actions</div>
+                            <div class="action-buttons">
+                                <button class="action-btn" onclick="viewEmployeeList('{{ server.guild_id }}', '{{ server.guild_name }}')">
+                                    👥 View Employee List
+                                </button>
+                                <button class="action-btn download" onclick="toggleDatePicker('{{ server.guild_id }}')">
+                                    📅 Download Time Report
+                                </button>
+                            </div>
+                            <div class="date-range-picker" id="datePicker-{{ server.guild_id }}">
+                                <div class="quick-range-btns">
+                                    <button class="quick-range-btn" onclick="setQuickRange('{{ server.guild_id }}', 'lastMonth', event)">Last Month</button>
+                                    <button class="quick-range-btn" onclick="setQuickRange('{{ server.guild_id }}', 'thisMonth', event)">This Month</button>
+                                    <button class="quick-range-btn" onclick="setQuickRange('{{ server.guild_id }}', 'last7', event)">Last 7 Days</button>
+                                    <button class="quick-range-btn" onclick="setQuickRange('{{ server.guild_id }}', 'last30', event)">Last 30 Days</button>
+                                </div>
+                                <div class="date-inputs">
+                                    <div class="date-input-group">
+                                        <label>Start Date</label>
+                                        <input type="date" id="startDate-{{ server.guild_id }}">
+                                    </div>
+                                    <div class="date-input-group">
+                                        <label>End Date</label>
+                                        <input type="date" id="endDate-{{ server.guild_id }}">
+                                    </div>
+                                    <button class="action-btn download" onclick="downloadTimeReport('{{ server.guild_id }}', '{{ server.guild_name }}')">
+                                        ⬇️ Download CSV
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -1202,6 +1422,18 @@
             </div>
         </div>
     </div>
+    
+    <div class="employee-list-modal" id="employeeListModal">
+        <div class="employee-list-content">
+            <div class="employee-list-header">
+                <h3 id="employeeListTitle">Employee List</h3>
+                <button class="close-modal" onclick="closeEmployeeModal()">&times;</button>
+            </div>
+            <div id="employeeListContent">
+                <p style="color: #8B949E;">Loading...</p>
+            </div>
+        </div>
+    </div>
 
     <script>
         // Toggle collapsible sections
@@ -1303,6 +1535,140 @@
             }
         }
 
+        // Employee list and time report functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        async function viewEmployeeList(guildId, guildName) {
+            const modal = document.getElementById('employeeListModal');
+            const title = document.getElementById('employeeListTitle');
+            const content = document.getElementById('employeeListContent');
+            
+            title.textContent = 'Employee List - ' + escapeHtml(guildName);
+            content.innerHTML = '<p style="color: #8B949E;">Loading employees...</p>';
+            modal.classList.add('active');
+            
+            try {
+                const response = await fetch('/api/owner/employee-list/' + guildId);
+                const data = await response.json();
+                
+                if (data.success && data.employees.length > 0) {
+                    let html = '<table class="employee-table"><thead><tr>';
+                    html += '<th>User ID</th><th>Name</th><th>Role</th><th>Total Hours</th><th>Sessions</th><th>Status</th>';
+                    html += '</tr></thead><tbody>';
+                    
+                    data.employees.forEach(emp => {
+                        const statusBadge = emp.is_clocked_in 
+                            ? '<span style="color: #34D399;">Clocked In</span>' 
+                            : '<span style="color: #8B949E;">Clocked Out</span>';
+                        html += '<tr>';
+                        html += '<td><code>' + escapeHtml(emp.user_id) + '</code></td>';
+                        html += '<td>' + escapeHtml(emp.display_name || 'Unknown') + '</td>';
+                        html += '<td>' + escapeHtml(emp.role || '-') + '</td>';
+                        html += '<td>' + (emp.total_hours || '0') + ' hrs</td>';
+                        html += '<td>' + (emp.session_count || 0) + '</td>';
+                        html += '<td>' + statusBadge + '</td>';
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table>';
+                    html += '<p style="color: #8B949E; margin-top: 15px; font-size: 12px;">Total employees: ' + data.employees.length + '</p>';
+                    content.innerHTML = html;
+                } else if (data.success && data.employees.length === 0) {
+                    content.innerHTML = '<p style="color: #8B949E;">No employees found for this server.</p>';
+                } else {
+                    content.innerHTML = '<p style="color: #FF6B6B;">Error: ' + escapeHtml(data.error) + '</p>';
+                }
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                content.innerHTML = '<p style="color: #FF6B6B;">Failed to load employees. Please try again.</p>';
+            }
+        }
+        
+        function closeEmployeeModal() {
+            document.getElementById('employeeListModal').classList.remove('active');
+        }
+        
+        function toggleDatePicker(guildId) {
+            const picker = document.getElementById('datePicker-' + guildId);
+            picker.classList.toggle('active');
+        }
+        
+        function setQuickRange(guildId, rangeType, evt) {
+            const startInput = document.getElementById('startDate-' + guildId);
+            const endInput = document.getElementById('endDate-' + guildId);
+            
+            if (!startInput || !endInput) {
+                console.error('Date inputs not found for guild:', guildId);
+                return;
+            }
+            
+            const now = new Date();
+            let startDate, endDate;
+            
+            if (rangeType === 'lastMonth') {
+                const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                startDate = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+                endDate = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+            } else if (rangeType === 'thisMonth') {
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            } else if (rangeType === 'last7') {
+                endDate = now;
+                startDate = new Date(now);
+                startDate.setDate(startDate.getDate() - 7);
+            } else if (rangeType === 'last30') {
+                endDate = now;
+                startDate = new Date(now);
+                startDate.setDate(startDate.getDate() - 30);
+            }
+            
+            startInput.value = startDate.toISOString().split('T')[0];
+            endInput.value = endDate.toISOString().split('T')[0];
+            
+            const btns = document.querySelectorAll('#datePicker-' + guildId + ' .quick-range-btn');
+            btns.forEach(btn => btn.classList.remove('active'));
+            if (evt && evt.target) {
+                evt.target.classList.add('active');
+            }
+        }
+        
+        async function downloadTimeReport(guildId, guildName) {
+            const startDate = document.getElementById('startDate-' + guildId).value;
+            const endDate = document.getElementById('endDate-' + guildId).value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/owner/time-report/' + guildId + '?start_date=' + startDate + '&end_date=' + endDate);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = guildName.replace(/[^a-z0-9]/gi, '_') + '_time_report_' + startDate + '_to_' + endDate + '.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const data = await response.json();
+                    alert('Error: ' + (data.error || 'Failed to download report'));
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Failed to download report. Please try again.');
+            }
+        }
+        
         // Server search functionality
         document.getElementById('serverSearch').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();

@@ -2878,6 +2878,152 @@ def api_owner_audit_email_settings(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+@app.route("/api/owner/employee-list/<guild_id>", methods=["GET"])
+@require_api_auth
+def api_owner_employee_list(user_session, guild_id):
+    """Owner-only API endpoint to get employee list for a server"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    ep.user_id,
+                    ep.first_name,
+                    ep.last_name,
+                    ep.full_name,
+                    ep.display_name,
+                    ep.company_role,
+                    ep.role_tier,
+                    ep.is_active,
+                    COALESCE(SUM(
+                        CASE WHEN s.clock_out IS NOT NULL 
+                        THEN EXTRACT(EPOCH FROM (s.clock_out - s.clock_in))/3600 
+                        ELSE 0 END
+                    ), 0) as total_hours,
+                    COUNT(s.id) as session_count,
+                    EXISTS(SELECT 1 FROM sessions s2 WHERE s2.guild_id = ep.guild_id AND s2.user_id = ep.user_id AND s2.clock_out IS NULL) as is_clocked_in
+                FROM employee_profiles ep
+                LEFT JOIN sessions s ON s.guild_id = ep.guild_id AND s.user_id = ep.user_id
+                WHERE ep.guild_id = %s
+                GROUP BY ep.user_id, ep.first_name, ep.last_name, ep.full_name, ep.display_name, ep.company_role, ep.role_tier, ep.is_active, ep.guild_id
+                ORDER BY ep.display_name, ep.user_id
+            """, (int(guild_id),))
+            employees = cursor.fetchall()
+        
+        result = []
+        for emp in employees:
+            name = emp['display_name'] or emp['full_name'] or f"{emp['first_name'] or ''} {emp['last_name'] or ''}".strip() or f"User {emp['user_id']}"
+            result.append({
+                'user_id': str(emp['user_id']),
+                'display_name': name,
+                'role': emp['company_role'] or emp['role_tier'] or 'Employee',
+                'is_active': emp['is_active'],
+                'total_hours': round(float(emp['total_hours']), 2),
+                'session_count': emp['session_count'],
+                'is_clocked_in': emp['is_clocked_in']
+            })
+        
+        return jsonify({
+            'success': True,
+            'employees': result,
+            'total': len(result)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Employee list error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route("/api/owner/time-report/<guild_id>", methods=["GET"])
+@require_api_auth
+def api_owner_time_report(user_session, guild_id):
+    """Owner-only API endpoint to download time report CSV for a server"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            return jsonify({'success': False, 'error': 'start_date and end_date required'}), 400
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT bg.guild_name FROM bot_guilds WHERE guild_id = %s
+            """, (str(guild_id),))
+            guild_row = cursor.fetchone()
+            guild_name = guild_row['guild_name'] if guild_row else f"Server {guild_id}"
+            
+            cursor = conn.execute("""
+                SELECT 
+                    s.user_id,
+                    ep.display_name,
+                    ep.full_name,
+                    ep.first_name,
+                    ep.last_name,
+                    s.clock_in,
+                    s.clock_out,
+                    CASE 
+                        WHEN s.clock_out IS NOT NULL 
+                        THEN EXTRACT(EPOCH FROM (s.clock_out - s.clock_in))/3600 
+                        ELSE NULL 
+                    END as hours_worked
+                FROM sessions s
+                LEFT JOIN employee_profiles ep ON s.guild_id = ep.guild_id AND s.user_id = ep.user_id
+                WHERE s.guild_id = %s
+                  AND s.clock_in >= %s::date
+                  AND s.clock_in < (%s::date + interval '1 day')
+                ORDER BY s.clock_in
+            """, (int(guild_id), start_date, end_date))
+            sessions = cursor.fetchall()
+        
+        import io
+        import csv
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        writer.writerow(['Employee ID', 'Employee Name', 'Clock In', 'Clock Out', 'Hours Worked'])
+        
+        total_hours = 0
+        for session in sessions:
+            name = session['display_name'] or session['full_name'] or f"{session['first_name'] or ''} {session['last_name'] or ''}".strip() or f"User {session['user_id']}"
+            clock_in = session['clock_in'].strftime('%Y-%m-%d %H:%M:%S') if session['clock_in'] else ''
+            clock_out = session['clock_out'].strftime('%Y-%m-%d %H:%M:%S') if session['clock_out'] else 'Still clocked in'
+            hours = round(float(session['hours_worked']), 2) if session['hours_worked'] else 'N/A'
+            if session['hours_worked']:
+                total_hours += float(session['hours_worked'])
+            
+            writer.writerow([str(session['user_id']), name, clock_in, clock_out, hours])
+        
+        writer.writerow([])
+        writer.writerow(['', '', '', 'Total Hours:', round(total_hours, 2)])
+        writer.writerow(['', '', '', 'Report Period:', f'{start_date} to {end_date}'])
+        writer.writerow(['', '', '', 'Server:', guild_name])
+        
+        output.seek(0)
+        
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=time_report_{guild_id}_{start_date}_to_{end_date}.csv'
+            }
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Time report error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 def verify_guild_access(user_session, guild_id, allow_employee=False):
     """
     Verify user has access to a specific guild.
