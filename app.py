@@ -136,6 +136,44 @@ def bot_db():
     """Lazy access to bot database context manager - returns the callable that produces the context manager."""
     return _get_bot_func('db')()
 
+# Flask-side database functions that use get_db() for production compatibility
+# These are used by webhook handlers and dashboard to write to the correct database
+def flask_check_bot_access(guild_id: int) -> bool:
+    """Check if a server has paid for bot access using Flask's database connection."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = %s",
+            (guild_id,)
+        )
+        result = cursor.fetchone()
+        if not result:
+            return False
+        return bool(result['bot_access_paid'])
+
+def flask_set_bot_access(guild_id: int, paid: bool):
+    """Update bot_access_paid status using Flask's database connection."""
+    with get_db() as conn:
+        conn.execute("""
+            INSERT INTO server_subscriptions (guild_id, bot_access_paid, status)
+            VALUES (%s, %s, %s)
+            ON CONFLICT(guild_id) DO UPDATE SET 
+                bot_access_paid = %s,
+                status = EXCLUDED.status
+        """, (guild_id, paid, 'active' if paid else 'free', paid))
+
+def flask_set_retention_tier(guild_id: int, tier: str):
+    """Update retention tier using Flask's database connection."""
+    valid_tiers = ('none', '7day', '30day')
+    if tier not in valid_tiers:
+        raise ValueError(f"Invalid retention tier: {tier}. Must be one of {valid_tiers}")
+    
+    with get_db() as conn:
+        conn.execute("""
+            INSERT INTO server_subscriptions (guild_id, retention_tier)
+            VALUES (%s, %s)
+            ON CONFLICT(guild_id) DO UPDATE SET retention_tier = %s
+        """, (guild_id, tier, tier))
+
 # Lazy access to Discord bot instance - use get_bot() for property access
 def get_bot():
     """Lazy access to Discord bot instance."""
@@ -1060,8 +1098,8 @@ def get_all_user_guilds(user_session):
 def log_purchase_and_notify(guild_id, guild_name, customer_email, customer_id, product_type, amount_cents, stripe_session_id):
     """Log purchase to history table and send email notification to owner"""
     try:
-        # Log to purchase_history table
-        with bot_db() as conn:
+        # Log to purchase_history table (using Flask's get_db for production)
+        with get_db() as conn:
             conn.execute("""
                 INSERT INTO purchase_history 
                 (guild_id, guild_name, customer_email, customer_id, product_type, amount_cents, stripe_session_id)
@@ -1233,24 +1271,24 @@ def handle_checkout_completed(session):
             stripe_session_id=session['id']
         )
         
-        # Process based on product type
+        # Process based on product type (using Flask-side functions for production DB)
         if product_type == 'bot_access':
             # One-time bot access payment
-            set_bot_access(guild_id, True)
+            flask_set_bot_access(guild_id, True)
             app.logger.info(f"[OK] Bot access granted for server {guild_id}")
             
         elif product_type == 'retention_7day':
             # 7-day retention subscription
-            if not check_bot_access(guild_id):
+            if not flask_check_bot_access(guild_id):
                 app.logger.error(f"[ERROR] SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
                 return
             
             subscription_id = session.get('subscription')
             customer_id = session.get('customer')
-            set_retention_tier(guild_id, '7day')
+            flask_set_retention_tier(guild_id, '7day')
             
-            # Store subscription_id and customer_id in database
-            with bot_db() as conn:
+            # Store subscription_id and customer_id in database (using Flask's get_db)
+            with get_db() as conn:
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
                     VALUES (%s, %s, %s, 'active')
@@ -1264,16 +1302,16 @@ def handle_checkout_completed(session):
             
         elif product_type == 'retention_30day':
             # 30-day retention subscription
-            if not check_bot_access(guild_id):
+            if not flask_check_bot_access(guild_id):
                 app.logger.error(f"[ERROR] SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
                 return
             
             subscription_id = session.get('subscription')
             customer_id = session.get('customer')
-            set_retention_tier(guild_id, '30day')
+            flask_set_retention_tier(guild_id, '30day')
             
-            # Store subscription_id and customer_id in database
-            with bot_db() as conn:
+            # Store subscription_id and customer_id in database (using Flask's get_db)
+            with get_db() as conn:
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
                     VALUES (%s, %s, %s, 'active')
@@ -1299,7 +1337,8 @@ def handle_subscription_change(subscription):
             app.logger.error("[ERROR] No subscription ID in subscription change event")
             return
         
-        with bot_db() as conn:
+        # Using Flask's get_db for production database
+        with get_db() as conn:
             conn.execute("""
                 UPDATE server_subscriptions 
                 SET status = %s
@@ -1322,7 +1361,8 @@ def handle_subscription_cancellation(subscription):
             app.logger.error("[ERROR] No subscription ID in cancellation event")
             return
         
-        with bot_db() as conn:
+        # Using Flask's get_db for production database
+        with get_db() as conn:
             cursor = conn.execute("""
                 SELECT guild_id FROM server_subscriptions 
                 WHERE subscription_id = %s OR customer_id = %s
@@ -1332,8 +1372,8 @@ def handle_subscription_cancellation(subscription):
             if result:
                 guild_id = result['guild_id']
                 
-                # Set retention tier to 'none'
-                set_retention_tier(guild_id, 'none')
+                # Set retention tier to 'none' using Flask-side function
+                flask_set_retention_tier(guild_id, 'none')
                 
                 # Update subscription status to canceled
                 conn.execute("""
@@ -1342,7 +1382,7 @@ def handle_subscription_cancellation(subscription):
                     WHERE guild_id = %s
                 """, (guild_id,))
                 
-                # Trigger immediate data deletion
+                # Trigger immediate data deletion (this still uses bot function)
                 purge_timeclock_data_only(guild_id)
                 
                 app.logger.info(f"[OK] Retention subscription canceled for server {guild_id}")
@@ -1363,7 +1403,8 @@ def handle_payment_failure(invoice):
             app.logger.error("[ERROR] No customer or subscription ID in payment failure event")
             return
         
-        with bot_db() as conn:
+        # Using Flask's get_db for production database
+        with get_db() as conn:
             cursor = conn.execute("""
                 SELECT guild_id FROM server_subscriptions 
                 WHERE subscription_id = %s OR customer_id = %s
@@ -2340,9 +2381,9 @@ def api_owner_broadcast(user_session):
         app.logger.info(f"Owner {user_session.get('username')} initiating broadcast to {target} servers")
         app.logger.info(f"Broadcast title: {title}")
         
-        # Get target guild IDs based on filter
+        # Get target guild IDs based on filter (using Flask's get_db for production)
         # Note: bot_guilds.guild_id is TEXT, server_subscriptions.guild_id is BIGINT - must cast for JOIN
-        with bot_db() as conn:
+        with get_db() as conn:
             if target == 'all':
                 cursor = conn.execute("""
                     SELECT DISTINCT guild_id FROM bot_guilds WHERE is_present = TRUE
@@ -3002,9 +3043,10 @@ def upgrade_info(user_session, guild_id):
         if not guild:
             return "<h1>Access Denied</h1><p>You don't have admin access to this server.</p><a href='/dashboard'>Back to Dashboard</a>", 403
         
-        # Get bot access and retention tier status
-        from bot import check_bot_access, get_retention_tier
-        has_bot_access = check_bot_access(int(guild_id))
+        # Get bot access and retention tier status (using Flask-side function for production)
+        has_bot_access = flask_check_bot_access(int(guild_id))
+        # get_retention_tier is read-only so can use bot module
+        from bot import get_retention_tier
         retention_tier = get_retention_tier(int(guild_id))
         
         # Escape guild name for XSS protection
@@ -3108,10 +3150,9 @@ def purchase_page(guild_id):
     """Public purchase page for $5 bot access - explains what it unlocks"""
     try:
         import html
-        from bot import check_bot_access
         
-        # Check if already has bot access
-        has_bot_access = check_bot_access(guild_id)
+        # Check if already has bot access (using Flask-side function for production)
+        has_bot_access = flask_check_bot_access(guild_id)
         
         if has_bot_access:
             # Already purchased - redirect to upgrade page for retention options
@@ -5455,9 +5496,9 @@ def api_get_employee_detail(user_session, guild_id, user_id):
                 employee = emp
                 break
         
-        # If not in active list, get from database
+        # If not in active list, get from database (using Flask's get_db)
         if not employee:
-            with bot_db() as conn:
+            with get_db() as conn:
                 cursor = conn.execute("""
                     SELECT user_id, username, display_name
                     FROM employee_profiles
@@ -5479,8 +5520,8 @@ def api_get_employee_detail(user_session, guild_id, user_id):
         if not employee:
             return jsonify({'success': False, 'error': 'Employee not found'}), 404
         
-        # Get total sessions count
-        with bot_db() as conn:
+        # Get total sessions count (using Flask's get_db)
+        with get_db() as conn:
             cursor = conn.execute("""
                 SELECT COUNT(*) as total_sessions
                 FROM sessions
@@ -5514,10 +5555,10 @@ def api_get_employee_timecard(user_session, guild_id, user_id):
         
         timezone_name = request.args.get('timezone', 'America/New_York')
         
-        # Get sessions for the week
+        # Get sessions for the week (using Flask's get_db)
         week_end = week_start + timedelta(days=7)
         
-        with bot_db() as conn:
+        with get_db() as conn:
             cursor = conn.execute("""
                 SELECT clock_in, clock_out, duration_seconds
                 FROM sessions
@@ -5578,7 +5619,8 @@ def api_get_employee_recent_adjustments(user_session, guild_id, user_id):
     Get top 3 most recent adjustment requests for an employee.
     """
     try:
-        with bot_db() as conn:
+        # Using Flask's get_db for production database
+        with get_db() as conn:
             cursor = conn.execute("""
                 SELECT id, request_type, status, created_at, reason,
                        original_clock_in, original_clock_out,
