@@ -1,0 +1,68 @@
+2026-01-07 18:12:04.49
+b580d4b9
+System
+starting up user application
+2026-01-07 18:12:04.49
+b580d4b9
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-01-07 18:12:04.49
+b580d4b9
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-01-07 18:12:17.81
+b580d4b9
+User
+[2026-01-07 23:12:17 +0000] [18] [INFO] [OK] PostgreSQL connection pool initialized for Flask
+2026-01-07 18:12:17.98
+b580d4b9
+User
+[2026-01-07 23:12:17 +0000] [18] [INFO] Starting gunicorn 23.0.0
+2026-01-07 18:12:17.98
+b580d4b9
+User
+[2026-01-07 23:12:17 +0000] [18] [INFO] Listening at: http://0.0.0.0:5000 (18)
+2026-01-07 18:12:20.30
+b580d4b9
+User
+warnings.warn("Can not find any timezone configuration, defaulting to UTC.")
+2026-01-07 18:12:20.30
+b580d4b9
+User
+/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/tzlocal/unix.py:207: UserWarning: Can not find any timezone configuration, defaulting to UTC.
+2026-01-07 18:12:28.94
+b580d4b9
+User
+[2026-01-07 23:12:28 +0000] [24] [INFO] No session_id found, redirecting to login
+2026-01-07 18:12:39.79
+b580d4b9
+User
+[2026-01-07 23:12:39 +0000] [24] [ERROR] OAuth error from Discord: access_denied
+2026-01-07 18:12:39.79
+b580d4b9
+User
+[2026-01-07 23:12:39 +0000] [24] [INFO] OAuth callback received - code: missing, state: present, error: access_denied
+2026-01-07 18:12:47.12
+b580d4b9
+User
+[2026-01-07 23:12:47 +0000] [24] [INFO] OAuth login initiated - Redirect URI: https://on-the-clock.replit.app/auth/callback
+2026-01-07 18:12:50.67
+b580d4b9
+User
+[2026-01-07 23:12:50 +0000] [24] [INFO] OAuth callback received - code: present, state: present, error: None
+2026-01-07 18:12:51.15
+b580d4b9
+User
+[2026-01-07 23:12:51 +0000] [24] [INFO] Fetching user info from Discord
+2026-01-07 18:12:51.30
+b580d4b9
+User
+[2026-01-07 23:12:51 +0000] [24] [INFO] User authenticated: hypnotikacid
+2026-01-07 18:12:51.30
+b580d4b9
+User
+[2026-01-07 23:12:51 +0000] [24] [INFO] Fetching user guilds
+2026-01-07 18:12:51.75
+b580d4b9
+User
+[2026-01-07 23:12:51 +0000] [24] [INFO] Found 17 guilds

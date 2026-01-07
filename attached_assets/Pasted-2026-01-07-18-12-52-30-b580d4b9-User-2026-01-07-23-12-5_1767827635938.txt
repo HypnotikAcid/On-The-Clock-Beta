@@ -1,0 +1,108 @@
+2026-01-07 18:12:52.30
+b580d4b9
+User
+[2026-01-07 23:12:52 +0000] [24] [INFO] Dashboard accessed by user: hypnotikacid
+2026-01-07 18:12:52.57
+b580d4b9
+User
+[2026-01-07 23:12:52 +0000] [24] [INFO] Showing 5 admin guilds and 0 employee-only guilds
+2026-01-07 18:12:58.31
+b580d4b9
+User
+[2026-01-07 23:12:58 +0000] [24] [INFO] Owner dashboard accessed by hypnotikacid
+2026-01-07 18:12:58.38
+b580d4b9
+User
+[2026-01-07 23:12:58 +0000] [24] [INFO] Added 1 placeholder server_subscriptions rows for new guilds
+2026-01-07 18:12:58.47
+b580d4b9
+User
+^
+2026-01-07 18:12:58.47
+b580d4b9
+User
+LINE 3: FROM email_recipients
+2026-01-07 18:12:58.47
+b580d4b9
+User
+[2026-01-07 23:12:58 +0000] [24] [ERROR] Owner dashboard error: relation "email_recipients" does not exist
+2026-01-07 18:12:58.47
+b580d4b9
+User
+File "/home/runner/workspace/app.py", line 390, in execute
+2026-01-07 18:12:58.47
+b580d4b9
+User
+File "/home/runner/workspace/app.py", line 1757, in owner_dashboard
+2026-01-07 18:12:58.47
+b580d4b9
+User
+cursor = conn.execute("""
+2026-01-07 18:12:58.47
+b580d4b9
+User
+LINE 3: FROM email_recipients
+2026-01-07 18:12:58.47
+b580d4b9
+User
+psycopg2.errors.UndefinedTable: relation "email_recipients" does not exist
+2026-01-07 18:12:58.47
+b580d4b9
+User
+^
+2026-01-07 18:12:58.47
+b580d4b9
+User
+[2026-01-07 23:12:58 +0000] [24] [ERROR] Traceback (most recent call last):
+2026-01-07 18:12:58.47
+b580d4b9
+User
+^^^^^^^^^^^^^^^^
+2026-01-07 18:12:58.47
+b580d4b9
+User
+self._cursor.execute(query)
+2026-01-07 18:12:58.47
+b580d4b9
+User
+return super().execute(query, vars)
+2026-01-07 18:12:58.47
+b580d4b9
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/psycopg2/extras.py", line 236, in execute
+2026-01-07 18:12:58.47
+b580d4b9
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-01-07 18:12:58.47
+b580d4b9
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-01-07 18:12:58.47
+b580d4b9
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/psycopg2/extras.py", line 236, in execute
+2026-01-07 18:12:58.47
+b580d4b9
+User
+return super().execute(query, vars)
+2026-01-07 18:12:58.47
+b580d4b9
+User
+self._cursor.execute(query)
+2026-01-07 18:12:58.47
+b580d4b9
+User
+^^^^^^^^^^^^^^^^
+2026-01-07 18:12:58.47
+b580d4b9
+User
+[2026-01-07 23:12:58 +0000] [24] [ERROR] Traceback (most recent call last):
+2026-01-07 18:12:58.47
+b580d4b9
+User
+^
+2026-01-07 18:12:58.47
+b580d4b9
+User
+psycopg2.errors.UndefinedTable: relation "email_recipients" does not exist

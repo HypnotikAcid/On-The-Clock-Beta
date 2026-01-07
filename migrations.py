@@ -309,6 +309,25 @@ def run_migrations():
                 # 12. Add grant_source column to server_subscriptions for tracking Stripe vs manual grants
                 print("   Checking for grant_source column")
                 cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS grant_source TEXT")
+                
+                # 13. Create email_recipients table for storing report recipients per guild
+                print("   Checking table: email_recipients")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS email_recipients (
+                        id SERIAL PRIMARY KEY,
+                        guild_id BIGINT NOT NULL,
+                        email VARCHAR(255) NOT NULL,
+                        added_by BIGINT,
+                        added_at TIMESTAMPTZ DEFAULT NOW(),
+                        UNIQUE(guild_id, email)
+                    )
+                """)
+                
+                # Add index for guild-based email lookups
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_email_recipients_guild 
+                    ON email_recipients(guild_id)
+                """)
 
         print("✅ Database schema is up to date")
         return True
