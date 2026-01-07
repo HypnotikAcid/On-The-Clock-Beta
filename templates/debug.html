@@ -592,8 +592,8 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>Security Debug Console</h1>
-                <p>Test the SSRF security fix before deploying</p>
+                <h1>System Debug Console</h1>
+                <p>Diagnostic tools and manual access management</p>
             </div>
             <div class="header-links">
                 <a href="/owner">Owner Dashboard</a>
@@ -602,35 +602,30 @@
             </div>
         </div>
 
-        <div class="quick-start">
-            <h3>How This Works (Quick Guide)</h3>
-            <div class="quick-start-steps">
-                <div class="qs-step">
-                    <div class="number">1</div>
-                    <h4>No Setup Needed for Attack Tests</h4>
-                    <p>The purple "Attack Simulation" buttons work without any IDs. They test if malicious input is blocked.</p>
+        <div class="section">
+            <div class="section-title">🛡️ Manual Access Management</div>
+            <p style="color: #8B949E; margin-bottom: 20px; font-size: 13px;">
+                Manually grant or fix server access. Use "Grant as Stripe" to simulate a paid checkout (fixes access issues) or "Grant as Owner" for manual overrides.
+            </p>
+
+            <div class="wizard-step active" style="margin-bottom: 20px;">
+                <div class="input-group">
+                    <label>Target Guild ID <span class="label-hint">(Discord Server ID)</span></label>
+                    <input type="text" id="targetGuildId" placeholder="e.g., 1361859331351511083" oninput="validateGuildInput()">
                 </div>
-                <div class="qs-step">
-                    <div class="number">2</div>
-                    <h4>What You're Testing</h4>
-                    <p>We patched code that builds URLs. Attackers could have injected "../" to access wrong endpoints.</p>
+                
+                <div class="test-grid">
+                    <div class="test-card">
+                        <h4>Grant as Stripe</h4>
+                        <p>Assigns "Dashboard Premium" and sets source to "Stripe". Use this to restore missing paid access.</p>
+                        <button class="test-btn primary" id="grantStripeBtn" onclick="manualGrant('stripe')" disabled>Grant as Stripe</button>
+                    </div>
+                    <div class="test-card">
+                        <h4>Grant as Owner</h4>
+                        <p>Assigns "Dashboard Premium" and sets source to "Granted". General manual override.</p>
+                        <button class="test-btn info" id="grantOwnerBtn" onclick="manualGrant('owner')" disabled>Grant as Owner</button>
+                    </div>
                 </div>
-                <div class="qs-step">
-                    <div class="number">3</div>
-                    <h4>Expected Results</h4>
-                    <p>Attack tests should show <strong style="color:#CE93D8">BLOCKED</strong>. This means the security fix is working.</p>
-                </div>
-                <div class="qs-step">
-                    <div class="number">4</div>
-                    <h4>Run All Tests</h4>
-                    <p>Click the button below to run all security tests automatically and see a summary.</p>
-                </div>
-            </div>
-            <button class="run-all-btn" onclick="runAllSecurityTests()">Run All Security Tests</button>
-            
-            <div class="result-summary" id="resultSummary">
-                <h4>Test Results Summary</h4>
-                <div id="resultRows"></div>
             </div>
         </div>
 
@@ -878,6 +873,39 @@
             a.click();
             URL.revokeObjectURL(url);
             log('info', 'Logs exported to file');
+        }
+
+        async function manualGrant(source) {
+            const guildId = document.getElementById('targetGuildId').value.trim();
+            if (!guildId) return;
+
+            if (!confirm(`Are you sure you want to grant premium access to ${guildId} as ${source}?`)) return;
+
+            addLogEntry('info', `Initiating manual grant for ${guildId} via ${source}...`);
+            
+            try {
+                const response = await fetch('/api/owner/manual-grant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: guildId, source: source })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    addLogEntry('success', `Successfully granted access: ${result.message}`);
+                } else {
+                    addLogEntry('error', `Failed to grant access: ${result.error || 'Unknown error'}`);
+                }
+            } catch (err) {
+                addLogEntry('error', `Network error: ${err.message}`);
+            }
+        }
+
+        function validateGuildInput() {
+            const val = document.getElementById('targetGuildId').value.trim();
+            const isValid = val.length >= 17 && /^\d+$/.test(val);
+            document.getElementById('grantStripeBtn').disabled = !isValid;
+            document.getElementById('grantOwnerBtn').disabled = !isValid;
         }
 
         async function runTest(testType) {

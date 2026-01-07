@@ -1905,6 +1905,46 @@ def owner_dashboard(user_session):
         app.logger.error(traceback.format_exc())
         return "<h1>Error</h1><p>Unable to load owner dashboard. Please try again later.</p><a href='/dashboard'>Return to Dashboard</a>", 500
 
+@app.route("/api/owner/manual-grant", methods=["POST"])
+@require_api_auth
+def api_owner_manual_grant(user_session):
+    """Owner-only API endpoint to manually grant access with specific source attribution"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+            
+        data = request.get_json()
+        guild_id = data.get('guild_id')
+        source = data.get('source', 'owner') # 'stripe' or 'owner'
+        
+        if not guild_id or not guild_id.isdigit():
+            return jsonify({'success': False, 'error': 'Invalid guild_id'}), 400
+            
+        db_source = 'Stripe' if source == 'stripe' else 'Granted'
+        
+        with get_db() as conn:
+            conn.execute("""
+                INSERT INTO server_subscriptions (guild_id, tier, bot_access_paid, retention_tier, status, manually_granted, granted_by, granted_at, grant_source)
+                VALUES (%s, 'premium', TRUE, '30day', 'active', TRUE, %s, NOW(), %s)
+                ON CONFLICT (guild_id) DO UPDATE SET
+                    tier = 'premium',
+                    bot_access_paid = TRUE,
+                    retention_tier = '30day',
+                    status = 'active',
+                    manually_granted = TRUE,
+                    granted_by = %s,
+                    granted_at = NOW(),
+                    grant_source = %s
+            """, (int(guild_id), user_session['user_id'], db_source, user_session['user_id'], db_source))
+            
+        app.logger.info(f"Owner {user_session.get('username')} manually granted access to {guild_id} as {db_source}")
+        return jsonify({'success': True, 'message': f'Premium access granted to {guild_id} (Source: {db_source})'})
+        
+    except Exception as e:
+        app.logger.error(f"Manual grant error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route("/debug")
 @require_auth
 def debug_console(user_session):
