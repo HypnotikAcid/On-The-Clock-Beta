@@ -89,6 +89,10 @@
                         <span class="badge" id="pending-count"
                             style="display:none; background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">0</span>
                     </div>
+                    <div class="nav-item admin-only" data-section="admin-calendar" data-server-menu>
+                        <span class="nav-item-icon">📅</span>
+                        <span>Admin Calendar</span>
+                    </div>
                     <div class="nav-item admin-only" data-section="ban-management" data-server-menu>
                         <span class="nav-item-icon">🚫</span>
                         <span>Ban Management</span>
@@ -341,6 +345,408 @@
                     </a>
                 </div>
                 <div class="coffee-caption">Like what you see? Buy me a coffee and help my late night addiction</div>
+            </section>
+
+            <!-- Admin Calendar Section -->
+            <section class="content-section admin-only" id="section-admin-calendar">
+                <div class="content-header">
+                    <h1 class="content-title">Admin Calendar</h1>
+                    <p class="content-subtitle">View and edit employee time entries</p>
+                </div>
+
+                <div class="tiles-grid">
+                    <div class="tile" style="grid-column: 1 / -1;">
+                        <!-- Mode Toggle -->
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                            <button id="btn-view-as-mode" class="tool-btn" onclick="setAdminCalendarMode('viewAs')" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                                👤 View As Employee
+                            </button>
+                            <button id="btn-master-mode" class="tool-btn" onclick="setAdminCalendarMode('master')" style="background: rgba(75, 85, 99, 0.5);">
+                                📅 Master Calendar
+                            </button>
+                        </div>
+
+                        <!-- View As Employee Mode -->
+                        <div id="admin-calendar-viewas" style="display: block;">
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Select Employee</label>
+                                <select id="admin-calendar-employee-select" onchange="loadEmployeeCalendar()" style="background: #161B22; border: 1px solid #30363D; color: #C9D1D9; padding: 10px 12px; border-radius: 8px; width: 100%; max-width: 300px; font-size: 14px;">
+                                    <option value="">-- Select an employee --</option>
+                                </select>
+                            </div>
+                            <div id="admin-employee-calendar-container" style="min-height: 200px;">
+                                <div style="text-align: center; color: #8B949E; padding: 40px;">
+                                    Select an employee above to view their calendar
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Master Calendar Mode -->
+                        <div id="admin-calendar-master" style="display: none;">
+                            <!-- Month Navigation -->
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                                <button onclick="navigateMasterCalendar(-1)" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60A5FA; padding: 8px 16px; border-radius: 6px; cursor: pointer;">← Prev</button>
+                                <span id="master-calendar-month-label" style="color: #C9D1D9; font-size: 18px; font-weight: 600;"></span>
+                                <button onclick="navigateMasterCalendar(1)" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60A5FA; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Next →</button>
+                            </div>
+                            <div id="master-calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; min-height: 300px;">
+                                <!-- Calendar days will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Session Edit Modal -->
+                <div id="session-edit-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+                    <div style="background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 24px; max-width: 450px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="color: #C9D1D9; margin: 0;">Edit Session</h3>
+                            <button onclick="closeSessionEditModal()" style="background: none; border: none; color: #8B949E; font-size: 24px; cursor: pointer;">&times;</button>
+                        </div>
+                        <div id="session-edit-content">
+                            <!-- Form content injected by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    let adminCalendarMode = 'viewAs';
+                    let masterCalendarYear = new Date().getFullYear();
+                    let masterCalendarMonth = new Date().getMonth() + 1;
+                    let masterCalendarData = null;
+                    
+                    // Helper to escape HTML for safe rendering
+                    function escapeHtml(text) {
+                        if (!text) return '';
+                        const div = document.createElement('div');
+                        div.textContent = text;
+                        return div.innerHTML;
+                    }
+
+                    function setAdminCalendarMode(mode) {
+                        adminCalendarMode = mode;
+                        document.getElementById('btn-view-as-mode').style.background = mode === 'viewAs' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(75, 85, 99, 0.5)';
+                        document.getElementById('btn-master-mode').style.background = mode === 'master' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(75, 85, 99, 0.5)';
+                        document.getElementById('admin-calendar-viewas').style.display = mode === 'viewAs' ? 'block' : 'none';
+                        document.getElementById('admin-calendar-master').style.display = mode === 'master' ? 'block' : 'none';
+                        
+                        if (mode === 'viewAs') {
+                            loadEmployeeListForCalendar();
+                        } else {
+                            loadMasterCalendar();
+                        }
+                    }
+
+                    async function loadEmployeeListForCalendar() {
+                        const guildId = window.selectedGuildId;
+                        if (!guildId) return;
+                        
+                        try {
+                            const response = await fetch(`/api/guild/${guildId}/employees/active`, { credentials: 'include' });
+                            const data = await response.json();
+                            
+                            const select = document.getElementById('admin-calendar-employee-select');
+                            select.innerHTML = '<option value="">-- Select an employee --</option>';
+                            
+                            if (data.success && data.employees) {
+                                data.employees.forEach(emp => {
+                                    const option = document.createElement('option');
+                                    option.value = emp.user_id;
+                                    option.textContent = emp.display_name || emp.full_name || emp.user_id;
+                                    select.appendChild(option);
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Error loading employee list:', error);
+                        }
+                    }
+
+                    async function loadEmployeeCalendar() {
+                        const guildId = window.selectedGuildId;
+                        const employeeId = document.getElementById('admin-calendar-employee-select').value;
+                        const container = document.getElementById('admin-employee-calendar-container');
+                        
+                        if (!employeeId) {
+                            container.innerHTML = '<div style="text-align: center; color: #8B949E; padding: 40px;">Select an employee above to view their calendar</div>';
+                            return;
+                        }
+                        
+                        container.innerHTML = '<div style="text-align: center; color: #8B949E; padding: 40px;">Loading calendar...</div>';
+                        
+                        try {
+                            const now = new Date();
+                            const response = await fetch(`/api/guild/${guildId}/employee/${employeeId}/monthly-timecard?year=${now.getFullYear()}&month=${now.getMonth() + 1}`, { credentials: 'include' });
+                            const data = await response.json();
+                            
+                            if (data.success) {
+                                renderEmployeeCalendar(container, data.data, employeeId);
+                            } else {
+                                container.innerHTML = `<div style="text-align: center; color: #EF4444; padding: 40px;">Error: ${data.error}</div>`;
+                            }
+                        } catch (error) {
+                            console.error('Error loading employee calendar:', error);
+                            container.innerHTML = '<div style="text-align: center; color: #EF4444; padding: 40px;">Failed to load calendar</div>';
+                        }
+                    }
+
+                    function renderEmployeeCalendar(container, data, employeeId) {
+                        if (!data.days || data.days.length === 0) {
+                            container.innerHTML = '<div style="text-align: center; color: #8B949E; padding: 40px;">No time entries found for this month</div>';
+                            return;
+                        }
+                        
+                        let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+                        data.days.forEach(day => {
+                            const totalHours = (day.total_seconds / 3600).toFixed(2);
+                            html += `
+                                <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid #30363D; border-radius: 8px; padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <span style="color: #C9D1D9; font-weight: 600;">${new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                        <span style="color: #10B981; font-size: 14px;">${totalHours} hrs</span>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                                        ${day.sessions.map(s => `
+                                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(16, 24, 39, 0.5); padding: 8px 10px; border-radius: 6px; font-size: 13px;">
+                                                <span style="color: #8B949E;">
+                                                    ${new Date(s.clock_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                    ${s.clock_out ? ' - ' + new Date(s.clock_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ' - Active'}
+                                                </span>
+                                                <button onclick="openSessionEditModal(${s.id}, '${s.clock_in}', '${s.clock_out || ''}')" 
+                                                        style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #FCD34D; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                                                    Edit
+                                                </button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        container.innerHTML = html;
+                    }
+
+                    async function loadMasterCalendar() {
+                        const guildId = window.selectedGuildId;
+                        if (!guildId) return;
+                        
+                        document.getElementById('master-calendar-month-label').textContent = new Date(masterCalendarYear, masterCalendarMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                        
+                        const grid = document.getElementById('master-calendar-grid');
+                        grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #8B949E; padding: 40px;">Loading...</div>';
+                        
+                        try {
+                            const response = await fetch(`/api/guild/${guildId}/admin/master-calendar?year=${masterCalendarYear}&month=${masterCalendarMonth}`, { credentials: 'include' });
+                            const data = await response.json();
+                            
+                            if (data.success) {
+                                masterCalendarData = data.data;
+                                renderMasterCalendar();
+                            } else {
+                                grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: #EF4444; padding: 40px;">${data.error}</div>`;
+                            }
+                        } catch (error) {
+                            console.error('Error loading master calendar:', error);
+                            grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #EF4444; padding: 40px;">Failed to load calendar</div>';
+                        }
+                    }
+
+                    function renderMasterCalendar() {
+                        const grid = document.getElementById('master-calendar-grid');
+                        const daysInMonth = new Date(masterCalendarYear, masterCalendarMonth, 0).getDate();
+                        const firstDayOfWeek = new Date(masterCalendarYear, masterCalendarMonth - 1, 1).getDay();
+                        
+                        // Build days lookup
+                        const daysLookup = {};
+                        if (masterCalendarData && masterCalendarData.days) {
+                            masterCalendarData.days.forEach(d => {
+                                daysLookup[d.date] = d;
+                            });
+                        }
+                        
+                        // Header row
+                        let html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => 
+                            `<div style="text-align: center; color: #8B949E; font-size: 11px; padding: 8px;">${d}</div>`
+                        ).join('');
+                        
+                        // Empty cells for first week
+                        for (let i = 0; i < firstDayOfWeek; i++) {
+                            html += '<div style="background: rgba(16, 24, 39, 0.3); border-radius: 6px; min-height: 80px;"></div>';
+                        }
+                        
+                        // Day cells
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            const dateStr = `${masterCalendarYear}-${String(masterCalendarMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            const dayData = daysLookup[dateStr];
+                            const hasData = dayData && dayData.employee_count > 0;
+                            
+                            html += `
+                                <div onclick="${hasData ? `showDayDetail('${dateStr}')` : ''}" 
+                                     style="background: ${hasData ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 24, 39, 0.3)'}; 
+                                            border: 1px solid ${hasData ? 'rgba(59, 130, 246, 0.3)' : 'transparent'}; 
+                                            border-radius: 6px; min-height: 80px; padding: 6px; 
+                                            cursor: ${hasData ? 'pointer' : 'default'}; transition: all 0.15s;">
+                                    <div style="color: #C9D1D9; font-size: 13px; font-weight: 500;">${day}</div>
+                                    ${hasData ? `
+                                        <div style="margin-top: 4px;">
+                                            <div style="color: #60A5FA; font-size: 11px;">${dayData.employee_count} emp${dayData.employee_count > 1 ? 's' : ''}</div>
+                                            <div style="color: #10B981; font-size: 11px;">${dayData.total_hours.toFixed(1)}h</div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `;
+                        }
+                        
+                        grid.innerHTML = html;
+                    }
+
+                    function navigateMasterCalendar(delta) {
+                        masterCalendarMonth += delta;
+                        if (masterCalendarMonth > 12) {
+                            masterCalendarMonth = 1;
+                            masterCalendarYear++;
+                        } else if (masterCalendarMonth < 1) {
+                            masterCalendarMonth = 12;
+                            masterCalendarYear--;
+                        }
+                        loadMasterCalendar();
+                    }
+
+                    function showDayDetail(dateStr) {
+                        if (!masterCalendarData || !masterCalendarData.days) return;
+                        
+                        const dayData = masterCalendarData.days.find(d => d.date === dateStr);
+                        if (!dayData) return;
+                        
+                        const modal = document.getElementById('session-edit-modal');
+                        const content = document.getElementById('session-edit-content');
+                        
+                        let html = `<h4 style="color: #C9D1D9; margin-bottom: 15px;">${new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h4>`;
+                        
+                        dayData.employees.forEach(emp => {
+                            html += `
+                                <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid #30363D; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                                    <div style="color: #C9D1D9; font-weight: 600; margin-bottom: 8px;">${escapeHtml(emp.name)}</div>
+                                    <div style="color: #10B981; font-size: 13px; margin-bottom: 8px;">${(emp.total_seconds / 3600).toFixed(2)} hours total</div>
+                                    ${emp.sessions.map(s => `
+                                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(16, 24, 39, 0.5); padding: 8px 10px; border-radius: 6px; font-size: 13px; margin-bottom: 6px;">
+                                            <span style="color: #8B949E;">
+                                                ${new Date(s.clock_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                ${s.clock_out ? ' - ' + new Date(s.clock_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ' - Active'}
+                                            </span>
+                                            <button onclick="openSessionEditModal(${s.id}, '${s.clock_in}', '${s.clock_out || ''}')" 
+                                                    style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #FCD34D; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                                                Edit
+                                            </button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `;
+                        });
+                        
+                        content.innerHTML = html;
+                        modal.style.display = 'flex';
+                    }
+
+                    function openSessionEditModal(sessionId, clockIn, clockOut) {
+                        const modal = document.getElementById('session-edit-modal');
+                        const content = document.getElementById('session-edit-content');
+                        
+                        const clockInDate = clockIn ? new Date(clockIn) : null;
+                        const clockOutDate = clockOut ? new Date(clockOut) : null;
+                        
+                        content.innerHTML = `
+                            <form id="session-edit-form" onsubmit="saveSessionEdit(event, ${sessionId})">
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Clock In</label>
+                                    <input type="datetime-local" id="edit-clock-in" value="${clockInDate ? clockInDate.toISOString().slice(0, 16) : ''}" 
+                                           style="background: #0D1117; border: 1px solid #30363D; color: #C9D1D9; padding: 10px; border-radius: 6px; width: 100%;">
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Clock Out</label>
+                                    <input type="datetime-local" id="edit-clock-out" value="${clockOutDate ? clockOutDate.toISOString().slice(0, 16) : ''}" 
+                                           style="background: #0D1117; border: 1px solid #30363D; color: #C9D1D9; padding: 10px; border-radius: 6px; width: 100%;">
+                                </div>
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Reason for Edit</label>
+                                    <input type="text" id="edit-reason" placeholder="e.g., Forgot to clock out" 
+                                           style="background: #0D1117; border: 1px solid #30363D; color: #C9D1D9; padding: 10px; border-radius: 6px; width: 100%;">
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button type="submit" style="flex: 1; background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                        Save Changes
+                                    </button>
+                                    <button type="button" onclick="closeSessionEditModal()" style="background: rgba(75, 85, 99, 0.5); border: none; color: #C9D1D9; padding: 12px 20px; border-radius: 8px; cursor: pointer;">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        `;
+                        
+                        modal.style.display = 'flex';
+                    }
+
+                    function closeSessionEditModal() {
+                        document.getElementById('session-edit-modal').style.display = 'none';
+                    }
+
+                    async function saveSessionEdit(event, sessionId) {
+                        event.preventDefault();
+                        
+                        const guildId = window.selectedGuildId;
+                        const clockIn = document.getElementById('edit-clock-in').value;
+                        const clockOut = document.getElementById('edit-clock-out').value;
+                        const reason = document.getElementById('edit-reason').value;
+                        
+                        try {
+                            const response = await fetch(`/api/guild/${guildId}/admin/edit-session`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({
+                                    session_id: sessionId,
+                                    clock_in: clockIn ? new Date(clockIn).toISOString() : null,
+                                    clock_out: clockOut ? new Date(clockOut).toISOString() : null,
+                                    reason: reason || 'Admin adjustment'
+                                })
+                            });
+                            
+                            const data = await response.json();
+                            
+                            if (data.success) {
+                                closeSessionEditModal();
+                                // Refresh the current view
+                                if (adminCalendarMode === 'viewAs') {
+                                    loadEmployeeCalendar();
+                                } else {
+                                    loadMasterCalendar();
+                                }
+                            } else {
+                                alert('Error: ' + data.error);
+                            }
+                        } catch (error) {
+                            console.error('Error saving session edit:', error);
+                            alert('Failed to save changes');
+                        }
+                    }
+
+                    // Initialize when section becomes visible
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const observer = new MutationObserver(function(mutations) {
+                            mutations.forEach(function(mutation) {
+                                if (mutation.target.id === 'section-admin-calendar' && 
+                                    !mutation.target.classList.contains('hidden') &&
+                                    mutation.target.style.display !== 'none') {
+                                    loadEmployeeListForCalendar();
+                                }
+                            });
+                        });
+                        
+                        const section = document.getElementById('section-admin-calendar');
+                        if (section) {
+                            observer.observe(section, { attributes: true, attributeFilter: ['class', 'style'] });
+                        }
+                    });
+                </script>
             </section>
 
             <!-- Ban Management Section -->

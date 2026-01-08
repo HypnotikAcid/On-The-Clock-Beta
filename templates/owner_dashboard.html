@@ -1011,10 +1011,32 @@
         <div class="section" style="margin-bottom: 20px;">
             <div class="section-title">🎁 Manual Access Grants</div>
             
-            <!-- Shared Guild ID Input -->
-            <div style="margin-bottom: 20px;">
+            <!-- Server Selector Dropdown -->
+            <div style="margin-bottom: 15px; position: relative;">
+                <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Select Server or Enter Guild ID</label>
+                <div style="position: relative; max-width: 500px;">
+                    <input type="text" id="serverSearchInput" class="search-box" placeholder="Search servers by name or ID..." autocomplete="off" style="margin-bottom: 0;">
+                    <div id="serverDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #161B22; border: 1px solid #30363D; border-radius: 8px; max-height: 300px; overflow-y: auto; z-index: 100; margin-top: 4px;">
+                        <div id="serverDropdownContent"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Selected Server Display -->
+            <div id="selectedServerInfo" style="display: none; margin-bottom: 15px; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; max-width: 500px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span id="selectedServerName" style="color: #C9D1D9; font-weight: 600;"></span>
+                        <div id="selectedServerBadges" style="margin-top: 4px;"></div>
+                    </div>
+                    <button onclick="clearServerSelection()" style="background: none; border: none; color: #8B949E; cursor: pointer; font-size: 18px;">&times;</button>
+                </div>
+            </div>
+            
+            <!-- Guild ID Input (hidden when server selected) -->
+            <div id="guildIdInputWrapper" style="margin-bottom: 20px;">
                 <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Guild ID</label>
-                <input type="text" id="quickGrantGuildId" class="search-box" placeholder="Enter Guild ID..." style="margin-bottom: 0; max-width: 500px;">
+                <input type="text" id="quickGrantGuildId" class="search-box" placeholder="Enter Guild ID manually..." style="margin-bottom: 0; max-width: 500px;">
             </div>
             
             <!-- Dual Grant Panels -->
@@ -1230,30 +1252,24 @@
                         {% endif %}
                         
                         <div class="grant-buttons">
-                            <button class="grant-btn {% if server.bot_access %}granted{% endif %}" 
-                                    onclick="grantAccess('{{ server.guild_id }}', 'bot_access', this)"
-                                    {% if server.bot_access %}disabled{% endif %}>
-                                {% if server.bot_access %}✓ Bot Access{% else %}Grant Bot Access{% endif %}
+                            <button class="grant-btn granted" disabled style="opacity: 0.8;">
+                                {% if server.bot_access %}✓ Bot Access{% else %}No Bot Access{% endif %}
                             </button>
                             <button class="revoke-btn" 
                                     onclick="revokeAccess('{{ server.guild_id }}', 'bot_access', this)"
                                     {% if not server.bot_access %}disabled{% endif %}>
                                 Revoke Bot Access
                             </button>
-                            <button class="grant-btn {% if server.retention_tier == '7day' %}granted{% endif %}" 
-                                    onclick="grantAccess('{{ server.guild_id }}', '7day', this)"
-                                    {% if server.retention_tier == '7day' %}disabled{% endif %}>
-                                {% if server.retention_tier == '7day' %}✓ 7-Day Active{% else %}Grant 7-Day Retention{% endif %}
+                            <button class="grant-btn {% if server.retention_tier == '7day' %}granted{% endif %}" disabled style="opacity: 0.8;">
+                                {% if server.retention_tier == '7day' %}✓ 7-Day Active{% else %}No 7-Day{% endif %}
                             </button>
                             <button class="revoke-btn" 
                                     onclick="revokeAccess('{{ server.guild_id }}', '7day', this)"
                                     {% if server.retention_tier != '7day' %}disabled{% endif %}>
                                 Revoke 7-Day
                             </button>
-                            <button class="grant-btn {% if server.retention_tier == '30day' %}granted{% endif %}" 
-                                    onclick="grantAccess('{{ server.guild_id }}', '30day', this)"
-                                    {% if server.retention_tier == '30day' %}disabled{% endif %}>
-                                {% if server.retention_tier == '30day' %}✓ 30-Day Active{% else %}Grant 30-Day Retention{% endif %}
+                            <button class="grant-btn {% if server.retention_tier == '30day' %}granted{% endif %}" disabled style="opacity: 0.8;">
+                                {% if server.retention_tier == '30day' %}✓ 30-Day Active{% else %}No 30-Day{% endif %}
                             </button>
                             <button class="revoke-btn" 
                                     onclick="revokeAccess('{{ server.guild_id }}', '30day', this)"
@@ -1560,11 +1576,146 @@
             }
         }
 
+        // Server dropdown functionality
+        let serverCache = { active: [], historical: [] };
+        let selectedServer = null;
+        let dropdownDebounce = null;
+        
+        async function loadServerIndex(searchTerm = '') {
+            try {
+                const url = searchTerm ? `/api/owner/server-index?search=${encodeURIComponent(searchTerm)}` : '/api/owner/server-index';
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.success) {
+                    serverCache = { active: data.active || [], historical: data.historical || [] };
+                    renderDropdown();
+                }
+            } catch (error) {
+                console.error('Failed to load server index:', error);
+            }
+        }
+        
+        function renderDropdown() {
+            const dropdown = document.getElementById('serverDropdownContent');
+            const searchTerm = document.getElementById('serverSearchInput').value.trim().toLowerCase();
+            
+            let html = '';
+            
+            // Filter and render active servers
+            const activeFiltered = serverCache.active.filter(s => 
+                !searchTerm || s.name.toLowerCase().includes(searchTerm) || s.guild_id.includes(searchTerm)
+            );
+            
+            if (activeFiltered.length > 0) {
+                html += '<div style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D;">ACTIVE SERVERS</div>';
+                activeFiltered.forEach(s => {
+                    html += renderServerOption(s, false);
+                });
+            }
+            
+            // Filter and render historical servers
+            const historicalFiltered = serverCache.historical.filter(s => 
+                !searchTerm || s.name.toLowerCase().includes(searchTerm) || s.guild_id.includes(searchTerm)
+            );
+            
+            if (historicalFiltered.length > 0) {
+                html += '<div style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D; border-top: 1px solid #30363D;">HISTORICAL (Bot Left)</div>';
+                historicalFiltered.forEach(s => {
+                    html += renderServerOption(s, true);
+                });
+            }
+            
+            if (!html) {
+                html = '<div style="padding: 12px; color: #8B949E; text-align: center;">No servers found</div>';
+            }
+            
+            dropdown.innerHTML = html;
+        }
+        
+        function renderServerOption(server, isHistorical) {
+            const badges = [];
+            if (server.bot_access) badges.push('<span style="background: #238636; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">PAID</span>');
+            if (server.granted) badges.push(`<span style="background: #6e40c9; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${server.source === 'stripe' ? 'STRIPE' : 'GRANTED'}</span>`);
+            if (server.retention) badges.push(`<span style="background: #1f6feb; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${server.retention.toUpperCase()}</span>`);
+            if (isHistorical) badges.push(`<span style="background: #484f58; color: #8B949E; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Left ${server.left_at || 'unknown'}</span>`);
+            
+            return `
+                <div onclick="selectServer('${server.guild_id}', '${escapeHtml(server.name)}', ${server.bot_access}, '${server.retention || ''}', ${server.granted}, '${server.source || ''}')" 
+                     style="padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #21262D; transition: background 0.15s;" 
+                     onmouseover="this.style.background='#21262D'" onmouseout="this.style.background='transparent'">
+                    <div style="color: #C9D1D9; font-weight: 500;">${escapeHtml(server.name)}</div>
+                    <div style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;">
+                        <span style="color: #6E7681; font-size: 11px;">${server.guild_id}</span>
+                        ${badges.join(' ')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function selectServer(guildId, name, botAccess, retention, granted, source) {
+            selectedServer = { guildId, name, botAccess, retention, granted, source };
+            
+            // Update UI
+            document.getElementById('serverSearchInput').value = '';
+            document.getElementById('serverDropdown').style.display = 'none';
+            document.getElementById('guildIdInputWrapper').style.display = 'none';
+            document.getElementById('quickGrantGuildId').value = guildId;
+            
+            // Show selected server info
+            const infoDiv = document.getElementById('selectedServerInfo');
+            document.getElementById('selectedServerName').textContent = name;
+            
+            const badges = [];
+            if (botAccess) badges.push('<span style="background: #238636; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">PAID</span>');
+            if (granted) badges.push(`<span style="background: #6e40c9; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${source === 'stripe' ? 'STRIPE' : 'GRANTED'}</span>`);
+            if (retention) badges.push(`<span style="background: #1f6feb; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${retention.toUpperCase()}</span>`);
+            document.getElementById('selectedServerBadges').innerHTML = `<span style="color: #6E7681; font-size: 11px; margin-right: 8px;">${guildId}</span>` + badges.join(' ');
+            
+            infoDiv.style.display = 'block';
+        }
+        
+        function clearServerSelection() {
+            selectedServer = null;
+            document.getElementById('selectedServerInfo').style.display = 'none';
+            document.getElementById('guildIdInputWrapper').style.display = 'block';
+            document.getElementById('quickGrantGuildId').value = '';
+        }
+        
+        // Initialize dropdown on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('serverSearchInput');
+            const dropdown = document.getElementById('serverDropdown');
+            
+            // Load initial server list
+            loadServerIndex();
+            
+            // Show dropdown on focus
+            searchInput.addEventListener('focus', function() {
+                dropdown.style.display = 'block';
+                renderDropdown();
+            });
+            
+            // Filter on input with debounce
+            searchInput.addEventListener('input', function() {
+                clearTimeout(dropdownDebounce);
+                dropdownDebounce = setTimeout(() => {
+                    renderDropdown();
+                }, 150);
+            });
+            
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('#serverSearchInput') && !e.target.closest('#serverDropdown')) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        });
+
         // Quick grant function for header section
         async function quickGrant(accessType, source = 'granted') {
             const guildIdInput = document.getElementById('quickGrantGuildId');
             const resultDiv = document.getElementById('quickGrantResult');
-            const guildId = guildIdInput.value.trim();
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
             
             if (!guildId) {
                 resultDiv.style.display = 'block';
@@ -1604,9 +1755,11 @@
                     const accessLabel = accessType === 'bot_access' ? 'Bot Access' : 
                                        accessType === '7day' ? '7-Day Retention' : '30-Day Retention';
                     const sourceLabel = source === 'stripe' ? ' (as Stripe)' : ' (as Owner)';
-                    resultDiv.textContent = `Successfully granted ${accessLabel}${sourceLabel} to guild ${guildId}`;
+                    const serverName = selectedServer ? selectedServer.name : guildId;
+                    resultDiv.textContent = `Successfully granted ${accessLabel}${sourceLabel} to ${serverName}`;
                     
-                    // Clear input and refresh after 2 seconds
+                    // Clear selection and refresh after 2 seconds
+                    clearServerSelection();
                     guildIdInput.value = '';
                     setTimeout(() => location.reload(), 2000);
                 } else {

@@ -5594,6 +5594,159 @@ def api_get_resolved_adjustments(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route("/api/guild/<guild_id>/admin/master-calendar")
+@require_api_auth
+def api_get_admin_master_calendar(user_session, guild_id):
+    """
+    Get aggregated calendar data for all employees (admin only).
+    Returns sessions grouped by date with employee breakdown per day.
+    
+    Query params:
+        year: Target year (default: current year)
+        month: Target month 1-12 (default: current month)
+    """
+    try:
+        import calendar as cal_module
+        import pytz
+        
+        # Input validation
+        if not guild_id.isdigit() or len(guild_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
+        
+        # Check guild has paid access
+        access_status = check_guild_paid_access(guild_id)
+        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
+            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        
+        # Verify admin access
+        admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
+        if not admin_status.get('is_admin', False):
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        
+        # Get query parameters
+        now = datetime.now(timezone.utc)
+        year = int(request.args.get('year', now.year))
+        month = int(request.args.get('month', now.month))
+        
+        if not (1 <= month <= 12):
+            return jsonify({'success': False, 'error': 'Month must be 1-12'}), 400
+        if not (2020 <= year <= 2100):
+            return jsonify({'success': False, 'error': 'Invalid year'}), 400
+        
+        # Get guild timezone
+        with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT timezone FROM guild_settings WHERE guild_id = %s",
+                (int(guild_id),)
+            )
+            row = cursor.fetchone()
+            guild_tz_str = row['timezone'] if row else 'America/New_York'
+        
+        guild_tz = pytz.timezone(guild_tz_str)
+        first_day = datetime(year, month, 1, 0, 0, 0)
+        last_day_num = cal_module.monthrange(year, month)[1]
+        last_day = datetime(year, month, last_day_num, 23, 59, 59)
+        
+        # Convert to UTC for database query
+        first_day_utc = guild_tz.localize(first_day).astimezone(pytz.utc)
+        last_day_utc = guild_tz.localize(last_day).astimezone(pytz.utc)
+        
+        # Query all sessions for the month with employee info
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    s.id,
+                    s.user_id,
+                    s.clock_in,
+                    s.clock_out,
+                    s.duration_seconds,
+                    DATE(s.clock_in AT TIME ZONE 'UTC' AT TIME ZONE %s) as work_date,
+                    COALESCE(p.display_name, p.full_name, CAST(s.user_id AS TEXT)) as employee_name
+                FROM sessions s
+                LEFT JOIN employee_profiles p ON s.user_id = p.user_id AND s.guild_id = p.guild_id
+                WHERE s.guild_id = %s
+                  AND s.clock_in >= %s
+                  AND s.clock_in <= %s
+                ORDER BY s.clock_in ASC
+            """, (guild_tz_str, int(guild_id), first_day_utc, last_day_utc))
+            
+            sessions = cursor.fetchall()
+            
+            # Also get list of all employees for dropdown
+            cursor = conn.execute("""
+                SELECT user_id, 
+                       COALESCE(display_name, full_name, CAST(user_id AS TEXT)) as name
+                FROM employee_profiles 
+                WHERE guild_id = %s
+                ORDER BY COALESCE(display_name, full_name, CAST(user_id AS TEXT))
+            """, (int(guild_id),))
+            employees = [{'user_id': str(r['user_id']), 'name': r['name']} for r in cursor.fetchall()]
+        
+        # Group sessions by date
+        days_data = {}
+        for session in sessions:
+            date_key = session['work_date'].isoformat()
+            
+            if date_key not in days_data:
+                days_data[date_key] = {
+                    'date': date_key,
+                    'employees': {},
+                    'total_sessions': 0,
+                    'total_hours': 0
+                }
+            
+            user_id = str(session['user_id'])
+            if user_id not in days_data[date_key]['employees']:
+                days_data[date_key]['employees'][user_id] = {
+                    'user_id': user_id,
+                    'name': session['employee_name'],
+                    'sessions': [],
+                    'total_seconds': 0
+                }
+            
+            # Convert timestamps to guild timezone
+            clock_in_local = session['clock_in'].replace(tzinfo=pytz.utc).astimezone(guild_tz)
+            clock_out_local = session['clock_out'].replace(tzinfo=pytz.utc).astimezone(guild_tz) if session['clock_out'] else None
+            
+            session_data = {
+                'id': session['id'],
+                'clock_in': clock_in_local.isoformat(),
+                'clock_out': clock_out_local.isoformat() if clock_out_local else None,
+                'duration_seconds': session['duration_seconds'] or 0
+            }
+            
+            days_data[date_key]['employees'][user_id]['sessions'].append(session_data)
+            days_data[date_key]['employees'][user_id]['total_seconds'] += session['duration_seconds'] or 0
+            days_data[date_key]['total_sessions'] += 1
+            days_data[date_key]['total_hours'] += (session['duration_seconds'] or 0) / 3600
+        
+        # Convert employees dict to list for each day
+        days_list = []
+        for date_key in sorted(days_data.keys()):
+            day = days_data[date_key]
+            day['employees'] = list(day['employees'].values())
+            day['employee_count'] = len(day['employees'])
+            day['total_hours'] = round(day['total_hours'], 2)
+            days_list.append(day)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'year': year,
+                'month': month,
+                'timezone': guild_tz_str,
+                'days': days_list,
+                'employees': employees
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching admin master calendar: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route("/api/guild/<guild_id>/employee/<user_id>/monthly-timecard")
 @require_api_auth
 def api_get_monthly_timecard(user_session, guild_id, user_id):
@@ -5882,6 +6035,122 @@ def api_clock_out(user_session, guild_id):
         app.logger.error(f"Error clocking out: {e}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Failed to clock out'}), 500
+
+@app.route("/api/guild/<guild_id>/admin/edit-session", methods=["POST"])
+@require_api_auth
+def api_admin_edit_session(user_session, guild_id):
+    """
+    Admin endpoint to directly edit a session's clock in/out times.
+    Creates an audit log entry for the change.
+    """
+    try:
+        if not guild_id.isdigit() or len(guild_id) > 20:
+            return jsonify({'success': False, 'error': 'Invalid guild ID'}), 400
+        
+        # Check guild has paid access
+        access_status = check_guild_paid_access(guild_id)
+        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
+            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        
+        # Verify admin access
+        admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
+        if not admin_status.get('is_admin', False):
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        
+        data = request.get_json()
+        session_id = data.get('session_id')
+        new_clock_in = data.get('clock_in')
+        new_clock_out = data.get('clock_out')
+        reason = data.get('reason', 'Admin adjustment')
+        
+        if not session_id:
+            return jsonify({'success': False, 'error': 'Session ID required'}), 400
+        
+        import pytz
+        
+        with get_db() as conn:
+            # Get original session
+            cursor = conn.execute("""
+                SELECT id, user_id, clock_in, clock_out, duration_seconds
+                FROM sessions
+                WHERE id = %s AND guild_id = %s
+            """, (session_id, int(guild_id)))
+            
+            session = cursor.fetchone()
+            if not session:
+                return jsonify({'success': False, 'error': 'Session not found'}), 404
+            
+            # Parse new times
+            updates = {}
+            if new_clock_in:
+                updates['clock_in'] = datetime.fromisoformat(new_clock_in.replace('Z', '+00:00'))
+            if new_clock_out:
+                updates['clock_out'] = datetime.fromisoformat(new_clock_out.replace('Z', '+00:00'))
+            
+            if not updates:
+                return jsonify({'success': False, 'error': 'No changes provided'}), 400
+            
+            # Calculate new duration if both times are set
+            final_clock_in = updates.get('clock_in', session['clock_in'])
+            final_clock_out = updates.get('clock_out', session['clock_out'])
+            
+            if final_clock_in and final_clock_out:
+                if final_clock_in.tzinfo is None:
+                    final_clock_in = final_clock_in.replace(tzinfo=timezone.utc)
+                if final_clock_out.tzinfo is None:
+                    final_clock_out = final_clock_out.replace(tzinfo=timezone.utc)
+                
+                # Validate clock_out is after clock_in
+                if final_clock_out <= final_clock_in:
+                    return jsonify({'success': False, 'error': 'Clock out must be after clock in'}), 400
+                
+                new_duration = int((final_clock_out - final_clock_in).total_seconds())
+                
+                # Sanity check - max 24 hours per session
+                if new_duration > 86400:
+                    return jsonify({'success': False, 'error': 'Session duration cannot exceed 24 hours'}), 400
+            else:
+                new_duration = session['duration_seconds']
+            
+            # Update session
+            conn.execute("""
+                UPDATE sessions
+                SET clock_in = COALESCE(%s, clock_in),
+                    clock_out = COALESCE(%s, clock_out),
+                    duration_seconds = %s
+                WHERE id = %s
+            """, (updates.get('clock_in'), updates.get('clock_out'), new_duration, session_id))
+            
+            # Log the change
+            conn.execute("""
+                INSERT INTO adjustment_audit_log 
+                (guild_id, user_id, admin_id, action_type, session_id, old_clock_in, old_clock_out, new_clock_in, new_clock_out, reason, created_at)
+                VALUES (%s, %s, %s, 'admin_edit', %s, %s, %s, %s, %s, %s, NOW())
+            """, (
+                int(guild_id),
+                session['user_id'],
+                int(user_session['user_id']),
+                session_id,
+                session['clock_in'],
+                session['clock_out'],
+                updates.get('clock_in'),
+                updates.get('clock_out'),
+                reason
+            ))
+        
+        app.logger.info(f"Admin {user_session.get('username')} edited session {session_id} in guild {guild_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Session updated successfully',
+            'session_id': session_id
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error editing session: {e}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route("/api/guild/<guild_id>/employees/<user_id>/clock-out", methods=["POST"])
 @require_paid_api_access
