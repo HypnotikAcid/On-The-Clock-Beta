@@ -217,6 +217,11 @@ document.querySelector('.sidebar-nav').addEventListener('click', (e) => {
     if (navItem) {
         const sectionId = navItem.getAttribute('data-section');
         handleNavigation(sectionId);
+        
+        // Auto-collapse sidebar on mobile after selection
+        if (window.innerWidth <= 768) {
+            closeMobileSidebar();
+        }
     }
 });
 

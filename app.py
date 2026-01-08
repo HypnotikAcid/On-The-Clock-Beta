@@ -1061,7 +1061,7 @@ def get_employee_guilds(user_id):
                     COALESCE(ss.bot_access_paid, FALSE) as bot_access_paid,
                     COALESCE(ss.retention_tier, 'none') as retention_tier
                 FROM employee_profiles ep
-                JOIN bot_guilds bg ON bg.guild_id = CAST(ep.guild_id AS TEXT)
+                JOIN bot_guilds bg ON CAST(bg.guild_id AS BIGINT) = ep.guild_id
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = ep.guild_id
                 WHERE ep.user_id = %s AND ep.is_active = TRUE
                 AND (bg.is_present = TRUE OR bg.is_present IS NULL)
@@ -1302,18 +1302,19 @@ def handle_checkout_completed(session):
             customer_id = session.get('customer')
             flask_set_retention_tier(guild_id, '7day')
             
-            # Store subscription_id and customer_id in database (using Flask's get_db)
+            # Store subscription_id, customer_id and ensure bot_access_paid is TRUE
             with get_db() as conn:
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
-                    VALUES (%s, %s, %s, 'active')
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid)
+                    VALUES (%s, %s, %s, 'active', TRUE)
                     ON CONFLICT(guild_id) DO UPDATE SET 
                         subscription_id = %s,
                         customer_id = %s,
-                        status = 'active'
+                        status = 'active',
+                        bot_access_paid = TRUE
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
             
-            app.logger.info(f"[OK] 7-day retention granted for server {guild_id}")
+            app.logger.info(f"[OK] 7-day retention granted for server {guild_id} (bot_access_paid=TRUE)")
             
         elif product_type == 'retention_30day':
             # 30-day retention subscription
@@ -1325,18 +1326,19 @@ def handle_checkout_completed(session):
             customer_id = session.get('customer')
             flask_set_retention_tier(guild_id, '30day')
             
-            # Store subscription_id and customer_id in database (using Flask's get_db)
+            # Store subscription_id, customer_id and ensure bot_access_paid is TRUE
             with get_db() as conn:
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status)
-                    VALUES (%s, %s, %s, 'active')
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid)
+                    VALUES (%s, %s, %s, 'active', TRUE)
                     ON CONFLICT(guild_id) DO UPDATE SET 
                         subscription_id = %s,
                         customer_id = %s,
-                        status = 'active'
+                        status = 'active',
+                        bot_access_paid = TRUE
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
             
-            app.logger.info(f"[OK] 30-day retention granted for server {guild_id}")
+            app.logger.info(f"[OK] 30-day retention granted for server {guild_id} (bot_access_paid=TRUE)")
             
     except Exception as e:
         app.logger.error(f"[ERROR] Error processing checkout session: {e}")
@@ -1904,6 +1906,172 @@ def owner_dashboard(user_session):
         app.logger.error(f"Owner dashboard error: {str(e)}")
         app.logger.error(traceback.format_exc())
         return "<h1>Error</h1><p>Unable to load owner dashboard. Please try again later.</p><a href='/dashboard'>Return to Dashboard</a>", 500
+
+@app.route("/owner/paid")
+@require_auth
+def owner_dashboard_paid(user_session):
+    """Owner-only dashboard showing only paid servers"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            app.logger.warning(f"Unauthorized owner dashboard access attempt by user {user_session['user_id']}")
+            return "<h1>403 Forbidden</h1><p>You do not have permission to access this page.</p><a href='/dashboard'>Return to Dashboard</a>", 403
+        
+        app.logger.info(f"Owner paid servers dashboard accessed by {user_session.get('username')}")
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    CAST(bg.guild_id AS BIGINT) as guild_id,
+                    bg.guild_name,
+                    COALESCE(ss.bot_access_paid, FALSE) as bot_access_paid,
+                    COALESCE(ss.retention_tier, 'none') as retention_tier,
+                    COALESCE(ss.status, 'free') as status,
+                    ss.subscription_id,
+                    ss.customer_id,
+                    COALESCE(ss.manually_granted, FALSE) as manually_granted,
+                    ss.granted_by,
+                    ss.granted_at,
+                    ss.grant_source,
+                    COUNT(DISTINCT s.id) as active_sessions,
+                    COALESCE(bg.is_present, TRUE) as bot_is_present,
+                    bg.left_at
+                FROM bot_guilds bg
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
+                LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
+                WHERE ss.bot_access_paid = TRUE
+                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
+                ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
+            """)
+            servers = []
+            for row in cursor.fetchall():
+                servers.append({
+                    'guild_id': row['guild_id'],
+                    'guild_name': row['guild_name'] or f'Unknown Server (ID: {row["guild_id"]})',
+                    'bot_access': bool(row['bot_access_paid']),
+                    'retention_tier': row['retention_tier'] if row['retention_tier'] != 'none' else None,
+                    'status': row['status'],
+                    'subscription_id': row['subscription_id'],
+                    'customer_id': row['customer_id'],
+                    'manually_granted': bool(row['manually_granted']),
+                    'granted_by': row['granted_by'],
+                    'granted_at': row['granted_at'].isoformat() if row.get('granted_at') else None,
+                    'grant_source': row.get('grant_source'),
+                    'active_sessions': row['active_sessions'],
+                    'bot_is_present': bool(row['bot_is_present']),
+                    'left_at': row['left_at'].isoformat() if row.get('left_at') else None,
+                    'email_recipients': [],
+                    'webhook_events': []
+                })
+            
+            stats = {
+                'total_servers': len(servers),
+                'paid_servers': len(servers),
+                'retention_7day_count': sum(1 for s in servers if s['retention_tier'] == '7day'),
+                'retention_30day_count': sum(1 for s in servers if s['retention_tier'] == '30day'),
+                'past_due_count': sum(1 for s in servers if s['status'] == 'past_due'),
+                'active_servers': sum(1 for s in servers if s['bot_is_present']),
+                'inactive_servers': sum(1 for s in servers if not s['bot_is_present']),
+                'total_active_sessions': sum(s['active_sessions'] for s in servers),
+                'departed_unpaid_servers': 0
+            }
+        
+        return render_template('owner_dashboard.html', 
+                             user=user_session,
+                             servers=servers,
+                             webhook_events=[],
+                             purchase_history=[],
+                             stats=stats,
+                             filter_mode='paid')
+    
+    except Exception as e:
+        app.logger.error(f"Owner paid dashboard error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return "<h1>Error</h1><p>Unable to load owner dashboard. Please try again later.</p>", 500
+
+@app.route("/owner/unpaid")
+@require_auth
+def owner_dashboard_unpaid(user_session):
+    """Owner-only dashboard showing only unpaid servers (bot installed but not paid)"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            app.logger.warning(f"Unauthorized owner dashboard access attempt by user {user_session['user_id']}")
+            return "<h1>403 Forbidden</h1><p>You do not have permission to access this page.</p><a href='/dashboard'>Return to Dashboard</a>", 403
+        
+        app.logger.info(f"Owner unpaid servers dashboard accessed by {user_session.get('username')}")
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    CAST(bg.guild_id AS BIGINT) as guild_id,
+                    bg.guild_name,
+                    COALESCE(ss.bot_access_paid, FALSE) as bot_access_paid,
+                    COALESCE(ss.retention_tier, 'none') as retention_tier,
+                    COALESCE(ss.status, 'free') as status,
+                    ss.subscription_id,
+                    ss.customer_id,
+                    COALESCE(ss.manually_granted, FALSE) as manually_granted,
+                    ss.granted_by,
+                    ss.granted_at,
+                    ss.grant_source,
+                    COUNT(DISTINCT s.id) as active_sessions,
+                    COALESCE(bg.is_present, TRUE) as bot_is_present,
+                    bg.left_at
+                FROM bot_guilds bg
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
+                LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
+                WHERE COALESCE(ss.bot_access_paid, FALSE) = FALSE AND COALESCE(bg.is_present, TRUE) = TRUE
+                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
+                ORDER BY guild_name
+            """)
+            servers = []
+            for row in cursor.fetchall():
+                servers.append({
+                    'guild_id': row['guild_id'],
+                    'guild_name': row['guild_name'] or f'Unknown Server (ID: {row["guild_id"]})',
+                    'bot_access': bool(row['bot_access_paid']),
+                    'retention_tier': row['retention_tier'] if row['retention_tier'] != 'none' else None,
+                    'status': row['status'],
+                    'subscription_id': row['subscription_id'],
+                    'customer_id': row['customer_id'],
+                    'manually_granted': bool(row['manually_granted']),
+                    'granted_by': row['granted_by'],
+                    'granted_at': row['granted_at'].isoformat() if row.get('granted_at') else None,
+                    'grant_source': row.get('grant_source'),
+                    'active_sessions': row['active_sessions'],
+                    'bot_is_present': bool(row['bot_is_present']),
+                    'left_at': row['left_at'].isoformat() if row.get('left_at') else None,
+                    'email_recipients': [],
+                    'webhook_events': []
+                })
+            
+            stats = {
+                'total_servers': len(servers),
+                'paid_servers': 0,
+                'retention_7day_count': 0,
+                'retention_30day_count': 0,
+                'past_due_count': 0,
+                'active_servers': len(servers),
+                'inactive_servers': 0,
+                'total_active_sessions': sum(s['active_sessions'] for s in servers),
+                'departed_unpaid_servers': 0
+            }
+        
+        return render_template('owner_dashboard.html', 
+                             user=user_session,
+                             servers=servers,
+                             webhook_events=[],
+                             purchase_history=[],
+                             stats=stats,
+                             filter_mode='unpaid')
+    
+    except Exception as e:
+        app.logger.error(f"Owner unpaid dashboard error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return "<h1>Error</h1><p>Unable to load owner dashboard. Please try again later.</p>", 500
 
 @app.route("/api/owner/manual-grant", methods=["POST"])
 @require_api_auth

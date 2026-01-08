@@ -998,10 +998,36 @@
             <h1>⚙️ Owner Dashboard</h1>
             <p>Bot owner control panel - View all servers, subscriptions, and webhook activity</p>
             <div class="nav-links">
-                <a href="/debug" class="nav-link">🛠️ Debugging Console</a>
-                <a href="/dashboard" class="nav-link">🏠 User Dashboard</a>
+                <a href="/owner" class="nav-link">📊 All Servers</a>
+                <a href="/owner/paid" class="nav-link" style="color: #34D399;">💰 Paid Only</a>
+                <a href="/owner/unpaid" class="nav-link" style="color: #8B949E;">🆓 Unpaid Only</a>
+                <a href="/debug" class="nav-link">🛠️ Debug</a>
+                <a href="/dashboard" class="nav-link">🏠 Dashboard</a>
                 <a href="/auth/logout" class="nav-link">🚪 Logout</a>
             </div>
+        </div>
+
+        <!-- Quick Manual Grant Section -->
+        <div class="section" style="margin-bottom: 20px;">
+            <div class="section-title">🎁 Quick Manual Grant</div>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Guild ID</label>
+                    <input type="text" id="quickGrantGuildId" class="search-box" placeholder="Enter Guild ID..." style="margin-bottom: 0;">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="tool-btn" onclick="quickGrant('bot_access')" style="padding: 12px 16px; font-size: 13px;">
+                        Grant Bot Access
+                    </button>
+                    <button class="tool-btn" onclick="quickGrant('7day')" style="padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #F4E5A1, #D4AF37);">
+                        + 7-Day Retention
+                    </button>
+                    <button class="tool-btn" onclick="quickGrant('30day')" style="padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #FFD700, #FFA500);">
+                        + 30-Day Retention
+                    </button>
+                </div>
+            </div>
+            <div id="quickGrantResult" class="tool-result" style="margin-top: 15px;"></div>
         </div>
 
         <div class="stats-grid">
@@ -1492,6 +1518,68 @@
                 alert('Failed to grant access. Please try again.');
                 button.disabled = false;
                 button.textContent = 'Retry';
+            }
+        }
+
+        // Quick grant function for header section
+        async function quickGrant(accessType) {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = guildIdInput.value.trim();
+            
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Processing...';
+            
+            try {
+                const response = await fetch('/api/owner/grant-access', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        guild_id: guildId,
+                        access_type: accessType
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
+                    
+                    const accessLabel = accessType === 'bot_access' ? 'Bot Access' : 
+                                       accessType === '7day' ? '7-Day Retention' : '30-Day Retention';
+                    resultDiv.textContent = `Successfully granted ${accessLabel} to guild ${guildId}`;
+                    
+                    // Clear input and refresh after 2 seconds
+                    guildIdInput.value = '';
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Quick grant error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to grant access. Please try again.';
             }
         }
 
