@@ -130,17 +130,113 @@ function removeLockedOverlays() {
     });
 }
 
-// Loading overlay functions
+// Fetch with timeout wrapper to prevent hanging requests
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out - please try again');
+        }
+        throw error;
+    }
+}
+
+// Loading overlay state
+let loadingTimeoutId = null;
+let slowLoadingTimeoutId = null;
+let loadingSafetyTimeoutId = null;
+
+// Loading overlay functions with safety timeouts
 function showLoading(message = 'Loading...') {
     const overlay = document.getElementById('loadingOverlay');
     const textEl = overlay.querySelector('.loading-text');
     if (textEl) textEl.textContent = message;
     overlay.classList.add('active');
+    
+    // Clear any existing timeouts
+    clearLoadingTimeouts();
+    
+    // Show "taking longer" message after 5 seconds
+    slowLoadingTimeoutId = setTimeout(() => {
+        if (textEl && overlay.classList.contains('active')) {
+            textEl.textContent = 'Taking longer than expected...';
+        }
+    }, 5000);
+    
+    // Safety timeout: auto-hide after 20 seconds to prevent permanent stuck state
+    loadingSafetyTimeoutId = setTimeout(() => {
+        if (overlay.classList.contains('active')) {
+            console.warn('Loading safety timeout triggered - hiding overlay');
+            hideLoading();
+            showToast('Loading took too long. Please try again.', 'warning');
+        }
+    }, 20000);
 }
 
 function hideLoading() {
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.remove('active');
+    
+    // Reset loading text
+    const textEl = overlay.querySelector('.loading-text');
+    if (textEl) textEl.textContent = 'Loading...';
+    
+    // Clear all loading timeouts
+    clearLoadingTimeouts();
+}
+
+function clearLoadingTimeouts() {
+    if (loadingTimeoutId) {
+        clearTimeout(loadingTimeoutId);
+        loadingTimeoutId = null;
+    }
+    if (slowLoadingTimeoutId) {
+        clearTimeout(slowLoadingTimeoutId);
+        slowLoadingTimeoutId = null;
+    }
+    if (loadingSafetyTimeoutId) {
+        clearTimeout(loadingSafetyTimeoutId);
+        loadingSafetyTimeoutId = null;
+    }
+}
+
+// Simple toast notification for errors
+function showToast(message, type = 'info') {
+    const existingToast = document.querySelector('.dashboard-toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `dashboard-toast toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'warning' ? '#f59e0b' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        border-radius: 8px;
+        z-index: 10001;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideIn 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 }
 
 // Server Settings State
@@ -349,11 +445,11 @@ document.getElementById('backToServers').addEventListener('click', () => {
 // Load Server Data
 async function loadServerData(guildId, accessLevel = 'admin') {
     try {
-        const response = await fetch(`/api/server/${guildId}/data`);
+        const response = await fetchWithTimeout(`/api/server/${guildId}/data`);
         const data = await response.json();
 
         if (!response.ok || !data.success) {
-            alert(data.error || 'Error loading server data');
+            showToast(data.error || 'Error loading server data', 'error');
             return;
         }
 
@@ -369,7 +465,7 @@ async function loadServerData(guildId, accessLevel = 'admin') {
             populateEmployeeRoles(data.roles, data.current_settings.employee_roles);
             populateTimezoneSettings(data.current_settings.timezone);
             populateBroadcastChannelSettings(data.text_channels, data.current_settings.broadcast_channel_id);
-            loadBannedUsers();
+            await loadBannedUsers();
         }
 
         // Update UI based on user role
@@ -382,7 +478,7 @@ async function loadServerData(guildId, accessLevel = 'admin') {
 
     } catch (error) {
         console.error('Error loading server data:', error);
-        alert('Error loading server data');
+        showToast(error.message || 'Error loading server data', 'error');
     }
 }
 
@@ -764,7 +860,7 @@ async function loadEmailRecipients() {
     if (!currentGuildId) return;
 
     try {
-        const response = await fetch(`/api/server/${currentGuildId}/email-recipients`);
+        const response = await fetchWithTimeout(`/api/server/${currentGuildId}/email-recipients`);
         const data = await response.json();
 
         if (response.ok && data.success) {
@@ -1039,7 +1135,7 @@ async function loadBannedUsers() {
             `;
 
     try {
-        const response = await fetch(`/api/server/${currentGuildId}/bans`);
+        const response = await fetchWithTimeout(`/api/server/${currentGuildId}/bans`);
         const data = await response.json();
 
         if (response.ok && data.success) {
@@ -1162,7 +1258,7 @@ async function loadOnTheClock(guildId) {
     container.innerHTML = '<div class="empty-state">Loading...</div>';
     
     try {
-        const response = await fetch(`/api/guild/${guildId}/on-the-clock`);
+        const response = await fetchWithTimeout(`/api/guild/${guildId}/on-the-clock`);
         const data = await response.json();
         
         if (data.success) {
@@ -1216,7 +1312,7 @@ async function loadEmployeeStatus(guildId) {
         const timezoneSelect = document.getElementById('dashboard-timezone');
         const timezone = timezoneSelect.value;
 
-        const response = await fetch(`/api/guild/${guildId}/employees/active?timezone=${timezone}`);
+        const response = await fetchWithTimeout(`/api/guild/${guildId}/employees/active?timezone=${timezone}`);
         const data = await response.json();
 
         if (data.success) {
@@ -1437,7 +1533,7 @@ async function loadPendingAdjustments(guildId) {
     }
 
     try {
-        const response = await fetch(`/api/guild/${guildId}/adjustments/pending`);
+        const response = await fetchWithTimeout(`/api/guild/${guildId}/adjustments/pending`);
         const data = await response.json();
 
         if (data.success) {
