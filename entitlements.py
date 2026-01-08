@@ -32,7 +32,7 @@ class Entitlements:
             return 30
         elif tier == UserTier.DASHBOARD_PREMIUM:
             return 7
-        return 1  # Free tier = 24 hours
+        return 1  # Free tier = 24 hours (strictly enforced)
     
     @staticmethod
     def can_access_feature(tier: UserTier, role: UserRole, feature: str) -> bool:
