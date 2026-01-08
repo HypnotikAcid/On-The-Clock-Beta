@@ -2410,6 +2410,7 @@ def api_owner_grant_access(user_session):
         data = request.get_json()
         guild_id = data.get('guild_id')
         access_type = data.get('access_type')
+        grant_source = data.get('source', 'granted').lower()
         
         if not guild_id or not access_type:
             return jsonify({'success': False, 'error': 'Missing guild_id or access_type'}), 400
@@ -2417,7 +2418,10 @@ def api_owner_grant_access(user_session):
         if access_type not in ['bot_access', '7day', '30day']:
             return jsonify({'success': False, 'error': 'Invalid access_type. Must be bot_access, 7day, or 30day'}), 400
         
-        app.logger.info(f"Owner {user_session.get('username')} granting {access_type} to guild {guild_id}")
+        if grant_source not in ['granted', 'stripe']:
+            grant_source = 'granted'
+        
+        app.logger.info(f"Owner {user_session.get('username')} granting {access_type} (source={grant_source}) to guild {guild_id}")
         
         with get_db() as conn:
             # Check if server exists in server_subscriptions
@@ -2440,10 +2444,10 @@ def api_owner_grant_access(user_session):
                         manually_granted = TRUE,
                         granted_by = %s,
                         granted_at = NOW(),
-                        grant_source = 'granted'
+                        grant_source = %s
                     WHERE guild_id = %s
-                """, (user_session['user_id'], guild_id))
-                app.logger.info(f"[OK] Granted bot access to guild {guild_id}")
+                """, (user_session['user_id'], grant_source, guild_id))
+                app.logger.info(f"[OK] Granted bot access (source={grant_source}) to guild {guild_id}")
                 
             elif access_type in ['7day', '30day']:
                 # Ensure bot access is paid first
@@ -2461,10 +2465,10 @@ def api_owner_grant_access(user_session):
                         granted_by = %s,
                         granted_at = NOW(),
                         status = 'active',
-                        grant_source = 'granted'
+                        grant_source = %s
                     WHERE guild_id = %s
-                """, (access_type, user_session['user_id'], guild_id))
-                app.logger.info(f"[OK] Granted {access_type} retention to guild {guild_id}")
+                """, (access_type, user_session['user_id'], grant_source, guild_id))
+                app.logger.info(f"[OK] Granted {access_type} retention (source={grant_source}) to guild {guild_id}")
             
             # Context manager handles commit automatically
             app.logger.info(f"[OK] Transaction will be committed for guild {guild_id}")

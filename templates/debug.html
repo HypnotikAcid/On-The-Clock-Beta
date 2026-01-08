@@ -602,31 +602,14 @@
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-title">🛡️ Manual Access Management</div>
-            <p style="color: #8B949E; margin-bottom: 20px; font-size: 13px;">
-                Manually grant or fix server access. Use "Grant as Stripe" to simulate a paid checkout (fixes access issues) or "Grant as Owner" for manual overrides.
+        <div class="section" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3);">
+            <div class="section-title">🎁 Manual Access Grants</div>
+            <p style="color: #8B949E; margin-bottom: 15px; font-size: 13px;">
+                Manual grant controls have been moved to the Owner Dashboard for a better experience.
             </p>
-
-            <div class="wizard-step active" style="margin-bottom: 20px;">
-                <div class="input-group">
-                    <label>Target Guild ID <span class="label-hint">(Discord Server ID)</span></label>
-                    <input type="text" id="targetGuildId" placeholder="e.g., 1361859331351511083" oninput="validateGuildInput()">
-                </div>
-                
-                <div class="test-grid">
-                    <div class="test-card">
-                        <h4>Grant as Stripe</h4>
-                        <p>Assigns "Dashboard Premium" and sets source to "Stripe". Use this to restore missing paid access.</p>
-                        <button class="test-btn primary" id="grantStripeBtn" onclick="manualGrant('stripe')" disabled>Grant as Stripe</button>
-                    </div>
-                    <div class="test-card">
-                        <h4>Grant as Owner</h4>
-                        <p>Assigns "Dashboard Premium" and sets source to "Granted". General manual override.</p>
-                        <button class="test-btn info" id="grantOwnerBtn" onclick="manualGrant('owner')" disabled>Grant as Owner</button>
-                    </div>
-                </div>
-            </div>
+            <a href="/owner" class="test-btn primary" style="display: inline-block; text-decoration: none;">
+                Go to Owner Dashboard →
+            </a>
         </div>
 
         <div class="section">
@@ -873,39 +856,6 @@
             a.click();
             URL.revokeObjectURL(url);
             log('info', 'Logs exported to file');
-        }
-
-        async function manualGrant(source) {
-            const guildId = document.getElementById('targetGuildId').value.trim();
-            if (!guildId) return;
-
-            if (!confirm(`Are you sure you want to grant premium access to ${guildId} as ${source}?`)) return;
-
-            addLogEntry('info', `Initiating manual grant for ${guildId} via ${source}...`);
-            
-            try {
-                const response = await fetch('/api/owner/manual-grant', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ guild_id: guildId, source: source })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    addLogEntry('success', `Successfully granted access: ${result.message}`);
-                } else {
-                    addLogEntry('error', `Failed to grant access: ${result.error || 'Unknown error'}`);
-                }
-            } catch (err) {
-                addLogEntry('error', `Network error: ${err.message}`);
-            }
-        }
-
-        function validateGuildInput() {
-            const val = document.getElementById('targetGuildId').value.trim();
-            const isValid = val.length >= 17 && /^\d+$/.test(val);
-            document.getElementById('grantStripeBtn').disabled = !isValid;
-            document.getElementById('grantOwnerBtn').disabled = !isValid;
         }
 
         async function runTest(testType) {

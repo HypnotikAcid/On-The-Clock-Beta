@@ -1007,26 +1007,65 @@
             </div>
         </div>
 
-        <!-- Quick Manual Grant Section -->
+        <!-- Manual Access Grants Section -->
         <div class="section" style="margin-bottom: 20px;">
-            <div class="section-title">🎁 Quick Manual Grant</div>
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
-                <div style="flex: 1; min-width: 200px;">
-                    <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Guild ID</label>
-                    <input type="text" id="quickGrantGuildId" class="search-box" placeholder="Enter Guild ID..." style="margin-bottom: 0;">
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="tool-btn" onclick="quickGrant('bot_access')" style="padding: 12px 16px; font-size: 13px;">
-                        Grant Bot Access
-                    </button>
-                    <button class="tool-btn" onclick="quickGrant('7day')" style="padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #F4E5A1, #D4AF37);">
-                        + 7-Day Retention
-                    </button>
-                    <button class="tool-btn" onclick="quickGrant('30day')" style="padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #FFD700, #FFA500);">
-                        + 30-Day Retention
-                    </button>
-                </div>
+            <div class="section-title">🎁 Manual Access Grants</div>
+            
+            <!-- Shared Guild ID Input -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Guild ID</label>
+                <input type="text" id="quickGrantGuildId" class="search-box" placeholder="Enter Guild ID..." style="margin-bottom: 0; max-width: 500px;">
             </div>
+            
+            <!-- Dual Grant Panels -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                
+                <!-- Manual Owner Grant Panel -->
+                <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">🔵</span>
+                        <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Manual Owner Grant</h3>
+                    </div>
+                    <p style="color: #8B949E; font-size: 12px; margin-bottom: 16px; line-height: 1.5;">
+                        For general overrides and freebies. Sets source to "Granted".
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="tool-btn" onclick="quickGrant('bot_access', 'granted')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                            Grant Bot Access
+                        </button>
+                        <button class="tool-btn" onclick="quickGrant('7day', 'granted')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #60a5fa, #3b82f6);">
+                            + 7-Day Retention
+                        </button>
+                        <button class="tool-btn" onclick="quickGrant('30day', 'granted')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #93c5fd, #60a5fa);">
+                            + 30-Day Retention
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Stripe Manual Grant Panel -->
+                <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">💳</span>
+                        <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Stripe Manual Grant</h3>
+                    </div>
+                    <p style="color: #8B949E; font-size: 12px; margin-bottom: 16px; line-height: 1.5;">
+                        For fixing paid customer issues. Sets source to "Stripe".
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="tool-btn" onclick="quickGrant('bot_access', 'stripe')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #10b981, #059669);">
+                            Grant Bot Access
+                        </button>
+                        <button class="tool-btn" onclick="quickGrant('7day', 'stripe')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #34d399, #10b981);">
+                            + 7-Day Retention
+                        </button>
+                        <button class="tool-btn" onclick="quickGrant('30day', 'stripe')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #6ee7b7, #34d399);">
+                            + 30-Day Retention
+                        </button>
+                    </div>
+                </div>
+                
+            </div>
+            
             <div id="quickGrantResult" class="tool-result" style="margin-top: 15px;"></div>
         </div>
 
@@ -1522,7 +1561,7 @@
         }
 
         // Quick grant function for header section
-        async function quickGrant(accessType) {
+        async function quickGrant(accessType, source = 'granted') {
             const guildIdInput = document.getElementById('quickGrantGuildId');
             const resultDiv = document.getElementById('quickGrantResult');
             const guildId = guildIdInput.value.trim();
@@ -1550,7 +1589,8 @@
                     },
                     body: JSON.stringify({
                         guild_id: guildId,
-                        access_type: accessType
+                        access_type: accessType,
+                        source: source
                     })
                 });
                 
@@ -1563,7 +1603,8 @@
                     
                     const accessLabel = accessType === 'bot_access' ? 'Bot Access' : 
                                        accessType === '7day' ? '7-Day Retention' : '30-Day Retention';
-                    resultDiv.textContent = `Successfully granted ${accessLabel} to guild ${guildId}`;
+                    const sourceLabel = source === 'stripe' ? ' (as Stripe)' : ' (as Owner)';
+                    resultDiv.textContent = `Successfully granted ${accessLabel}${sourceLabel} to guild ${guildId}`;
                     
                     // Clear input and refresh after 2 seconds
                     guildIdInput.value = '';
