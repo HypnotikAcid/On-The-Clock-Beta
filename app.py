@@ -2537,6 +2537,72 @@ def api_owner_grant_access(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+@app.route("/api/owner/server-index", methods=["GET"])
+@require_api_auth
+def api_owner_server_index(user_session):
+    """Owner-only API endpoint to get lightweight server list for dropdown selection"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        search = request.args.get('search', '').strip().lower()
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    CAST(bg.guild_id AS BIGINT) as guild_id,
+                    bg.guild_name,
+                    COALESCE(ss.bot_access_paid, FALSE) as bot_access_paid,
+                    COALESCE(ss.retention_tier, 'none') as retention_tier,
+                    COALESCE(ss.manually_granted, FALSE) as manually_granted,
+                    ss.grant_source,
+                    COALESCE(bg.is_present, TRUE) as is_present,
+                    bg.left_at
+                FROM bot_guilds bg
+                LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
+                ORDER BY COALESCE(bg.is_present, TRUE) DESC, bg.guild_name
+            """)
+            
+            active_servers = []
+            historical_servers = []
+            
+            for row in cursor.fetchall():
+                guild_id = str(row['guild_id'])
+                guild_name = row['guild_name'] or f'Unknown ({guild_id})'
+                is_present = bool(row['is_present'])
+                
+                # Apply search filter
+                if search and search not in guild_name.lower() and search not in guild_id:
+                    continue
+                
+                server_data = {
+                    'guild_id': guild_id,
+                    'name': guild_name,
+                    'bot_access': bool(row['bot_access_paid']),
+                    'retention': row['retention_tier'] if row['retention_tier'] != 'none' else None,
+                    'granted': bool(row['manually_granted']),
+                    'source': row['grant_source'],
+                    'left_at': row['left_at'].strftime('%Y-%m-%d') if row.get('left_at') else None
+                }
+                
+                if is_present:
+                    active_servers.append(server_data)
+                else:
+                    historical_servers.append(server_data)
+            
+            return jsonify({
+                'success': True,
+                'active': active_servers,
+                'historical': historical_servers
+            })
+    
+    except Exception as e:
+        app.logger.error(f"Server index error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+
 @app.route("/api/owner/revoke-access", methods=["POST"])
 @require_api_auth
 def api_owner_revoke_access(user_session):
