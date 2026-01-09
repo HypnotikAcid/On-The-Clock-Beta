@@ -328,6 +328,17 @@ def run_migrations():
                     CREATE INDEX IF NOT EXISTS idx_email_recipients_guild 
                     ON email_recipients(guild_id)
                 """)
+                
+                # 14. Backfill email_settings for guilds with recipients but no settings row
+                print("   Backfilling email_settings for existing recipients")
+                cur.execute("""
+                    INSERT INTO email_settings (guild_id, auto_send_on_clockout, auto_email_before_delete)
+                    SELECT DISTINCT rr.guild_id, TRUE, TRUE
+                    FROM report_recipients rr
+                    LEFT JOIN email_settings es ON rr.guild_id = es.guild_id
+                    WHERE es.guild_id IS NULL
+                    ON CONFLICT (guild_id) DO NOTHING
+                """)
 
         print("✅ Database schema is up to date")
         return True

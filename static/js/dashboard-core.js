@@ -1080,6 +1080,39 @@ async function saveWorkDayTime() {
     }
 }
 
+// Send Test Email Handler
+async function sendTestEmail() {
+    if (!currentGuildId) return;
+
+    const testEmailBtn = document.getElementById('test-email-btn');
+    if (testEmailBtn) {
+        testEmailBtn.disabled = true;
+        testEmailBtn.textContent = 'Sending...';
+    }
+
+    try {
+        const response = await fetch(`/api/server/${currentGuildId}/test-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            alert(data.message || 'Test email sent successfully! Check your inbox.');
+        } else {
+            alert(data.error || 'Error sending test email');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error sending test email');
+    } finally {
+        if (testEmailBtn) {
+            testEmailBtn.disabled = false;
+            testEmailBtn.textContent = 'Send Test Email';
+        }
+    }
+}
+
 // Add Email Button Handler
 document.getElementById('add-email-btn').addEventListener('click', addEmail);
 
@@ -1096,6 +1129,12 @@ document.getElementById('toggle-auto-email-delete').addEventListener('change', u
 
 // Work day end time save button
 document.getElementById('save-workday-time-btn').addEventListener('click', saveWorkDayTime);
+
+// Test email button
+const testEmailBtn = document.getElementById('test-email-btn');
+if (testEmailBtn) {
+    testEmailBtn.addEventListener('click', sendTestEmail);
+}
 
 // Mobile restriction toggle handling
 async function updateMobileRestriction() {

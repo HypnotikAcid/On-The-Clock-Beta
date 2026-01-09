@@ -4506,6 +4506,12 @@ def api_add_email_recipient(user_session, guild_id):
                 )
                 recipient_id = cursor.lastrowid
                 
+                conn.execute("""
+                    INSERT INTO email_settings (guild_id, auto_send_on_clockout, auto_email_before_delete)
+                    VALUES (%s, TRUE, TRUE)
+                    ON CONFLICT (guild_id) DO NOTHING
+                """, (guild_id,))
+                
                 app.logger.info(f"[OK] Email recipient committed: {email} for guild {guild_id}")
                 
                 return jsonify({'success': True, 'message': 'Email recipient added successfully', 'id': recipient_id, 'email': email})
@@ -4582,6 +4588,80 @@ def api_remove_email_recipient(user_session, guild_id):
         app.logger.error(f"Error removing email recipient: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/test-email", methods=["POST"])
+@require_paid_api_access
+def api_send_test_email(user_session, guild_id):
+    """Send a test email to verify email setup is working"""
+    try:
+        guild, _ = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT email_address FROM report_recipients WHERE guild_id = %s AND recipient_type = 'email'",
+                (guild_id,)
+            )
+            recipients = [row['email_address'] for row in cursor.fetchall()]
+        
+        if not recipients:
+            return jsonify({'success': False, 'error': 'No email recipients configured. Add at least one email address first.'}), 400
+        
+        guild_name = guild.get('name', f'Server {guild_id}')
+        
+        from email_utils import send_email, log_email_to_file
+        import asyncio
+        
+        subject = f"Test Email - {guild_name}"
+        text_content = f"""Test Email from On the Clock
+
+This is a test email to confirm your email setup is working correctly.
+
+Server: {guild_name}
+Recipients: {', '.join(recipients)}
+
+If you received this email, your daily report emails are configured correctly!
+
+---
+On the Clock Discord Bot
+https://on-the-clock.replit.app
+"""
+        
+        log_email_to_file(
+            event_type="test_email_attempt",
+            recipients=recipients,
+            subject=subject,
+            context={"guild_id": str(guild_id), "guild_name": guild_name, "source": "dashboard_test"}
+        )
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(send_email(to=recipients, subject=subject, text=text_content))
+        finally:
+            loop.close()
+        
+        log_email_to_file(
+            event_type="test_email_sent",
+            recipients=recipients,
+            subject=subject,
+            context={"guild_id": str(guild_id), "result": str(result)},
+            success=True
+        )
+        
+        app.logger.info(f"[OK] Test email sent to {recipients} for guild {guild_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Test email sent to {len(recipients)} recipient(s)',
+            'recipients': recipients
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error sending test email: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': f'Failed to send test email: {str(e)}'}), 500
 
 @app.route("/api/server/<guild_id>/data", methods=["GET"])
 @require_api_auth  # Changed from require_paid_api_access to allow employees

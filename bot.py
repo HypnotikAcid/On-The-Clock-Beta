@@ -3972,7 +3972,11 @@ def get_user_adjustment_history(guild_id: int, user_id: int, limit: int = 50):
 # --- Report Recipients Management ---
 
 def add_report_recipient(guild_id: int, recipient_type: str, recipient_id: Optional[str] = None, email_address: Optional[str] = None):
-    """Add a report recipient for a guild"""
+    """Add a report recipient for a guild.
+    
+    Also ensures email_settings row exists with auto_send_on_clockout=True
+    so that scheduled reports will actually be sent.
+    """
     if recipient_type not in ['discord', 'email']:
         raise ValueError("recipient_type must be 'discord' or 'email'")
     
@@ -3988,9 +3992,15 @@ def add_report_recipient(guild_id: int, recipient_type: str, recipient_id: Optio
                 INSERT INTO report_recipients (guild_id, recipient_type, recipient_id, email_address)
                 VALUES (%s, %s, %s, %s)
             """, (guild_id, recipient_type, recipient_id, email_address))
+            
+            conn.execute("""
+                INSERT INTO email_settings (guild_id, auto_send_on_clockout, auto_email_before_delete)
+                VALUES (%s, TRUE, TRUE)
+                ON CONFLICT (guild_id) DO NOTHING
+            """, (guild_id,))
+            
             return True
     except psycopg2.IntegrityError:
-        # Recipient already exists
         return False
 
 def remove_report_recipient(guild_id: int, recipient_type: str, recipient_id: Optional[str] = None, email_address: Optional[str] = None):

@@ -58,50 +58,76 @@ def db():
         db_pool.putconn(conn)
 
 def get_retention_tier(guild_id: int) -> str:
-    """Get the retention tier for a guild"""
+    """Get the retention tier for a guild.
+    
+    Checks both bot_access_paid and retention_tier columns:
+    - If bot_access_paid is true, at minimum they have 7-day retention
+    - retention_tier column specifies '7day', '30day', or 'none'
+    """
     with db() as cursor:
         cursor.execute(
-            "SELECT tier FROM server_subscriptions WHERE guild_id = %s",
+            "SELECT bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = %s",
             (guild_id,)
         )
         row = cursor.fetchone()
-        return row['tier'] if row else 'free'
+        if not row:
+            return 'free'
+        
+        bot_access = row.get('bot_access_paid', False)
+        retention = row.get('retention_tier', 'none')
+        
+        if retention == '30day':
+            return 'pro'
+        elif bot_access or retention == '7day':
+            return 'basic'
+        else:
+            return 'free'
 
 logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
 
 async def send_work_day_end_reports():
-    """Send automated work day end reports to all guilds with configured settings"""
+    """Send automated work day end reports to all guilds with email recipients configured.
+    
+    Uses LEFT JOIN to include guilds without explicit email_settings row,
+    and defaults to midnight (23:59) if no work_day_end_time is set.
+    """
     logger.info("🕐 Running scheduled work day end reports...")
     
     with db() as cursor:
         cursor.execute("""
             SELECT 
-                gs.guild_id, 
-                gs.work_day_end_time,
-                gs.timezone,
-                es.auto_send_on_clockout
-            FROM guild_settings gs
-            JOIN email_settings es ON gs.guild_id = es.guild_id
-            WHERE gs.work_day_end_time IS NOT NULL
+                rr.guild_id,
+                COALESCE(gs.work_day_end_time, '23:59') as work_day_end_time,
+                COALESCE(gs.timezone, 'America/New_York') as timezone,
+                COALESCE(es.auto_send_on_clockout, TRUE) as auto_send_on_clockout
+            FROM (SELECT DISTINCT guild_id FROM report_recipients WHERE recipient_type = 'email') rr
+            LEFT JOIN guild_settings gs ON rr.guild_id = gs.guild_id
+            LEFT JOIN email_settings es ON rr.guild_id = es.guild_id
         """)
-        guilds_with_settings = cursor.fetchall()
+        guilds_with_recipients = cursor.fetchall()
     
     current_time = datetime.now(timezone.utc)
+    processed_count = 0
+    skipped_count = 0
     
-    for row in guilds_with_settings:
+    for row in guilds_with_recipients:
         guild_id = row['guild_id']
         work_day_end_time = row['work_day_end_time']
         tz_name = row['timezone']
         auto_send = row['auto_send_on_clockout']
-        if not work_day_end_time:
-            continue
         
         try:
+            if not auto_send:
+                logger.debug(f"   Guild {guild_id}: skipped (auto_send_on_clockout disabled)")
+                skipped_count += 1
+                continue
+            
             retention_tier = get_retention_tier(guild_id)
             if retention_tier == 'free':
-                logger.info(f"Skipping work day end report for free tier guild {guild_id}")
+                logger.debug(f"   Guild {guild_id}: skipped (free tier - no reports)")
+                skipped_count += 1
                 continue
             
             guild_tz = pytz.timezone(tz_name or 'America/New_York')
@@ -110,10 +136,15 @@ async def send_work_day_end_reports():
             config_hour, config_minute = map(int, work_day_end_time.split(':'))
             
             if current_local.hour == config_hour and current_local.minute == config_minute:
+                logger.info(f"   Guild {guild_id}: sending daily report (time match {work_day_end_time})")
                 await send_daily_report_for_guild(guild_id)
+                processed_count += 1
                 
         except Exception as e:
             logger.error(f"Error processing work day end report for guild {guild_id}: {e}")
+    
+    if processed_count > 0 or skipped_count > 0:
+        logger.info(f"🕐 Work day reports: {processed_count} sent, {skipped_count} skipped")
 
 async def send_daily_report_for_guild(guild_id: int):
     """Generate and send daily report for a specific guild"""
