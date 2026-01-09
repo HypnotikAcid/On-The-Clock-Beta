@@ -5867,6 +5867,7 @@ class SetupInstructionsView(discord.ui.View):
 # --- Timeclock Hub View (Bulletproof Button Persistence) ---
 # Uses stable custom_ids with "tc:" prefix for maximum reliability
 SUPPORT_DISCORD_URL = "https://discord.gg/KdTRTqdPcj"
+LANDING_PAGE_URL = "https://on-the-clock.replit.app"
 
 class TimeclockHubView(discord.ui.View):
     """
@@ -5877,6 +5878,10 @@ class TimeclockHubView(discord.ui.View):
     - Stable custom_id values with "tc:" prefix
     - Fast ACK (defer immediately in handlers)
     - Registered in setup_hook for post-restart reliability
+    
+    NOTE: This base view is registered for fallback handling.
+    The actual view sent to users is built dynamically via build_timeclock_hub_view()
+    to conditionally show/hide buttons based on subscription tier.
     """
     def __init__(self):
         super().__init__(timeout=None)  # Never timeout - critical for persistence
@@ -5946,6 +5951,104 @@ class TimeclockHubView(discord.ui.View):
     async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Show upgrade options"""
         await handle_tc_upgrade(interaction)
+
+
+def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
+    """
+    Factory function to dynamically build the timeclock hub view
+    with conditional buttons based on subscription tier.
+    
+    - Free tier: Shows "Dashboard Access" button linking to upgrade page
+    - Dashboard Premium (basic): Shows "Pro Retention" button for 30-day upgrade
+    - Fully upgraded (pro): No upgrade button shown
+    
+    Args:
+        guild_id: The Discord guild ID to check subscription status
+        
+    Returns:
+        A discord.ui.View with the appropriate buttons
+    """
+    view = discord.ui.View(timeout=None)
+    
+    # Core buttons - always present (Row 0)
+    clock_in_btn = discord.ui.Button(
+        label="Clock In",
+        style=discord.ButtonStyle.success,
+        custom_id="tc:clock_in",
+        emoji="⏰",
+        row=0
+    )
+    clock_in_btn.callback = handle_tc_clock_in
+    view.add_item(clock_in_btn)
+    
+    clock_out_btn = discord.ui.Button(
+        label="Clock Out",
+        style=discord.ButtonStyle.secondary,
+        custom_id="tc:clock_out",
+        emoji="🏁",
+        row=0
+    )
+    clock_out_btn.callback = handle_tc_clock_out
+    view.add_item(clock_out_btn)
+    
+    # Feature buttons - always present (Row 1)
+    adjustments_btn = discord.ui.Button(
+        label="My Adjustments",
+        style=discord.ButtonStyle.primary,
+        custom_id="tc:adjustments",
+        emoji="📝",
+        row=1
+    )
+    adjustments_btn.callback = handle_tc_adjustments
+    view.add_item(adjustments_btn)
+    
+    my_hours_btn = discord.ui.Button(
+        label="My Hours",
+        style=discord.ButtonStyle.primary,
+        custom_id="tc:my_hours",
+        emoji="📊",
+        row=1
+    )
+    my_hours_btn.callback = handle_tc_my_hours
+    view.add_item(my_hours_btn)
+    
+    support_btn = discord.ui.Button(
+        label="Support",
+        style=discord.ButtonStyle.danger,
+        custom_id="tc:support",
+        emoji="🆘",
+        row=1
+    )
+    support_btn.callback = handle_tc_support
+    view.add_item(support_btn)
+    
+    # Conditional upgrade button (Row 2) - based on subscription tier
+    has_bot_access = check_bot_access(guild_id)
+    retention_tier = get_retention_tier(guild_id)
+    
+    if not has_bot_access:
+        # Free tier - show "Dashboard Access" link button
+        upgrade_btn = discord.ui.Button(
+            label="Dashboard Access",
+            style=discord.ButtonStyle.link,
+            url=LANDING_PAGE_URL,
+            emoji="🚀",
+            row=2
+        )
+        view.add_item(upgrade_btn)
+    elif retention_tier != '30day':
+        # Dashboard Premium only - show "Pro Retention" link button
+        upgrade_btn = discord.ui.Button(
+            label="Pro Retention",
+            style=discord.ButtonStyle.link,
+            url=LANDING_PAGE_URL,
+            emoji="📈",
+            row=2
+        )
+        view.add_item(upgrade_btn)
+    # Else: Fully upgraded (pro with 30day retention) - no upgrade button
+    
+    return view
 
 
 # --- Timeclock Hub Button Handlers ---
@@ -6237,7 +6340,7 @@ async def handle_tc_support(interaction: discord.Interaction):
 
 
 async def handle_tc_upgrade(interaction: discord.Interaction):
-    """Handle upgrade button - show subscription options"""
+    """Handle upgrade button - show subscription options based on current tier"""
     # ACK immediately
     if not await robust_defer(interaction, ephemeral=True):
         return
@@ -6253,28 +6356,36 @@ async def handle_tc_upgrade(interaction: discord.Interaction):
     retention_tier = get_retention_tier(guild_id)
     
     # Build upgrade embed based on current status
-    embed = discord.Embed(
-        title="🚀 Upgrade Your Server",
-        color=0x57F287
-    )
+    embed = discord.Embed(color=0x57F287)
+    view = discord.ui.View()
     
     if not has_bot_access:
-        embed.description = "Unlock powerful time tracking features!"
+        # Free tier - promote Dashboard Premium
+        embed.title = "🚀 Unlock Dashboard Access"
+        embed.description = "Get full access to powerful time tracking features!"
         embed.add_field(
             name="📊 Dashboard Premium ($5 one-time)",
-            value="• 7-day data retention\n• Full dashboard access\n• CSV reports & exports\n• Time adjustment requests\n• Email automation",
+            value="• 7-day data retention\n• Full dashboard access\n• CSV reports & exports\n• Time adjustment requests\n• Email automation\n• Team management",
             inline=False
         )
         embed.add_field(
-            name="📈 Pro Retention ($5/month add-on)",
-            value="• 30-day data retention\n• Perfect for long-term tracking",
+            name="📈 Pro Retention (Optional Add-on)",
+            value="• $5/month for 30-day data retention\n• Perfect for payroll and long-term tracking",
             inline=False
         )
+        view.add_item(discord.ui.Button(
+            label="Get Dashboard Access",
+            url=LANDING_PAGE_URL,
+            style=discord.ButtonStyle.link
+        ))
+        
     elif retention_tier != '30day':
-        embed.description = "You have Dashboard Premium! Consider adding Pro Retention."
+        # Dashboard Premium only - promote Pro Retention
+        embed.title = "📈 Extend Your Data Retention"
+        embed.description = "You have Dashboard Premium! Upgrade to keep your time records longer."
         embed.add_field(
             name="📈 Pro Retention ($5/month)",
-            value="• Upgrade to 30-day data retention\n• Keep your time records longer",
+            value="• Upgrade from 7 to 30-day data retention\n• Perfect for monthly payroll cycles\n• Never lose important time records",
             inline=False
         )
         embed.add_field(
@@ -6282,20 +6393,34 @@ async def handle_tc_upgrade(interaction: discord.Interaction):
             value="Dashboard Premium (7-day retention)",
             inline=False
         )
+        view.add_item(discord.ui.Button(
+            label="Get Pro Retention",
+            url=LANDING_PAGE_URL,
+            style=discord.ButtonStyle.link
+        ))
+        
     else:
-        embed.description = "You're on the best plan! Thank you for your support."
+        # Fully upgraded - thank them!
+        embed.title = "🎉 You're Fully Upgraded!"
+        embed.description = "Thank you for your support! You have access to all features."
+        embed.color = 0xD4AF37  # Gold color
         embed.add_field(
             name="✅ Your Current Plan",
-            value="Dashboard Premium + Pro Retention (30-day)",
+            value="**Dashboard Premium + Pro Retention**\n• 30-day data retention\n• Full dashboard access\n• CSV reports & exports\n• Time adjustment requests\n• Email automation\n• Team management",
             inline=False
         )
+        embed.add_field(
+            name="💡 Need Help?",
+            value="Join our support server if you have any questions!",
+            inline=False
+        )
+        view.add_item(discord.ui.Button(
+            label="Support Server",
+            url=SUPPORT_DISCORD_URL,
+            style=discord.ButtonStyle.link
+        ))
     
     embed.set_footer(text="On the Clock • Professional Time Tracking")
-    
-    # Add upgrade button linking to the upgrade page
-    view = discord.ui.View()
-    upgrade_url = f"https://on-the-clock.replit.app/upgrade/{guild_id}"
-    view.add_item(discord.ui.Button(label="View Upgrade Options", url=upgrade_url, style=discord.ButtonStyle.link))
     
     await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
@@ -6974,7 +7099,7 @@ async def clock_command(interaction: discord.Interaction):
             )
             welcome_embed.set_footer(text="Click any button below to get started!")
             
-            await interaction.followup.send(embed=welcome_embed, view=TimeclockHubView(), ephemeral=True)
+            await interaction.followup.send(embed=welcome_embed, view=build_timeclock_hub_view(guild_id), ephemeral=True)
             print(f"First-time /clock onboarding sent to {interaction.user} in guild {guild_id}")
             return
         
@@ -7040,7 +7165,7 @@ async def clock_command(interaction: discord.Interaction):
         embed.set_footer(text="Buttons below work even after bot restarts • On the Clock")
         
         # Send with bulletproof view
-        await interaction.followup.send(embed=embed, view=TimeclockHubView(), ephemeral=True)
+        await interaction.followup.send(embed=embed, view=build_timeclock_hub_view(guild_id), ephemeral=True)
         print(f"✅ [TC Hub] Sent timeclock hub to {interaction.user} in guild {guild_id}")
         
     except Exception as e:
