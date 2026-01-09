@@ -255,7 +255,7 @@ async function handleNavigation(sectionId) {
     const contentSections = document.querySelectorAll('.content-section');
 
     // Show loading for sections that fetch data
-    const loadingSections = ['employees', 'email-settings', 'adjustments', 'server-overview', 'admin-roles', 'employee-roles', 'ban-management', 'on-the-clock'];
+    const loadingSections = ['employees', 'email-settings', 'adjustments', 'server-overview', 'admin-roles', 'employee-roles', 'ban-management', 'on-the-clock', 'admin-calendar'];
     if (loadingSections.includes(sectionId)) {
         showLoading();
     }
@@ -300,6 +300,12 @@ async function handleNavigation(sectionId) {
 
         if (sectionId === 'ban-management') {
             await loadBannedUsers();
+        }
+
+        if (sectionId === 'admin-calendar') {
+            if (typeof loadEmployeeListForCalendar === 'function') {
+                await loadEmployeeListForCalendar();
+            }
         }
     } finally {
         // Always hide loading when done
