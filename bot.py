@@ -3734,6 +3734,55 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
             
     return employees
 
+def get_employees_for_calendar(guild_id: int):
+    """
+    Get all employees for the admin calendar dropdown.
+    Combines employees from:
+    1. employee_profiles table (anyone who has interacted)
+    2. sessions table (anyone who has clocked in)
+    Returns unique list of user_id with display names.
+    """
+    employees = []
+    seen_users = set()
+    
+    with db() as conn:
+        # First, get employees from employee_profiles for this guild
+        cursor = conn.execute("""
+            SELECT DISTINCT user_id, display_name, full_name
+            FROM employee_profiles
+            WHERE guild_id = %s
+            ORDER BY COALESCE(display_name, full_name, user_id::text)
+        """, (guild_id,))
+        
+        for row in cursor.fetchall():
+            user_id = str(row['user_id'])
+            if user_id not in seen_users:
+                seen_users.add(user_id)
+                employees.append({
+                    'user_id': user_id,
+                    'display_name': row['display_name'] or row['full_name'] or f"User {user_id}"
+                })
+        
+        # Also get any users with sessions who might not be in employee_profiles
+        cursor = conn.execute("""
+            SELECT DISTINCT s.user_id, p.display_name, p.full_name
+            FROM sessions s
+            LEFT JOIN employee_profiles p ON s.user_id = p.user_id AND s.guild_id = p.guild_id
+            WHERE s.guild_id = %s
+            ORDER BY COALESCE(p.display_name, p.full_name, s.user_id::text)
+        """, (guild_id,))
+        
+        for row in cursor.fetchall():
+            user_id = str(row['user_id'])
+            if user_id not in seen_users:
+                seen_users.add(user_id)
+                employees.append({
+                    'user_id': user_id,
+                    'display_name': row['display_name'] or row['full_name'] or f"User {user_id}"
+                })
+    
+    return employees
+
 def create_adjustment_request(guild_id: int, user_id: int, request_type: str, 
                               original_session_id: Optional[int], 
                               requested_data: Dict, reason: str) -> Optional[int]:

@@ -24,12 +24,20 @@ function updateSidebarForRole(roleTier) {
     const employeeFormSection = document.getElementById('employee-adjustment-form-container');
 
     if (roleTier === 'owner' || roleTier === 'admin') {
-        // Show admin items
-        adminItems.forEach(item => item.style.display = 'block');
+        // Show admin items (but not content-sections - those are controlled by navigation)
+        adminItems.forEach(item => {
+            if (!item.classList.contains('content-section')) {
+                item.style.display = 'block';
+            }
+        });
         if (adminReviewSection) adminReviewSection.style.display = 'block';
 
         // Admins are also employees, so show employee stuff too
-        employeeItems.forEach(item => item.style.display = 'block');
+        employeeItems.forEach(item => {
+            if (!item.classList.contains('content-section')) {
+                item.style.display = 'block';
+            }
+        });
         if (employeeHistorySection) employeeHistorySection.style.display = 'block';
         if (employeeFormSection) employeeFormSection.style.display = 'block';
 
@@ -39,8 +47,12 @@ function updateSidebarForRole(roleTier) {
         adminItems.forEach(item => item.style.display = 'none');
         if (adminReviewSection) adminReviewSection.style.display = 'none';
 
-        // Show employee items
-        employeeItems.forEach(item => item.style.display = 'block');
+        // Show employee items (but not content-sections - those are controlled by navigation)
+        employeeItems.forEach(item => {
+            if (!item.classList.contains('content-section')) {
+                item.style.display = 'block';
+            }
+        });
         if (employeeHistorySection) employeeHistorySection.style.display = 'block';
         if (employeeFormSection) employeeFormSection.style.display = 'block';
 

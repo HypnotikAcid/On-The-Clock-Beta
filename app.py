@@ -117,6 +117,9 @@ def notify_server_owner_bot_access(*args, **kwargs):
 def get_active_employees_with_stats(*args, **kwargs):
     return _get_bot_func('get_active_employees_with_stats')(*args, **kwargs)
 
+def get_employees_for_calendar(*args, **kwargs):
+    return _get_bot_func('get_employees_for_calendar')(*args, **kwargs)
+
 def create_adjustment_request(*args, **kwargs):
     return _get_bot_func('create_adjustment_request')(*args, **kwargs)
 
@@ -5055,6 +5058,27 @@ def api_get_active_employees(user_session, guild_id):
         })
     except Exception as e:
         app.logger.error(f"Error fetching active employees: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route("/api/guild/<guild_id>/employees/calendar-list")
+@require_paid_api_access
+def api_get_employees_for_calendar(user_session, guild_id):
+    """
+    Get all employees for the admin calendar dropdown.
+    Returns employees from profiles and sessions tables.
+    """
+    try:
+        employees = get_employees_for_calendar(int(guild_id))
+        
+        return jsonify({
+            'success': True,
+            'employees': employees
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching employees for calendar: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

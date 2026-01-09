@@ -368,15 +368,24 @@
 
                         <!-- View As Employee Mode -->
                         <div id="admin-calendar-viewas" style="display: block;">
-                            <div style="margin-bottom: 20px;">
-                                <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Select Employee</label>
-                                <select id="admin-calendar-employee-select" onchange="loadEmployeeCalendar()" style="background: #161B22; border: 1px solid #30363D; color: #C9D1D9; padding: 10px 12px; border-radius: 8px; width: 100%; max-width: 300px; font-size: 14px;">
-                                    <option value="">-- Select an employee --</option>
-                                </select>
+                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px; margin-bottom: 20px;">
+                                <div>
+                                    <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Select Employee</label>
+                                    <select id="admin-calendar-employee-select" onchange="loadEmployeeCalendar()" style="background: #161B22; border: 1px solid #30363D; color: #C9D1D9; padding: 10px 12px; border-radius: 8px; min-width: 220px; font-size: 14px;">
+                                        <option value="">-- Select an employee --</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 18px;">
+                                    <button id="emp-calendar-prev" class="calendar-nav-btn" onclick="navigateEmployeeCalendar(-1)">← Prev</button>
+                                    <span id="emp-calendar-month-label" style="color: #D4AF37; font-weight: 600; min-width: 130px; text-align: center;">--</span>
+                                    <button id="emp-calendar-next" class="calendar-nav-btn" onclick="navigateEmployeeCalendar(1)">Next →</button>
+                                </div>
                             </div>
-                            <div id="admin-employee-calendar-container" style="min-height: 200px;">
-                                <div style="text-align: center; color: #8B949E; padding: 40px;">
-                                    Select an employee above to view their calendar
+                            <div id="admin-employee-calendar-container">
+                                <div id="emp-calendar-grid" class="calendar-grid">
+                                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">
+                                        Select an employee above to view their calendar
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -385,11 +394,11 @@
                         <div id="admin-calendar-master" style="display: none;">
                             <!-- Month Navigation -->
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-                                <button onclick="navigateMasterCalendar(-1)" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60A5FA; padding: 8px 16px; border-radius: 6px; cursor: pointer;">← Prev</button>
-                                <span id="master-calendar-month-label" style="color: #C9D1D9; font-size: 18px; font-weight: 600;"></span>
-                                <button onclick="navigateMasterCalendar(1)" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60A5FA; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Next →</button>
+                                <button onclick="navigateMasterCalendar(-1)" class="calendar-nav-btn">← Prev</button>
+                                <span id="master-calendar-month-label" style="color: #D4AF37; font-size: 18px; font-weight: 600;"></span>
+                                <button onclick="navigateMasterCalendar(1)" class="calendar-nav-btn">Next →</button>
                             </div>
-                            <div id="master-calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; min-height: 300px;">
+                            <div id="master-calendar-grid" class="calendar-grid">
                                 <!-- Calendar days will be rendered here -->
                             </div>
                         </div>
@@ -442,7 +451,7 @@
                         if (!guildId) return;
                         
                         try {
-                            const response = await fetch(`/api/guild/${guildId}/employees/active`, { credentials: 'include' });
+                            const response = await fetch(`/api/guild/${guildId}/employees/calendar-list`, { credentials: 'include' });
                             const data = await response.json();
                             
                             const select = document.getElementById('admin-calendar-employee-select');
@@ -461,68 +470,140 @@
                         }
                     }
 
+                    let empCalendarYear = new Date().getFullYear();
+                    let empCalendarMonth = new Date().getMonth() + 1;
+                    let empCalendarData = null;
+                    let currentEmpCalendarEmployeeId = null;
+
                     async function loadEmployeeCalendar() {
                         const guildId = window.selectedGuildId;
                         const employeeId = document.getElementById('admin-calendar-employee-select').value;
-                        const container = document.getElementById('admin-employee-calendar-container');
+                        const grid = document.getElementById('emp-calendar-grid');
+                        const monthLabel = document.getElementById('emp-calendar-month-label');
+                        
+                        currentEmpCalendarEmployeeId = employeeId;
                         
                         if (!employeeId) {
-                            container.innerHTML = '<div style="text-align: center; color: #8B949E; padding: 40px;">Select an employee above to view their calendar</div>';
+                            monthLabel.textContent = '--';
+                            grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #8B949E; padding: 40px;">Select an employee above to view their calendar</div>';
                             return;
                         }
                         
-                        container.innerHTML = '<div style="text-align: center; color: #8B949E; padding: 40px;">Loading calendar...</div>';
+                        monthLabel.textContent = new Date(empCalendarYear, empCalendarMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                        grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #8B949E; padding: 40px;">Loading calendar...</div>';
                         
                         try {
-                            const now = new Date();
-                            const response = await fetch(`/api/guild/${guildId}/employee/${employeeId}/monthly-timecard?year=${now.getFullYear()}&month=${now.getMonth() + 1}`, { credentials: 'include' });
+                            const response = await fetch(`/api/guild/${guildId}/employee/${employeeId}/monthly-timecard?year=${empCalendarYear}&month=${empCalendarMonth}`, { credentials: 'include' });
                             const data = await response.json();
                             
                             if (data.success) {
-                                renderEmployeeCalendar(container, data.data, employeeId);
+                                empCalendarData = data.data;
+                                renderEmployeeCalendar();
                             } else {
-                                container.innerHTML = `<div style="text-align: center; color: #EF4444; padding: 40px;">Error: ${data.error}</div>`;
+                                grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: #EF4444; padding: 40px;">Error: ${data.error}</div>`;
                             }
                         } catch (error) {
                             console.error('Error loading employee calendar:', error);
-                            container.innerHTML = '<div style="text-align: center; color: #EF4444; padding: 40px;">Failed to load calendar</div>';
+                            grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #EF4444; padding: 40px;">Failed to load calendar</div>';
                         }
                     }
 
-                    function renderEmployeeCalendar(container, data, employeeId) {
-                        if (!data.days || data.days.length === 0) {
-                            container.innerHTML = '<div style="text-align: center; color: #8B949E; padding: 40px;">No time entries found for this month</div>';
-                            return;
+                    function navigateEmployeeCalendar(delta) {
+                        empCalendarMonth += delta;
+                        if (empCalendarMonth > 12) {
+                            empCalendarMonth = 1;
+                            empCalendarYear++;
+                        } else if (empCalendarMonth < 1) {
+                            empCalendarMonth = 12;
+                            empCalendarYear--;
+                        }
+                        loadEmployeeCalendar();
+                    }
+
+                    function renderEmployeeCalendar() {
+                        const grid = document.getElementById('emp-calendar-grid');
+                        const daysInMonth = new Date(empCalendarYear, empCalendarMonth, 0).getDate();
+                        const firstDayOfWeek = new Date(empCalendarYear, empCalendarMonth - 1, 1).getDay();
+                        
+                        // Build days lookup
+                        const daysLookup = {};
+                        if (empCalendarData && empCalendarData.days) {
+                            empCalendarData.days.forEach(d => {
+                                daysLookup[d.date] = d;
+                            });
                         }
                         
-                        let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
-                        data.days.forEach(day => {
-                            const totalHours = (day.total_seconds / 3600).toFixed(2);
+                        // Header row
+                        let html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => 
+                            `<div class="calendar-day-header">${d}</div>`
+                        ).join('');
+                        
+                        // Empty cells for first week
+                        for (let i = 0; i < firstDayOfWeek; i++) {
+                            html += '<div class="calendar-day empty"></div>';
+                        }
+                        
+                        // Day cells
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            const dateStr = `${empCalendarYear}-${String(empCalendarMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            const dayData = daysLookup[dateStr];
+                            const hasData = dayData && dayData.sessions && dayData.sessions.length > 0;
+                            const totalHours = hasData ? dayData.total_seconds / 3600 : 0;
+                            
+                            let dayClass = 'calendar-day';
+                            if (hasData) {
+                                dayClass += ' has-sessions';
+                                if (totalHours >= 7) dayClass += ' full-day';
+                                else if (totalHours >= 4) dayClass += ' half-day';
+                                else dayClass += ' partial-day';
+                            }
+                            
                             html += `
-                                <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid #30363D; border-radius: 8px; padding: 12px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <span style="color: #C9D1D9; font-weight: 600;">${new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                                        <span style="color: #10B981; font-size: 14px;">${totalHours} hrs</span>
-                                    </div>
-                                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                                        ${day.sessions.map(s => `
-                                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(16, 24, 39, 0.5); padding: 8px 10px; border-radius: 6px; font-size: 13px;">
-                                                <span style="color: #8B949E;">
-                                                    ${new Date(s.clock_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                                    ${s.clock_out ? ' - ' + new Date(s.clock_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ' - Active'}
-                                                </span>
-                                                <button onclick="openSessionEditModal(${s.id}, '${s.clock_in}', '${s.clock_out || ''}')" 
-                                                        style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #FCD34D; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
-                                                    Edit
-                                                </button>
-                                            </div>
-                                        `).join('')}
-                                    </div>
+                                <div class="${dayClass}" ${hasData ? `onclick="showEmpDayDetail('${dateStr}')"` : ''}>
+                                    <div class="day-number">${day}</div>
+                                    ${hasData ? `
+                                        <div class="day-hours">${totalHours.toFixed(1)}h</div>
+                                        <div class="day-sessions">${dayData.sessions.length} session${dayData.sessions.length > 1 ? 's' : ''}</div>
+                                    ` : '<div class="day-no-work">-</div>'}
+                                </div>
+                            `;
+                        }
+                        
+                        grid.innerHTML = html;
+                    }
+
+                    function showEmpDayDetail(dateStr) {
+                        if (!empCalendarData || !empCalendarData.days) return;
+                        
+                        const dayData = empCalendarData.days.find(d => d.date === dateStr);
+                        if (!dayData || !dayData.sessions) return;
+                        
+                        const modal = document.getElementById('session-edit-modal');
+                        const content = document.getElementById('session-edit-content');
+                        
+                        const totalHours = (dayData.total_seconds / 3600).toFixed(2);
+                        let html = `
+                            <h4 style="color: #C9D1D9; margin-bottom: 10px;">${new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h4>
+                            <div style="color: #10B981; font-size: 14px; margin-bottom: 15px;">${totalHours} hours total</div>
+                        `;
+                        
+                        dayData.sessions.forEach(s => {
+                            html += `
+                                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(16, 24, 39, 0.5); padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 8px;">
+                                    <span style="color: #8B949E;">
+                                        ${new Date(s.clock_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                        ${s.clock_out ? ' - ' + new Date(s.clock_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ' - Active'}
+                                    </span>
+                                    <button onclick="openSessionEditModal(${s.id}, '${s.clock_in}', '${s.clock_out || ''}')" 
+                                            style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #FCD34D; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                                        Edit
+                                    </button>
                                 </div>
                             `;
                         });
-                        html += '</div>';
-                        container.innerHTML = html;
+                        
+                        content.innerHTML = html;
+                        modal.style.display = 'flex';
                     }
 
                     async function loadMasterCalendar() {
@@ -565,12 +646,12 @@
                         
                         // Header row
                         let html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => 
-                            `<div style="text-align: center; color: #8B949E; font-size: 11px; padding: 8px;">${d}</div>`
+                            `<div class="calendar-day-header">${d}</div>`
                         ).join('');
                         
                         // Empty cells for first week
                         for (let i = 0; i < firstDayOfWeek; i++) {
-                            html += '<div style="background: rgba(16, 24, 39, 0.3); border-radius: 6px; min-height: 80px;"></div>';
+                            html += '<div class="calendar-day empty"></div>';
                         }
                         
                         // Day cells
@@ -578,20 +659,23 @@
                             const dateStr = `${masterCalendarYear}-${String(masterCalendarMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                             const dayData = daysLookup[dateStr];
                             const hasData = dayData && dayData.employee_count > 0;
+                            const totalHours = hasData ? dayData.total_hours : 0;
+                            
+                            let dayClass = 'calendar-day';
+                            if (hasData) {
+                                dayClass += ' has-sessions';
+                                if (totalHours >= 16) dayClass += ' full-day';
+                                else if (totalHours >= 8) dayClass += ' half-day';
+                                else dayClass += ' partial-day';
+                            }
                             
                             html += `
-                                <div onclick="${hasData ? `showDayDetail('${dateStr}')` : ''}" 
-                                     style="background: ${hasData ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 24, 39, 0.3)'}; 
-                                            border: 1px solid ${hasData ? 'rgba(59, 130, 246, 0.3)' : 'transparent'}; 
-                                            border-radius: 6px; min-height: 80px; padding: 6px; 
-                                            cursor: ${hasData ? 'pointer' : 'default'}; transition: all 0.15s;">
-                                    <div style="color: #C9D1D9; font-size: 13px; font-weight: 500;">${day}</div>
+                                <div class="${dayClass}" ${hasData ? `onclick="showDayDetail('${dateStr}')"` : ''}>
+                                    <div class="day-number">${day}</div>
                                     ${hasData ? `
-                                        <div style="margin-top: 4px;">
-                                            <div style="color: #60A5FA; font-size: 11px;">${dayData.employee_count} emp${dayData.employee_count > 1 ? 's' : ''}</div>
-                                            <div style="color: #10B981; font-size: 11px;">${dayData.total_hours.toFixed(1)}h</div>
-                                        </div>
-                                    ` : ''}
+                                        <div class="day-hours">${totalHours.toFixed(1)}h</div>
+                                        <div class="day-sessions">${dayData.employee_count} employee${dayData.employee_count > 1 ? 's' : ''}</div>
+                                    ` : '<div class="day-no-work">-</div>'}
                                 </div>
                             `;
                         }
