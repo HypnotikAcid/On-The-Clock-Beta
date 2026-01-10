@@ -1204,8 +1204,20 @@
         }
 
         function updateActionButtons(isClockedIn) {
-            document.getElementById('clockInBtn').disabled = isClockedIn;
-            document.getElementById('clockOutBtn').disabled = !isClockedIn;
+            const inBtn = document.getElementById('clockInBtn');
+            const outBtn = document.getElementById('clockOutBtn');
+            
+            if (isClockedIn) {
+                inBtn.style.display = 'none';
+                outBtn.style.display = 'block';
+                inBtn.disabled = true;
+                outBtn.disabled = false;
+            } else {
+                inBtn.style.display = 'block';
+                outBtn.style.display = 'none';
+                inBtn.disabled = false;
+                outBtn.disabled = true;
+            }
         }
 
         async function clockAction(action) {
@@ -1221,7 +1233,38 @@
                 });
                 
                 const data = await response.json();
+                showLoading(false);
                 
+                if (data.success) {
+                    showMessage('success', action === 'in' ? 'Clocked In Successfully!' : 'Clocked Out Successfully!');
+                    
+                    // Update current employee state immediately
+                    if (currentEmployee) {
+                        currentEmployee.is_clocked_in = (action === 'in');
+                    }
+                    
+                    // Update UI buttons immediately
+                    updateActionButtons(action === 'in');
+                    
+                    // Refresh info panel for latest stats
+                    const infoResponse = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
+                    const infoData = await infoResponse.json();
+                    if (infoData.success) {
+                        renderInfoPanel(infoData);
+                    }
+                    
+                    // Auto-logout after 3 seconds
+                    setTimeout(() => {
+                        logout();
+                    }, 3000);
+                } else {
+                    showMessage('error', data.error || 'Failed to ' + action);
+                }
+            } catch (error) {
+                showLoading(false);
+                showMessage('error', 'Connection error');
+            }
+        }
                 if (data.success) {
                     showMessage('success', action === 'in' ? 'Clocked In!' : 'Clocked Out!');
                     setTimeout(() => {
