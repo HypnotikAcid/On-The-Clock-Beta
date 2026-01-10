@@ -1965,12 +1965,12 @@ def owner_dashboard(user_session):
                     ss.granted_by,
                     ss.granted_at,
                     ss.grant_source,
-                    COUNT(DISTINCT s.id) as active_sessions,
+                    COUNT(DISTINCT s.session_id) as active_sessions,
                     COALESCE(bg.is_present, TRUE) as bot_is_present,
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
-                LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
+                LEFT JOIN timeclock_sessions s ON bg.guild_id = s.guild_id AND s.clock_out_time IS NULL
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
                 ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
             """)
@@ -2109,11 +2109,11 @@ def owner_dashboard(user_session):
                 'departed_unpaid_servers': stats_row['departed_unpaid_servers'] or 0
             }
             
-            # Get total active sessions across all servers
+            # Get total active sessions across all servers (using timeclock_sessions)
             cursor = conn.execute("""
                 SELECT COUNT(*) as total_active_sessions
-                FROM sessions 
-                WHERE clock_out IS NULL
+                FROM timeclock_sessions 
+                WHERE clock_out_time IS NULL
             """)
             stats['total_active_sessions'] = cursor.fetchone()['total_active_sessions']
             
@@ -2182,12 +2182,12 @@ def owner_dashboard_paid(user_session):
                     ss.granted_by,
                     ss.granted_at,
                     ss.grant_source,
-                    COUNT(DISTINCT s.id) as active_sessions,
+                    COUNT(DISTINCT s.session_id) as active_sessions,
                     COALESCE(bg.is_present, TRUE) as bot_is_present,
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
-                LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
+                LEFT JOIN timeclock_sessions s ON bg.guild_id = s.guild_id AND s.clock_out_time IS NULL
                 WHERE ss.bot_access_paid = TRUE
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
                 ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
@@ -2265,12 +2265,12 @@ def owner_dashboard_unpaid(user_session):
                     ss.granted_by,
                     ss.granted_at,
                     ss.grant_source,
-                    COUNT(DISTINCT s.id) as active_sessions,
+                    COUNT(DISTINCT s.session_id) as active_sessions,
                     COALESCE(bg.is_present, TRUE) as bot_is_present,
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
-                LEFT JOIN sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out IS NULL
+                LEFT JOIN timeclock_sessions s ON bg.guild_id = s.guild_id AND s.clock_out_time IS NULL
                 WHERE COALESCE(ss.bot_access_paid, FALSE) = FALSE AND COALESCE(bg.is_present, TRUE) = TRUE
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
                 ORDER BY guild_name
@@ -3426,18 +3426,18 @@ def api_owner_employee_list(user_session, guild_id):
                     ep.role_tier,
                     ep.is_active,
                     COALESCE(SUM(
-                        CASE WHEN s.clock_out IS NOT NULL 
-                        THEN EXTRACT(EPOCH FROM (s.clock_out - s.clock_in))/3600 
+                        CASE WHEN s.clock_out_time IS NOT NULL 
+                        THEN EXTRACT(EPOCH FROM (s.clock_out_time - s.clock_in_time))/3600 
                         ELSE 0 END
                     ), 0) as total_hours,
-                    COUNT(s.id) as session_count,
-                    EXISTS(SELECT 1 FROM sessions s2 WHERE s2.guild_id = ep.guild_id AND s2.user_id = ep.user_id AND s2.clock_out IS NULL) as is_clocked_in
+                    COUNT(s.session_id) as session_count,
+                    EXISTS(SELECT 1 FROM timeclock_sessions s2 WHERE s2.guild_id = ep.guild_id::text AND s2.user_id = ep.user_id::text AND s2.clock_out_time IS NULL) as is_clocked_in
                 FROM employee_profiles ep
-                LEFT JOIN sessions s ON s.guild_id = ep.guild_id AND s.user_id = ep.user_id
+                LEFT JOIN timeclock_sessions s ON s.guild_id = ep.guild_id::text AND s.user_id = ep.user_id::text
                 WHERE ep.guild_id = %s
                 GROUP BY ep.user_id, ep.first_name, ep.last_name, ep.full_name, ep.display_name, ep.company_role, ep.role_tier, ep.is_active, ep.guild_id
                 ORDER BY ep.display_name, ep.user_id
-            """, (int(guild_id),))
+            """, (str(guild_id),))
             employees = cursor.fetchall()
         
         result = []
@@ -3494,20 +3494,20 @@ def api_owner_time_report(user_session, guild_id):
                     ep.full_name,
                     ep.first_name,
                     ep.last_name,
-                    s.clock_in,
-                    s.clock_out,
+                    s.clock_in_time as clock_in,
+                    s.clock_out_time as clock_out,
                     CASE 
-                        WHEN s.clock_out IS NOT NULL 
-                        THEN EXTRACT(EPOCH FROM (s.clock_out - s.clock_in))/3600 
+                        WHEN s.clock_out_time IS NOT NULL 
+                        THEN EXTRACT(EPOCH FROM (s.clock_out_time - s.clock_in_time))/3600 
                         ELSE NULL 
                     END as hours_worked
-                FROM sessions s
-                LEFT JOIN employee_profiles ep ON s.guild_id = ep.guild_id AND s.user_id = ep.user_id
+                FROM timeclock_sessions s
+                LEFT JOIN employee_profiles ep ON s.guild_id = ep.guild_id::text AND s.user_id = ep.user_id::text
                 WHERE s.guild_id = %s
-                  AND s.clock_in >= %s::date
-                  AND s.clock_in < (%s::date + interval '1 day')
-                ORDER BY s.clock_in
-            """, (int(guild_id), start_date, end_date))
+                  AND s.clock_in_time >= %s::date
+                  AND s.clock_in_time < (%s::date + interval '1 day')
+                ORDER BY s.clock_in_time
+            """, (str(guild_id), start_date, end_date))
             sessions = cursor.fetchall()
         
         import io
@@ -6163,10 +6163,11 @@ def api_submit_day_adjustment(user_session, guild_id):
                     return jsonify({'success': False, 'error': 'Invalid session data - missing session_id'}), 400
                 
                 cursor = conn.execute("""
-                    SELECT id, clock_in, clock_out, duration_seconds
-                    FROM sessions
-                    WHERE id = %s AND guild_id = %s AND user_id = %s
-                """, (session_id, guild_id_int, user_id))
+                    SELECT session_id, clock_in_time, clock_out_time,
+                           EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) as duration_seconds
+                    FROM timeclock_sessions
+                    WHERE session_id = %s AND guild_id = %s AND user_id = %s
+                """, (session_id, str(guild_id), str(user_id)))
                 
                 if not cursor.fetchone():
                     invalid_sessions.append(session_id)
@@ -6188,10 +6189,11 @@ def api_submit_day_adjustment(user_session, guild_id):
                 
                 # Get original session data (we know it exists and belongs to user)
                 cursor = conn.execute("""
-                    SELECT id, clock_in, clock_out, duration_seconds
-                    FROM sessions
-                    WHERE id = %s AND guild_id = %s AND user_id = %s
-                """, (session_id, guild_id_int, user_id))
+                    SELECT session_id, clock_in_time as clock_in, clock_out_time as clock_out,
+                           EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) as duration_seconds
+                    FROM timeclock_sessions
+                    WHERE session_id = %s AND guild_id = %s AND user_id = %s
+                """, (session_id, str(guild_id), str(user_id)))
                 
                 original_session = cursor.fetchone()
                 
@@ -6549,24 +6551,24 @@ def api_get_admin_master_calendar(user_session, guild_id):
         first_day_utc = guild_tz.localize(first_day).astimezone(pytz.utc)
         last_day_utc = guild_tz.localize(last_day).astimezone(pytz.utc)
         
-        # Query all sessions for the month with employee info
+        # Query all sessions for the month with employee info (using timeclock_sessions)
         with get_db() as conn:
             cursor = conn.execute("""
                 SELECT 
-                    s.id,
+                    s.session_id as id,
                     s.user_id,
-                    s.clock_in,
-                    s.clock_out,
-                    s.duration_seconds,
-                    DATE(s.clock_in AT TIME ZONE 'UTC' AT TIME ZONE %s) as work_date,
-                    COALESCE(p.display_name, p.full_name, CAST(s.user_id AS TEXT)) as employee_name
-                FROM sessions s
-                LEFT JOIN employee_profiles p ON s.user_id = p.user_id AND s.guild_id = p.guild_id
+                    s.clock_in_time as clock_in,
+                    s.clock_out_time as clock_out,
+                    EXTRACT(EPOCH FROM (s.clock_out_time - s.clock_in_time)) as duration_seconds,
+                    DATE(s.clock_in_time AT TIME ZONE 'UTC' AT TIME ZONE %s) as work_date,
+                    COALESCE(p.display_name, p.full_name, s.user_id) as employee_name
+                FROM timeclock_sessions s
+                LEFT JOIN employee_profiles p ON s.user_id = p.user_id::text AND s.guild_id = p.guild_id::text
                 WHERE s.guild_id = %s
-                  AND s.clock_in >= %s
-                  AND s.clock_in <= %s
-                ORDER BY s.clock_in ASC
-            """, (guild_tz_str, int(guild_id), first_day_utc, last_day_utc))
+                  AND s.clock_in_time >= %s
+                  AND s.clock_in_time <= %s
+                ORDER BY s.clock_in_time ASC
+            """, (guild_tz_str, str(guild_id), first_day_utc, last_day_utc))
             
             sessions = cursor.fetchall()
             
@@ -6718,22 +6720,22 @@ def api_get_monthly_timecard(user_session, guild_id, user_id):
         first_day_utc = guild_tz.localize(first_day).astimezone(pytz.utc)
         last_day_utc = guild_tz.localize(last_day).astimezone(pytz.utc)
         
-        # Query sessions for the month
+        # Query sessions for the month (using timeclock_sessions)
         with get_db() as conn:
             cursor = conn.execute("""
                 SELECT 
-                    id,
-                    clock_in,
-                    clock_out,
-                    duration_seconds,
-                    DATE(clock_in AT TIME ZONE 'UTC' AT TIME ZONE %s) as work_date
-                FROM sessions
+                    session_id as id,
+                    clock_in_time as clock_in,
+                    clock_out_time as clock_out,
+                    EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) as duration_seconds,
+                    DATE(clock_in_time AT TIME ZONE 'UTC' AT TIME ZONE %s) as work_date
+                FROM timeclock_sessions
                 WHERE guild_id = %s
                   AND user_id = %s
-                  AND clock_in >= %s
-                  AND clock_in <= %s
-                ORDER BY clock_in ASC
-            """, (guild_tz_str, int(guild_id), int(user_id), first_day_utc, last_day_utc))
+                  AND clock_in_time >= %s
+                  AND clock_in_time <= %s
+                ORDER BY clock_in_time ASC
+            """, (guild_tz_str, str(guild_id), str(user_id), first_day_utc, last_day_utc))
             
             sessions = cursor.fetchall()
         
@@ -6890,20 +6892,20 @@ def api_clock_out(user_session, guild_id):
                 return jsonify({'success': False, 'error': 'Database connection error'}), 500
                 
             cursor = conn.execute("""
-                SELECT id, clock_in, clock_out
-                FROM sessions
-                WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
-                ORDER BY clock_in DESC
+                SELECT session_id, clock_in_time, clock_out_time
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                ORDER BY clock_in_time DESC
                 LIMIT 1
-            """, (guild_id_int, user_id))
+            """, (str(guild_id), str(user_id)))
             
             active_session = cursor.fetchone()
             
             if not active_session:
                 return jsonify({'success': False, 'error': 'No active session found'}), 404
             
-            session_id = active_session['id']
-            clock_in = active_session['clock_in']
+            session_id = active_session['session_id']
+            clock_in = active_session['clock_in_time']
             clock_out_time = datetime.now(timezone.utc)
             
             if clock_in.tzinfo is None:
@@ -6912,10 +6914,10 @@ def api_clock_out(user_session, guild_id):
             duration_seconds = int((clock_out_time - clock_in).total_seconds())
             
             conn.execute("""
-                UPDATE sessions
-                SET clock_out = %s, duration_seconds = %s
-                WHERE id = %s
-            """, (clock_out_time, duration_seconds, session_id))
+                UPDATE timeclock_sessions
+                SET clock_out_time = %s
+                WHERE session_id = %s
+            """, (clock_out_time, session_id))
         
         return jsonify({
             'success': True,
@@ -6966,12 +6968,13 @@ def api_admin_edit_session(user_session, guild_id):
         import pytz
         
         with get_db() as conn:
-            # Get original session
+            # Get original session (using timeclock_sessions)
             cursor = conn.execute("""
-                SELECT id, user_id, clock_in, clock_out, duration_seconds
-                FROM sessions
-                WHERE id = %s AND guild_id = %s
-            """, (session_id, int(guild_id)))
+                SELECT session_id, user_id, clock_in_time, clock_out_time,
+                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) as duration_seconds
+                FROM timeclock_sessions
+                WHERE session_id = %s AND guild_id = %s
+            """, (session_id, str(guild_id)))
             
             session = cursor.fetchone()
             if not session:
@@ -6980,16 +6983,16 @@ def api_admin_edit_session(user_session, guild_id):
             # Parse new times
             updates = {}
             if new_clock_in:
-                updates['clock_in'] = datetime.fromisoformat(new_clock_in.replace('Z', '+00:00'))
+                updates['clock_in_time'] = datetime.fromisoformat(new_clock_in.replace('Z', '+00:00'))
             if new_clock_out:
-                updates['clock_out'] = datetime.fromisoformat(new_clock_out.replace('Z', '+00:00'))
+                updates['clock_out_time'] = datetime.fromisoformat(new_clock_out.replace('Z', '+00:00'))
             
             if not updates:
                 return jsonify({'success': False, 'error': 'No changes provided'}), 400
             
             # Calculate new duration if both times are set
-            final_clock_in = updates.get('clock_in', session['clock_in'])
-            final_clock_out = updates.get('clock_out', session['clock_out'])
+            final_clock_in = updates.get('clock_in_time', session['clock_in_time'])
+            final_clock_out = updates.get('clock_out_time', session['clock_out_time'])
             
             if final_clock_in and final_clock_out:
                 if final_clock_in.tzinfo is None:
@@ -7007,16 +7010,15 @@ def api_admin_edit_session(user_session, guild_id):
                 if new_duration > 86400:
                     return jsonify({'success': False, 'error': 'Session duration cannot exceed 24 hours'}), 400
             else:
-                new_duration = session['duration_seconds']
+                new_duration = session['duration_seconds'] or 0
             
-            # Update session
+            # Update session (timeclock_sessions)
             conn.execute("""
-                UPDATE sessions
-                SET clock_in = COALESCE(%s, clock_in),
-                    clock_out = COALESCE(%s, clock_out),
-                    duration_seconds = %s
-                WHERE id = %s
-            """, (updates.get('clock_in'), updates.get('clock_out'), new_duration, session_id))
+                UPDATE timeclock_sessions
+                SET clock_in_time = COALESCE(%s, clock_in_time),
+                    clock_out_time = COALESCE(%s, clock_out_time)
+                WHERE session_id = %s
+            """, (updates.get('clock_in_time'), updates.get('clock_out_time'), session_id))
             
             # Log the change
             conn.execute("""
@@ -7024,14 +7026,14 @@ def api_admin_edit_session(user_session, guild_id):
                 (guild_id, user_id, admin_id, action_type, session_id, old_clock_in, old_clock_out, new_clock_in, new_clock_out, reason, created_at)
                 VALUES (%s, %s, %s, 'admin_edit', %s, %s, %s, %s, %s, %s, NOW())
             """, (
-                int(guild_id),
+                str(guild_id),
                 session['user_id'],
-                int(user_session['user_id']),
+                str(user_session['user_id']),
                 session_id,
-                session['clock_in'],
-                session['clock_out'],
-                updates.get('clock_in'),
-                updates.get('clock_out'),
+                session['clock_in_time'],
+                session['clock_out_time'],
+                updates.get('clock_in_time'),
+                updates.get('clock_out_time'),
                 reason
             ))
         
@@ -7085,20 +7087,20 @@ def api_admin_clock_out_employee(user_session, guild_id, user_id):
                 return jsonify({'success': False, 'error': 'Database connection error'}), 500
                 
             cursor = conn.execute("""
-                SELECT id, clock_in, clock_out
-                FROM sessions
-                WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
-                ORDER BY clock_in DESC
+                SELECT session_id, clock_in_time, clock_out_time
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                ORDER BY clock_in_time DESC
                 LIMIT 1
-            """, (guild_id_int, user_id_int))
+            """, (str(guild_id), str(user_id)))
             
             active_session = cursor.fetchone()
             
             if not active_session:
                 return jsonify({'success': False, 'error': 'No active session found for this employee'}), 404
             
-            session_id = active_session['id']
-            clock_in = active_session['clock_in']
+            session_id = active_session['session_id']
+            clock_in = active_session['clock_in_time']
             clock_out_time = datetime.now(timezone.utc)
             
             if clock_in.tzinfo is None:
@@ -7107,10 +7109,10 @@ def api_admin_clock_out_employee(user_session, guild_id, user_id):
             duration_seconds = int((clock_out_time - clock_in).total_seconds())
             
             conn.execute("""
-                UPDATE sessions
-                SET clock_out = %s, duration_seconds = %s
-                WHERE id = %s
-            """, (clock_out_time, duration_seconds, session_id))
+                UPDATE timeclock_sessions
+                SET clock_out_time = %s
+                WHERE session_id = %s
+            """, (clock_out_time, session_id))
         
         app.logger.info(f"Admin {user_session.get('username')} clocked out user {user_id} in guild {guild_id}")
         
@@ -7175,13 +7177,13 @@ def api_get_employee_detail(user_session, guild_id, user_id):
         if not employee:
             return jsonify({'success': False, 'error': 'Employee not found'}), 404
         
-        # Get total sessions count (using Flask's get_db)
+        # Get total sessions count (using timeclock_sessions)
         with get_db() as conn:
             cursor = conn.execute("""
                 SELECT COUNT(*) as total_sessions
-                FROM sessions
+                FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s
-            """, (int(guild_id), user_id))
+            """, (str(guild_id), str(user_id)))
             result = cursor.fetchone()
             employee['total_sessions'] = result['total_sessions'] if result else 0
         
@@ -7215,12 +7217,13 @@ def api_get_employee_timecard(user_session, guild_id, user_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT clock_in, clock_out, duration_seconds
-                FROM sessions
+                SELECT clock_in_time as clock_in, clock_out_time as clock_out, 
+                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) as duration_seconds
+                FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s
-                AND clock_in::date >= %s AND clock_in::date < %s
-                ORDER BY clock_in ASC
-            """, (int(guild_id), user_id, week_start, week_end))
+                AND clock_in_time::date >= %s AND clock_in_time::date < %s
+                ORDER BY clock_in_time ASC
+            """, (str(guild_id), str(user_id), week_start, week_end))
             sessions = cursor.fetchall()
         
         # Build 7-day structure
