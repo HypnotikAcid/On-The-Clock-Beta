@@ -5016,7 +5016,7 @@ def api_get_server_employees(user_session, guild_id):
             cursor = conn.execute("""
                 SELECT ep.user_id, ep.full_name, ep.display_name,
                        ep.is_active, ep.avatar_url,
-                       (SELECT COUNT(*) > 0 FROM time_sessions ts 
+                       (SELECT COUNT(*) > 0 FROM timeclock_sessions ts 
                         WHERE ts.user_id = ep.user_id AND ts.guild_id = ep.guild_id 
                         AND ts.clock_out_time IS NULL) as is_clocked_in
                 FROM employee_profiles ep
@@ -5116,7 +5116,7 @@ def api_get_employee_entries(user_session, guild_id, user_id):
             query = """
                 SELECT id, user_id, clock_in_time, clock_out_time, 
                        duration_seconds, admin_notes, is_modified
-                FROM time_sessions
+                FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s
             """
             params = [int(guild_id), int(user_id)]
@@ -5166,7 +5166,7 @@ def api_update_entry(user_session, guild_id, entry_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT id, user_id FROM time_sessions 
+                SELECT id, user_id FROM timeclock_sessions 
                 WHERE id = %s AND guild_id = %s
             """, (int(entry_id), int(guild_id)))
             entry = cursor.fetchone()
@@ -5182,7 +5182,7 @@ def api_update_entry(user_session, guild_id, entry_id):
                 duration = int((dt_out - dt_in).total_seconds())
             
             conn.execute("""
-                UPDATE time_sessions 
+                UPDATE timeclock_sessions 
                 SET clock_in_time = %s, clock_out_time = %s, 
                     duration_seconds = %s, admin_notes = %s, is_modified = TRUE
                 WHERE id = %s AND guild_id = %s
@@ -5205,7 +5205,7 @@ def api_delete_entry(user_session, guild_id, entry_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                DELETE FROM time_sessions 
+                DELETE FROM timeclock_sessions 
                 WHERE id = %s AND guild_id = %s
                 RETURNING id
             """, (int(entry_id), int(guild_id)))
