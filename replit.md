@@ -11,7 +11,23 @@ Preferred communication style: Simple, everyday language.
 - **Architecture Pattern**: Event-driven bot architecture, integrating the Discord bot and an internal HTTP API server within a Gunicorn-managed Flask application.
 
 ## Design Decisions
-- **UI/UX**: Features a static landing page and a dashboard for server-specific settings with a tile-based layout, secured by Discord OAuth. The dashboard offers role-differentiated views for Admins (full access) and Employees (limited view of personal data).
+- **UI/UX**: Features a static landing page and a route-based dashboard architecture secured by Discord OAuth. The dashboard offers role-differentiated views for Admins (full access) and Employees (limited view of personal data).
+- **Route-Based Dashboard Architecture**: Dashboard is split into dedicated routes for better performance and deep linking:
+  - `/dashboard` - My Servers hub (admin/employee workplaces)
+  - `/dashboard/server/<id>` - Server Overview
+  - `/dashboard/server/<id>/admin-roles` - Admin role management (admin-only)
+  - `/dashboard/server/<id>/employee-roles` - Employee role management (admin-only)
+  - `/dashboard/server/<id>/email` - Email settings (admin-only)
+  - `/dashboard/server/<id>/timezone` - Timezone/schedule settings (admin-only)
+  - `/dashboard/server/<id>/employees` - Employee status cards (admin-only)
+  - `/dashboard/server/<id>/clock` - On the Clock view (employee)
+  - `/dashboard/server/<id>/adjustments` - Time adjustment requests (both roles)
+  - `/dashboard/server/<id>/calendar` - Admin calendar for editing entries (admin-only)
+  - `/dashboard/server/<id>/bans` - Ban management (admin-only)
+  - `/dashboard/server/<id>/beta` - Beta settings
+  - `/owner` - Owner dashboard
+- **Template Inheritance**: All dashboard pages extend `dashboard_base.html` for consistent sidebar, header, and security checks.
+- **Shared Utilities**: Common JavaScript functions in `dashboard-common.js` (escapeHtml, fetchWithTimeout, notifications, formatting).
 - **Subscription Management**: A simplified two-tier pricing model includes a Free Tier, Dashboard Premium, and an optional Pro Retention add-on.
 - **Concurrent Safety**: Achieved through guild-level locking, PostgreSQL connection pooling with SSL validation, and automatic transaction management.
 - **Ephemeral Interface System**: Resolves interaction timeout issues by providing new interfaces via the `/clock` command.

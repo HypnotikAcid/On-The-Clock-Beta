@@ -366,58 +366,12 @@ function updateNavigationForAccessLevel(accessLevel) {
     });
 }
 
-// Server Selection Handler
+// Server Selection Handler - Navigate to new route-based pages
 document.querySelectorAll('.server-item').forEach(item => {
-    item.addEventListener('click', async function () {
+    item.addEventListener('click', function () {
         const guildId = this.dataset.guildId;
-        const guildName = this.dataset.guildName;
-        const guildIcon = this.dataset.guildIcon;
-        const accessLevel = this.dataset.accessLevel || 'admin';
-
-        // Show loading overlay
-        showLoading('Loading server...');
-
-        currentGuildId = guildId;
-
-        // Update server navigation header
-        document.getElementById('serverNavName').textContent = guildName;
-        const serverNavIcon = document.getElementById('serverNavIcon');
-        if (guildIcon) {
-            const img = document.createElement('img');
-            img.src = guildIcon;
-            img.alt = guildName;
-            serverNavIcon.innerHTML = '';
-            serverNavIcon.appendChild(img);
-        } else {
-            serverNavIcon.textContent = guildName.charAt(0).toUpperCase();
-        }
-
-        // Switch to server navigation
-        document.getElementById('main-nav').style.display = 'none';
-        document.getElementById('server-nav').style.display = 'block';
-
-        try {
-            // Load server data and pass access level
-            await loadServerData(guildId, accessLevel);
-
-            // Update navigation visibility based on access level
-            updateNavigationForAccessLevel(accessLevel);
-
-            // Load pending count (only if admin access)
-            if (accessLevel === 'admin') {
-                await loadPendingAdjustments(guildId);
-            }
-
-            // Initialize view mode toggle (handles access level internally)
-            initViewModeToggle();
-
-            // Navigate to server overview
-            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-            document.querySelector('[data-section="server-overview"]').classList.add('active');
-            document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-            document.getElementById('section-server-overview').classList.add('active');
-        } finally {
-            hideLoading();
+        if (guildId) {
+            window.location.href = `/dashboard/server/${guildId}`;
         }
     });
 });

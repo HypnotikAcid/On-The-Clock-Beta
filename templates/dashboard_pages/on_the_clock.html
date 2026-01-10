@@ -1,0 +1,168 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - On the Clock{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">On the Clock</h1>
+    <p class="content-subtitle">Your personal time tracking</p>
+</div>
+
+<div class="tiles-grid">
+    <div class="tile">
+        <h2><span class="tile-icon">⏰</span>Current Status</h2>
+        
+        <div class="clock-status" id="clock-status">
+            <div class="status-indicator" id="status-indicator">
+                <span class="status-dot"></span>
+                <span class="status-text">Loading...</span>
+            </div>
+            <div class="session-timer" id="session-timer" style="display: none;">
+                <span class="timer-value">00:00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tile">
+        <h2><span class="tile-icon">📊</span>Your Hours</h2>
+        
+        <div class="hours-stats">
+            <div class="stat-row">
+                <span class="stat-label">Today:</span>
+                <span class="stat-value" id="hours-today">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">This Week:</span>
+                <span class="stat-value" id="hours-week">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">This Month:</span>
+                <span class="stat-value" id="hours-month">--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tile tile-full">
+        <h2><span class="tile-icon">📅</span>Recent Sessions</h2>
+        
+        <div id="recent-sessions" class="sessions-list">
+            <div class="loading-placeholder">Loading sessions...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+const userId = '{{ user.user_id }}';
+let clockedIn = false;
+let sessionStart = null;
+let timerInterval = null;
+
+async function loadClockStatus() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${userId}/status`);
+        const data = await response.json();
+        
+        if (data.success) {
+            clockedIn = data.is_clocked_in;
+            updateStatusDisplay(data);
+            
+            if (data.is_clocked_in && data.current_session_start) {
+                sessionStart = new Date(data.current_session_start);
+                startTimer();
+            }
+            
+            document.getElementById('hours-today').textContent = DashboardUtils.formatDuration(data.hours_today || 0);
+            document.getElementById('hours-week').textContent = DashboardUtils.formatDuration(data.hours_this_week || 0);
+            document.getElementById('hours-month').textContent = DashboardUtils.formatDuration(data.hours_this_month || 0);
+        }
+    } catch (error) {
+        console.error('Failed to load status:', error);
+    }
+}
+
+function updateStatusDisplay(data) {
+    const indicator = document.getElementById('status-indicator');
+    const timerEl = document.getElementById('session-timer');
+    
+    if (data.is_clocked_in) {
+        indicator.innerHTML = `
+            <span class="status-dot clocked-in"></span>
+            <span class="status-text">Clocked In</span>
+        `;
+        timerEl.style.display = 'block';
+    } else {
+        indicator.innerHTML = `
+            <span class="status-dot clocked-out"></span>
+            <span class="status-text">Clocked Out</span>
+        `;
+        timerEl.style.display = 'none';
+        stopTimer();
+    }
+}
+
+function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    
+    timerInterval = setInterval(() => {
+        if (!sessionStart) return;
+        
+        const now = new Date();
+        const diff = Math.floor((now - sessionStart) / 1000);
+        
+        const hours = Math.floor(diff / 3600);
+        const mins = Math.floor((diff % 3600) / 60);
+        const secs = diff % 60;
+        
+        document.querySelector('.timer-value').textContent = 
+            `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+async function loadRecentSessions() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${userId}/sessions?limit=10`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderSessions(data.sessions || []);
+        }
+    } catch (error) {
+        console.error('Failed to load sessions:', error);
+    }
+}
+
+function renderSessions(sessions) {
+    const container = document.getElementById('recent-sessions');
+    
+    if (sessions.length === 0) {
+        container.innerHTML = '<p class="empty-state-text">No recent sessions</p>';
+        return;
+    }
+    
+    container.innerHTML = sessions.map(s => `
+        <div class="session-item">
+            <div class="session-date">${DashboardUtils.formatDate(s.clock_in_time)}</div>
+            <div class="session-times">
+                ${DashboardUtils.formatTime(s.clock_in_time)} - ${s.clock_out_time ? DashboardUtils.formatTime(s.clock_out_time) : '<span class="active-session">Active</span>'}
+            </div>
+            <div class="session-duration">${DashboardUtils.formatDuration(s.duration_minutes)}</div>
+        </div>
+    `).join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadClockStatus();
+    loadRecentSessions();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Employee Status{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Employee Status</h1>
+    <p class="content-subtitle">View and manage employee time tracking</p>
+</div>
+
+<div class="tiles-grid">
+    <div class="tile tile-full">
+        <h2><span class="tile-icon">👥</span>Active Employees</h2>
+        
+        <div class="employee-filters">
+            <input type="text" id="search-employees" class="form-input" placeholder="Search employees...">
+            <select id="status-filter" class="form-select">
+                <option value="all">All Employees</option>
+                <option value="clocked-in">Clocked In</option>
+                <option value="clocked-out">Clocked Out</option>
+            </select>
+        </div>
+        
+        <div id="employees-grid" class="employees-grid">
+            <div class="loading-placeholder">Loading employees...</div>
+        </div>
+    </div>
+</div>
+
+<div id="employee-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeEmployeeModal()">&times;</button>
+        <div id="modal-body"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+let allEmployees = [];
+
+async function loadEmployees() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/employees`);
+        const data = await response.json();
+        
+        if (data.success) {
+            allEmployees = data.employees || [];
+            renderEmployees(allEmployees);
+        }
+    } catch (error) {
+        console.error('Failed to load employees:', error);
+        document.getElementById('employees-grid').innerHTML = 
+            '<p class="error-text">Failed to load employees. Please refresh.</p>';
+    }
+}
+
+function renderEmployees(employees) {
+    const container = document.getElementById('employees-grid');
+    
+    if (employees.length === 0) {
+        container.innerHTML = '<p class="empty-state-text">No employees found</p>';
+        return;
+    }
+    
+    container.innerHTML = employees.map(emp => `
+        <div class="employee-card ${emp.is_clocked_in ? 'clocked-in' : ''}" onclick="viewEmployee('${emp.user_id}')">
+            <div class="employee-avatar">
+                ${emp.avatar_url 
+                    ? `<img src="${emp.avatar_url}" alt="${DashboardUtils.escapeHtml(emp.display_name)}">`
+                    : `<span>${(emp.display_name || '?')[0].toUpperCase()}</span>`
+                }
+            </div>
+            <div class="employee-info">
+                <div class="employee-name">${DashboardUtils.escapeHtml(emp.display_name || emp.username)}</div>
+                <div class="employee-status ${emp.is_clocked_in ? 'status-in' : 'status-out'}">
+                    ${emp.is_clocked_in ? '🟢 Clocked In' : '⚪ Clocked Out'}
+                </div>
+                ${emp.is_clocked_in && emp.current_session_duration ? 
+                    `<div class="session-time">Session: ${DashboardUtils.formatDuration(emp.current_session_duration)}</div>` : 
+                    ''}
+            </div>
+            ${emp.is_clocked_in ? `
+                <button class="btn btn-sm btn-warning force-clock-out" onclick="event.stopPropagation(); forceClockOut('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
+                    Force Out
+                </button>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function filterEmployees() {
+    const search = document.getElementById('search-employees').value.toLowerCase();
+    const status = document.getElementById('status-filter').value;
+    
+    let filtered = allEmployees;
+    
+    if (search) {
+        filtered = filtered.filter(e => 
+            (e.display_name || e.username || '').toLowerCase().includes(search)
+        );
+    }
+    
+    if (status === 'clocked-in') {
+        filtered = filtered.filter(e => e.is_clocked_in);
+    } else if (status === 'clocked-out') {
+        filtered = filtered.filter(e => !e.is_clocked_in);
+    }
+    
+    renderEmployees(filtered);
+}
+
+document.getElementById('search-employees').addEventListener('input', filterEmployees);
+document.getElementById('status-filter').addEventListener('change', filterEmployees);
+
+async function viewEmployee(userId) {
+    DashboardUtils.showLoading('Loading employee details...');
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${userId}/details`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showEmployeeModal(data);
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to load details', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to load employee details', 'error');
+    }
+    
+    DashboardUtils.hideLoading();
+}
+
+function showEmployeeModal(data) {
+    const modal = document.getElementById('employee-modal');
+    const body = document.getElementById('modal-body');
+    
+    body.innerHTML = `
+        <h2>${DashboardUtils.escapeHtml(data.display_name || data.username)}</h2>
+        <div class="employee-stats">
+            <div class="stat">
+                <span class="stat-label">This Week</span>
+                <span class="stat-value">${DashboardUtils.formatDuration(data.weekly_hours)}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">This Month</span>
+                <span class="stat-value">${DashboardUtils.formatDuration(data.monthly_hours)}</span>
+            </div>
+        </div>
+        <h3>Recent Sessions</h3>
+        <div class="sessions-list">
+            ${(data.recent_sessions || []).map(s => `
+                <div class="session-item">
+                    <span>${DashboardUtils.formatDate(s.clock_in_time)}</span>
+                    <span>${DashboardUtils.formatTime(s.clock_in_time)} - ${s.clock_out_time ? DashboardUtils.formatTime(s.clock_out_time) : 'Active'}</span>
+                    <span>${DashboardUtils.formatDuration(s.duration_minutes)}</span>
+                </div>
+            `).join('') || '<p>No recent sessions</p>'}
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+function closeEmployeeModal() {
+    document.getElementById('employee-modal').style.display = 'none';
+}
+
+async function forceClockOut(userId, displayName) {
+    if (!confirm(`Force clock out ${displayName}?`)) return;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${userId}/force-clock-out`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification(`${displayName} has been clocked out`, 'success');
+            loadEmployees();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to force clock out', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to force clock out', 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadEmployees);
+</script>
+{% endblock %}

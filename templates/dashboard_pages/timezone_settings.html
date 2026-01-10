@@ -1,0 +1,210 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Timezone Settings{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Timezone Settings</h1>
+    <p class="content-subtitle">Configure server timezone and work schedule</p>
+</div>
+
+<div class="tiles-grid">
+    <div class="tile">
+        <h2><span class="tile-icon">🌍</span>Server Timezone</h2>
+        <p class="tile-description">All times will be displayed in this timezone</p>
+        
+        <div class="form-group">
+            <label for="timezone-select">Timezone:</label>
+            <select id="timezone-select" class="form-select">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+        
+        <button id="save-timezone-btn" class="btn btn-primary">Save Timezone</button>
+    </div>
+
+    <div class="tile">
+        <h2><span class="tile-icon">⏰</span>Work Schedule</h2>
+        <p class="tile-description">Configure work day timing for reports</p>
+        
+        <div class="form-group">
+            <label for="work-start">Work Day Start:</label>
+            <input type="time" id="work-start" class="form-input" value="09:00">
+        </div>
+        
+        <div class="form-group">
+            <label for="work-end">Work Day End:</label>
+            <input type="time" id="work-end" class="form-input" value="17:00">
+        </div>
+        
+        <button id="save-schedule-btn" class="btn btn-primary">Save Schedule</button>
+    </div>
+
+    <div class="tile">
+        <h2><span class="tile-icon">📢</span>Broadcast Channel</h2>
+        <p class="tile-description">Where bot announcements are sent</p>
+        
+        <div class="form-group">
+            <label for="broadcast-channel">Channel:</label>
+            <select id="broadcast-channel" class="form-select">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+        
+        <button id="save-channel-btn" class="btn btn-primary">Save Channel</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+
+const commonTimezones = [
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+    'America/Phoenix', 'America/Anchorage', 'Pacific/Honolulu',
+    'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+    'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Singapore',
+    'Australia/Sydney', 'Pacific/Auckland'
+];
+
+async function loadSettings() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/settings`);
+        const data = await response.json();
+        
+        if (data.success) {
+            populateTimezoneSelect(data.settings.timezone);
+            
+            if (data.settings.work_day_start_time) {
+                document.getElementById('work-start').value = data.settings.work_day_start_time;
+            }
+            if (data.settings.work_day_end_time) {
+                document.getElementById('work-end').value = data.settings.work_day_end_time;
+            }
+            
+            loadChannels(data.settings.broadcast_channel_id);
+        }
+    } catch (error) {
+        console.error('Failed to load settings:', error);
+    }
+}
+
+function populateTimezoneSelect(currentTz) {
+    const select = document.getElementById('timezone-select');
+    select.innerHTML = commonTimezones.map(tz => 
+        `<option value="${tz}" ${tz === currentTz ? 'selected' : ''}>${tz}</option>`
+    ).join('');
+}
+
+async function loadChannels(currentChannelId) {
+    try {
+        const response = await fetch(`/api/server/${guildId}/channels`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('broadcast-channel');
+            const channels = data.channels || [];
+            
+            select.innerHTML = '<option value="">-- Auto (System Channel) --</option>' +
+                channels.filter(c => c.type === 0).map(c => 
+                    `<option value="${c.id}" ${c.id === currentChannelId ? 'selected' : ''}>#${DashboardUtils.escapeHtml(c.name)}</option>`
+                ).join('');
+        }
+    } catch (error) {
+        console.error('Failed to load channels:', error);
+    }
+}
+
+document.getElementById('save-timezone-btn').addEventListener('click', async function() {
+    const timezone = document.getElementById('timezone-select').value;
+    if (!timezone) return;
+    
+    this.disabled = true;
+    this.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timezone })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Timezone saved', 'success');
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to save', 'error');
+    }
+    
+    this.disabled = false;
+    this.textContent = 'Save Timezone';
+});
+
+document.getElementById('save-schedule-btn').addEventListener('click', async function() {
+    const workStart = document.getElementById('work-start').value;
+    const workEnd = document.getElementById('work-end').value;
+    
+    this.disabled = true;
+    this.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                work_day_start_time: workStart,
+                work_day_end_time: workEnd
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Schedule saved', 'success');
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to save', 'error');
+    }
+    
+    this.disabled = false;
+    this.textContent = 'Save Schedule';
+});
+
+document.getElementById('save-channel-btn').addEventListener('click', async function() {
+    const channelId = document.getElementById('broadcast-channel').value;
+    
+    this.disabled = true;
+    this.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ broadcast_channel_id: channelId || null })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Broadcast channel saved', 'success');
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to save', 'error');
+    }
+    
+    this.disabled = false;
+    this.textContent = 'Save Channel';
+});
+
+document.addEventListener('DOMContentLoaded', loadSettings);
+</script>
+{% endblock %}

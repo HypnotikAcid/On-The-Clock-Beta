@@ -1,0 +1,121 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Ban Management{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Ban Management</h1>
+    <p class="content-subtitle">Manage users banned from timeclock functions</p>
+</div>
+
+<div class="tiles-grid">
+    <div class="tile tile-full">
+        <h2><span class="tile-icon">🚫</span>Active Bans</h2>
+        
+        <div id="bans-list" class="bans-list">
+            <div class="loading-placeholder">Loading banned users...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+
+async function loadBans() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/bans`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderBans(data.bans || []);
+        }
+    } catch (error) {
+        console.error('Failed to load bans:', error);
+        document.getElementById('bans-list').innerHTML = 
+            '<p class="error-text">Failed to load banned users. Please refresh.</p>';
+    }
+}
+
+function renderBans(bans) {
+    const container = document.getElementById('bans-list');
+    
+    if (bans.length === 0) {
+        container.innerHTML = '<p class="empty-state-text">No banned users</p>';
+        return;
+    }
+    
+    container.innerHTML = bans.map(ban => `
+        <div class="ban-item">
+            <div class="ban-user">
+                <span class="user-name">${DashboardUtils.escapeHtml(ban.display_name || ban.user_id)}</span>
+                <span class="user-id">${ban.user_id}</span>
+            </div>
+            <div class="ban-info">
+                <span class="ban-reason">${DashboardUtils.escapeHtml(ban.reason || 'No reason provided')}</span>
+                <span class="ban-expires">
+                    ${ban.ban_expires_at 
+                        ? `Expires: ${DashboardUtils.formatDate(ban.ban_expires_at)}` 
+                        : '<span class="permanent">Permanent</span>'}
+                </span>
+            </div>
+            <div class="ban-actions">
+                <button class="btn btn-success btn-sm" onclick="unbanUser('${ban.user_id}')">Unban</button>
+                ${ban.ban_expires_at ? `
+                    <button class="btn btn-warning btn-sm" onclick="makePermanent('${ban.user_id}')">Make Permanent</button>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function unbanUser(userId) {
+    if (!confirm('Unban this user and restore their timeclock access?')) return;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/bans/unban`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('User unbanned successfully', 'success');
+            loadBans();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to unban user', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to unban user', 'error');
+    }
+}
+
+async function makePermanent(userId) {
+    if (!confirm('Make this ban permanent?')) return;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/bans/permanent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Ban made permanent', 'success');
+            loadBans();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to update ban', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to update ban', 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadBans);
+</script>
+{% endblock %}

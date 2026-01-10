@@ -1,0 +1,322 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Admin Calendar{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Admin Calendar</h1>
+    <p class="content-subtitle">View and edit employee time entries</p>
+</div>
+
+<div class="calendar-controls">
+    <div class="employee-select-wrapper">
+        <label for="employee-select">Select Employee:</label>
+        <select id="employee-select" class="form-select">
+            <option value="">-- Select an employee --</option>
+        </select>
+    </div>
+    
+    <div class="view-toggle">
+        <button class="view-btn active" data-view="employee">View As Employee</button>
+        <button class="view-btn" data-view="master">Master Calendar</button>
+    </div>
+</div>
+
+<div class="calendar-navigation">
+    <button id="prev-month" class="btn btn-secondary">&larr; Prev</button>
+    <span id="current-month" class="month-display">--</span>
+    <button id="next-month" class="btn btn-secondary">Next &rarr;</button>
+</div>
+
+<div id="calendar-container" class="calendar-container">
+    <p class="empty-state-text">Select an employee above to view their calendar</p>
+</div>
+
+<div id="entry-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeEntryModal()">&times;</button>
+        <h2 id="modal-title">Edit Entry</h2>
+        <div id="modal-body">
+            <div class="form-group">
+                <label for="entry-clock-in">Clock In:</label>
+                <input type="datetime-local" id="entry-clock-in" class="form-input">
+            </div>
+            <div class="form-group">
+                <label for="entry-clock-out">Clock Out:</label>
+                <input type="datetime-local" id="entry-clock-out" class="form-input">
+            </div>
+            <div class="form-group">
+                <label for="entry-notes">Admin Notes:</label>
+                <textarea id="entry-notes" class="form-textarea"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button id="save-entry-btn" class="btn btn-primary">Save Changes</button>
+                <button id="delete-entry-btn" class="btn btn-danger">Delete Entry</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+let employees = [];
+let currentEmployee = null;
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth();
+let currentEntries = [];
+let selectedEntry = null;
+
+async function loadEmployees() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/employees`);
+        const data = await response.json();
+        
+        if (data.success) {
+            employees = data.employees || [];
+            populateEmployeeSelect();
+        }
+    } catch (error) {
+        console.error('Failed to load employees:', error);
+        DashboardUtils.showNotification('Failed to load employees', 'error');
+    }
+}
+
+function populateEmployeeSelect() {
+    const select = document.getElementById('employee-select');
+    
+    select.innerHTML = '<option value="">-- Select an employee --</option>' +
+        employees.map(e => 
+            `<option value="${e.user_id}">${DashboardUtils.escapeHtml(e.display_name || e.username)}</option>`
+        ).join('');
+}
+
+document.getElementById('employee-select').addEventListener('change', function() {
+    currentEmployee = this.value;
+    if (currentEmployee) {
+        loadCalendarData();
+    } else {
+        document.getElementById('calendar-container').innerHTML = 
+            '<p class="empty-state-text">Select an employee above to view their calendar</p>';
+    }
+});
+
+function updateMonthDisplay() {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+    document.getElementById('current-month').textContent = `${months[currentMonth]} ${currentYear}`;
+}
+
+document.getElementById('prev-month').addEventListener('click', () => {
+    currentMonth--;
+    if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+    }
+    updateMonthDisplay();
+    if (currentEmployee) loadCalendarData();
+});
+
+document.getElementById('next-month').addEventListener('click', () => {
+    currentMonth++;
+    if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+    }
+    updateMonthDisplay();
+    if (currentEmployee) loadCalendarData();
+});
+
+async function loadCalendarData() {
+    if (!currentEmployee) return;
+    
+    DashboardUtils.showLoading('Loading calendar...');
+    
+    try {
+        const startDate = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
+        const endDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
+        
+        const response = await fetch(
+            `/api/server/${guildId}/employee/${currentEmployee}/entries?start=${startDate}&end=${endDate}`
+        );
+        const data = await response.json();
+        
+        if (data.success) {
+            currentEntries = data.entries || [];
+            renderCalendar();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to load calendar', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to load calendar:', error);
+        DashboardUtils.showNotification('Failed to load calendar data', 'error');
+    }
+    
+    DashboardUtils.hideLoading();
+}
+
+function renderCalendar() {
+    const container = document.getElementById('calendar-container');
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDay = firstDay.getDay();
+    
+    const entriesByDate = {};
+    currentEntries.forEach(entry => {
+        const date = entry.clock_in_time.split('T')[0];
+        if (!entriesByDate[date]) entriesByDate[date] = [];
+        entriesByDate[date].push(entry);
+    });
+    
+    let html = '<div class="calendar-grid">';
+    html += '<div class="calendar-header">Sun</div>';
+    html += '<div class="calendar-header">Mon</div>';
+    html += '<div class="calendar-header">Tue</div>';
+    html += '<div class="calendar-header">Wed</div>';
+    html += '<div class="calendar-header">Thu</div>';
+    html += '<div class="calendar-header">Fri</div>';
+    html += '<div class="calendar-header">Sat</div>';
+    
+    for (let i = 0; i < startingDay; i++) {
+        html += '<div class="calendar-day empty"></div>';
+    }
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayEntries = entriesByDate[dateStr] || [];
+        const hasEntries = dayEntries.length > 0;
+        
+        html += `<div class="calendar-day ${hasEntries ? 'has-entries' : ''}" data-date="${dateStr}">`;
+        html += `<span class="day-number">${day}</span>`;
+        
+        if (hasEntries) {
+            const totalMinutes = dayEntries.reduce((sum, e) => sum + (e.duration_minutes || 0), 0);
+            html += `<div class="day-hours">${DashboardUtils.formatDuration(totalMinutes)}</div>`;
+            html += `<div class="day-entries-count">${dayEntries.length} session${dayEntries.length > 1 ? 's' : ''}</div>`;
+        }
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    container.querySelectorAll('.calendar-day.has-entries').forEach(day => {
+        day.addEventListener('click', () => showDayEntries(day.dataset.date));
+    });
+}
+
+function showDayEntries(date) {
+    const entries = currentEntries.filter(e => e.clock_in_time.startsWith(date));
+    if (entries.length === 0) return;
+    
+    if (entries.length === 1) {
+        openEntryModal(entries[0]);
+    } else {
+        const entry = entries[0];
+        openEntryModal(entry);
+    }
+}
+
+function openEntryModal(entry) {
+    selectedEntry = entry;
+    
+    document.getElementById('modal-title').textContent = 
+        `Edit Entry - ${DashboardUtils.formatDate(entry.clock_in_time)}`;
+    
+    const clockIn = entry.clock_in_time.replace('Z', '').substring(0, 16);
+    const clockOut = entry.clock_out_time ? entry.clock_out_time.replace('Z', '').substring(0, 16) : '';
+    
+    document.getElementById('entry-clock-in').value = clockIn;
+    document.getElementById('entry-clock-out').value = clockOut;
+    document.getElementById('entry-notes').value = entry.admin_notes || '';
+    
+    document.getElementById('entry-modal').style.display = 'flex';
+}
+
+function closeEntryModal() {
+    document.getElementById('entry-modal').style.display = 'none';
+    selectedEntry = null;
+}
+
+document.getElementById('save-entry-btn').addEventListener('click', async function() {
+    if (!selectedEntry) return;
+    
+    const clockIn = document.getElementById('entry-clock-in').value;
+    const clockOut = document.getElementById('entry-clock-out').value;
+    const notes = document.getElementById('entry-notes').value;
+    
+    this.disabled = true;
+    this.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/entries/${selectedEntry.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clock_in_time: clockIn,
+                clock_out_time: clockOut || null,
+                admin_notes: notes
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Entry updated', 'success');
+            closeEntryModal();
+            loadCalendarData();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to save entry', 'error');
+    }
+    
+    this.disabled = false;
+    this.textContent = 'Save Changes';
+});
+
+document.getElementById('delete-entry-btn').addEventListener('click', async function() {
+    if (!selectedEntry) return;
+    if (!confirm('Are you sure you want to delete this entry? This cannot be undone.')) return;
+    
+    this.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/entries/${selectedEntry.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Entry deleted', 'success');
+            closeEntryModal();
+            loadCalendarData();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to delete', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to delete entry', 'error');
+    }
+    
+    this.disabled = false;
+});
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    updateMonthDisplay();
+    loadEmployees();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - On the Clock</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="mobile-hamburger" id="mobileHamburger">
+        <span class="hamburger-icon">☰</span>
+    </div>
+
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <div class="layout-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <span class="sidebar-logo-icon">⚙️</span>
+                <div class="sidebar-logo-text">On the Clock<br>Dashboard</div>
+            </div>
+
+            <nav class="sidebar-nav">
+                {% if server %}
+                <a href="/dashboard" class="back-to-servers">
+                    <span>&larr;</span>
+                    <span>Back to Servers</span>
+                </a>
+                <div class="server-nav-header">
+                    <div class="server-nav-icon">
+                        {% if server.icon %}
+                        <img src="https://cdn.discordapp.com/icons/{{ server.id }}/{{ server.icon }}.png?size=64" alt="{{ server.name }}" style="width: 100%; height: 100%; border-radius: 50%;">
+                        {% else %}
+                        {{ server.name[0]|upper }}
+                        {% endif %}
+                    </div>
+                    <div class="server-nav-name">{{ server.name }}</div>
+                </div>
+                <div class="nav-section-title">Server Settings</div>
+                
+                <a href="/dashboard/server/{{ server.id }}" class="nav-item {% if active_page == 'overview' %}active{% endif %}">
+                    <span class="nav-item-icon">📊</span>
+                    <span>Server Overview</span>
+                </a>
+                
+                {% if user_role == 'admin' %}
+                <a href="/dashboard/server/{{ server.id }}/admin-roles" class="nav-item {% if active_page == 'admin-roles' %}active{% endif %}">
+                    <span class="nav-item-icon">👥</span>
+                    <span>Admin Roles</span>
+                </a>
+                <a href="/dashboard/server/{{ server.id }}/employee-roles" class="nav-item {% if active_page == 'employee-roles' %}active{% endif %}">
+                    <span class="nav-item-icon">👷</span>
+                    <span>Employee Roles</span>
+                </a>
+                <a href="/dashboard/server/{{ server.id }}/email" class="nav-item {% if active_page == 'email' %}active{% endif %}">
+                    <span class="nav-item-icon">📧</span>
+                    <span>Email Settings</span>
+                </a>
+                <a href="/dashboard/server/{{ server.id }}/timezone" class="nav-item {% if active_page == 'timezone' %}active{% endif %}">
+                    <span class="nav-item-icon">⏰</span>
+                    <span>Timezone Settings</span>
+                    {% if show_tz_reminder %}
+                    <span class="badge" style="background:#F59E0B; color:#111; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:auto;">Set TZ!</span>
+                    {% endif %}
+                </a>
+                <a href="/dashboard/server/{{ server.id }}/employees" class="nav-item {% if active_page == 'employees' %}active{% endif %}">
+                    <span class="nav-item-icon">👥</span>
+                    <span>Employee Status</span>
+                </a>
+                {% endif %}
+                
+                {% if user_role == 'employee' or (user_role == 'admin' and is_also_employee) %}
+                <a href="/dashboard/server/{{ server.id }}/clock" class="nav-item {% if active_page == 'clock' %}active{% endif %}">
+                    <span class="nav-item-icon">⏰</span>
+                    <span>On the Clock</span>
+                </a>
+                {% endif %}
+                
+                <a href="/dashboard/server/{{ server.id }}/adjustments" class="nav-item {% if active_page == 'adjustments' %}active{% endif %}">
+                    <span class="nav-item-icon">⏳</span>
+                    <span>Time Adjustments</span>
+                    {% if pending_adjustments > 0 %}
+                    <span class="badge" style="background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">{{ pending_adjustments }}</span>
+                    {% endif %}
+                </a>
+                
+                {% if user_role == 'admin' %}
+                <a href="/dashboard/server/{{ server.id }}/calendar" class="nav-item {% if active_page == 'calendar' %}active{% endif %}">
+                    <span class="nav-item-icon">📅</span>
+                    <span>Admin Calendar</span>
+                </a>
+                <a href="/dashboard/server/{{ server.id }}/bans" class="nav-item {% if active_page == 'bans' %}active{% endif %}">
+                    <span class="nav-item-icon">🚫</span>
+                    <span>Ban Management</span>
+                </a>
+                {% endif %}
+                
+                <a href="/dashboard/server/{{ server.id }}/beta" class="nav-item {% if active_page == 'beta' %}active{% endif %}">
+                    <span class="nav-item-icon">🧪</span>
+                    <span>Beta Settings</span>
+                </a>
+                
+                {% else %}
+                <div class="nav-section-title">Navigation</div>
+                <a href="/dashboard" class="nav-item {% if active_page == 'my-servers' %}active{% endif %}">
+                    <span class="nav-item-icon">🏢</span>
+                    <span>My Servers</span>
+                </a>
+                {% endif %}
+            </nav>
+
+            <div class="sidebar-user">
+                <div class="sidebar-user-avatar">
+                    {% if user.avatar %}
+                    <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128" alt="Avatar">
+                    {% else %}
+                    {{ user.username[0]|upper }}
+                    {% endif %}
+                </div>
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-name">{{ user.username }}</div>
+                    <div class="sidebar-user-id">{{ user.user_id[:8] }}...</div>
+                </div>
+                <a href="/auth/logout" class="logout-icon" title="Logout">🚪</a>
+            </div>
+        </aside>
+
+        <main class="content-area">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading...</div>
+    </div>
+
+    <script src="/static/js/dashboard-matrix.js"></script>
+    <script src="/static/js/dashboard-common.js"></script>
+    {% block page_scripts %}{% endblock %}
+
+    <script>
+        document.getElementById('mobileHamburger').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mobile-hidden');
+            document.getElementById('mobileOverlay').classList.toggle('active');
+        });
+        document.getElementById('mobileOverlay').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('mobile-hidden');
+            document.getElementById('mobileOverlay').classList.remove('active');
+        });
+    </script>
+</body>
+
+</html>

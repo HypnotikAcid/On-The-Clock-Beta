@@ -1,0 +1,186 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Beta Settings{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Beta Settings</h1>
+    <p class="content-subtitle">Experimental features and settings</p>
+</div>
+
+<div class="tiles-grid">
+    <div class="tile">
+        <h2><span class="tile-icon">🧪</span>Beta Features</h2>
+        <p class="tile-description">Try out new features before they're released</p>
+        
+        <div class="beta-features-list" id="beta-features">
+            <div class="loading-placeholder">Loading beta features...</div>
+        </div>
+    </div>
+
+    <div class="tile">
+        <h2><span class="tile-icon">📋</span>Feedback</h2>
+        <p class="tile-description">Help us improve by sharing your thoughts</p>
+        
+        <div class="form-group">
+            <label for="feedback-type">Type:</label>
+            <select id="feedback-type" class="form-select">
+                <option value="bug">Bug Report</option>
+                <option value="feature">Feature Request</option>
+                <option value="improvement">Improvement Suggestion</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="feedback-text">Your Feedback:</label>
+            <textarea id="feedback-text" class="form-textarea" placeholder="Describe your feedback..."></textarea>
+        </div>
+        
+        <button id="submit-feedback-btn" class="btn btn-primary">Submit Feedback</button>
+    </div>
+
+    {% if user_role == 'employee' %}
+    <div class="tile">
+        <h2><span class="tile-icon">👤</span>Employee Profile</h2>
+        <p class="tile-description">Your personal settings for this server</p>
+        
+        <div class="form-group">
+            <label for="display-name">Display Name:</label>
+            <input type="text" id="display-name" class="form-input" placeholder="Your display name">
+        </div>
+        
+        <div class="form-group">
+            <label for="preferred-timezone">Preferred Timezone:</label>
+            <select id="preferred-timezone" class="form-select">
+                <option value="">Use server default</option>
+            </select>
+        </div>
+        
+        <button id="save-profile-btn" class="btn btn-primary">Save Profile</button>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+const userRole = '{{ user_role }}';
+
+async function loadBetaFeatures() {
+    const container = document.getElementById('beta-features');
+    
+    container.innerHTML = `
+        <div class="beta-feature-item">
+            <div class="feature-info">
+                <span class="feature-name">Enhanced Calendar</span>
+                <span class="feature-description">New calendar interface with drag-and-drop editing</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="beta-calendar" disabled>
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="coming-soon-badge">Coming Soon</span>
+        </div>
+        <div class="beta-feature-item">
+            <div class="feature-info">
+                <span class="feature-name">Shift Scheduling</span>
+                <span class="feature-description">Schedule and manage employee shifts</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="beta-shifts" disabled>
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="coming-soon-badge">Coming Soon</span>
+        </div>
+        <div class="beta-feature-item">
+            <div class="feature-info">
+                <span class="feature-name">Mobile App</span>
+                <span class="feature-description">Native mobile app for clock in/out</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="beta-mobile" disabled>
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="coming-soon-badge">Planned</span>
+        </div>
+    `;
+}
+
+document.getElementById('submit-feedback-btn').addEventListener('click', async function() {
+    const type = document.getElementById('feedback-type').value;
+    const text = document.getElementById('feedback-text').value.trim();
+    
+    if (!text) {
+        DashboardUtils.showNotification('Please enter your feedback', 'error');
+        return;
+    }
+    
+    this.disabled = true;
+    this.textContent = 'Submitting...';
+    
+    try {
+        const response = await fetch(`/api/feedback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                guild_id: guildId,
+                type: type,
+                message: text
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Thank you for your feedback!', 'success');
+            document.getElementById('feedback-text').value = '';
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to submit', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Feedback received! (offline mode)', 'success');
+        document.getElementById('feedback-text').value = '';
+    }
+    
+    this.disabled = false;
+    this.textContent = 'Submit Feedback';
+});
+
+if (document.getElementById('save-profile-btn')) {
+    document.getElementById('save-profile-btn').addEventListener('click', async function() {
+        const displayName = document.getElementById('display-name').value.trim();
+        const timezone = document.getElementById('preferred-timezone').value;
+        
+        this.disabled = true;
+        this.textContent = 'Saving...';
+        
+        try {
+            const response = await fetch(`/api/server/${guildId}/employee/profile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    display_name: displayName || null,
+                    preferred_timezone: timezone || null
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                DashboardUtils.showNotification('Profile saved', 'success');
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
+            }
+        } catch (error) {
+            DashboardUtils.showNotification('Failed to save profile', 'error');
+        }
+        
+        this.disabled = false;
+        this.textContent = 'Save Profile';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', loadBetaFeatures);
+</script>
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Overview{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Server Overview</h1>
+    <p class="content-subtitle">{{ server.name }}</p>
+</div>
+
+<div class="tiles-grid">
+    <div class="tile" id="subscription-tile">
+        <h2><span class="tile-icon">💎</span>Subscription Status</h2>
+        <div class="stat-row">
+            <span class="stat-label">Tier:</span>
+            <span class="stat-value" id="tier-status">Loading...</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Dashboard Access:</span>
+            <span class="stat-value" id="dashboard-access">Loading...</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Data Retention:</span>
+            <span class="stat-value" id="retention-days">Loading...</span>
+        </div>
+    </div>
+
+    <div class="tile" id="quick-stats-tile">
+        <h2><span class="tile-icon">📊</span>Quick Stats</h2>
+        <div class="stat-row">
+            <span class="stat-label">Active Employees:</span>
+            <span class="stat-value" id="employee-count">Loading...</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Currently Clocked In:</span>
+            <span class="stat-value" id="clocked-in-count">Loading...</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Pending Adjustments:</span>
+            <span class="stat-value" id="pending-adjustments">{{ pending_adjustments }}</span>
+        </div>
+    </div>
+
+    {% if user_role == 'admin' %}
+    <div class="tile" id="admin-roles-tile">
+        <h2><span class="tile-icon">👥</span>Admin Roles</h2>
+        <p class="tile-description">Manage who has admin access</p>
+        <div id="admin-roles-preview">Loading...</div>
+        <a href="/dashboard/server/{{ server.id }}/admin-roles" class="tile-link">Manage Admin Roles &rarr;</a>
+    </div>
+
+    <div class="tile" id="employee-roles-tile">
+        <h2><span class="tile-icon">👷</span>Employee Roles</h2>
+        <p class="tile-description">Manage employee role access</p>
+        <div id="employee-roles-preview">Loading...</div>
+        <a href="/dashboard/server/{{ server.id }}/employee-roles" class="tile-link">Manage Employee Roles &rarr;</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+const userRole = '{{ user_role }}';
+
+async function loadOverviewData() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/settings`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const settings = data.settings;
+            
+            const botAccess = settings.bot_access_paid;
+            const retentionTier = settings.retention_tier || 'none';
+            
+            document.getElementById('tier-status').textContent = botAccess ? 'Premium' : 'Free';
+            document.getElementById('tier-status').style.color = botAccess ? '#10B981' : '#8B949E';
+            
+            document.getElementById('dashboard-access').textContent = botAccess ? 'Enabled' : 'Upgrade Required';
+            document.getElementById('dashboard-access').style.color = botAccess ? '#10B981' : '#F59E0B';
+            
+            let retentionText = '3 days';
+            if (retentionTier === '30day') retentionText = '30 days';
+            else if (retentionTier === '7day' || botAccess) retentionText = '7 days';
+            document.getElementById('retention-days').textContent = retentionText;
+        }
+        
+        if (userRole === 'admin') {
+            const empResponse = await fetch(`/api/server/${guildId}/employees`);
+            const empData = await empResponse.json();
+            
+            if (empData.success) {
+                const employees = empData.employees || [];
+                const activeCount = employees.filter(e => e.is_active).length;
+                const clockedIn = employees.filter(e => e.is_clocked_in).length;
+                
+                document.getElementById('employee-count').textContent = activeCount;
+                document.getElementById('clocked-in-count').textContent = clockedIn;
+                document.getElementById('clocked-in-count').style.color = clockedIn > 0 ? '#10B981' : '#8B949E';
+            }
+            
+            const rolesResponse = await fetch(`/api/server/${guildId}/roles`);
+            const rolesData = await rolesResponse.json();
+            
+            if (rolesData.success) {
+                const adminRoles = rolesData.admin_roles || [];
+                const employeeRoles = rolesData.employee_roles || [];
+                
+                document.getElementById('admin-roles-preview').textContent = 
+                    adminRoles.length > 0 ? `${adminRoles.length} role(s) configured` : 'No roles configured';
+                document.getElementById('employee-roles-preview').textContent = 
+                    employeeRoles.length > 0 ? `${employeeRoles.length} role(s) configured` : 'No roles configured';
+            }
+        } else {
+            document.getElementById('employee-count').textContent = '--';
+            document.getElementById('clocked-in-count').textContent = '--';
+        }
+    } catch (error) {
+        console.error('Failed to load overview:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadOverviewData);
+</script>
+{% endblock %}

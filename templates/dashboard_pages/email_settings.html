@@ -1,0 +1,190 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Email Settings{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Email Settings</h1>
+    <p class="content-subtitle">Configure automated report delivery</p>
+</div>
+
+<div class="tiles-grid">
+    <div class="tile">
+        <h2><span class="tile-icon">📧</span>Email Recipients</h2>
+        <p class="tile-description">Email addresses that receive automated reports</p>
+        
+        <div id="recipients-list" class="recipients-list">
+            <div class="loading-placeholder">Loading recipients...</div>
+        </div>
+        
+        <div class="form-group" style="margin-top: 20px;">
+            <label for="new-email">Add Email:</label>
+            <div class="input-group">
+                <input type="email" id="new-email" class="form-input" placeholder="email@example.com">
+                <button id="add-email-btn" class="btn btn-primary">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="tile">
+        <h2><span class="tile-icon">⚙️</span>Report Settings</h2>
+        
+        <div class="setting-row">
+            <div class="setting-info">
+                <span class="setting-label">Auto-send on clock-out</span>
+                <span class="setting-description">Send report when last employee clocks out</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="auto-send-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        
+        <div class="setting-row" style="margin-top: 20px;">
+            <button id="test-email-btn" class="btn btn-secondary">
+                <span>📤</span> Send Test Email
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+
+async function loadEmailSettings() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/email-settings`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderRecipients(data.recipients || []);
+            document.getElementById('auto-send-toggle').checked = data.auto_send_on_clockout !== false;
+        }
+    } catch (error) {
+        console.error('Failed to load email settings:', error);
+    }
+}
+
+function renderRecipients(recipients) {
+    const container = document.getElementById('recipients-list');
+    
+    if (recipients.length === 0) {
+        container.innerHTML = '<p class="empty-state-text">No email recipients configured</p>';
+        return;
+    }
+    
+    container.innerHTML = recipients.map(r => `
+        <div class="recipient-item">
+            <span class="recipient-email">${DashboardUtils.escapeHtml(r.recipient_value)}</span>
+            <button class="btn btn-danger btn-sm" onclick="removeRecipient('${r.id}')">Remove</button>
+        </div>
+    `).join('');
+}
+
+document.getElementById('add-email-btn').addEventListener('click', async function() {
+    const email = document.getElementById('new-email').value.trim();
+    if (!email || !email.includes('@')) {
+        DashboardUtils.showNotification('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    this.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/email-recipients/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('new-email').value = '';
+            DashboardUtils.showNotification('Email recipient added', 'success');
+            loadEmailSettings();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to add email', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to add email', 'error');
+    }
+    
+    this.disabled = false;
+});
+
+async function removeRecipient(recipientId) {
+    if (!confirm('Remove this email recipient?')) return;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/email-recipients/remove`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipient_id: recipientId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Email recipient removed', 'success');
+            loadEmailSettings();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to remove', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to remove', 'error');
+    }
+}
+
+document.getElementById('auto-send-toggle').addEventListener('change', async function() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/email-settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auto_send_on_clockout: this.checked })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Settings updated', 'success');
+        } else {
+            this.checked = !this.checked;
+            DashboardUtils.showNotification(data.error || 'Failed to update', 'error');
+        }
+    } catch (error) {
+        this.checked = !this.checked;
+        DashboardUtils.showNotification('Failed to update', 'error');
+    }
+});
+
+document.getElementById('test-email-btn').addEventListener('click', async function() {
+    this.disabled = true;
+    this.innerHTML = '<span>📤</span> Sending...';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/test-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification(`Test email sent to ${data.sent_count} recipient(s)`, 'success');
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to send test email', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to send test email', 'error');
+    }
+    
+    this.disabled = false;
+    this.innerHTML = '<span>📤</span> Send Test Email';
+});
+
+document.addEventListener('DOMContentLoaded', loadEmailSettings);
+</script>
+{% endblock %}

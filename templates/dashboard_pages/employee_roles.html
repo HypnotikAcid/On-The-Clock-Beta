@@ -1,0 +1,151 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Employee Roles{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Employee Roles</h1>
+    <p class="content-subtitle">Manage which roles can use timeclock functions</p>
+</div>
+
+<div class="tiles-grid">
+    <div class="tile">
+        <h2><span class="tile-icon">👷</span>Current Employee Roles</h2>
+        <p class="tile-description">Members with these roles can clock in/out and view their time</p>
+        
+        <div id="employee-roles-list" class="roles-list">
+            <div class="loading-placeholder">Loading roles...</div>
+        </div>
+    </div>
+
+    <div class="tile">
+        <h2><span class="tile-icon">➕</span>Add Employee Role</h2>
+        <p class="tile-description">Select a role to grant timeclock access</p>
+        
+        <div class="form-group">
+            <label for="role-select">Select Role:</label>
+            <select id="role-select" class="form-select">
+                <option value="">-- Select a role --</option>
+            </select>
+        </div>
+        
+        <button id="add-role-btn" class="btn btn-primary" disabled>Add Employee Role</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const guildId = '{{ server.id }}';
+let allRoles = [];
+let employeeRoleIds = [];
+
+async function loadRoles() {
+    try {
+        const response = await fetch(`/api/server/${guildId}/roles`);
+        const data = await response.json();
+        
+        if (data.success) {
+            allRoles = data.all_roles || [];
+            employeeRoleIds = (data.employee_roles || []).map(r => r.id);
+            
+            renderEmployeeRoles(data.employee_roles || []);
+            populateRoleSelect();
+        }
+    } catch (error) {
+        console.error('Failed to load roles:', error);
+        document.getElementById('employee-roles-list').innerHTML = 
+            '<p class="error-text">Failed to load roles. Please refresh.</p>';
+    }
+}
+
+function renderEmployeeRoles(roles) {
+    const container = document.getElementById('employee-roles-list');
+    
+    if (roles.length === 0) {
+        container.innerHTML = '<p class="empty-state-text">No employee roles configured</p>';
+        return;
+    }
+    
+    container.innerHTML = roles.map(role => `
+        <div class="role-item">
+            <span class="role-name" style="color: ${role.color || '#C9D1D9'}">
+                ${DashboardUtils.escapeHtml(role.name)}
+            </span>
+            <button class="btn btn-danger btn-sm" onclick="removeRole('${role.id}')">Remove</button>
+        </div>
+    `).join('');
+}
+
+function populateRoleSelect() {
+    const select = document.getElementById('role-select');
+    const availableRoles = allRoles.filter(r => !employeeRoleIds.includes(r.id) && r.name !== '@everyone');
+    
+    select.innerHTML = '<option value="">-- Select a role --</option>' + 
+        availableRoles.map(r => 
+            `<option value="${r.id}" style="color: ${r.color || '#C9D1D9'}">${DashboardUtils.escapeHtml(r.name)}</option>`
+        ).join('');
+    
+    document.getElementById('add-role-btn').disabled = availableRoles.length === 0;
+}
+
+document.getElementById('role-select').addEventListener('change', function() {
+    document.getElementById('add-role-btn').disabled = !this.value;
+});
+
+document.getElementById('add-role-btn').addEventListener('click', async function() {
+    const roleId = document.getElementById('role-select').value;
+    if (!roleId) return;
+    
+    this.disabled = true;
+    this.textContent = 'Adding...';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee-roles/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role_id: roleId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Employee role added successfully', 'success');
+            loadRoles();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to add role', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to add role', 'error');
+    }
+    
+    this.disabled = false;
+    this.textContent = 'Add Employee Role';
+});
+
+async function removeRole(roleId) {
+    if (!confirm('Remove this employee role?')) return;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee-roles/remove`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role_id: roleId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Employee role removed', 'success');
+            loadRoles();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to remove role', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to remove role', 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadRoles);
+</script>
+{% endblock %}

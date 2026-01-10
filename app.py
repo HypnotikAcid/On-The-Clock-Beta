@@ -1623,6 +1623,248 @@ def dashboard(user_session):
         app.logger.error(traceback.format_exc())
         return "<h1>Error</h1><p>Unable to load dashboard. Please try again later.</p><a href='/auth/logout'>Logout</a>", 500
 
+
+def get_server_page_context(user_session, guild_id, active_page):
+    """
+    Helper to build common context for server-specific dashboard pages.
+    Returns (context_dict, error_response) - error_response is None if successful.
+    """
+    guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
+    if not guild:
+        return None, redirect('/dashboard')
+    
+    user_id = user_session.get('user_id')
+    is_also_employee = False
+    pending_adjustments = 0
+    show_tz_reminder = False
+    server_settings = {}
+    
+    with get_db() as conn:
+        if access_level == 'admin':
+            cursor = conn.execute("""
+                SELECT COUNT(*) as count FROM time_adjustment_requests 
+                WHERE guild_id = %s AND status = 'pending'
+            """, (int(guild_id),))
+            result = cursor.fetchone()
+            pending_adjustments = result['count'] if result else 0
+            
+            cursor = conn.execute("""
+                SELECT 1 FROM employee_profiles 
+                WHERE guild_id = %s AND user_id = %s AND is_active = TRUE
+            """, (int(guild_id), user_id))
+            is_also_employee = cursor.fetchone() is not None
+            
+            cursor = conn.execute("""
+                SELECT timezone FROM guild_settings WHERE guild_id = %s
+            """, (int(guild_id),))
+            tz_row = cursor.fetchone()
+            show_tz_reminder = not tz_row or not tz_row.get('timezone')
+        
+        cursor = conn.execute("""
+            SELECT bot_access_paid, retention_tier, tier 
+            FROM server_subscriptions WHERE guild_id = %s
+        """, (int(guild_id),))
+        sub_row = cursor.fetchone()
+        if sub_row:
+            server_settings = {
+                'bot_access_paid': sub_row.get('bot_access_paid', False),
+                'retention_tier': sub_row.get('retention_tier', 'none'),
+                'tier': sub_row.get('tier', 'free')
+            }
+    
+    context = {
+        'user': user_session,
+        'server': {
+            'id': guild_id,
+            'name': guild.get('name', 'Unknown Server'),
+            'icon': guild.get('icon')
+        },
+        'user_role': access_level,
+        'is_also_employee': is_also_employee,
+        'active_page': active_page,
+        'pending_adjustments': pending_adjustments,
+        'show_tz_reminder': show_tz_reminder,
+        'server_settings': server_settings
+    }
+    
+    return context, None
+
+
+@app.route("/dashboard/server/<guild_id>")
+@require_auth
+def dashboard_server_overview(user_session, guild_id):
+    """Server overview page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'overview')
+    if error:
+        return error
+    
+    return render_template('dashboard_pages/server_overview.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/admin-roles")
+@require_auth
+def dashboard_admin_roles(user_session, guild_id):
+    """Admin roles management page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'admin-roles')
+    if error:
+        return error
+    
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    return render_template('dashboard_pages/admin_roles.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/employee-roles")
+@require_auth
+def dashboard_employee_roles(user_session, guild_id):
+    """Employee roles management page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'employee-roles')
+    if error:
+        return error
+    
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    return render_template('dashboard_pages/employee_roles.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/email")
+@require_auth
+def dashboard_email_settings(user_session, guild_id):
+    """Email settings page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'email')
+    if error:
+        return error
+    
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    return render_template('dashboard_pages/email_settings.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/timezone")
+@require_auth
+def dashboard_timezone_settings(user_session, guild_id):
+    """Timezone settings page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'timezone')
+    if error:
+        return error
+    
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    return render_template('dashboard_pages/timezone_settings.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/employees")
+@require_auth
+def dashboard_employees(user_session, guild_id):
+    """Employee status page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'employees')
+    if error:
+        return error
+    
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    return render_template('dashboard_pages/employees.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/clock")
+@require_auth
+def dashboard_on_the_clock(user_session, guild_id):
+    """On the clock page for employees (admins can also view for monitoring)"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'clock')
+    if error:
+        return error
+    
+    return render_template('dashboard_pages/on_the_clock.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/adjustments")
+@require_auth
+def dashboard_adjustments(user_session, guild_id):
+    """Time adjustments page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'adjustments')
+    if error:
+        return error
+    
+    return render_template('dashboard_pages/adjustments.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/calendar")
+@require_auth
+def dashboard_admin_calendar(user_session, guild_id):
+    """Admin calendar page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'calendar')
+    if error:
+        return error
+    
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    return render_template('dashboard_pages/admin_calendar.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/bans")
+@require_auth
+def dashboard_ban_management(user_session, guild_id):
+    """Ban management page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'bans')
+    if error:
+        return error
+    
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    return render_template('dashboard_pages/ban_management.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/beta")
+@require_auth
+def dashboard_beta_settings(user_session, guild_id):
+    """Beta settings page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'beta')
+    if error:
+        return error
+    
+    return render_template('dashboard_pages/beta_settings.html', **context)
+
+
 def fetch_guild_name_from_discord(guild_id, db_conn=None):
     """
     Fetch guild name from Discord API and cache it in bot_guilds table.
@@ -4727,6 +4969,253 @@ def api_get_server_data(user_session, guild_id):
         app.logger.error(f"Error fetching server data: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/settings", methods=["GET"])
+@require_api_auth
+def api_get_server_settings(user_session, guild_id):
+    """API endpoint to fetch server settings for dashboard pages"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        settings = get_guild_settings(guild_id)
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT bot_access_paid, retention_tier, tier 
+                FROM server_subscriptions WHERE guild_id = %s
+            """, (int(guild_id),))
+            sub_row = cursor.fetchone()
+            if sub_row:
+                settings['bot_access_paid'] = sub_row.get('bot_access_paid', False)
+                settings['retention_tier'] = sub_row.get('retention_tier', 'none')
+                settings['tier'] = sub_row.get('tier', 'free')
+        
+        return jsonify({'success': True, 'settings': settings})
+    except Exception as e:
+        app.logger.error(f"Error fetching server settings: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/employees", methods=["GET"])
+@require_api_auth
+def api_get_server_employees(user_session, guild_id):
+    """API endpoint to fetch employees for dashboard pages"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        employees = []
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT ep.user_id, ep.discord_username, ep.discord_display_name,
+                       ep.is_active, ep.avatar_url,
+                       (SELECT COUNT(*) > 0 FROM time_sessions ts 
+                        WHERE ts.user_id = ep.user_id AND ts.guild_id = ep.guild_id 
+                        AND ts.clock_out_time IS NULL) as is_clocked_in
+                FROM employee_profiles ep
+                WHERE ep.guild_id = %s AND ep.is_active = TRUE
+                ORDER BY ep.discord_display_name
+            """, (int(guild_id),))
+            
+            for row in cursor.fetchall():
+                employees.append({
+                    'user_id': str(row['user_id']),
+                    'username': row['discord_username'],
+                    'display_name': row['discord_display_name'] or row['discord_username'],
+                    'is_active': row['is_active'],
+                    'is_clocked_in': row['is_clocked_in'],
+                    'avatar_url': row['avatar_url']
+                })
+        
+        return jsonify({'success': True, 'employees': employees})
+    except Exception as e:
+        app.logger.error(f"Error fetching employees: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/roles", methods=["GET"])
+@require_api_auth
+def api_get_server_roles(user_session, guild_id):
+    """API endpoint to fetch roles for dashboard pages"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        all_roles = get_guild_roles_from_bot(guild_id) or []
+        
+        admin_roles = []
+        employee_roles = []
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT role_id FROM admin_roles WHERE guild_id = %s
+            """, (int(guild_id),))
+            admin_role_ids = [str(row['role_id']) for row in cursor.fetchall()]
+            
+            cursor = conn.execute("""
+                SELECT role_id FROM employee_roles WHERE guild_id = %s
+            """, (int(guild_id),))
+            employee_role_ids = [str(row['role_id']) for row in cursor.fetchall()]
+        
+        for role in all_roles:
+            role_id = str(role.get('id'))
+            if role_id in admin_role_ids:
+                admin_roles.append(role)
+            if role_id in employee_role_ids:
+                employee_roles.append(role)
+        
+        return jsonify({
+            'success': True,
+            'all_roles': all_roles,
+            'admin_roles': admin_roles,
+            'employee_roles': employee_roles
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching roles: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/channels", methods=["GET"])
+@require_api_auth
+def api_get_server_channels(user_session, guild_id):
+    """API endpoint to fetch text channels for dashboard pages"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        channels = get_guild_text_channels(guild_id) or []
+        
+        return jsonify({'success': True, 'channels': channels})
+    except Exception as e:
+        app.logger.error(f"Error fetching channels: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/employee/<user_id>/entries", methods=["GET"])
+@require_api_auth
+def api_get_employee_entries(user_session, guild_id, user_id):
+    """API endpoint to fetch time entries for an employee (for calendar view)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        start_date = request.args.get('start', '')
+        end_date = request.args.get('end', '')
+        
+        with get_db() as conn:
+            query = """
+                SELECT id, user_id, clock_in_time, clock_out_time, 
+                       duration_seconds, admin_notes, is_modified
+                FROM time_sessions
+                WHERE guild_id = %s AND user_id = %s
+            """
+            params = [int(guild_id), int(user_id)]
+            
+            if start_date:
+                query += " AND clock_in_time >= %s"
+                params.append(start_date)
+            if end_date:
+                query += " AND clock_in_time <= %s"
+                params.append(end_date + ' 23:59:59')
+            
+            query += " ORDER BY clock_in_time DESC"
+            
+            cursor = conn.execute(query, params)
+            
+            entries = []
+            for row in cursor.fetchall():
+                entries.append({
+                    'id': row['id'],
+                    'user_id': str(row['user_id']),
+                    'clock_in_time': row['clock_in_time'].isoformat() if row['clock_in_time'] else None,
+                    'clock_out_time': row['clock_out_time'].isoformat() if row['clock_out_time'] else None,
+                    'duration_seconds': row['duration_seconds'],
+                    'admin_notes': row['admin_notes'],
+                    'is_modified': row['is_modified']
+                })
+        
+        return jsonify({'success': True, 'entries': entries})
+    except Exception as e:
+        app.logger.error(f"Error fetching employee entries: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/entries/<entry_id>", methods=["PUT"])
+@require_api_auth
+def api_update_entry(user_session, guild_id, entry_id):
+    """API endpoint to update a time entry (admin only)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        clock_in = data.get('clock_in_time')
+        clock_out = data.get('clock_out_time')
+        admin_notes = data.get('admin_notes', '')
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT id, user_id FROM time_sessions 
+                WHERE id = %s AND guild_id = %s
+            """, (int(entry_id), int(guild_id)))
+            entry = cursor.fetchone()
+            
+            if not entry:
+                return jsonify({'success': False, 'error': 'Entry not found'}), 404
+            
+            duration = None
+            if clock_in and clock_out:
+                from datetime import datetime
+                dt_in = datetime.fromisoformat(clock_in.replace('Z', '+00:00'))
+                dt_out = datetime.fromisoformat(clock_out.replace('Z', '+00:00'))
+                duration = int((dt_out - dt_in).total_seconds())
+            
+            conn.execute("""
+                UPDATE time_sessions 
+                SET clock_in_time = %s, clock_out_time = %s, 
+                    duration_seconds = %s, admin_notes = %s, is_modified = TRUE
+                WHERE id = %s AND guild_id = %s
+            """, (clock_in, clock_out, duration, admin_notes, int(entry_id), int(guild_id)))
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error updating entry: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/entries/<entry_id>", methods=["DELETE"])
+@require_api_auth
+def api_delete_entry(user_session, guild_id, entry_id):
+    """API endpoint to delete a time entry (admin only)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                DELETE FROM time_sessions 
+                WHERE id = %s AND guild_id = %s
+                RETURNING id
+            """, (int(entry_id), int(guild_id)))
+            deleted = cursor.fetchone()
+            
+            if not deleted:
+                return jsonify({'success': False, 'error': 'Entry not found'}), 404
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error deleting entry: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
 
 @app.route("/api/server/<guild_id>/bans", methods=["GET"])
 @require_paid_api_access
