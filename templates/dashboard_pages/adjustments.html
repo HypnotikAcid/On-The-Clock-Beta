@@ -217,9 +217,12 @@ async function handleRequest(requestId, action) {
     }
 }
 
+let calendarInitialized = false;
 function loadCalendar() {
+    if (calendarInitialized) return;
     if (typeof initializeAdjustments === 'function') {
         initializeAdjustments(guildId, userId);
+        calendarInitialized = true;
     } else {
         console.error('Calendar JS not loaded');
         document.getElementById('calendar-grid').innerHTML = '<p style="text-align: center; color: #EF4444;">Calendar failed to load</p>';
