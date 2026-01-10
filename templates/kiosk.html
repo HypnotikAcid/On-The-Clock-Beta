@@ -640,6 +640,25 @@
         let pinBuffer = '';
         let pinMode = 'verify'; // 'verify', 'create', 'confirm'
         let newPinBuffer = '';
+        let inactivityTimer = null;
+        const INACTIVITY_TIMEOUT = 10000; // 10 seconds
+
+        // Inactivity timeout - returns to employee selection after 10 seconds
+        function resetInactivityTimer() {
+            if (inactivityTimer) {
+                clearTimeout(inactivityTimer);
+            }
+            // Only set timer if not on employee selection screen
+            if (currentEmployee !== null) {
+                inactivityTimer = setTimeout(() => {
+                    logout();
+                }, INACTIVITY_TIMEOUT);
+            }
+        }
+
+        // Reset timer on any user interaction
+        document.addEventListener('click', resetInactivityTimer);
+        document.addEventListener('touchstart', resetInactivityTimer);
 
         // Update clock
         function updateClock() {
@@ -697,6 +716,7 @@
             pinBuffer = '';
             updatePinDots();
             document.getElementById('pinError').textContent = '';
+            resetInactivityTimer(); // Start inactivity timer
             
             if (employee.has_pin) {
                 pinMode = 'verify';
@@ -911,6 +931,11 @@
         }
 
         function logout() {
+            // Clear inactivity timer
+            if (inactivityTimer) {
+                clearTimeout(inactivityTimer);
+                inactivityTimer = null;
+            }
             currentEmployee = null;
             pinBuffer = '';
             pinMode = 'verify';

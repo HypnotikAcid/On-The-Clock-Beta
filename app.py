@@ -7366,7 +7366,7 @@ def api_kiosk_create_pin(guild_id):
                 VALUES (%s, %s, %s)
                 ON CONFLICT (guild_id, user_id) 
                 DO UPDATE SET pin_hash = EXCLUDED.pin_hash, updated_at = NOW()
-            """, (int(guild_id), int(user_id), pin_hash))
+            """, (str(guild_id), str(user_id), pin_hash))
         
         app.logger.info(f"PIN created for user {user_id} in guild {guild_id}")
         return jsonify({'success': True})
@@ -7393,7 +7393,7 @@ def api_kiosk_verify_pin(guild_id):
             cursor = conn.execute("""
                 SELECT pin_hash FROM employee_pins
                 WHERE guild_id = %s AND user_id = %s
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             result = cursor.fetchone()
         
         if not result or result['pin_hash'] != pin_hash:
