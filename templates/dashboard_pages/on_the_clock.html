@@ -1,11 +1,11 @@
 {% extends "dashboard_base.html" %}
 
-{% block title %}{{ server.name }} - On the Clock{% endblock %}
+{% block title %}{{ server.name }} - My Info{% endblock %}
 
 {% block content %}
 <div class="content-header">
-    <h1 class="content-title">On the Clock</h1>
-    <p class="content-subtitle">Your personal time tracking</p>
+    <h1 class="content-title">My Info</h1>
+    <p class="content-subtitle">Your personal time tracking and schedule</p>
 </div>
 
 <div class="tiles-grid">
@@ -39,6 +39,15 @@
                 <span class="stat-label">This Month:</span>
                 <span class="stat-value" id="hours-month">--</span>
             </div>
+        </div>
+    </div>
+
+    <div class="tile">
+        <h2><span class="tile-icon">📆</span>Schedule</h2>
+        
+        <div class="coming-soon-container">
+            <p class="coming-soon-text">Coming soon</p>
+            <p class="coming-soon-subtitle">Your work schedule will appear here</p>
         </div>
     </div>
 

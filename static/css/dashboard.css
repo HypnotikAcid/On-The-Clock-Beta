@@ -812,13 +812,29 @@
             gap: 20px;
         }
 
+        .coming-soon-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+            min-height: 80px;
+        }
+
         .coming-soon-text {
-            font-size: 32px;
+            font-size: 24px;
             font-weight: bold;
             color: #D4AF37;
             text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
-            letter-spacing: 3px;
+            letter-spacing: 2px;
             animation: comingSoonPulse 2s ease-in-out infinite;
+            margin-bottom: 8px;
+        }
+
+        .coming-soon-subtitle {
+            font-size: 13px;
+            color: #8B949E;
+            text-align: center;
         }
 
         @keyframes comingSoonPulse {

@@ -76,8 +76,8 @@
                 
                 {% if user_role == 'employee' or (user_role == 'admin' and is_also_employee) %}
                 <a href="/dashboard/server/{{ server.id }}/clock" class="nav-item {% if active_page == 'clock' %}active{% endif %}">
-                    <span class="nav-item-icon">⏰</span>
-                    <span>On the Clock</span>
+                    <span class="nav-item-icon">👤</span>
+                    <span>My Info</span>
                 </a>
                 {% endif %}
                 

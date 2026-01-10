@@ -5150,6 +5150,114 @@ def api_get_employee_entries(user_session, guild_id, user_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
+@app.route("/api/server/<guild_id>/employee/<user_id>/status", methods=["GET"])
+@require_api_auth
+def api_get_employee_status(user_session, guild_id, user_id):
+    """API endpoint to fetch current clock status and hours for an employee"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Employees can only view their own status
+        if access_level == 'employee' and str(user_session.get('user_id')) != str(user_id):
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        with get_db() as conn:
+            # Check if currently clocked in
+            cursor = conn.execute("""
+                SELECT id, clock_in_time FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                ORDER BY clock_in_time DESC LIMIT 1
+            """, (int(guild_id), int(user_id)))
+            current_session = cursor.fetchone()
+            
+            is_clocked_in = current_session is not None
+            current_session_start = current_session['clock_in_time'].isoformat() if current_session else None
+            
+            # Get hours today
+            cursor = conn.execute("""
+                SELECT COALESCE(SUM(duration_seconds), 0) as total
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s 
+                AND DATE(clock_in_time) = CURRENT_DATE
+                AND clock_out_time IS NOT NULL
+            """, (int(guild_id), int(user_id)))
+            hours_today = cursor.fetchone()['total'] or 0
+            
+            # Get hours this week
+            cursor = conn.execute("""
+                SELECT COALESCE(SUM(duration_seconds), 0) as total
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s 
+                AND clock_in_time >= DATE_TRUNC('week', CURRENT_DATE)
+                AND clock_out_time IS NOT NULL
+            """, (int(guild_id), int(user_id)))
+            hours_week = cursor.fetchone()['total'] or 0
+            
+            # Get hours this month
+            cursor = conn.execute("""
+                SELECT COALESCE(SUM(duration_seconds), 0) as total
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s 
+                AND clock_in_time >= DATE_TRUNC('month', CURRENT_DATE)
+                AND clock_out_time IS NOT NULL
+            """, (int(guild_id), int(user_id)))
+            hours_month = cursor.fetchone()['total'] or 0
+        
+        return jsonify({
+            'success': True,
+            'is_clocked_in': is_clocked_in,
+            'current_session_start': current_session_start,
+            'hours_today': hours_today,
+            'hours_this_week': hours_week,
+            'hours_this_month': hours_month
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching employee status: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/employee/<user_id>/sessions", methods=["GET"])
+@require_api_auth
+def api_get_employee_sessions(user_session, guild_id, user_id):
+    """API endpoint to fetch recent sessions for an employee"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Employees can only view their own sessions
+        if access_level == 'employee' and str(user_session.get('user_id')) != str(user_id):
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        limit = min(int(request.args.get('limit', 10)), 50)
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT id, clock_in_time, clock_out_time, duration_seconds
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s
+                ORDER BY clock_in_time DESC
+                LIMIT %s
+            """, (int(guild_id), int(user_id), limit))
+            
+            sessions = []
+            for row in cursor.fetchall():
+                duration_minutes = (row['duration_seconds'] // 60) if row['duration_seconds'] else 0
+                sessions.append({
+                    'id': row['id'],
+                    'clock_in_time': row['clock_in_time'].isoformat() if row['clock_in_time'] else None,
+                    'clock_out_time': row['clock_out_time'].isoformat() if row['clock_out_time'] else None,
+                    'duration_minutes': duration_minutes
+                })
+        
+        return jsonify({'success': True, 'sessions': sessions})
+    except Exception as e:
+        app.logger.error(f"Error fetching employee sessions: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
 @app.route("/api/server/<guild_id>/entries/<entry_id>", methods=["PUT"])
 @require_api_auth
 def api_update_entry(user_session, guild_id, entry_id):
