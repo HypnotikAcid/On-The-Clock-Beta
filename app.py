@@ -7701,7 +7701,7 @@ def api_kiosk_today_sessions(guild_id, user_id):
 def api_kiosk_submit_adjustment(guild_id):
     """
     Submit a time adjustment request from the kiosk.
-    Uses the same create_adjustment_request function as dashboard.
+    Populates all required metadata fields for admin review compatibility.
     """
     try:
         data = request.get_json()
@@ -7737,9 +7737,10 @@ def api_kiosk_submit_adjustment(guild_id):
             guild_tz_str = tz_row['timezone'] if tz_row else 'America/New_York'
             guild_tz = pytz.timezone(guild_tz_str)
             
-            # Get today's date
+            # Get today's date in proper format
             now_local = datetime.now(timezone.utc).astimezone(guild_tz)
-            session_date = now_local.strftime('%Y-%m-%d')
+            session_date_str = now_local.strftime('%Y-%m-%d')
+            session_date = now_local.date()  # For DATE column
             
             for change in changes:
                 session_id = change.get('session_id')
@@ -7752,9 +7753,9 @@ def api_kiosk_submit_adjustment(guild_id):
                     if not new_clock_in or not new_clock_out:
                         continue  # Skip incomplete new sessions
                     
-                    # Parse times for new session
+                    # Validate times - clock_out must be after clock_in
                     try:
-                        date_parts = session_date.split('-')
+                        date_parts = session_date_str.split('-')
                         in_parts = new_clock_in.split(':')
                         out_parts = new_clock_out.split(':')
                         
@@ -7763,17 +7764,38 @@ def api_kiosk_submit_adjustment(guild_id):
                         out_local = datetime(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
                                             int(out_parts[0]), int(out_parts[1]))
                         
+                        # Validate clock_out is after clock_in
+                        if out_local <= in_local:
+                            app.logger.warning(f"Invalid time range: clock_out {out_local} <= clock_in {in_local}")
+                            continue
+                        
                         requested_clock_in = guild_tz.localize(in_local).astimezone(pytz.utc)
                         requested_clock_out = guild_tz.localize(out_local).astimezone(pytz.utc)
                         
-                        # Insert adjustment request for new session
+                        # Check for overlapping sessions (handle NULL clock_out for active sessions)
+                        cursor = conn.execute("""
+                            SELECT session_id FROM timeclock_sessions
+                            WHERE guild_id = %s AND user_id = %s
+                            AND NOT (COALESCE(clock_out_time, NOW()) <= %s OR clock_in_time >= %s)
+                        """, (str(guild_id), str(user_id), requested_clock_in, requested_clock_out))
+                        
+                        if cursor.fetchone():
+                            app.logger.warning(f"Overlapping session detected for new entry")
+                            continue  # Skip overlapping sessions
+                        
+                        # Calculate duration for new session
+                        calculated_duration = int((requested_clock_out - requested_clock_in).total_seconds())
+                        
+                        # Insert adjustment request for new session with all metadata
                         cursor = conn.execute("""
                             INSERT INTO time_adjustment_requests 
                             (guild_id, user_id, request_type, original_session_id,
-                             requested_clock_in, requested_clock_out, reason, status, source)
-                            VALUES (%s, %s, 'add_session', NULL, %s, %s, %s, 'pending', 'kiosk')
+                             requested_clock_in, requested_clock_out, reason, status, source,
+                             session_date, calculated_duration)
+                            VALUES (%s, %s, 'add_session', NULL, %s, %s, %s, 'pending', 'kiosk', %s, %s)
                             RETURNING id
-                        """, (guild_id_int, user_id, requested_clock_in, requested_clock_out, reason))
+                        """, (guild_id_int, user_id, requested_clock_in, requested_clock_out, 
+                              reason, session_date, calculated_duration))
                         
                         result = cursor.fetchone()
                         if result:
@@ -7788,9 +7810,10 @@ def api_kiosk_submit_adjustment(guild_id):
                     if not session_id:
                         continue
                     
-                    # Verify session belongs to user
+                    # Verify session belongs to user and get original data
                     cursor = conn.execute("""
-                        SELECT session_id, clock_in_time, clock_out_time
+                        SELECT session_id, clock_in_time, clock_out_time,
+                               EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer as original_duration
                         FROM timeclock_sessions
                         WHERE session_id = %s AND guild_id = %s AND user_id = %s
                     """, (session_id, str(guild_id), str(user_id)))
@@ -7802,45 +7825,85 @@ def api_kiosk_submit_adjustment(guild_id):
                     # Parse new times
                     requested_clock_in = None
                     requested_clock_out = None
-                    request_type = 'modify_clockin'
+                    clock_in_changed = False
+                    clock_out_changed = False
                     
                     if new_clock_in:
                         try:
-                            date_parts = session_date.split('-')
+                            date_parts = session_date_str.split('-')
                             time_parts = new_clock_in.split(':')
                             local_dt = datetime(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
                                                int(time_parts[0]), int(time_parts[1]))
                             requested_clock_in = guild_tz.localize(local_dt).astimezone(pytz.utc)
+                            clock_in_changed = True
                         except Exception as e:
                             app.logger.error(f"Error parsing clock_in: {e}")
                     
                     if new_clock_out:
                         try:
-                            date_parts = session_date.split('-')
+                            date_parts = session_date_str.split('-')
                             time_parts = new_clock_out.split(':')
                             local_dt = datetime(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
                                                int(time_parts[0]), int(time_parts[1]))
                             requested_clock_out = guild_tz.localize(local_dt).astimezone(pytz.utc)
-                            request_type = 'modify_clockout'
+                            clock_out_changed = True
                         except Exception as e:
                             app.logger.error(f"Error parsing clock_out: {e}")
                     
-                    if requested_clock_in or requested_clock_out:
-                        # Insert adjustment request
-                        cursor = conn.execute("""
-                            INSERT INTO time_adjustment_requests 
-                            (guild_id, user_id, request_type, original_session_id,
-                             original_clock_in, original_clock_out,
-                             requested_clock_in, requested_clock_out, reason, status, source)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', 'kiosk')
-                            RETURNING id
-                        """, (guild_id_int, user_id, request_type, session_id,
-                              original['clock_in_time'], original['clock_out_time'],
-                              requested_clock_in, requested_clock_out, reason))
+                    if not (clock_in_changed or clock_out_changed):
+                        continue  # No actual changes
+                    
+                    # Determine request type based on what changed
+                    if clock_in_changed and clock_out_changed:
+                        request_type = 'modify_session'
+                    elif clock_in_changed:
+                        request_type = 'modify_clockin'
+                    else:
+                        request_type = 'modify_clockout'
+                    
+                    # Calculate new duration if both times are available
+                    calculated_duration = None
+                    final_clock_in = requested_clock_in if clock_in_changed else original['clock_in_time']
+                    final_clock_out = requested_clock_out if clock_out_changed else original['clock_out_time']
+                    
+                    if final_clock_in and final_clock_out:
+                        # Ensure both have timezone info
+                        if final_clock_in.tzinfo is None:
+                            final_clock_in = final_clock_in.replace(tzinfo=timezone.utc)
+                        if final_clock_out.tzinfo is None:
+                            final_clock_out = final_clock_out.replace(tzinfo=timezone.utc)
                         
-                        result = cursor.fetchone()
-                        if result:
-                            created_requests.append(result['id'])
+                        # Check for overlapping sessions (exclude the session being modified)
+                        cursor = conn.execute("""
+                            SELECT session_id FROM timeclock_sessions
+                            WHERE guild_id = %s AND user_id = %s AND session_id != %s
+                            AND NOT (COALESCE(clock_out_time, NOW()) <= %s OR clock_in_time >= %s)
+                        """, (str(guild_id), str(user_id), session_id, final_clock_in, final_clock_out))
+                        
+                        if cursor.fetchone():
+                            app.logger.warning(f"Overlapping session detected for modification of session {session_id}")
+                            continue  # Skip overlapping modifications
+                        
+                        calculated_duration = int((final_clock_out - final_clock_in).total_seconds())
+                    
+                    # Insert adjustment request with all metadata
+                    cursor = conn.execute("""
+                        INSERT INTO time_adjustment_requests 
+                        (guild_id, user_id, request_type, original_session_id,
+                         original_clock_in, original_clock_out, original_duration,
+                         requested_clock_in, requested_clock_out, reason, status, source,
+                         session_date, calculated_duration)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', 'kiosk', %s, %s)
+                        RETURNING id
+                    """, (guild_id_int, user_id, request_type, session_id,
+                          original['clock_in_time'], original['clock_out_time'], 
+                          original['original_duration'],
+                          requested_clock_in, requested_clock_out, reason,
+                          session_date, calculated_duration))
+                    
+                    result = cursor.fetchone()
+                    if result:
+                        created_requests.append(result['id'])
         
         if created_requests:
             app.logger.info(f"Kiosk adjustment requests created: {created_requests} for user {user_id} in guild {guild_id}")

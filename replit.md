@@ -40,9 +40,13 @@ Preferred communication style: Simple, everyday language.
 - **Pre-Deletion Warning System**: Hourly scheduler job DMs free-tier admins before data deletion with upgrade incentives.
 - **Database Migrations**: Automatic schema migrations on startup using `migrations.py`.
 - **Employee Status Cards**: Dashboard displays active employees with current hours, including manual clock-out buttons for admins.
-- **Time Adjustment Requests**: Employees can submit time correction requests, which admins can approve/deny via an interactive, role-based calendar in the dashboard.
+- **Time Adjustment Requests**: Employees can submit time correction requests from dashboard, kiosk, or Discord bot. All adjustments use unified `time_adjustment_requests` table with `source` column tracking origin. Admins approve/deny via an interactive, role-based calendar in the dashboard.
+- **Kiosk Time Adjustment Modal**: Kiosk users can edit today's sessions, add missing entries, and submit adjustment requests with required reason. Uses dedicated API endpoints (`/api/kiosk/<guild_id>/employee/<user_id>/today-sessions` and `/api/kiosk/<guild_id>/adjustment`) that integrate with the unified adjustment system.
 - **Employee Onboarding System**: Automated welcome DMs and first-time `/clock` guides for new employees detected via role changes.
 - **Broadcast Channel Configuration**: Admins can configure which text channel receives bot announcements via the dashboard Timezone Settings section. Falls back to system channel, then first available text channel.
+
+## Planned Features
+- **Email Notifications for Adjustments**: Optional feature to send email notifications when time adjustments are submitted. Would be configurable in dashboard email settings with designated admin email recipients.
 
 ## Security Configuration
 - **Code Analysis**: Uses Semgrep for static analysis and secret management.

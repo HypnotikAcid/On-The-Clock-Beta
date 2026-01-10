@@ -1332,12 +1332,14 @@
                             <div class="time-field">
                                 <label>Clock In</label>
                                 <input type="time" value="${session.clock_in || ''}" 
+                                       data-field="clock_in"
                                        data-original="${session.clock_in || ''}"
                                        onchange="markSessionChanged(${index}, 'clock_in', this.value)">
                             </div>
                             <div class="time-field">
                                 <label>Clock Out</label>
                                 <input type="time" value="${session.clock_out || ''}" 
+                                       data-field="clock_out"
                                        data-original="${session.clock_out || ''}"
                                        ${isActive ? 'placeholder="Still working..."' : ''}
                                        onchange="markSessionChanged(${index}, 'clock_out', this.value)">
@@ -1353,34 +1355,49 @@
 
         function markSessionChanged(index, field, newValue) {
             const session = todaySessions[index];
-            const originalValue = field === 'clock_in' ? session.clock_in : session.clock_out;
             
-            // Remove any existing change for this session/field
-            pendingChanges = pendingChanges.filter(c => 
-                !(c.session_id === session.session_id && !c.is_new)
+            // Get the card using data-index for precise selection
+            const card = document.querySelector(`.session-card[data-index="${index}"]`);
+            const clockInInput = card.querySelector('input[data-field="clock_in"]');
+            const clockOutInput = card.querySelector('input[data-field="clock_out"]');
+            
+            const currentClockIn = clockInInput.value;
+            const currentClockOut = clockOutInput.value;
+            
+            // Check if either field differs from original
+            const clockInChanged = currentClockIn !== (session.clock_in || '');
+            const clockOutChanged = currentClockOut !== (session.clock_out || '');
+            
+            // Find existing change for this session
+            const existingIdx = pendingChanges.findIndex(c => 
+                c.session_id === session.session_id && !c.is_new
             );
             
-            // Add new change if value differs from original
-            if (newValue !== originalValue) {
+            if (clockInChanged || clockOutChanged) {
+                // Build change object with current input values
                 const change = {
                     session_id: session.session_id,
                     is_new: false
                 };
                 
-                // Get both current values from inputs
-                const card = document.querySelector(`[data-session-id="${session.session_id}"]`);
-                const clockInInput = card.querySelector('input[onchange*="clock_in"]');
-                const clockOutInput = card.querySelector('input[onchange*="clock_out"]');
-                
-                if (clockInInput.value !== session.clock_in) {
-                    change.new_clock_in = clockInInput.value;
+                if (clockInChanged) {
+                    change.new_clock_in = currentClockIn;
                 }
-                if (clockOutInput.value !== session.clock_out) {
-                    change.new_clock_out = clockOutInput.value;
+                if (clockOutChanged) {
+                    change.new_clock_out = currentClockOut;
                 }
                 
-                if (change.new_clock_in || change.new_clock_out) {
+                if (existingIdx >= 0) {
+                    // Update existing change
+                    pendingChanges[existingIdx] = change;
+                } else {
+                    // Add new change
                     pendingChanges.push(change);
+                }
+            } else {
+                // No changes from original - remove from pending if exists
+                if (existingIdx >= 0) {
+                    pendingChanges.splice(existingIdx, 1);
                 }
             }
             
