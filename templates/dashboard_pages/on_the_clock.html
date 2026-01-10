@@ -72,6 +72,7 @@ let timerInterval = null;
 async function loadClockStatus() {
     try {
         const response = await fetch(`/api/server/${guildId}/employee/${userId}/status`);
+        if (!response.ok) throw new Error('Status fetch failed');
         const data = await response.json();
         
         if (data.success) {
@@ -86,9 +87,15 @@ async function loadClockStatus() {
             document.getElementById('hours-today').textContent = DashboardUtils.formatDuration(data.hours_today || 0);
             document.getElementById('hours-week').textContent = DashboardUtils.formatDuration(data.hours_this_week || 0);
             document.getElementById('hours-month').textContent = DashboardUtils.formatDuration(data.hours_this_month || 0);
+        } else {
+            throw new Error(data.error || 'Failed to load status');
         }
     } catch (error) {
         console.error('Failed to load status:', error);
+        document.getElementById('status-indicator').innerHTML = `
+            <span class="status-dot error"></span>
+            <span class="status-text">Error loading status</span>
+        `;
     }
 }
 
