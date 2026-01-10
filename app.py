@@ -7316,16 +7316,16 @@ def api_kiosk_employees(guild_id):
     """Get all employees for the kiosk display"""
     try:
         with get_db() as conn:
-            # Get all active employees with their clock-in status
+            # Get all active employees with their clock-in status (using timeclock_sessions)
             cursor = conn.execute("""
                 SELECT ep.user_id, ep.display_name, ep.first_name, ep.last_name, ep.avatar_url,
                        ep.position, ep.department,
                        EXISTS(SELECT 1 FROM employee_pins WHERE guild_id = %s AND user_id = ep.user_id) as has_pin,
-                       EXISTS(SELECT 1 FROM sessions WHERE guild_id = %s AND user_id = ep.user_id AND clock_out IS NULL) as is_clocked_in
+                       EXISTS(SELECT 1 FROM timeclock_sessions WHERE guild_id = %s AND user_id::text = ep.user_id::text AND clock_out_time IS NULL) as is_clocked_in
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.is_active = TRUE
                 ORDER BY COALESCE(ep.display_name, ep.first_name, ep.user_id::text)
-            """, (int(guild_id), int(guild_id), int(guild_id)))
+            """, (str(guild_id), str(guild_id), str(guild_id)))
             employees = cursor.fetchall()
         
         employee_list = []
@@ -7416,58 +7416,62 @@ def api_kiosk_employee_info(guild_id, user_id):
                 SELECT display_name, first_name, last_name, avatar_url, position, department
                 FROM employee_profiles
                 WHERE guild_id = %s AND user_id = %s
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             profile = cursor.fetchone()
             
-            # Check if clocked in
+            # Check if clocked in (using timeclock_sessions)
             cursor = conn.execute("""
-                SELECT clock_in FROM sessions
-                WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
-                ORDER BY clock_in DESC LIMIT 1
-            """, (int(guild_id), int(user_id)))
+                SELECT clock_in_time FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                ORDER BY clock_in_time DESC LIMIT 1
+            """, (str(guild_id), str(user_id)))
             active_session = cursor.fetchone()
             
-            # Get today's hours
+            # Get today's hours (using timeclock_sessions)
             today = datetime.now().date()
             cursor = conn.execute("""
-                SELECT COALESCE(SUM(duration_seconds), 0) as total
-                FROM sessions
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) as total
+                FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s 
-                AND clock_in::date = %s AND clock_out IS NOT NULL
-            """, (int(guild_id), int(user_id), today))
+                AND DATE(clock_in_time) = %s AND clock_out_time IS NOT NULL
+            """, (str(guild_id), str(user_id), today))
             today_result = cursor.fetchone()
             today_minutes = (today_result['total'] or 0) / 60
             
             # Add current session time if clocked in
             if active_session:
-                elapsed = (datetime.now(active_session['clock_in'].tzinfo) - active_session['clock_in']).total_seconds()
+                clock_in_time = active_session['clock_in_time']
+                if clock_in_time.tzinfo:
+                    elapsed = (datetime.now(clock_in_time.tzinfo) - clock_in_time).total_seconds()
+                else:
+                    elapsed = (datetime.now() - clock_in_time).total_seconds()
                 today_minutes += elapsed / 60
             
             # Get week's hours (Monday to Sunday)
             week_start = today - timedelta(days=today.weekday())
             cursor = conn.execute("""
-                SELECT COALESCE(SUM(duration_seconds), 0) as total
-                FROM sessions
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) as total
+                FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s 
-                AND clock_in::date >= %s AND clock_out IS NOT NULL
-            """, (int(guild_id), int(user_id), week_start))
+                AND DATE(clock_in_time) >= %s AND clock_out_time IS NOT NULL
+            """, (str(guild_id), str(user_id), week_start))
             week_result = cursor.fetchone()
             week_minutes = (week_result['total'] or 0) / 60 + (today_minutes if active_session else 0)
             
             # Get last punch
             cursor = conn.execute("""
-                SELECT clock_in, clock_out FROM sessions
+                SELECT clock_in_time, clock_out_time FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s
-                ORDER BY COALESCE(clock_out, clock_in) DESC LIMIT 1
-            """, (int(guild_id), int(user_id)))
+                ORDER BY COALESCE(clock_out_time, clock_in_time) DESC LIMIT 1
+            """, (str(guild_id), str(user_id)))
             last_session = cursor.fetchone()
             
             last_punch = None
             if last_session:
-                if last_session['clock_out']:
-                    last_punch = f"Clocked out {last_session['clock_out'].strftime('%I:%M %p on %b %d')}"
+                if last_session['clock_out_time']:
+                    last_punch = f"Clocked out {last_session['clock_out_time'].strftime('%I:%M %p on %b %d')}"
                 else:
-                    last_punch = f"Clocked in at {last_session['clock_in'].strftime('%I:%M %p')}"
+                    last_punch = f"Clocked in at {last_session['clock_in_time'].strftime('%I:%M %p')}"
         
         return jsonify({
             'success': True,
@@ -7484,7 +7488,7 @@ def api_kiosk_employee_info(guild_id, user_id):
 
 @app.route("/api/kiosk/<guild_id>/clock", methods=["POST"])
 def api_kiosk_clock(guild_id):
-    """Handle clock in/out from kiosk"""
+    """Handle clock in/out from kiosk - uses timeclock_sessions for dashboard sync"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
@@ -7497,45 +7501,42 @@ def api_kiosk_clock(guild_id):
         
         with get_db() as conn:
             if action == 'in':
-                # Check not already clocked in
+                # Check not already clocked in (using timeclock_sessions)
                 cursor = conn.execute("""
-                    SELECT id FROM sessions
-                    WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
-                """, (int(guild_id), int(user_id)))
+                    SELECT session_id FROM timeclock_sessions
+                    WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                """, (str(guild_id), str(user_id)))
                 if cursor.fetchone():
                     return jsonify({'success': False, 'error': 'Already clocked in'}), 400
                 
-                # Create new session
+                # Create new session in timeclock_sessions
                 conn.execute("""
-                    INSERT INTO sessions (guild_id, user_id, clock_in)
+                    INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time)
                     VALUES (%s, %s, %s)
-                """, (int(guild_id), int(user_id), now))
+                """, (str(guild_id), str(user_id), now))
                 
                 app.logger.info(f"Kiosk clock IN: user {user_id} in guild {guild_id}")
                 
             else:  # action == 'out'
-                # Find active session
+                # Find active session in timeclock_sessions
                 cursor = conn.execute("""
-                    SELECT id, clock_in FROM sessions
-                    WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
-                    ORDER BY clock_in DESC LIMIT 1
-                """, (int(guild_id), int(user_id)))
+                    SELECT session_id, clock_in_time FROM timeclock_sessions
+                    WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                    ORDER BY clock_in_time DESC LIMIT 1
+                """, (str(guild_id), str(user_id)))
                 session = cursor.fetchone()
                 
                 if not session:
                     return jsonify({'success': False, 'error': 'Not clocked in'}), 400
                 
-                # Calculate duration
-                duration = int((now - session['clock_in'].replace(tzinfo=None)).total_seconds())
-                
-                # Update session
+                # Update session with clock out time
                 conn.execute("""
-                    UPDATE sessions 
-                    SET clock_out = %s, duration_seconds = %s
-                    WHERE id = %s
-                """, (now, duration, session['id']))
+                    UPDATE timeclock_sessions 
+                    SET clock_out_time = %s
+                    WHERE session_id = %s
+                """, (now, session['session_id']))
                 
-                app.logger.info(f"Kiosk clock OUT: user {user_id} in guild {guild_id}, duration {duration}s")
+                app.logger.info(f"Kiosk clock OUT: user {user_id} in guild {guild_id}")
         
         return jsonify({'success': True, 'action': action})
     except Exception as e:
