@@ -7397,7 +7397,7 @@ def api_get_kiosk_mode(user_session, guild_id):
         
         return jsonify({
             'success': True,
-            'kiosk_mode_only': result['kiosk_mode_only'] if result else False
+            'kiosk_mode_only': bool(result.get('kiosk_mode_only', False)) if result else False
         })
     except Exception as e:
         app.logger.error(f"Error fetching kiosk mode: {e}")

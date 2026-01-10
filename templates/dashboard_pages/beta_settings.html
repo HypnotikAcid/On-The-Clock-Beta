@@ -256,11 +256,29 @@ async function loadKioskSettings() {
     });
 }
 
-function copyKioskUrl() {
+async function copyKioskUrl() {
     const urlInput = document.getElementById('kiosk-url');
-    urlInput.select();
-    document.execCommand('copy');
-    DashboardUtils.showNotification('Kiosk URL copied to clipboard', 'success');
+    const url = urlInput.value;
+    
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(url);
+        } else {
+            // Fallback for older browsers
+            urlInput.select();
+            document.execCommand('copy');
+        }
+        DashboardUtils.showNotification('Kiosk URL copied to clipboard', 'success');
+    } catch (err) {
+        // Final fallback
+        urlInput.select();
+        try {
+            document.execCommand('copy');
+            DashboardUtils.showNotification('Kiosk URL copied to clipboard', 'success');
+        } catch (e) {
+            DashboardUtils.showNotification('Please copy the URL manually', 'error');
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
