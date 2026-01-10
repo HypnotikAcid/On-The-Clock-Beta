@@ -5114,12 +5114,12 @@ def api_get_employee_entries(user_session, guild_id, user_id):
         
         with get_db() as conn:
             query = """
-                SELECT id, user_id, clock_in_time, clock_out_time, 
-                       duration_seconds, admin_notes, is_modified
+                SELECT session_id, user_id, clock_in_time, clock_out_time,
+                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) as duration_seconds
                 FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s
             """
-            params = [int(guild_id), int(user_id)]
+            params = [str(guild_id), str(user_id)]
             
             if start_date:
                 query += " AND clock_in_time >= %s"
@@ -5135,13 +5135,11 @@ def api_get_employee_entries(user_session, guild_id, user_id):
             entries = []
             for row in cursor.fetchall():
                 entries.append({
-                    'id': row['id'],
+                    'id': row['session_id'],
                     'user_id': str(row['user_id']),
                     'clock_in_time': row['clock_in_time'].isoformat() if row['clock_in_time'] else None,
                     'clock_out_time': row['clock_out_time'].isoformat() if row['clock_out_time'] else None,
-                    'duration_seconds': row['duration_seconds'],
-                    'admin_notes': row['admin_notes'],
-                    'is_modified': row['is_modified']
+                    'duration_seconds': row['duration_seconds'] or 0
                 })
         
         return jsonify({'success': True, 'entries': entries})
@@ -5166,7 +5164,7 @@ def api_get_employee_status(user_session, guild_id, user_id):
         with get_db() as conn:
             # Check if currently clocked in
             cursor = conn.execute("""
-                SELECT id, clock_in_time FROM timeclock_sessions
+                SELECT session_id, clock_in_time FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
                 ORDER BY clock_in_time DESC LIMIT 1
             """, (str(guild_id), str(user_id)))
@@ -5175,9 +5173,9 @@ def api_get_employee_status(user_session, guild_id, user_id):
             is_clocked_in = current_session is not None
             current_session_start = current_session['clock_in_time'].isoformat() if current_session else None
             
-            # Get hours today
+            # Get hours today (calculate duration from timestamps)
             cursor = conn.execute("""
-                SELECT COALESCE(SUM(duration_seconds), 0) as total
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) as total
                 FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s 
                 AND DATE(clock_in_time) = CURRENT_DATE
@@ -5187,7 +5185,7 @@ def api_get_employee_status(user_session, guild_id, user_id):
             
             # Get hours this week
             cursor = conn.execute("""
-                SELECT COALESCE(SUM(duration_seconds), 0) as total
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) as total
                 FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s 
                 AND clock_in_time >= DATE_TRUNC('week', CURRENT_DATE)
@@ -5197,7 +5195,7 @@ def api_get_employee_status(user_session, guild_id, user_id):
             
             # Get hours this month
             cursor = conn.execute("""
-                SELECT COALESCE(SUM(duration_seconds), 0) as total
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) as total
                 FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s 
                 AND clock_in_time >= DATE_TRUNC('month', CURRENT_DATE)
@@ -5240,7 +5238,8 @@ def api_get_employee_sessions(user_session, guild_id, user_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT id, clock_in_time, clock_out_time, duration_seconds
+                SELECT session_id, clock_in_time, clock_out_time,
+                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) as duration_seconds
                 FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s
                 ORDER BY clock_in_time DESC
@@ -5249,9 +5248,10 @@ def api_get_employee_sessions(user_session, guild_id, user_id):
             
             sessions = []
             for row in cursor.fetchall():
-                duration_minutes = (row['duration_seconds'] // 60) if row['duration_seconds'] else 0
+                duration_seconds = row['duration_seconds'] if row['duration_seconds'] else 0
+                duration_minutes = int(duration_seconds // 60) if duration_seconds else 0
                 sessions.append({
-                    'id': row['id'],
+                    'id': row['session_id'],
                     'clock_in_time': row['clock_in_time'].isoformat() if row['clock_in_time'] else None,
                     'clock_out_time': row['clock_out_time'].isoformat() if row['clock_out_time'] else None,
                     'duration_minutes': duration_minutes
@@ -5279,27 +5279,19 @@ def api_update_entry(user_session, guild_id, entry_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT id, user_id FROM timeclock_sessions 
-                WHERE id = %s AND guild_id = %s
+                SELECT session_id, user_id FROM timeclock_sessions 
+                WHERE session_id = %s AND guild_id = %s
             """, (int(entry_id), str(guild_id)))
             entry = cursor.fetchone()
             
             if not entry:
                 return jsonify({'success': False, 'error': 'Entry not found'}), 404
             
-            duration = None
-            if clock_in and clock_out:
-                from datetime import datetime
-                dt_in = datetime.fromisoformat(clock_in.replace('Z', '+00:00'))
-                dt_out = datetime.fromisoformat(clock_out.replace('Z', '+00:00'))
-                duration = int((dt_out - dt_in).total_seconds())
-            
             conn.execute("""
                 UPDATE timeclock_sessions 
-                SET clock_in_time = %s, clock_out_time = %s, 
-                duration_seconds = %s, admin_notes = %s, is_modified = TRUE
-                WHERE id = %s AND guild_id = %s
-            """, (clock_in, clock_out, duration, admin_notes, int(entry_id), str(guild_id)))
+                SET clock_in_time = %s, clock_out_time = %s
+                WHERE session_id = %s AND guild_id = %s
+            """, (clock_in, clock_out, int(entry_id), str(guild_id)))
         
         return jsonify({'success': True})
     except Exception as e:
@@ -5319,8 +5311,8 @@ def api_delete_entry(user_session, guild_id, entry_id):
         with get_db() as conn:
             cursor = conn.execute("""
                 DELETE FROM timeclock_sessions 
-                WHERE id = %s AND guild_id = %s
-                RETURNING id
+                WHERE session_id = %s AND guild_id = %s
+                RETURNING session_id
             """, (int(entry_id), str(guild_id)))
             deleted = cursor.fetchone()
             

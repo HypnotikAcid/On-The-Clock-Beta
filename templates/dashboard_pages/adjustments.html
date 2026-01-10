@@ -33,13 +33,41 @@
 
 <div class="tab-content" id="tab-calendar">
     <div class="tile tile-full">
-        <div id="adjustments-calendar" class="calendar-container">
-            <div class="loading-placeholder">Loading calendar...</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2><span class="tile-icon">📅</span><span id="calendar-title-text">Pending Requests Calendar</span></h2>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button id="calendar-prev-month" class="btn btn-secondary btn-sm">← Prev</button>
+                <span id="calendar-month-year" style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
+                <button id="calendar-next-month" class="btn btn-secondary btn-sm">Next →</button>
+            </div>
+        </div>
+        <div id="calendar-grid" class="calendar-grid">
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">Loading calendar...</div>
+        </div>
+        <div style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
+            <div style="font-size: 13px; color: #C9D1D9;"><strong>📋 How to use:</strong> <span id="calendar-help-content">Click on any day to review and approve/deny pending requests.</span></div>
         </div>
     </div>
 </div>
 
 {% else %}
+<div class="tile tile-full" style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2><span class="tile-icon">📅</span><span id="calendar-title-text">My Work Calendar</span></h2>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button id="calendar-prev-month" class="btn btn-secondary btn-sm">← Prev</button>
+            <span id="calendar-month-year" style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
+            <button id="calendar-next-month" class="btn btn-secondary btn-sm">Next →</button>
+        </div>
+    </div>
+    <div id="calendar-grid" class="calendar-grid">
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">Loading calendar...</div>
+    </div>
+    <div style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
+        <div style="font-size: 13px; color: #C9D1D9;"><strong>📋 How to use:</strong> <span id="calendar-help-content">Click on any day to view your work sessions or add missing time for days you forgot to clock in.</span></div>
+    </div>
+</div>
+
 <div class="tiles-grid">
     <div class="tile">
         <h2><span class="tile-icon">📝</span>New Request</h2>
@@ -83,10 +111,12 @@
 {% endblock %}
 
 {% block page_scripts %}
+<script src="/static/js/dashboard-adjustments.js"></script>
 <script>
 const guildId = '{{ server.id }}';
 const userId = '{{ user.user_id }}';
 const userRole = '{{ user_role }}';
+window.currentViewMode = userRole;
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -188,7 +218,12 @@ async function handleRequest(requestId, action) {
 }
 
 function loadCalendar() {
-    document.getElementById('adjustments-calendar').innerHTML = '<p>Calendar view coming soon</p>';
+    if (typeof initializeAdjustments === 'function') {
+        initializeAdjustments(guildId, userId);
+    } else {
+        console.error('Calendar JS not loaded');
+        document.getElementById('calendar-grid').innerHTML = '<p style="text-align: center; color: #EF4444;">Calendar failed to load</p>';
+    }
 }
 
 if (document.getElementById('submit-request-btn')) {
@@ -243,6 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
         loadPendingRequests();
     } else {
         loadMyRequests();
+        if (typeof initializeAdjustments === 'function') {
+            initializeAdjustments(guildId, userId);
+        }
     }
 });
 </script>
