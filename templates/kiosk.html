@@ -1265,19 +1265,6 @@
                 showMessage('error', 'Connection error');
             }
         }
-                if (data.success) {
-                    showMessage('success', action === 'in' ? 'Clocked In!' : 'Clocked Out!');
-                    setTimeout(() => {
-                        logout();
-                    }, 2000);
-                } else {
-                    showMessage('error', data.error || 'Action failed');
-                }
-            } catch (error) {
-                showMessage('error', 'Connection error');
-            }
-            showLoading(false);
-        }
 
         let todaySessions = [];
         let pendingChanges = [];
