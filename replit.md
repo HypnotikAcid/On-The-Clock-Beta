@@ -73,3 +73,5 @@ Preferred communication style: Simple, everyday language.
 
 ## Database
 - **PostgreSQL**: Production database with persistent connection pooling and SSL connection handling. Queries use `RealDictCursor` and parameterized statements.
+- **Unified Timeclock Schema**: All components (Discord bot, web dashboard, kiosk) use the `timeclock_sessions` table with columns: `session_id`, `guild_id`, `user_id`, `clock_in_time`, `clock_out_time`. Duration is calculated on-demand via `EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))`.
+- **Legacy Migration Complete**: The old `sessions` table data has been migrated to `timeclock_sessions` (January 2026).
