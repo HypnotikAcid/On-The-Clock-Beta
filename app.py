@@ -3437,7 +3437,7 @@ def api_owner_employee_list(user_session, guild_id):
                 WHERE ep.guild_id = %s
                 GROUP BY ep.user_id, ep.first_name, ep.last_name, ep.full_name, ep.display_name, ep.company_role, ep.role_tier, ep.is_active, ep.guild_id
                 ORDER BY ep.display_name, ep.user_id
-            """, (str(guild_id),))
+            """, (int(guild_id),))
             employees = cursor.fetchall()
         
         result = []
@@ -7020,22 +7020,33 @@ def api_admin_edit_session(user_session, guild_id):
                 WHERE session_id = %s
             """, (updates.get('clock_in_time'), updates.get('clock_out_time'), session_id))
             
-            # Log the change
+            # Log the change using JSONB details column (table schema: id, request_id, action, actor_id, timestamp, details)
+            def safe_isoformat(val):
+                """Safely convert datetime to ISO string, handling None and already-string values"""
+                if val is None:
+                    return None
+                if isinstance(val, str):
+                    return val
+                if hasattr(val, 'isoformat'):
+                    return val.isoformat()
+                return str(val)
+            
+            audit_details = {
+                'action_type': 'admin_edit',
+                'guild_id': str(guild_id),
+                'user_id': session['user_id'],
+                'session_id': session_id,
+                'old_clock_in': safe_isoformat(session['clock_in_time']),
+                'old_clock_out': safe_isoformat(session['clock_out_time']),
+                'new_clock_in': safe_isoformat(updates.get('clock_in_time')),
+                'new_clock_out': safe_isoformat(updates.get('clock_out_time')),
+                'reason': reason
+            }
             conn.execute("""
                 INSERT INTO adjustment_audit_log 
-                (guild_id, user_id, admin_id, action_type, session_id, old_clock_in, old_clock_out, new_clock_in, new_clock_out, reason, created_at)
-                VALUES (%s, %s, %s, 'admin_edit', %s, %s, %s, %s, %s, %s, NOW())
-            """, (
-                str(guild_id),
-                session['user_id'],
-                str(user_session['user_id']),
-                session_id,
-                session['clock_in_time'],
-                session['clock_out_time'],
-                updates.get('clock_in_time'),
-                updates.get('clock_out_time'),
-                reason
-            ))
+                (action, actor_id, details)
+                VALUES (%s, %s, %s)
+            """, ('admin_edit', int(user_session['user_id']), json.dumps(audit_details)))
         
         app.logger.info(f"Admin {user_session.get('username')} edited session {session_id} in guild {guild_id}")
         
@@ -7328,7 +7339,7 @@ def api_kiosk_employees(guild_id):
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.is_active = TRUE
                 ORDER BY COALESCE(ep.display_name, ep.first_name, ep.user_id::text)
-            """, (str(guild_id), str(guild_id), str(guild_id)))
+            """, (int(guild_id), str(guild_id), int(guild_id)))
             employees = cursor.fetchall()
         
         employee_list = []
