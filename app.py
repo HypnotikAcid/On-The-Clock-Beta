@@ -5359,6 +5359,168 @@ def api_delete_entry(user_session, guild_id, entry_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
+@app.route("/api/server/<guild_id>/calendar/monthly-summary", methods=["GET"])
+@require_api_auth
+def api_get_monthly_summary(user_session, guild_id):
+    """
+    Admin Calendar API: Get guild-wide daily summary for a month.
+    Returns shift counts and total hours per day for all employees.
+    """
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        
+        if not year or not month:
+            from datetime import date
+            today = date.today()
+            year = year or today.year
+            month = month or today.month
+        
+        from datetime import datetime
+        from calendar import monthrange
+        
+        _, last_day = monthrange(year, month)
+        start_date = f"{year}-{month:02d}-01"
+        end_date = f"{year}-{month:02d}-{last_day}"
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    DATE(clock_in_time) as work_date,
+                    COUNT(DISTINCT user_id) as employee_count,
+                    COUNT(*) as session_count,
+                    COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time))), 0) as total_seconds
+                FROM timeclock_sessions
+                WHERE guild_id = %s 
+                  AND clock_in_time >= %s
+                  AND clock_in_time < %s::date + interval '1 day'
+                GROUP BY DATE(clock_in_time)
+                ORDER BY work_date
+            """, (str(guild_id), start_date, end_date))
+            
+            days = {}
+            for row in cursor.fetchall():
+                date_str = row['work_date'].strftime('%Y-%m-%d')
+                days[date_str] = {
+                    'date': date_str,
+                    'employee_count': row['employee_count'],
+                    'session_count': row['session_count'],
+                    'total_hours': round(row['total_seconds'] / 3600, 2)
+                }
+        
+        return jsonify({
+            'success': True,
+            'year': year,
+            'month': month,
+            'days': days
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching monthly summary: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/calendar/day-detail", methods=["GET"])
+@require_api_auth
+def api_get_day_detail(user_session, guild_id):
+    """
+    Admin Calendar API: Get all employees and their sessions for a specific day.
+    Returns employee info with their clock in/out times.
+    """
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        date_str = request.args.get('date')
+        if not date_str:
+            return jsonify({'success': False, 'error': 'Missing date parameter'}), 400
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT 
+                    s.session_id,
+                    s.user_id,
+                    s.clock_in_time,
+                    s.clock_out_time,
+                    EXTRACT(EPOCH FROM (COALESCE(s.clock_out_time, NOW()) - s.clock_in_time)) as duration_seconds,
+                    ep.display_name,
+                    ep.username,
+                    ep.avatar_url,
+                    ep.position
+                FROM timeclock_sessions s
+                LEFT JOIN employee_profiles ep ON s.guild_id::text = ep.guild_id::text AND s.user_id::text = ep.user_id::text
+                WHERE s.guild_id = %s 
+                  AND DATE(s.clock_in_time) = %s
+                ORDER BY s.clock_in_time ASC
+            """, (str(guild_id), date_str))
+            
+            sessions = []
+            for row in cursor.fetchall():
+                sessions.append({
+                    'session_id': row['session_id'],
+                    'user_id': str(row['user_id']),
+                    'clock_in_time': row['clock_in_time'].isoformat() if row['clock_in_time'] else None,
+                    'clock_out_time': row['clock_out_time'].isoformat() if row['clock_out_time'] else None,
+                    'duration_seconds': row['duration_seconds'] or 0,
+                    'display_name': row['display_name'] or row['username'] or 'Unknown',
+                    'username': row['username'],
+                    'avatar_url': row['avatar_url'],
+                    'position': row['position']
+                })
+        
+        return jsonify({
+            'success': True,
+            'date': date_str,
+            'sessions': sessions
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching day detail: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/sessions/admin-create", methods=["POST"])
+@require_api_auth
+def api_admin_create_session(user_session, guild_id):
+    """
+    Admin API: Create a new session for an employee (admin logged them in/out).
+    Used when employee forgot to clock in/out and admin is fixing it.
+    """
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        user_id = data.get('user_id')
+        clock_in = data.get('clock_in_time')
+        clock_out = data.get('clock_out_time')
+        
+        if not user_id or not clock_in:
+            return jsonify({'success': False, 'error': 'Missing user_id or clock_in_time'}), 400
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time, clock_out_time)
+                VALUES (%s, %s, %s, %s)
+                RETURNING session_id
+            """, (str(guild_id), str(user_id), clock_in, clock_out))
+            new_session = cursor.fetchone()
+        
+        app.logger.info(f"Admin {user_session.get('username')} created session for user {user_id} in guild {guild_id}")
+        
+        return jsonify({
+            'success': True,
+            'session_id': new_session['session_id']
+        })
+    except Exception as e:
+        app.logger.error(f"Error creating admin session: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
 @app.route("/api/server/<guild_id>/bans", methods=["GET"])
 @require_paid_api_access
 def api_get_bans(user_session, guild_id):
