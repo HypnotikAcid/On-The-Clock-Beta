@@ -173,8 +173,11 @@ document.getElementById('auto-send-toggle').addEventListener('change', async fun
 });
 
 document.getElementById('test-email-btn').addEventListener('click', async function() {
+    if (this.disabled) return;
+    
     this.disabled = true;
-    this.innerHTML = '<span>📤</span> Sending...';
+    const originalHTML = this.innerHTML;
+    this.innerHTML = '<span class="spinner-inline"></span> Sending...';
     
     try {
         const response = await fetch(`/api/server/${guildId}/test-email`, {
@@ -185,16 +188,17 @@ document.getElementById('test-email-btn').addEventListener('click', async functi
         const data = await response.json();
         
         if (data.success) {
-            DashboardUtils.showNotification(`Test email sent to ${data.sent_count} recipient(s)`, 'success');
+            DashboardUtils.showNotification(`Test email sent successfully to ${data.sent_count} recipient(s)`, 'success');
         } else {
-            DashboardUtils.showNotification(data.error || 'Failed to send test email', 'error');
+            DashboardUtils.showNotification(data.error || 'Failed to send test email. Make sure you have recipients added.', 'error');
         }
     } catch (error) {
-        DashboardUtils.showNotification('Failed to send test email', 'error');
+        console.error('Test email failed:', error);
+        DashboardUtils.showNotification('Connection error while sending test email.', 'error');
+    } finally {
+        this.disabled = false;
+        this.innerHTML = originalHTML;
     }
-    
-    this.disabled = false;
-    this.innerHTML = '<span>📤</span> Send Test Email';
 });
 
 document.addEventListener('DOMContentLoaded', loadEmailSettings);

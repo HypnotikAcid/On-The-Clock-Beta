@@ -144,13 +144,29 @@
     {% block page_scripts %}{% endblock %}
 
     <script>
-        document.getElementById('mobileHamburger').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('mobile-hidden');
-            document.getElementById('mobileOverlay').classList.toggle('active');
+        const sidebar = document.getElementById('sidebar');
+        const mobileOverlay = document.getElementById('mobileOverlay');
+        const mobileHamburger = document.getElementById('mobileHamburger');
+
+        mobileHamburger.addEventListener('click', function() {
+            sidebar.classList.toggle('mobile-hidden');
+            mobileOverlay.classList.toggle('active');
         });
-        document.getElementById('mobileOverlay').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.add('mobile-hidden');
-            document.getElementById('mobileOverlay').classList.remove('active');
+
+        mobileOverlay.addEventListener('click', function() {
+            sidebar.classList.add('mobile-hidden');
+            mobileOverlay.classList.remove('active');
+        });
+
+        // Auto-close sidebar on mobile when a link is clicked
+        const navLinks = sidebar.querySelectorAll('.nav-item, .back-to-servers');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 1024) {
+                    sidebar.classList.add('mobile-hidden');
+                    mobileOverlay.classList.remove('active');
+                }
+            });
         });
     </script>
 </body>
