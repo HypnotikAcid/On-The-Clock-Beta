@@ -1394,7 +1394,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             with db() as conn:
                 # Set timeout for database operations
                                 # Delete all sessions data
-                sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = %s", (guild_id,))
+                sessions_cursor = conn.execute("DELETE FROM timeclock_sessions WHERE guild_id = %s", (guild_id,))
                 sessions_deleted = sessions_cursor.rowcount
                 
                 # Delete guild settings
@@ -2513,8 +2513,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Count currently clocked in users
             with db() as conn:
                 cursor = conn.execute("""
-                    SELECT COUNT(*) as count FROM sessions 
-                    WHERE guild_id = %s AND clock_out IS NULL
+                    SELECT COUNT(*) as count FROM timeclock_sessions 
+                    WHERE guild_id = %s AND clock_out_time IS NULL
                 """, (guild_id,))
                 clocked_in_count = cursor.fetchone()['count']
                 
@@ -2589,7 +2589,7 @@ def purge_all_guild_data_DANGEROUS(guild_id: int):
         with db() as conn:
             # Set timeout for database operations
                         # Delete all sessions data
-            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = %s", (guild_id,))
+            sessions_cursor = conn.execute("DELETE FROM timeclock_sessions WHERE guild_id = %s", (guild_id,))
             sessions_deleted = sessions_cursor.rowcount
             
             # Delete guild settings
@@ -3529,13 +3529,13 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
                     cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
                     
                     cursor = conn.execute("""
-                        DELETE FROM sessions 
-                        WHERE guild_id = %s AND clock_out IS NOT NULL AND clock_out < %s
+                        DELETE FROM timeclock_sessions 
+                        WHERE guild_id = %s AND clock_out_time IS NOT NULL AND clock_out_time < %s
                     """, (guild_id, cutoff_date.isoformat()))
                     deleted_count = cursor.rowcount
                 else:
                     # Clean up all guilds based on their individual retention policies
-                    guilds_cursor = conn.execute("SELECT DISTINCT guild_id FROM sessions")
+                    guilds_cursor = conn.execute("SELECT DISTINCT guild_id FROM timeclock_sessions")
                     guild_ids = [row['guild_id'] for row in guilds_cursor.fetchall()]
                     
                     for guild_id in guild_ids:
@@ -3545,8 +3545,8 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
                         cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
                         
                         cursor = conn.execute("""
-                            DELETE FROM sessions 
-                            WHERE guild_id = %s AND clock_out IS NOT NULL AND clock_out < %s
+                            DELETE FROM timeclock_sessions 
+                            WHERE guild_id = %s AND clock_out_time IS NOT NULL AND clock_out_time < %s
                         """, (guild_id, cutoff_date.isoformat()))
                         deleted_count += cursor.rowcount
                 
@@ -3578,7 +3578,7 @@ def cleanup_user_sessions(guild_id: int, user_id: int) -> int:
             with db() as conn:
                 # Delete all sessions for the specific user in this guild
                 cursor = conn.execute("""
-                    DELETE FROM sessions 
+                    DELETE FROM timeclock_sessions 
                     WHERE guild_id = %s AND user_id = %s
                 """, (guild_id, user_id))
                 deleted_count = cursor.rowcount
@@ -3654,7 +3654,7 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
         cursor = conn.execute("""
             SELECT DISTINCT s.user_id, u.display_name, u.full_name, u.avatar_url,
                    u.show_last_seen, u.show_discord_status
-            FROM sessions s
+            FROM timeclock_sessions s
             LEFT JOIN employee_profiles u ON s.user_id = u.user_id AND s.guild_id = u.guild_id
             WHERE s.guild_id = %s
             ORDER BY s.user_id
@@ -3666,19 +3666,19 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
             
             # Check if currently clocked in
             cursor = conn.execute("""
-                SELECT clock_in 
-                FROM sessions 
-                WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
+                SELECT clock_in_time as clock_in 
+                FROM timeclock_sessions 
+                WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
                 LIMIT 1
             """, (guild_id, user_id))
             active_session = cursor.fetchone()
             
             # Get most recent completed session for clock out time
             cursor = conn.execute("""
-                SELECT clock_out
-                FROM sessions
-                WHERE guild_id = %s AND user_id = %s AND clock_out IS NOT NULL
-                ORDER BY clock_out DESC
+                SELECT clock_out_time as clock_out
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NOT NULL
+                ORDER BY clock_out_time DESC
                 LIMIT 1
             """, (guild_id, user_id))
             last_completed = cursor.fetchone()
@@ -3691,11 +3691,11 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
             
             # Hours Today
             cursor = conn.execute("""
-                SELECT SUM(duration_seconds) as total
-                FROM sessions
+                SELECT SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer) as total
+                FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s 
-                AND clock_out IS NOT NULL
-                AND clock_in >= %s
+                AND clock_out_time IS NOT NULL
+                AND clock_in_time >= %s
             """, (guild_id, user_id, today_start_utc.isoformat()))
             result = cursor.fetchone()
             hours_today = result['total'] if result and result['total'] else 0
@@ -3709,11 +3709,11 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
 
             # Hours Week
             cursor = conn.execute("""
-                SELECT SUM(duration_seconds) as total
-                FROM sessions
+                SELECT SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer) as total
+                FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s 
-                AND clock_out IS NOT NULL
-                AND clock_in >= %s
+                AND clock_out_time IS NOT NULL
+                AND clock_in_time >= %s
             """, (guild_id, user_id, week_start_utc.isoformat()))
             result = cursor.fetchone()
             hours_week = result['total'] if result and result['total'] else 0
@@ -3721,11 +3721,11 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
 
             # Hours Month
             cursor = conn.execute("""
-                SELECT SUM(duration_seconds) as total
-                FROM sessions
+                SELECT SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer) as total
+                FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s 
-                AND clock_out IS NOT NULL
-                AND clock_in >= %s
+                AND clock_out_time IS NOT NULL
+                AND clock_in_time >= %s
             """, (guild_id, user_id, month_start_utc.isoformat()))
             result = cursor.fetchone()
             hours_month = result['total'] if result and result['total'] else 0
@@ -3784,7 +3784,7 @@ def get_employees_for_calendar(guild_id: int):
         # Also get any users with sessions who might not be in employee_profiles
         cursor = conn.execute("""
             SELECT DISTINCT s.user_id, p.display_name, p.full_name
-            FROM sessions s
+            FROM timeclock_sessions s
             LEFT JOIN employee_profiles p ON s.user_id = p.user_id AND s.guild_id = p.guild_id
             WHERE s.guild_id = %s
             ORDER BY COALESCE(p.display_name, p.full_name, s.user_id::text)
@@ -3818,8 +3818,9 @@ def create_adjustment_request(guild_id: int, user_id: int, request_type: str,
             
             if original_session_id:
                 cursor = conn.execute("""
-                    SELECT clock_in, clock_out, duration_seconds 
-                    FROM sessions WHERE id = %s AND guild_id = %s
+                    SELECT clock_in_time as clock_in, clock_out_time as clock_out, 
+                           EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer as duration_seconds 
+                    FROM timeclock_sessions WHERE session_id = %s AND guild_id = %s
                 """, (original_session_id, guild_id))
                 row = cursor.fetchone()
                 if row:
@@ -3893,9 +3894,9 @@ def approve_adjustment(request_id: int, guild_id: int, reviewer_user_id: int):
                 duration = int((clock_out - clock_in).total_seconds())
                 
                 conn.execute("""
-                    INSERT INTO sessions (guild_id, user_id, clock_in, clock_out, duration_seconds)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (guild_id, user_id, request['requested_clock_in'], request['requested_clock_out'], duration))
+                    INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time, clock_out_time)
+                    VALUES (%s, %s, %s, %s)
+                """, (guild_id, user_id, request['requested_clock_in'], request['requested_clock_out']))
                 
             elif req_type in ['modify_clockin', 'modify_clockout']:
                 session_id = request['original_session_id']
@@ -3907,37 +3908,28 @@ def approve_adjustment(request_id: int, guild_id: int, reviewer_user_id: int):
                 params = []
                 
                 if request['requested_clock_in']:
-                    updates.append("clock_in = %s")
+                    updates.append("clock_in_time = %s")
                     params.append(request['requested_clock_in'])
                     
                 if request['requested_clock_out']:
-                    updates.append("clock_out = %s")
+                    updates.append("clock_out_time = %s")
                     params.append(request['requested_clock_out'])
                 
-                # Recalculate duration if both exist (or one exists and we fetch the other)
-                # For simplicity, let's fetch current state and merge
-                cursor = conn.execute("SELECT clock_in, clock_out FROM sessions WHERE id = %s", (session_id,))
+                # Fetch current state to verify session exists
+                cursor = conn.execute("SELECT clock_in_time as clock_in, clock_out_time as clock_out FROM timeclock_sessions WHERE session_id = %s", (session_id,))
                 current = cursor.fetchone()
                 
                 if not current:
                     return False, "Original session not found"
                 
-                new_in = safe_parse_timestamp(request['requested_clock_in']) if request['requested_clock_in'] else safe_parse_timestamp(current['clock_in'])
-                new_out = safe_parse_timestamp(request['requested_clock_out']) if request['requested_clock_out'] else safe_parse_timestamp(current['clock_out'])
-                
-                if new_in and new_out:
-                    duration = int((new_out - new_in).total_seconds())
-                    updates.append("duration_seconds = %s")
-                    params.append(duration)
-                
                 params.append(session_id)
                 
-                query = "UPDATE sessions SET " + ', '.join(updates) + " WHERE id = %s"
+                query = "UPDATE timeclock_sessions SET " + ', '.join(updates) + " WHERE session_id = %s"
                 conn.execute(query, tuple(params))
                 
             elif req_type == 'delete_session':
                 session_id = request['original_session_id']
-                conn.execute("DELETE FROM sessions WHERE id = %s", (session_id,))
+                conn.execute("DELETE FROM timeclock_sessions WHERE session_id = %s", (session_id,))
             
             # Mark request as approved
             conn.execute("""
@@ -4195,24 +4187,24 @@ def get_user_display_name(user: discord.Member, guild_id: int) -> str:
 def get_active_session(guild_id: int, user_id: int):
     with db() as conn:
         cur = conn.execute("""
-            SELECT id, clock_in FROM sessions
-            WHERE guild_id=%s AND user_id=%s AND clock_out IS NULL
-            ORDER BY id DESC LIMIT 1
+            SELECT session_id as id, clock_in_time as clock_in FROM timeclock_sessions
+            WHERE guild_id=%s AND user_id=%s AND clock_out_time IS NULL
+            ORDER BY session_id DESC LIMIT 1
         """, (guild_id, user_id))
         return cur.fetchone()
 
 def start_session(guild_id: int, user_id: int, clock_in_iso: str):
     with db() as conn:
         conn.execute("""
-            INSERT INTO sessions (guild_id, user_id, clock_in)
+            INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time)
             VALUES (%s, %s, %s)
         """, (guild_id, user_id, clock_in_iso))
 
 def close_session(session_id: int, clock_out_iso: str, duration_s: int):
     with db() as conn:
         conn.execute("""
-            UPDATE sessions SET clock_out=%s, duration_seconds=%s WHERE id=%s
-        """, (clock_out_iso, duration_s, session_id))
+            UPDATE timeclock_sessions SET clock_out_time=%s WHERE session_id=%s
+        """, (clock_out_iso, session_id))
 
 def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, end_utc: str):
     """Get sessions for report generation within date range (UTC boundaries)."""
@@ -4220,24 +4212,26 @@ def get_sessions_report(guild_id: int, user_id: Optional[int], start_utc: str, e
         if user_id is not None:
             # Report for specific user
             cur = conn.execute("""
-                SELECT user_id, clock_in, clock_out, duration_seconds
-                FROM sessions
+                SELECT user_id, clock_in_time as clock_in, clock_out_time as clock_out,
+                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer as duration_seconds
+                FROM timeclock_sessions
                 WHERE guild_id=%s AND user_id=%s 
-                AND clock_out IS NOT NULL
-                AND clock_in < %s
-                AND clock_out >= %s
-                ORDER BY clock_in
+                AND clock_out_time IS NOT NULL
+                AND clock_in_time < %s
+                AND clock_out_time >= %s
+                ORDER BY clock_in_time
             """, (guild_id, user_id, end_utc, start_utc))
         else:
             # Report for all users
             cur = conn.execute("""
-                SELECT user_id, clock_in, clock_out, duration_seconds
-                FROM sessions
+                SELECT user_id, clock_in_time as clock_in, clock_out_time as clock_out,
+                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer as duration_seconds
+                FROM timeclock_sessions
                 WHERE guild_id=%s 
-                AND clock_out IS NOT NULL
-                AND clock_in < %s
-                AND clock_out >= %s
-                ORDER BY user_id, clock_in
+                AND clock_out_time IS NOT NULL
+                AND clock_in_time < %s
+                AND clock_out_time >= %s
+                ORDER BY user_id, clock_in_time
             """, (guild_id, end_utc, start_utc))
         return cur.fetchall()
 
@@ -4370,9 +4364,9 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
     with db() as conn:
         # Daily hours (sessions that overlap with today)
         daily_cur = conn.execute("""
-            SELECT clock_in, clock_out FROM sessions
-            WHERE guild_id=%s AND user_id=%s AND clock_out IS NOT NULL
-            AND clock_in < %s AND clock_out >= %s
+            SELECT clock_in_time as clock_in, clock_out_time as clock_out FROM timeclock_sessions
+            WHERE guild_id=%s AND user_id=%s AND clock_out_time IS NOT NULL
+            AND clock_in_time < %s AND clock_out_time >= %s
         """, (guild_id, user_id, now_utc, today_start_utc))
         daily_sessions = daily_cur.fetchall()
         
@@ -4391,9 +4385,9 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
         
         # Weekly hours (sessions that overlap with this week)
         weekly_cur = conn.execute("""
-            SELECT clock_in, clock_out FROM sessions
-            WHERE guild_id=%s AND user_id=%s AND clock_out IS NOT NULL
-            AND clock_in < %s AND clock_out >= %s
+            SELECT clock_in_time as clock_in, clock_out_time as clock_out FROM timeclock_sessions
+            WHERE guild_id=%s AND user_id=%s AND clock_out_time IS NOT NULL
+            AND clock_in_time < %s AND clock_out_time >= %s
         """, (guild_id, user_id, now_utc, week_start_utc))
         weekly_sessions = weekly_cur.fetchall()
         
@@ -4568,7 +4562,7 @@ def purge_timeclock_data_only(guild_id: int):
         with db() as conn:
             # Set timeout for database operations
                         # Delete all sessions data only
-            sessions_cursor = conn.execute("DELETE FROM sessions WHERE guild_id = %s", (guild_id,))
+            sessions_cursor = conn.execute("DELETE FROM timeclock_sessions WHERE guild_id = %s", (guild_id,))
             sessions_deleted = sessions_cursor.rowcount
             
             print(f"🗑️ Timeclock data purged for Guild {guild_id}: {sessions_deleted} sessions deleted (subscription preserved)")
@@ -4980,10 +4974,10 @@ class TimeClockView(discord.ui.View):
             # Get all currently clocked in users
             with db() as conn:
                 cursor = conn.execute("""
-                    SELECT user_id, clock_in 
-                    FROM sessions 
-                    WHERE guild_id = %s AND clock_out IS NULL
-                    ORDER BY clock_in ASC
+                    SELECT user_id, clock_in_time as clock_in 
+                    FROM timeclock_sessions 
+                    WHERE guild_id = %s AND clock_out_time IS NULL
+                    ORDER BY clock_in_time ASC
                 """, (guild_id,))
                 active_sessions = cursor.fetchall()
             
@@ -5062,10 +5056,10 @@ class TimeClockView(discord.ui.View):
                     
                     with db() as conn:
                         cursor = conn.execute("""
-                            SELECT clock_in, clock_out 
-                            FROM sessions 
+                            SELECT clock_in_time as clock_in, clock_out_time as clock_out 
+                            FROM timeclock_sessions 
                             WHERE guild_id = %s AND user_id = %s 
-                            AND clock_in >= %s AND clock_in <= %s
+                            AND clock_in_time >= %s AND clock_in_time <= %s
                         """, (guild_id, user_id, day_start_utc, day_end_utc))
                         day_sessions = cursor.fetchall()
                     
@@ -6140,7 +6134,7 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
     try:
         with db() as conn:
             cursor = conn.execute(
-                "SELECT id, clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
+                "SELECT session_id as id, clock_in_time as clock_in FROM timeclock_sessions WHERE user_id = %s AND guild_id = %s AND clock_out_time IS NULL",
                 (user_id, guild_id)
             )
             existing = cursor.fetchone()
@@ -6159,7 +6153,7 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
         now = datetime.now(timezone.utc)
         with db() as conn:
             conn.execute(
-                "INSERT INTO sessions (user_id, guild_id, clock_in) VALUES (%s, %s, %s)",
+                "INSERT INTO timeclock_sessions (user_id, guild_id, clock_in_time) VALUES (%s, %s, %s)",
                 (user_id, guild_id, now.isoformat())
             )
         
@@ -6224,7 +6218,7 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
         # Find active session
         with db() as conn:
             cursor = conn.execute(
-                "SELECT id, clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
+                "SELECT session_id as id, clock_in_time as clock_in FROM timeclock_sessions WHERE user_id = %s AND guild_id = %s AND clock_out_time IS NULL",
                 (user_id, guild_id)
             )
             session = cursor.fetchone()
@@ -6251,7 +6245,7 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
         
         with db() as conn:
             conn.execute(
-                "UPDATE sessions SET clock_out = %s WHERE id = %s",
+                "UPDATE timeclock_sessions SET clock_out_time = %s WHERE session_id = %s",
                 (now.isoformat(), session['id'])
             )
         
@@ -6326,12 +6320,12 @@ async def handle_tc_my_hours(interaction: discord.Interaction):
             cursor = conn.execute("""
                 SELECT 
                     COALESCE(SUM(
-                        EXTRACT(EPOCH FROM (COALESCE(clock_out, NOW()) - clock_in)) / 3600
+                        EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time)) / 3600
                     ), 0) as total_hours,
                     COUNT(*) as session_count
-                FROM sessions 
+                FROM timeclock_sessions 
                 WHERE user_id = %s AND guild_id = %s 
-                AND clock_in >= NOW() - INTERVAL '14 days'
+                AND clock_in_time >= NOW() - INTERVAL '14 days'
             """, (user_id, guild_id))
             row = cursor.fetchone()
         
@@ -6933,7 +6927,7 @@ async def on_guild_remove(guild):
                 print(f"   - Deleted guild settings")
                 
                 # Delete sessions
-                conn.execute("DELETE FROM sessions WHERE guild_id = %s", (guild_id_int,))
+                conn.execute("DELETE FROM timeclock_sessions WHERE guild_id = %s", (guild_id_int,))
                 print(f"   - Deleted sessions")
                 
                 # Delete server subscription record (if any non-paid entry exists)
@@ -7154,7 +7148,7 @@ async def clock_command(interaction: discord.Interaction):
         # Get current status
         with db() as conn:
             cursor = conn.execute(
-                "SELECT clock_in FROM sessions WHERE user_id = %s AND guild_id = %s AND clock_out IS NULL",
+                "SELECT clock_in_time as clock_in FROM timeclock_sessions WHERE user_id = %s AND guild_id = %s AND clock_out_time IS NULL",
                 (user_id, guild_id)
             )
             active_session = cursor.fetchone()
@@ -7195,11 +7189,11 @@ async def clock_command(interaction: discord.Interaction):
         with db() as conn:
             cursor = conn.execute("""
                 SELECT COALESCE(SUM(
-                    EXTRACT(EPOCH FROM (COALESCE(clock_out, NOW()) - clock_in)) / 3600
+                    EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time)) / 3600
                 ), 0) as week_hours
-                FROM sessions 
+                FROM timeclock_sessions 
                 WHERE user_id = %s AND guild_id = %s 
-                AND clock_in >= NOW() - INTERVAL '7 days'
+                AND clock_in_time >= NOW() - INTERVAL '7 days'
             """, (user_id, guild_id))
             row = cursor.fetchone()
             week_hours = float(row['week_hours']) if row and row['week_hours'] else 0
