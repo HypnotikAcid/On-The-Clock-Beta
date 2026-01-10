@@ -1624,9 +1624,10 @@ async function handleAdjustment(guildId, requestId, action) {
         if (data.success) {
             // Remove card from UI
             const card = document.getElementById(`req-${requestId}`);
+            const pastTense = action === 'approve' ? 'approved' : 'denied';
             if (card) {
                 card.style.opacity = '0.5';
-                card.innerHTML = `<div style="text-align: center; padding: 20px; color: ${action === 'approve' ? '#10B981' : '#EF4444'};">Request ${action}d!</div>`;
+                card.innerHTML = `<div style="text-align: center; padding: 20px; color: ${action === 'approve' ? '#10B981' : '#EF4444'};">Request ${pastTense}!</div>`;
                 setTimeout(() => loadPendingAdjustments(guildId), 1000);
             }
         } else {

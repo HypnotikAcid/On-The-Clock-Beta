@@ -90,6 +90,7 @@
         <div class="form-group">
             <label for="request-time">Correct Time:</label>
             <input type="time" id="request-time" class="form-input">
+            <small style="color: #8B949E; display: block; margin-top: 4px;">The actual time you clocked in/out or should have</small>
         </div>
         
         <div class="form-group">
@@ -132,41 +133,53 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 async function loadPendingRequests() {
+    const container = document.getElementById('pending-requests');
     try {
         const response = await fetch(`/api/server/${guildId}/adjustments?status=pending`);
         const data = await response.json();
         
         if (data.success) {
             renderRequests(data.requests || [], 'pending-requests', true);
+        } else {
+            container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
         }
     } catch (error) {
         console.error('Failed to load pending requests:', error);
+        container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
     }
 }
 
 async function loadHistory() {
+    const container = document.getElementById('history-requests');
     try {
         const response = await fetch(`/api/server/${guildId}/adjustments?status=all`);
         const data = await response.json();
         
         if (data.success) {
             renderRequests(data.requests || [], 'history-requests', false);
+        } else {
+            container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load history</p>';
         }
     } catch (error) {
         console.error('Failed to load history:', error);
+        container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load history</p>';
     }
 }
 
 async function loadMyRequests() {
+    const container = document.getElementById('my-requests');
     try {
         const response = await fetch(`/api/server/${guildId}/adjustments?user_id=${userId}`);
         const data = await response.json();
         
         if (data.success) {
             renderRequests(data.requests || [], 'my-requests', false);
+        } else {
+            container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
         }
     } catch (error) {
         console.error('Failed to load requests:', error);
+        container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
     }
 }
 
@@ -207,7 +220,7 @@ async function handleRequest(requestId, action) {
         const data = await response.json();
         
         if (data.success) {
-            DashboardUtils.showNotification(`Request ${action}d`, 'success');
+            DashboardUtils.showNotification(`Request ${action === 'approve' ? 'approved' : 'denied'}`, 'success');
             loadPendingRequests();
         } else {
             DashboardUtils.showNotification(data.error || 'Failed', 'error');
