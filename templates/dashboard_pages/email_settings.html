@@ -54,30 +54,42 @@
 const guildId = '{{ server.id }}';
 
 async function loadEmailSettings() {
+    const container = document.getElementById('recipients-list');
     try {
-        const response = await fetch(`/api/server/${guildId}/email-settings`);
+        const response = await fetch(`/api/server/${guildId}/email-recipients`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         
         if (data.success) {
-            renderRecipients(data.recipients || []);
-            document.getElementById('auto-send-toggle').checked = data.auto_send_on_clockout !== false;
+            renderRecipients(data.emails || []);
+            // Also load auto-send setting from a different endpoint or handle it here
+            const settingsResponse = await fetch(`/api/server/${guildId}/email-settings-status`);
+            if (settingsResponse.ok) {
+                const settingsData = await settingsResponse.json();
+                if (settingsData.success) {
+                    document.getElementById('auto-send-toggle').checked = settingsData.auto_send_on_clockout !== false;
+                }
+            }
+        } else {
+            container.innerHTML = `<p class="error-text">Failed to load: ${data.error || 'Unknown error'}</p>`;
         }
     } catch (error) {
         console.error('Failed to load email settings:', error);
+        container.innerHTML = `<p class="error-text">Connection error. Please try again.</p>`;
     }
 }
 
-function renderRecipients(recipients) {
+function renderRecipients(emails) {
     const container = document.getElementById('recipients-list');
     
-    if (recipients.length === 0) {
+    if (!emails || emails.length === 0) {
         container.innerHTML = '<p class="empty-state-text">No email recipients configured</p>';
         return;
     }
     
-    container.innerHTML = recipients.map(r => `
+    container.innerHTML = emails.map(r => `
         <div class="recipient-item">
-            <span class="recipient-email">${DashboardUtils.escapeHtml(r.recipient_value)}</span>
+            <span class="recipient-email">${DashboardUtils.escapeHtml(r.email)}</span>
             <button class="btn btn-danger btn-sm" onclick="removeRecipient('${r.id}')">Remove</button>
         </div>
     `).join('');

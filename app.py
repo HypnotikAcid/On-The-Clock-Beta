@@ -4553,6 +4553,40 @@ def api_update_email_settings(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
+@app.route("/api/server/<guild_id>/email-settings-status", methods=["GET"])
+@require_paid_api_access
+def api_get_email_settings_status(user_session, guild_id):
+    """API endpoint to fetch email settings status for a server"""
+    try:
+        # Verify user has access
+        guild, _ = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Fetch email settings
+        with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT auto_send_on_clockout, auto_email_before_delete FROM email_settings WHERE guild_id = %s",
+                (guild_id,)
+            )
+            settings = cursor.fetchone()
+            
+        if settings:
+            return jsonify({
+                'success': True,
+                'auto_send_on_clockout': settings['auto_send_on_clockout'],
+                'auto_email_before_delete': settings['auto_email_before_delete']
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'auto_send_on_clockout': True, # Default
+                'auto_email_before_delete': True # Default
+            })
+    except Exception as e:
+        app.logger.error(f"Error fetching email settings status: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
 @app.route("/api/server/<guild_id>/work-day-time", methods=["POST"])
 @require_paid_api_access
 def api_update_work_day_time(user_session, guild_id):
