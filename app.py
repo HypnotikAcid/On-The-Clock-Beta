@@ -5169,7 +5169,7 @@ def api_get_employee_status(user_session, guild_id, user_id):
                 SELECT id, clock_in_time FROM timeclock_sessions
                 WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
                 ORDER BY clock_in_time DESC LIMIT 1
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             current_session = cursor.fetchone()
             
             is_clocked_in = current_session is not None
@@ -5182,7 +5182,7 @@ def api_get_employee_status(user_session, guild_id, user_id):
                 WHERE guild_id = %s AND user_id = %s 
                 AND DATE(clock_in_time) = CURRENT_DATE
                 AND clock_out_time IS NOT NULL
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             hours_today = cursor.fetchone()['total'] or 0
             
             # Get hours this week
@@ -5192,7 +5192,7 @@ def api_get_employee_status(user_session, guild_id, user_id):
                 WHERE guild_id = %s AND user_id = %s 
                 AND clock_in_time >= DATE_TRUNC('week', CURRENT_DATE)
                 AND clock_out_time IS NOT NULL
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             hours_week = cursor.fetchone()['total'] or 0
             
             # Get hours this month
@@ -5202,7 +5202,7 @@ def api_get_employee_status(user_session, guild_id, user_id):
                 WHERE guild_id = %s AND user_id = %s 
                 AND clock_in_time >= DATE_TRUNC('month', CURRENT_DATE)
                 AND clock_out_time IS NOT NULL
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             hours_month = cursor.fetchone()['total'] or 0
         
         return jsonify({
@@ -5231,7 +5231,12 @@ def api_get_employee_sessions(user_session, guild_id, user_id):
         if access_level == 'employee' and str(user_session.get('user_id')) != str(user_id):
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
-        limit = min(int(request.args.get('limit', 10)), 50)
+        try:
+            limit = int(request.args.get('limit', 10))
+            if limit < 1: limit = 1
+            limit = min(limit, 50)
+        except (ValueError, TypeError):
+            limit = 10
         
         with get_db() as conn:
             cursor = conn.execute("""
@@ -5240,7 +5245,7 @@ def api_get_employee_sessions(user_session, guild_id, user_id):
                 WHERE guild_id = %s AND user_id = %s
                 ORDER BY clock_in_time DESC
                 LIMIT %s
-            """, (int(guild_id), int(user_id), limit))
+            """, (str(guild_id), str(user_id), limit))
             
             sessions = []
             for row in cursor.fetchall():
@@ -5276,7 +5281,7 @@ def api_update_entry(user_session, guild_id, entry_id):
             cursor = conn.execute("""
                 SELECT id, user_id FROM timeclock_sessions 
                 WHERE id = %s AND guild_id = %s
-            """, (int(entry_id), int(guild_id)))
+            """, (int(entry_id), str(guild_id)))
             entry = cursor.fetchone()
             
             if not entry:
@@ -5292,9 +5297,9 @@ def api_update_entry(user_session, guild_id, entry_id):
             conn.execute("""
                 UPDATE timeclock_sessions 
                 SET clock_in_time = %s, clock_out_time = %s, 
-                    duration_seconds = %s, admin_notes = %s, is_modified = TRUE
+                duration_seconds = %s, admin_notes = %s, is_modified = TRUE
                 WHERE id = %s AND guild_id = %s
-            """, (clock_in, clock_out, duration, admin_notes, int(entry_id), int(guild_id)))
+            """, (clock_in, clock_out, duration, admin_notes, int(entry_id), str(guild_id)))
         
         return jsonify({'success': True})
     except Exception as e:
@@ -5316,7 +5321,7 @@ def api_delete_entry(user_session, guild_id, entry_id):
                 DELETE FROM timeclock_sessions 
                 WHERE id = %s AND guild_id = %s
                 RETURNING id
-            """, (int(entry_id), int(guild_id)))
+            """, (int(entry_id), str(guild_id)))
             deleted = cursor.fetchone()
             
             if not deleted:
