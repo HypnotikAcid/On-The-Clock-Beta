@@ -339,6 +339,29 @@ def run_migrations():
                     WHERE es.guild_id IS NULL
                     ON CONFLICT (guild_id) DO NOTHING
                 """)
+                
+                # 15. Create employee_pins table for kiosk PIN authentication
+                print("   Checking table: employee_pins")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS employee_pins (
+                        id SERIAL PRIMARY KEY,
+                        guild_id BIGINT NOT NULL,
+                        user_id BIGINT NOT NULL,
+                        pin_hash VARCHAR(255) NOT NULL,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW(),
+                        UNIQUE(guild_id, user_id)
+                    )
+                """)
+                
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_employee_pins_guild_user 
+                    ON employee_pins(guild_id, user_id)
+                """)
+                
+                # 16. Add kiosk_mode_only to server_subscriptions
+                print("   Checking for kiosk_mode_only column")
+                cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS kiosk_mode_only BOOLEAN DEFAULT FALSE")
 
         print("✅ Database schema is up to date")
         return True

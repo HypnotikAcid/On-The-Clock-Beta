@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>On the Clock - Control Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
+            color: #C9D1D9;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .kiosk-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        .kiosk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .kiosk-logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .kiosk-logo-icon {
+            font-size: 36px;
+        }
+
+        .kiosk-logo-text {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .kiosk-time {
+            font-size: 32px;
+            font-weight: 600;
+            color: #D4AF37;
+        }
+
+        .kiosk-date {
+            font-size: 14px;
+            color: #8B949E;
+            text-align: right;
+        }
+
+        /* Screen States */
+        .screen {
+            display: none;
+            flex: 1;
+            padding-top: 30px;
+            overflow-y: auto;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Employee Grid */
+        .employee-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .employee-btn {
+            background: rgba(30, 35, 45, 0.7);
+            border: 2px solid rgba(212, 175, 55, 0.3);
+            border-radius: 16px;
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            min-height: 160px;
+        }
+
+        .employee-btn:hover, .employee-btn:active {
+            background: rgba(212, 175, 55, 0.15);
+            border-color: rgba(212, 175, 55, 0.6);
+            transform: scale(1.02);
+        }
+
+        .employee-btn.clocked-in {
+            border-color: rgba(16, 185, 129, 0.5);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .employee-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #0D1117;
+            overflow: hidden;
+        }
+
+        .employee-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .employee-name {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            color: #C9D1D9;
+        }
+
+        .employee-status {
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .employee-status.in {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10B981;
+        }
+
+        .employee-status.out {
+            background: rgba(139, 148, 158, 0.2);
+            color: #8B949E;
+        }
+
+        /* PIN Pad Screen */
+        .pin-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .pin-header {
+            text-align: center;
+        }
+
+        .pin-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #D4AF37;
+            margin-bottom: 10px;
+        }
+
+        .pin-subtitle {
+            font-size: 16px;
+            color: #8B949E;
+        }
+
+        .pin-display {
+            display: flex;
+            gap: 15px;
+        }
+
+        .pin-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 3px solid rgba(212, 175, 55, 0.5);
+            background: transparent;
+            transition: all 0.2s ease;
+        }
+
+        .pin-dot.filled {
+            background: #D4AF37;
+            border-color: #D4AF37;
+        }
+
+        .pin-error {
+            color: #EF4444;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(3, 90px);
+            gap: 15px;
+        }
+
+        .numpad-btn {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 2px solid rgba(212, 175, 55, 0.3);
+            background: rgba(30, 35, 45, 0.7);
+            color: #C9D1D9;
+            font-size: 32px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .numpad-btn:hover, .numpad-btn:active {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: rgba(212, 175, 55, 0.6);
+            transform: scale(1.05);
+        }
+
+        .numpad-btn.special {
+            font-size: 20px;
+        }
+
+        .numpad-btn.delete {
+            color: #EF4444;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 100px;
+            left: 30px;
+            background: rgba(124, 58, 237, 0.2);
+            border: 1px solid rgba(124, 58, 237, 0.4);
+            color: #A78BFA;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(124, 58, 237, 0.3);
+        }
+
+        /* Clock Actions Screen */
+        .actions-layout {
+            display: flex;
+            gap: 40px;
+            flex: 1;
+        }
+
+        .actions-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 300px;
+        }
+
+        .action-btn {
+            padding: 40px;
+            border-radius: 16px;
+            border: none;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .action-btn.clock-in {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+        }
+
+        .action-btn.clock-in:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+
+        .action-btn.clock-out {
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            color: white;
+        }
+
+        .action-btn.clock-out:hover {
+            background: linear-gradient(135deg, #DC2626, #B91C1C);
+        }
+
+        .action-btn.adjustment {
+            background: linear-gradient(135deg, #3B82F6, #2563EB);
+            color: white;
+        }
+
+        .action-btn.adjustment:hover {
+            background: linear-gradient(135deg, #2563EB, #1D4ED8);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Info Panel */
+        .info-panel {
+            flex: 1;
+            background: rgba(30, 35, 45, 0.7);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 16px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .info-user {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+        }
+
+        .info-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: bold;
+            color: #0D1117;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+        }
+
+        .info-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .info-name {
+            font-size: 28px;
+            font-weight: 700;
+            color: #C9D1D9;
+        }
+
+        .info-role {
+            font-size: 14px;
+            color: #8B949E;
+        }
+
+        .info-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: rgba(10, 15, 31, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #D4AF37;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #8B949E;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 5px;
+        }
+
+        .last-punch {
+            background: rgba(10, 15, 31, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .last-punch-label {
+            font-size: 12px;
+            color: #8B949E;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .last-punch-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #C9D1D9;
+        }
+
+        /* Success/Error Overlay */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overlay.active {
+            display: flex;
+        }
+
+        .overlay-content {
+            text-align: center;
+            padding: 60px;
+            border-radius: 20px;
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .overlay-content.success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid rgba(16, 185, 129, 0.5);
+        }
+
+        .overlay-content.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.5);
+        }
+
+        .overlay-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .overlay-message {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(212, 175, 55, 0.3);
+            border-top-color: #D4AF37;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .actions-layout {
+                flex-direction: column;
+            }
+            
+            .actions-column {
+                width: 100%;
+                flex-direction: row;
+            }
+            
+            .action-btn {
+                flex: 1;
+                padding: 30px;
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .employee-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .employee-btn {
+                padding: 20px 15px;
+                min-height: 130px;
+            }
+            
+            .employee-avatar {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            
+            .employee-name {
+                font-size: 14px;
+            }
+            
+            .numpad-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="kiosk-container">
+        <header class="kiosk-header">
+            <div class="kiosk-logo">
+                <span class="kiosk-logo-icon">⏰</span>
+                <span class="kiosk-logo-text">On the Clock</span>
+            </div>
+            <div>
+                <div class="kiosk-time" id="currentTime">--:--</div>
+                <div class="kiosk-date" id="currentDate">---</div>
+            </div>
+        </header>
+
+        <!-- Screen 1: Employee Selection -->
+        <div class="screen active" id="employeeScreen">
+            <h2 style="font-size: 24px; color: #D4AF37; margin-bottom: 10px;">Select Your Name</h2>
+            <div class="employee-grid" id="employeeGrid">
+                <!-- Employees loaded dynamically -->
+            </div>
+        </div>
+
+        <!-- Screen 2: PIN Entry -->
+        <div class="screen pin-screen" id="pinScreen">
+            <button class="back-btn" onclick="showScreen('employee')">&larr; Back</button>
+            <div class="pin-header">
+                <div class="pin-title" id="pinTitle">Enter Your PIN</div>
+                <div class="pin-subtitle" id="pinSubtitle">Enter your 4-digit PIN to continue</div>
+            </div>
+            <div class="pin-display">
+                <div class="pin-dot" id="dot1"></div>
+                <div class="pin-dot" id="dot2"></div>
+                <div class="pin-dot" id="dot3"></div>
+                <div class="pin-dot" id="dot4"></div>
+            </div>
+            <div class="pin-error" id="pinError"></div>
+            <div class="numpad">
+                <button class="numpad-btn" onclick="enterDigit('1')">1</button>
+                <button class="numpad-btn" onclick="enterDigit('2')">2</button>
+                <button class="numpad-btn" onclick="enterDigit('3')">3</button>
+                <button class="numpad-btn" onclick="enterDigit('4')">4</button>
+                <button class="numpad-btn" onclick="enterDigit('5')">5</button>
+                <button class="numpad-btn" onclick="enterDigit('6')">6</button>
+                <button class="numpad-btn" onclick="enterDigit('7')">7</button>
+                <button class="numpad-btn" onclick="enterDigit('8')">8</button>
+                <button class="numpad-btn" onclick="enterDigit('9')">9</button>
+                <button class="numpad-btn special" onclick="clearPin()">Clear</button>
+                <button class="numpad-btn" onclick="enterDigit('0')">0</button>
+                <button class="numpad-btn special delete" onclick="deleteDigit()">⌫</button>
+            </div>
+        </div>
+
+        <!-- Screen 3: Clock Actions -->
+        <div class="screen" id="actionsScreen">
+            <button class="back-btn" onclick="logout()">&larr; Log Out</button>
+            <div class="actions-layout">
+                <div class="actions-column">
+                    <button class="action-btn clock-in" id="clockInBtn" onclick="clockAction('in')">
+                        <span>▶</span> Clock In
+                    </button>
+                    <button class="action-btn clock-out" id="clockOutBtn" onclick="clockAction('out')">
+                        <span>■</span> Clock Out
+                    </button>
+                    <button class="action-btn adjustment" onclick="requestAdjustment()">
+                        <span>📝</span> Time Adjustment
+                    </button>
+                </div>
+                <div class="info-panel" id="infoPanel">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Success/Error Overlay -->
+    <div class="overlay" id="messageOverlay">
+        <div class="overlay-content" id="overlayContent">
+            <div class="overlay-icon" id="overlayIcon"></div>
+            <div class="overlay-message" id="overlayMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        const GUILD_ID = '{{ guild_id }}';
+        let currentEmployee = null;
+        let pinBuffer = '';
+        let pinMode = 'verify'; // 'verify', 'create', 'confirm'
+        let newPinBuffer = '';
+
+        // Update clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Load employees
+        async function loadEmployees() {
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/employees`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderEmployees(data.employees);
+                } else {
+                    showMessage('error', data.error || 'Failed to load employees');
+                }
+            } catch (error) {
+                console.error('Failed to load employees:', error);
+                showMessage('error', 'Connection error');
+            }
+            showLoading(false);
+        }
+
+        function renderEmployees(employees) {
+            const grid = document.getElementById('employeeGrid');
+            grid.innerHTML = employees.map(emp => `
+                <button class="employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''}" onclick="selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+                    <div class="employee-avatar">
+                        ${emp.avatar_url ? `<img src="${emp.avatar_url}" alt="${emp.display_name}">` : emp.display_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="employee-name">${escapeHtml(emp.display_name)}</div>
+                    <div class="employee-status ${emp.is_clocked_in ? 'in' : 'out'}">
+                        ${emp.is_clocked_in ? 'Clocked In' : 'Clocked Out'}
+                    </div>
+                </button>
+            `).join('');
+        }
+
+        function selectEmployee(employee) {
+            currentEmployee = employee;
+            pinBuffer = '';
+            updatePinDots();
+            document.getElementById('pinError').textContent = '';
+            
+            if (employee.has_pin) {
+                pinMode = 'verify';
+                document.getElementById('pinTitle').textContent = `Welcome, ${employee.display_name}`;
+                document.getElementById('pinSubtitle').textContent = 'Enter your 4-digit PIN';
+            } else {
+                pinMode = 'create';
+                document.getElementById('pinTitle').textContent = 'Create Your PIN';
+                document.getElementById('pinSubtitle').textContent = 'Choose a 4-digit PIN you will remember';
+            }
+            
+            showScreen('pin');
+        }
+
+        function showScreen(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screen + 'Screen').classList.add('active');
+        }
+
+        function enterDigit(digit) {
+            if (pinBuffer.length < 4) {
+                pinBuffer += digit;
+                updatePinDots();
+                
+                if (pinBuffer.length === 4) {
+                    setTimeout(handlePinComplete, 200);
+                }
+            }
+        }
+
+        function deleteDigit() {
+            pinBuffer = pinBuffer.slice(0, -1);
+            updatePinDots();
+            document.getElementById('pinError').textContent = '';
+        }
+
+        function clearPin() {
+            pinBuffer = '';
+            updatePinDots();
+            document.getElementById('pinError').textContent = '';
+        }
+
+        function updatePinDots() {
+            for (let i = 1; i <= 4; i++) {
+                const dot = document.getElementById('dot' + i);
+                dot.classList.toggle('filled', i <= pinBuffer.length);
+            }
+        }
+
+        async function handlePinComplete() {
+            if (pinMode === 'create') {
+                newPinBuffer = pinBuffer;
+                pinBuffer = '';
+                pinMode = 'confirm';
+                document.getElementById('pinTitle').textContent = 'Confirm Your PIN';
+                document.getElementById('pinSubtitle').textContent = 'Enter the same PIN again';
+                updatePinDots();
+            } else if (pinMode === 'confirm') {
+                if (pinBuffer === newPinBuffer) {
+                    await createPin(pinBuffer);
+                } else {
+                    document.getElementById('pinError').textContent = 'PINs do not match. Try again.';
+                    pinBuffer = '';
+                    pinMode = 'create';
+                    document.getElementById('pinTitle').textContent = 'Create Your PIN';
+                    document.getElementById('pinSubtitle').textContent = 'Choose a 4-digit PIN you will remember';
+                    updatePinDots();
+                }
+            } else {
+                await verifyPin(pinBuffer);
+            }
+        }
+
+        async function createPin(pin) {
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/pin/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentEmployee.user_id,
+                        pin: pin
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showActionsScreen();
+                } else {
+                    document.getElementById('pinError').textContent = data.error || 'Failed to create PIN';
+                    clearPin();
+                }
+            } catch (error) {
+                document.getElementById('pinError').textContent = 'Connection error';
+                clearPin();
+            }
+            showLoading(false);
+        }
+
+        async function verifyPin(pin) {
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/pin/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentEmployee.user_id,
+                        pin: pin
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showActionsScreen();
+                } else {
+                    document.getElementById('pinError').textContent = data.error || 'Incorrect PIN';
+                    clearPin();
+                }
+            } catch (error) {
+                document.getElementById('pinError').textContent = 'Connection error';
+                clearPin();
+            }
+            showLoading(false);
+        }
+
+        async function showActionsScreen() {
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderInfoPanel(data);
+                    updateActionButtons(data.is_clocked_in);
+                }
+            } catch (error) {
+                console.error('Failed to load employee info:', error);
+            }
+            showLoading(false);
+            showScreen('actions');
+        }
+
+        function renderInfoPanel(data) {
+            const panel = document.getElementById('infoPanel');
+            panel.innerHTML = `
+                <div class="info-user">
+                    <div class="info-avatar">
+                        ${data.avatar_url ? `<img src="${data.avatar_url}" alt="">` : currentEmployee.display_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div class="info-name">${escapeHtml(currentEmployee.display_name)}</div>
+                        <div class="info-role">${escapeHtml(data.position || 'Team Member')}</div>
+                    </div>
+                </div>
+                <div class="info-stats">
+                    <div class="stat-card">
+                        <div class="stat-value">${formatDuration(data.week_hours)}</div>
+                        <div class="stat-label">This Week</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${formatDuration(data.today_hours)}</div>
+                        <div class="stat-label">Today</div>
+                    </div>
+                </div>
+                <div class="last-punch">
+                    <div class="last-punch-label">Last Punch</div>
+                    <div class="last-punch-value">${data.last_punch || 'No recent activity'}</div>
+                </div>
+            `;
+        }
+
+        function updateActionButtons(isClockedIn) {
+            document.getElementById('clockInBtn').disabled = isClockedIn;
+            document.getElementById('clockOutBtn').disabled = !isClockedIn;
+        }
+
+        async function clockAction(action) {
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/clock`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentEmployee.user_id,
+                        action: action
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('success', action === 'in' ? 'Clocked In!' : 'Clocked Out!');
+                    setTimeout(() => {
+                        logout();
+                    }, 2000);
+                } else {
+                    showMessage('error', data.error || 'Action failed');
+                }
+            } catch (error) {
+                showMessage('error', 'Connection error');
+            }
+            showLoading(false);
+        }
+
+        function requestAdjustment() {
+            showMessage('error', 'Time adjustments are available in the dashboard');
+            setTimeout(() => {
+                document.getElementById('messageOverlay').classList.remove('active');
+            }, 2000);
+        }
+
+        function logout() {
+            currentEmployee = null;
+            pinBuffer = '';
+            pinMode = 'verify';
+            loadEmployees();
+            showScreen('employee');
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').classList.toggle('active', show);
+        }
+
+        function showMessage(type, message) {
+            const overlay = document.getElementById('messageOverlay');
+            const content = document.getElementById('overlayContent');
+            const icon = document.getElementById('overlayIcon');
+            const msg = document.getElementById('overlayMessage');
+            
+            content.className = 'overlay-content ' + type;
+            icon.textContent = type === 'success' ? '✓' : '✕';
+            msg.textContent = message;
+            
+            overlay.classList.add('active');
+            
+            setTimeout(() => {
+                overlay.classList.remove('active');
+            }, 2500);
+        }
+
+        function formatDuration(minutes) {
+            if (!minutes && minutes !== 0) return '--';
+            const hours = Math.floor(minutes / 60);
+            const mins = Math.round(minutes % 60);
+            return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        loadEmployees();
+    </script>
+</body>
+</html>

@@ -7140,6 +7140,298 @@ def api_get_employee_recent_adjustments(user_session, guild_id, user_id):
         app.logger.error(f"Error fetching recent adjustments: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ============================================
+# KIOSK CONTROL CENTER ROUTES
+# ============================================
+
+@app.route("/kiosk/<guild_id>")
+def kiosk_page(guild_id):
+    """Render the kiosk control center for a specific guild"""
+    return render_template("kiosk.html", guild_id=guild_id)
+
+@app.route("/api/kiosk/<guild_id>/employees")
+def api_kiosk_employees(guild_id):
+    """Get all employees for the kiosk display"""
+    try:
+        with get_db() as conn:
+            # Get all active employees with their clock-in status
+            cursor = conn.execute("""
+                SELECT ep.user_id, ep.display_name, ep.first_name, ep.last_name, ep.avatar_url,
+                       ep.position, ep.department,
+                       EXISTS(SELECT 1 FROM employee_pins WHERE guild_id = %s AND user_id = ep.user_id) as has_pin,
+                       EXISTS(SELECT 1 FROM sessions WHERE guild_id = %s AND user_id = ep.user_id AND clock_out IS NULL) as is_clocked_in
+                FROM employee_profiles ep
+                WHERE ep.guild_id = %s AND ep.is_active = TRUE
+                ORDER BY COALESCE(ep.display_name, ep.first_name, ep.user_id::text)
+            """, (int(guild_id), int(guild_id), int(guild_id)))
+            employees = cursor.fetchall()
+        
+        employee_list = []
+        for emp in employees:
+            display_name = emp['display_name'] or f"{emp['first_name'] or ''} {emp['last_name'] or ''}".strip() or f"User {emp['user_id']}"
+            employee_list.append({
+                'user_id': str(emp['user_id']),
+                'display_name': display_name,
+                'avatar_url': emp['avatar_url'],
+                'position': emp['position'],
+                'has_pin': emp['has_pin'],
+                'is_clocked_in': emp['is_clocked_in']
+            })
+        
+        return jsonify({'success': True, 'employees': employee_list})
+    except Exception as e:
+        app.logger.error(f"Error fetching kiosk employees: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/kiosk/<guild_id>/pin/create", methods=["POST"])
+def api_kiosk_create_pin(guild_id):
+    """Create a PIN for an employee"""
+    try:
+        import hashlib
+        data = request.get_json()
+        user_id = data.get('user_id')
+        pin = data.get('pin')
+        
+        if not user_id or not pin or len(pin) != 4 or not pin.isdigit():
+            return jsonify({'success': False, 'error': 'Invalid PIN format'}), 400
+        
+        # Hash the PIN
+        pin_hash = hashlib.sha256(f"{guild_id}:{user_id}:{pin}".encode()).hexdigest()
+        
+        with get_db() as conn:
+            conn.execute("""
+                INSERT INTO employee_pins (guild_id, user_id, pin_hash)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (guild_id, user_id) 
+                DO UPDATE SET pin_hash = EXCLUDED.pin_hash, updated_at = NOW()
+            """, (int(guild_id), int(user_id), pin_hash))
+        
+        app.logger.info(f"PIN created for user {user_id} in guild {guild_id}")
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error creating PIN: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/kiosk/<guild_id>/pin/verify", methods=["POST"])
+def api_kiosk_verify_pin(guild_id):
+    """Verify an employee's PIN"""
+    try:
+        import hashlib
+        data = request.get_json()
+        user_id = data.get('user_id')
+        pin = data.get('pin')
+        
+        if not user_id or not pin:
+            return jsonify({'success': False, 'error': 'Missing credentials'}), 400
+        
+        # Hash the PIN to compare
+        pin_hash = hashlib.sha256(f"{guild_id}:{user_id}:{pin}".encode()).hexdigest()
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT pin_hash FROM employee_pins
+                WHERE guild_id = %s AND user_id = %s
+            """, (int(guild_id), int(user_id)))
+            result = cursor.fetchone()
+        
+        if not result or result['pin_hash'] != pin_hash:
+            return jsonify({'success': False, 'error': 'Incorrect PIN'}), 401
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error verifying PIN: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/kiosk/<guild_id>/employee/<user_id>/info")
+def api_kiosk_employee_info(guild_id, user_id):
+    """Get employee info for the kiosk action screen"""
+    try:
+        from datetime import timedelta
+        
+        with get_db() as conn:
+            # Get employee profile
+            cursor = conn.execute("""
+                SELECT display_name, first_name, last_name, avatar_url, position, department
+                FROM employee_profiles
+                WHERE guild_id = %s AND user_id = %s
+            """, (int(guild_id), int(user_id)))
+            profile = cursor.fetchone()
+            
+            # Check if clocked in
+            cursor = conn.execute("""
+                SELECT clock_in FROM sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
+                ORDER BY clock_in DESC LIMIT 1
+            """, (int(guild_id), int(user_id)))
+            active_session = cursor.fetchone()
+            
+            # Get today's hours
+            today = datetime.now().date()
+            cursor = conn.execute("""
+                SELECT COALESCE(SUM(duration_seconds), 0) as total
+                FROM sessions
+                WHERE guild_id = %s AND user_id = %s 
+                AND clock_in::date = %s AND clock_out IS NOT NULL
+            """, (int(guild_id), int(user_id), today))
+            today_result = cursor.fetchone()
+            today_minutes = (today_result['total'] or 0) / 60
+            
+            # Add current session time if clocked in
+            if active_session:
+                elapsed = (datetime.now(active_session['clock_in'].tzinfo) - active_session['clock_in']).total_seconds()
+                today_minutes += elapsed / 60
+            
+            # Get week's hours (Monday to Sunday)
+            week_start = today - timedelta(days=today.weekday())
+            cursor = conn.execute("""
+                SELECT COALESCE(SUM(duration_seconds), 0) as total
+                FROM sessions
+                WHERE guild_id = %s AND user_id = %s 
+                AND clock_in::date >= %s AND clock_out IS NOT NULL
+            """, (int(guild_id), int(user_id), week_start))
+            week_result = cursor.fetchone()
+            week_minutes = (week_result['total'] or 0) / 60 + (today_minutes if active_session else 0)
+            
+            # Get last punch
+            cursor = conn.execute("""
+                SELECT clock_in, clock_out FROM sessions
+                WHERE guild_id = %s AND user_id = %s
+                ORDER BY COALESCE(clock_out, clock_in) DESC LIMIT 1
+            """, (int(guild_id), int(user_id)))
+            last_session = cursor.fetchone()
+            
+            last_punch = None
+            if last_session:
+                if last_session['clock_out']:
+                    last_punch = f"Clocked out {last_session['clock_out'].strftime('%I:%M %p on %b %d')}"
+                else:
+                    last_punch = f"Clocked in at {last_session['clock_in'].strftime('%I:%M %p')}"
+        
+        return jsonify({
+            'success': True,
+            'avatar_url': profile['avatar_url'] if profile else None,
+            'position': profile['position'] if profile else None,
+            'is_clocked_in': active_session is not None,
+            'today_hours': round(today_minutes),
+            'week_hours': round(week_minutes),
+            'last_punch': last_punch
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching kiosk employee info: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/kiosk/<guild_id>/clock", methods=["POST"])
+def api_kiosk_clock(guild_id):
+    """Handle clock in/out from kiosk"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        action = data.get('action')  # 'in' or 'out'
+        
+        if not user_id or action not in ['in', 'out']:
+            return jsonify({'success': False, 'error': 'Invalid request'}), 400
+        
+        now = datetime.now()
+        
+        with get_db() as conn:
+            if action == 'in':
+                # Check not already clocked in
+                cursor = conn.execute("""
+                    SELECT id FROM sessions
+                    WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
+                """, (int(guild_id), int(user_id)))
+                if cursor.fetchone():
+                    return jsonify({'success': False, 'error': 'Already clocked in'}), 400
+                
+                # Create new session
+                conn.execute("""
+                    INSERT INTO sessions (guild_id, user_id, clock_in)
+                    VALUES (%s, %s, %s)
+                """, (int(guild_id), int(user_id), now))
+                
+                app.logger.info(f"Kiosk clock IN: user {user_id} in guild {guild_id}")
+                
+            else:  # action == 'out'
+                # Find active session
+                cursor = conn.execute("""
+                    SELECT id, clock_in FROM sessions
+                    WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
+                    ORDER BY clock_in DESC LIMIT 1
+                """, (int(guild_id), int(user_id)))
+                session = cursor.fetchone()
+                
+                if not session:
+                    return jsonify({'success': False, 'error': 'Not clocked in'}), 400
+                
+                # Calculate duration
+                duration = int((now - session['clock_in'].replace(tzinfo=None)).total_seconds())
+                
+                # Update session
+                conn.execute("""
+                    UPDATE sessions 
+                    SET clock_out = %s, duration_seconds = %s
+                    WHERE id = %s
+                """, (now, duration, session['id']))
+                
+                app.logger.info(f"Kiosk clock OUT: user {user_id} in guild {guild_id}, duration {duration}s")
+        
+        return jsonify({'success': True, 'action': action})
+    except Exception as e:
+        app.logger.error(f"Error with kiosk clock action: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/server/<guild_id>/kiosk-mode", methods=["GET"])
+@require_paid_api_access
+def api_get_kiosk_mode(user_session, guild_id):
+    """Get kiosk mode setting for a server"""
+    try:
+        guild, _ = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT kiosk_mode_only FROM server_subscriptions WHERE guild_id = %s
+            """, (int(guild_id),))
+            result = cursor.fetchone()
+        
+        return jsonify({
+            'success': True,
+            'kiosk_mode_only': result['kiosk_mode_only'] if result else False
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching kiosk mode: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/server/<guild_id>/kiosk-mode", methods=["POST"])
+@require_paid_api_access
+def api_set_kiosk_mode(user_session, guild_id):
+    """Set kiosk mode setting for a server"""
+    try:
+        guild, _ = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        kiosk_mode_only = bool(data.get('kiosk_mode_only', False))
+        
+        with get_db() as conn:
+            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = %s", (int(guild_id),))
+            if cursor.fetchone():
+                conn.execute("""
+                    UPDATE server_subscriptions SET kiosk_mode_only = %s WHERE guild_id = %s
+                """, (kiosk_mode_only, int(guild_id)))
+            else:
+                conn.execute("""
+                    INSERT INTO server_subscriptions (guild_id, kiosk_mode_only) VALUES (%s, %s)
+                """, (int(guild_id), kiosk_mode_only))
+        
+        app.logger.info(f"Kiosk mode set to {kiosk_mode_only} for guild {guild_id}")
+        return jsonify({'success': True, 'kiosk_mode_only': kiosk_mode_only})
+    except Exception as e:
+        app.logger.error(f"Error setting kiosk mode: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_ENV") != "production"

@@ -3275,6 +3275,24 @@ def is_mobile_restricted(guild_id: int) -> bool:
         
         return bool(result['restrict_mobile_clockin'])
 
+def is_kiosk_mode_only(guild_id: int) -> bool:
+    """
+    Check if kiosk mode is enabled for a server.
+    When enabled, Discord clock buttons are disabled and employees must use the kiosk.
+    Returns True if kiosk mode is enabled, False otherwise.
+    Defaults to False (Discord clock allowed) if no record exists.
+    """
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT kiosk_mode_only FROM server_subscriptions WHERE guild_id = %s",
+            (guild_id,)
+        )
+        result = cursor.fetchone()
+        if not result:
+            return False  # Default to allowing Discord clock
+        
+        return bool(result.get('kiosk_mode_only', False))
+
 async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purchase"):
     """
     Send a welcome message to the server when bot access is granted.
@@ -5186,6 +5204,16 @@ class TimeClockView(discord.ui.View):
                 )
                 return
             
+            # Check kiosk mode restriction
+            if is_kiosk_mode_only(guild_id):
+                await interaction.followup.send(
+                    "📱 **Kiosk Mode Only**\n"
+                    "Your server administrator has enabled Kiosk Mode.\n"
+                    "Please use the in-store kiosk tablet to clock in.",
+                    ephemeral=True
+                )
+                return
+            
             if get_active_session(guild_id, user_id):
                 await interaction.followup.send("You're already clocked in.", ephemeral=True)
                 return
@@ -5307,6 +5335,16 @@ class TimeClockView(discord.ui.View):
                     "📱 **Mobile Clock-Out Restricted**\n"
                     "Your server administrator has disabled mobile/tablet clock-outs.\n"
                     "Please use a desktop or web browser to clock out.",
+                    ephemeral=True
+                )
+                return
+            
+            # Check kiosk mode restriction
+            if is_kiosk_mode_only(guild_id):
+                await interaction.followup.send(
+                    "📱 **Kiosk Mode Only**\n"
+                    "Your server administrator has enabled Kiosk Mode.\n"
+                    "Please use the in-store kiosk tablet to clock out.",
                     ephemeral=True
                 )
                 return

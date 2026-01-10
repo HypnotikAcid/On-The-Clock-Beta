@@ -9,6 +9,33 @@
 </div>
 
 <div class="tiles-grid">
+    {% if user_role == 'admin' %}
+    <div class="tile">
+        <h2><span class="tile-icon">📱</span>Kiosk Mode</h2>
+        <p class="tile-description">Enable tablet-based clock in/out for your location</p>
+        
+        <div class="setting-row">
+            <div class="setting-info">
+                <span class="setting-label">Kiosk Mode Only</span>
+                <span class="setting-description">Disable Discord clock buttons - employees must use the kiosk</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="kiosk-mode-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        
+        <div class="kiosk-url-section" style="margin-top: 20px; padding: 15px; background: rgba(10, 15, 31, 0.5); border-radius: 8px;">
+            <div style="font-size: 12px; color: #8B949E; margin-bottom: 8px;">KIOSK URL</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="text" id="kiosk-url" class="form-input" readonly value="Loading..." style="flex: 1; font-family: monospace; font-size: 12px;">
+                <button class="btn btn-secondary btn-sm" onclick="copyKioskUrl()">Copy</button>
+            </div>
+            <div style="font-size: 11px; color: #8B949E; margin-top: 8px;">Open this URL on your store tablet to use the kiosk</div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="tile">
         <h2><span class="tile-icon">🧪</span>Beta Features</h2>
         <p class="tile-description">Try out new features before they're released</p>
@@ -181,6 +208,64 @@ if (document.getElementById('save-profile-btn')) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', loadBetaFeatures);
+// Kiosk mode functions
+async function loadKioskSettings() {
+    const kioskToggle = document.getElementById('kiosk-mode-toggle');
+    const kioskUrl = document.getElementById('kiosk-url');
+    
+    if (!kioskToggle) return; // Not admin
+    
+    // Set kiosk URL
+    const baseUrl = window.location.origin;
+    kioskUrl.value = `${baseUrl}/kiosk/${guildId}`;
+    
+    // Load current setting
+    try {
+        const response = await fetch(`/api/server/${guildId}/kiosk-mode`);
+        const data = await response.json();
+        if (data.success) {
+            kioskToggle.checked = data.kiosk_mode_only;
+        }
+    } catch (error) {
+        console.error('Failed to load kiosk settings:', error);
+    }
+    
+    // Handle toggle change
+    kioskToggle.addEventListener('change', async function() {
+        try {
+            const response = await fetch(`/api/server/${guildId}/kiosk-mode`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ kiosk_mode_only: this.checked })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                DashboardUtils.showNotification(
+                    this.checked ? 'Kiosk Mode enabled - Discord clock buttons are now disabled' : 'Kiosk Mode disabled',
+                    'success'
+                );
+            } else {
+                this.checked = !this.checked;
+                DashboardUtils.showNotification(data.error || 'Failed to update', 'error');
+            }
+        } catch (error) {
+            this.checked = !this.checked;
+            DashboardUtils.showNotification('Failed to update kiosk mode', 'error');
+        }
+    });
+}
+
+function copyKioskUrl() {
+    const urlInput = document.getElementById('kiosk-url');
+    urlInput.select();
+    document.execCommand('copy');
+    DashboardUtils.showNotification('Kiosk URL copied to clipboard', 'success');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadBetaFeatures();
+    loadKioskSettings();
+});
 </script>
 {% endblock %}
