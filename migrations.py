@@ -310,6 +310,10 @@ def run_migrations():
                 print("   Checking for grant_source column")
                 cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS grant_source TEXT")
                 
+                # 13. Add source column to time_adjustment_requests for tracking origin (dashboard, kiosk, discord)
+                print("   Checking for adjustment request source column")
+                cur.execute("ALTER TABLE time_adjustment_requests ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'dashboard'")
+                
                 # 13. Create email_recipients table for storing report recipients per guild
                 print("   Checking table: email_recipients")
                 cur.execute("""

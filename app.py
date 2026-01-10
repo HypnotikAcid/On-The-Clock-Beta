@@ -7609,6 +7609,257 @@ def api_set_kiosk_mode(user_session, guild_id):
         app.logger.error(f"Error setting kiosk mode: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route("/api/kiosk/<guild_id>/employee/<user_id>/today-sessions")
+def api_kiosk_today_sessions(guild_id, user_id):
+    """Get today's sessions for a kiosk employee - used for time adjustment modal"""
+    try:
+        from datetime import datetime, timezone
+        import pytz
+        
+        with get_db() as conn:
+            # Get guild timezone
+            cursor = conn.execute(
+                "SELECT timezone FROM guild_settings WHERE guild_id = %s",
+                (int(guild_id),)
+            )
+            tz_row = cursor.fetchone()
+            guild_tz_str = tz_row['timezone'] if tz_row else 'America/New_York'
+            guild_tz = pytz.timezone(guild_tz_str)
+            
+            # Calculate today's date range in guild timezone
+            now_utc = datetime.now(timezone.utc)
+            now_local = now_utc.astimezone(guild_tz)
+            today_start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = now_local.replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            # Convert to UTC for query
+            today_start_utc = today_start.astimezone(timezone.utc)
+            today_end_utc = today_end.astimezone(timezone.utc)
+            
+            # Get today's sessions
+            cursor = conn.execute("""
+                SELECT session_id, clock_in_time, clock_out_time,
+                       EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time)) as duration_seconds
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s
+                AND clock_in_time >= %s AND clock_in_time <= %s
+                ORDER BY clock_in_time ASC
+            """, (str(guild_id), str(user_id), today_start_utc, today_end_utc))
+            
+            sessions = []
+            total_seconds = 0
+            is_clocked_in = False
+            
+            for row in cursor.fetchall():
+                clock_in_utc = row['clock_in_time']
+                clock_out_utc = row['clock_out_time']
+                
+                # Convert to local time
+                if clock_in_utc:
+                    if clock_in_utc.tzinfo is None:
+                        clock_in_utc = clock_in_utc.replace(tzinfo=timezone.utc)
+                    clock_in_local = clock_in_utc.astimezone(guild_tz)
+                else:
+                    clock_in_local = None
+                
+                if clock_out_utc:
+                    if clock_out_utc.tzinfo is None:
+                        clock_out_utc = clock_out_utc.replace(tzinfo=timezone.utc)
+                    clock_out_local = clock_out_utc.astimezone(guild_tz)
+                else:
+                    clock_out_local = None
+                    is_clocked_in = True  # No clock out means currently clocked in
+                
+                duration = row['duration_seconds'] or 0
+                total_seconds += duration
+                
+                sessions.append({
+                    'session_id': row['session_id'],
+                    'clock_in': clock_in_local.strftime('%H:%M') if clock_in_local else None,
+                    'clock_in_iso': clock_in_utc.isoformat() if clock_in_utc else None,
+                    'clock_out': clock_out_local.strftime('%H:%M') if clock_out_local else None,
+                    'clock_out_iso': clock_out_utc.isoformat() if clock_out_utc else None,
+                    'duration_minutes': int(duration / 60),
+                    'is_active': clock_out_utc is None
+                })
+            
+            return jsonify({
+                'success': True,
+                'sessions': sessions,
+                'is_clocked_in': is_clocked_in,
+                'today_total_minutes': int(total_seconds / 60),
+                'date': now_local.strftime('%Y-%m-%d'),
+                'timezone': guild_tz_str
+            })
+            
+    except Exception as e:
+        app.logger.error(f"Error fetching kiosk today sessions: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route("/api/kiosk/<guild_id>/adjustment", methods=["POST"])
+def api_kiosk_submit_adjustment(guild_id):
+    """
+    Submit a time adjustment request from the kiosk.
+    Uses the same create_adjustment_request function as dashboard.
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        user_id = data.get('user_id')
+        reason = data.get('reason', '').strip()
+        changes = data.get('changes', [])
+        
+        if not user_id:
+            return jsonify({'success': False, 'error': 'User ID is required'}), 400
+        if not reason:
+            return jsonify({'success': False, 'error': 'Please provide a reason for the adjustment'}), 400
+        if not changes or len(changes) == 0:
+            return jsonify({'success': False, 'error': 'No changes provided'}), 400
+        
+        user_id = int(user_id)
+        guild_id_int = int(guild_id)
+        
+        from datetime import datetime, timezone
+        import pytz
+        
+        created_requests = []
+        
+        with get_db() as conn:
+            # Get guild timezone
+            cursor = conn.execute(
+                "SELECT timezone FROM guild_settings WHERE guild_id = %s",
+                (guild_id_int,)
+            )
+            tz_row = cursor.fetchone()
+            guild_tz_str = tz_row['timezone'] if tz_row else 'America/New_York'
+            guild_tz = pytz.timezone(guild_tz_str)
+            
+            # Get today's date
+            now_local = datetime.now(timezone.utc).astimezone(guild_tz)
+            session_date = now_local.strftime('%Y-%m-%d')
+            
+            for change in changes:
+                session_id = change.get('session_id')
+                new_clock_in = change.get('new_clock_in')
+                new_clock_out = change.get('new_clock_out')
+                is_new = change.get('is_new', False)
+                
+                # For new sessions
+                if is_new:
+                    if not new_clock_in or not new_clock_out:
+                        continue  # Skip incomplete new sessions
+                    
+                    # Parse times for new session
+                    try:
+                        date_parts = session_date.split('-')
+                        in_parts = new_clock_in.split(':')
+                        out_parts = new_clock_out.split(':')
+                        
+                        in_local = datetime(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
+                                           int(in_parts[0]), int(in_parts[1]))
+                        out_local = datetime(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
+                                            int(out_parts[0]), int(out_parts[1]))
+                        
+                        requested_clock_in = guild_tz.localize(in_local).astimezone(pytz.utc)
+                        requested_clock_out = guild_tz.localize(out_local).astimezone(pytz.utc)
+                        
+                        # Insert adjustment request for new session
+                        cursor = conn.execute("""
+                            INSERT INTO time_adjustment_requests 
+                            (guild_id, user_id, request_type, original_session_id,
+                             requested_clock_in, requested_clock_out, reason, status, source)
+                            VALUES (%s, %s, 'add_session', NULL, %s, %s, %s, 'pending', 'kiosk')
+                            RETURNING id
+                        """, (guild_id_int, user_id, requested_clock_in, requested_clock_out, reason))
+                        
+                        result = cursor.fetchone()
+                        if result:
+                            created_requests.append(result['id'])
+                            
+                    except Exception as e:
+                        app.logger.error(f"Error parsing new session times: {e}")
+                        continue
+                        
+                else:
+                    # Modifying existing session
+                    if not session_id:
+                        continue
+                    
+                    # Verify session belongs to user
+                    cursor = conn.execute("""
+                        SELECT session_id, clock_in_time, clock_out_time
+                        FROM timeclock_sessions
+                        WHERE session_id = %s AND guild_id = %s AND user_id = %s
+                    """, (session_id, str(guild_id), str(user_id)))
+                    
+                    original = cursor.fetchone()
+                    if not original:
+                        continue  # Skip invalid sessions
+                    
+                    # Parse new times
+                    requested_clock_in = None
+                    requested_clock_out = None
+                    request_type = 'modify_clockin'
+                    
+                    if new_clock_in:
+                        try:
+                            date_parts = session_date.split('-')
+                            time_parts = new_clock_in.split(':')
+                            local_dt = datetime(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
+                                               int(time_parts[0]), int(time_parts[1]))
+                            requested_clock_in = guild_tz.localize(local_dt).astimezone(pytz.utc)
+                        except Exception as e:
+                            app.logger.error(f"Error parsing clock_in: {e}")
+                    
+                    if new_clock_out:
+                        try:
+                            date_parts = session_date.split('-')
+                            time_parts = new_clock_out.split(':')
+                            local_dt = datetime(int(date_parts[0]), int(date_parts[1]), int(date_parts[2]),
+                                               int(time_parts[0]), int(time_parts[1]))
+                            requested_clock_out = guild_tz.localize(local_dt).astimezone(pytz.utc)
+                            request_type = 'modify_clockout'
+                        except Exception as e:
+                            app.logger.error(f"Error parsing clock_out: {e}")
+                    
+                    if requested_clock_in or requested_clock_out:
+                        # Insert adjustment request
+                        cursor = conn.execute("""
+                            INSERT INTO time_adjustment_requests 
+                            (guild_id, user_id, request_type, original_session_id,
+                             original_clock_in, original_clock_out,
+                             requested_clock_in, requested_clock_out, reason, status, source)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', 'kiosk')
+                            RETURNING id
+                        """, (guild_id_int, user_id, request_type, session_id,
+                              original['clock_in_time'], original['clock_out_time'],
+                              requested_clock_in, requested_clock_out, reason))
+                        
+                        result = cursor.fetchone()
+                        if result:
+                            created_requests.append(result['id'])
+        
+        if created_requests:
+            app.logger.info(f"Kiosk adjustment requests created: {created_requests} for user {user_id} in guild {guild_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Adjustment request submitted for admin review',
+                'request_ids': created_requests
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No valid changes to submit'
+            }), 400
+            
+    except Exception as e:
+        app.logger.error(f"Error submitting kiosk adjustment: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_ENV") != "production"
