@@ -1854,13 +1854,16 @@ def dashboard_ban_management(user_session, guild_id):
 @app.route("/dashboard/server/<guild_id>/beta")
 @require_auth
 def dashboard_beta_settings(user_session, guild_id):
-    """Beta settings page"""
+    """Beta settings page (admin only)"""
     if not guild_id.isdigit() or len(guild_id) > 20:
         return redirect('/dashboard')
     
     context, error = get_server_page_context(user_session, guild_id, 'beta')
     if error:
         return error
+    
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
     
     return render_template('dashboard_pages/beta_settings.html', **context)
 
@@ -5002,9 +5005,9 @@ def api_get_server_settings(user_session, guild_id):
 @app.route("/api/server/<guild_id>/employees", methods=["GET"])
 @require_api_auth
 def api_get_server_employees(user_session, guild_id):
-    """API endpoint to fetch employees for dashboard pages"""
+    """API endpoint to fetch employees for dashboard pages (admin only)"""
     try:
-        guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
+        guild, access_level = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         

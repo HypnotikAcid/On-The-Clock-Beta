@@ -98,12 +98,11 @@
                     <span class="nav-item-icon">🚫</span>
                     <span>Ban Management</span>
                 </a>
-                {% endif %}
-                
                 <a href="/dashboard/server/{{ server.id }}/beta" class="nav-item {% if active_page == 'beta' %}active{% endif %}">
                     <span class="nav-item-icon">🧪</span>
                     <span>Beta Settings</span>
                 </a>
+                {% endif %}
                 
                 {% else %}
                 <div class="nav-section-title">Navigation</div>
