@@ -113,10 +113,71 @@
             border-color: rgba(212, 175, 55, 0.15);
         }
 
-        .nav-item.active {
-            background: rgba(212, 175, 55, 0.15);
-            border-color: rgba(212, 175, 55, 0.3);
-            color: #D4AF37;
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .status-badge.in {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10B981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-badge.out {
+            background: rgba(139, 148, 158, 0.15);
+            color: #8B949E;
+            border: 1px solid rgba(139, 148, 158, 0.3);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(139, 148, 158, 0.1);
+            border-radius: 10px;
+            margin-top: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #D4AF37, #F4E5A1);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        /* Anomaly Warning */
+        .anomaly-warning {
+            color: #EF4444;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            margin-top: 4px;
+            font-weight: 600;
+        }
+
+        /* Upgrade Prompt */
+        .upgrade-banner-mini {
+            background: linear-gradient(90deg, rgba(212, 175, 55, 0.1), rgba(124, 58, 237, 0.1));
+            border-left: 3px solid #D4AF37;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .nav-item-icon {

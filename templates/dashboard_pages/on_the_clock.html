@@ -31,6 +31,10 @@
                 <span class="stat-label">Today:</span>
                 <span class="stat-value" id="hours-today">--</span>
             </div>
+            <div class="progress-container">
+                <div id="today-progress" class="progress-bar" style="width: 0%"></div>
+            </div>
+            <p style="font-size: 11px; color: #8B949E; margin-top: 4px;">Goal: 8h</p>
             <div class="stat-row">
                 <span class="stat-label">This Week:</span>
                 <span class="stat-value" id="hours-week">--</span>
@@ -57,6 +61,13 @@
         <div id="recent-sessions" class="sessions-list">
             <div class="loading-placeholder">Loading sessions...</div>
         </div>
+
+        {% if not server.subscription or server.subscription == 'free' %}
+        <div class="upgrade-banner-mini">
+            <span>Free Tier: 7-day data retention</span>
+            <a href="/dashboard/server/{{ server.id }}/upgrade" class="btn btn-sm btn-primary">Upgrade to 30-day Pro</a>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -85,6 +96,11 @@ async function loadClockStatus() {
             }
             
             document.getElementById('hours-today').textContent = DashboardUtils.formatDuration(data.hours_today || 0);
+            
+            // Update progress bar (cap at 8h = 480 mins)
+            const progress = Math.min(100, ((data.hours_today || 0) / 480) * 100);
+            document.getElementById('today-progress').style.width = `${progress}%`;
+            
             document.getElementById('hours-week').textContent = DashboardUtils.formatDuration(data.hours_this_week || 0);
             document.getElementById('hours-month').textContent = DashboardUtils.formatDuration(data.hours_this_month || 0);
         } else {

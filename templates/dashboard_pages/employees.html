@@ -74,11 +74,14 @@ function renderEmployees(employees) {
             </div>
             <div class="employee-info">
                 <div class="employee-name">${DashboardUtils.escapeHtml(emp.display_name || emp.username)}</div>
-                <div class="employee-status ${emp.is_clocked_in ? 'status-in' : 'status-out'}">
+                <div class="status-badge ${emp.is_clocked_in ? 'in' : 'out'}">
                     ${emp.is_clocked_in ? '🟢 Clocked In' : '⚪ Clocked Out'}
                 </div>
                 ${emp.is_clocked_in && emp.current_session_duration ? 
-                    `<div class="session-time">Session: ${DashboardUtils.formatDuration(emp.current_session_duration)}</div>` : 
+                    `
+                    <div class="session-time">Session: ${DashboardUtils.formatDuration(emp.current_session_duration)}</div>
+                    ${emp.current_session_duration > 720 ? '<div class="anomaly-warning">⚠️ Long Session (>12h)</div>' : ''}
+                    ` : 
                     ''}
             </div>
             ${emp.is_clocked_in ? `
