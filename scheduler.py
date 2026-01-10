@@ -174,13 +174,14 @@ async def send_daily_report_for_guild(guild_id: int):
             end_utc = end_of_day.astimezone(timezone.utc).isoformat()
             
             cursor.execute("""
-                SELECT user_id, clock_in, clock_out, duration_seconds
-                FROM sessions
+                SELECT user_id, clock_in_time as clock_in, clock_out_time as clock_out,
+                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer as duration_seconds
+                FROM timeclock_sessions
                 WHERE guild_id = %s 
-                AND clock_out IS NOT NULL
-                AND clock_in >= %s
-                AND clock_out <= %s
-                ORDER BY user_id, clock_in
+                AND clock_out_time IS NOT NULL
+                AND clock_in_time >= %s
+                AND clock_out_time <= %s
+                ORDER BY user_id, clock_in_time
             """, (guild_id, start_utc, end_utc))
             
             sessions = cursor.fetchall()
@@ -268,11 +269,11 @@ async def send_deletion_warnings():
             
             with db() as cursor:
                 cursor.execute("""
-                    SELECT COUNT(*) as count FROM sessions
+                    SELECT COUNT(*) as count FROM timeclock_sessions
                     WHERE guild_id = %s
-                    AND clock_out IS NOT NULL
-                    AND clock_out < %s
-                    AND clock_out >= %s
+                    AND clock_out_time IS NOT NULL
+                    AND clock_out_time < %s
+                    AND clock_out_time >= %s
                 """, (guild_id, warning_time.isoformat(), cutoff_time.isoformat()))
                 
                 count = cursor.fetchone()['count']
@@ -389,12 +390,12 @@ async def send_predeletion_dm_warnings():
         with db() as cursor:
             cursor.execute("""
                 SELECT DISTINCT s.guild_id, bg.guild_name
-                FROM sessions s
+                FROM timeclock_sessions s
                 JOIN bot_guilds bg ON CAST(s.guild_id AS TEXT) = bg.guild_id
                 LEFT JOIN server_subscriptions ss ON s.guild_id = ss.guild_id
                 WHERE COALESCE(ss.tier, 'free') = 'free'
-                AND s.clock_in < NOW() - INTERVAL '20 hours'
-                AND s.clock_in > NOW() - INTERVAL '24 hours'
+                AND s.clock_in_time < NOW() - INTERVAL '20 hours'
+                AND s.clock_in_time > NOW() - INTERVAL '24 hours'
             """)
             guilds_to_warn = cursor.fetchall()
         
