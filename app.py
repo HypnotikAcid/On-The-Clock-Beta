@@ -5014,21 +5014,21 @@ def api_get_server_employees(user_session, guild_id):
         employees = []
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT ep.user_id, ep.discord_username, ep.discord_display_name,
+                SELECT ep.user_id, ep.full_name, ep.display_name,
                        ep.is_active, ep.avatar_url,
                        (SELECT COUNT(*) > 0 FROM time_sessions ts 
                         WHERE ts.user_id = ep.user_id AND ts.guild_id = ep.guild_id 
                         AND ts.clock_out_time IS NULL) as is_clocked_in
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.is_active = TRUE
-                ORDER BY ep.discord_display_name
+                ORDER BY COALESCE(ep.display_name, ep.full_name)
             """, (int(guild_id),))
             
             for row in cursor.fetchall():
                 employees.append({
                     'user_id': str(row['user_id']),
-                    'username': row['discord_username'],
-                    'display_name': row['discord_display_name'] or row['discord_username'],
+                    'username': row['full_name'] or '',
+                    'display_name': row['display_name'] or row['full_name'] or 'Unknown',
                     'is_active': row['is_active'],
                     'is_clocked_in': row['is_clocked_in'],
                     'avatar_url': row['avatar_url']
@@ -5057,12 +5057,12 @@ def api_get_server_roles(user_session, guild_id):
         with get_db() as conn:
             cursor = conn.execute("""
                 SELECT role_id FROM admin_roles WHERE guild_id = %s
-            """, (int(guild_id),))
+            """, (str(guild_id),))
             admin_role_ids = [str(row['role_id']) for row in cursor.fetchall()]
             
             cursor = conn.execute("""
                 SELECT role_id FROM employee_roles WHERE guild_id = %s
-            """, (int(guild_id),))
+            """, (str(guild_id),))
             employee_role_ids = [str(row['role_id']) for row in cursor.fetchall()]
         
         for role in all_roles:
