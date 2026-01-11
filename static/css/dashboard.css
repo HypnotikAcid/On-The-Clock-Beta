@@ -329,6 +329,15 @@
             transition: margin-left 0.3s ease;
         }
 
+        /* On tablet/mobile, remove sidebar margin since sidebar is hidden */
+        @media (max-width: 1024px) {
+            .content-area {
+                margin-left: 0;
+                padding: 20px;
+                padding-top: 70px; /* Space for hamburger button */
+            }
+        }
+
         .content-section {
             display: none;
             animation: fadeIn 0.3s ease;
