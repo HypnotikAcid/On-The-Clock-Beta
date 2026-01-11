@@ -7551,10 +7551,205 @@ def api_kiosk_clock(guild_id):
                 """, (now, session['session_id']))
                 
                 app.logger.info(f"Kiosk clock OUT: user {user_id} in guild {guild_id}")
+                
+                # Return session_id for email functionality
+                return jsonify({'success': True, 'action': action, 'session_id': session['session_id']})
         
         return jsonify({'success': True, 'action': action})
     except Exception as e:
         app.logger.error(f"Error with kiosk clock action: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/kiosk/<guild_id>/employee/<user_id>/email")
+def api_kiosk_get_employee_email(guild_id, user_id):
+    """Get saved email for kiosk employee (for auto-population)"""
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT email, timesheet_email FROM employee_profiles
+                WHERE guild_id = %s AND user_id = %s
+            """, (int(guild_id), int(user_id)))
+            profile = cursor.fetchone()
+            
+            if profile:
+                # Prefer timesheet_email if set, otherwise use regular email
+                email = profile.get('timesheet_email') or profile.get('email')
+                return jsonify({'success': True, 'email': email})
+            
+            return jsonify({'success': True, 'email': None})
+    except Exception as e:
+        app.logger.error(f"Error fetching employee email: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/api/kiosk/<guild_id>/send-shift-email", methods=["POST"])
+def api_kiosk_send_shift_email(guild_id):
+    """Send shift summary email to employee after clock-out"""
+    try:
+        from email_utils import ReplitMailSender
+        import asyncio
+        import pytz
+        
+        data = request.get_json()
+        user_id = data.get('user_id')
+        email = data.get('email')
+        session_id = data.get('session_id')
+        
+        if not user_id or not email:
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        
+        with get_db() as conn:
+            # Get guild info
+            cursor = conn.execute("""
+                SELECT guild_name FROM bot_guilds WHERE guild_id = %s
+            """, (str(guild_id),))
+            guild_row = cursor.fetchone()
+            guild_name = guild_row['guild_name'] if guild_row else 'Unknown Server'
+            
+            # Get guild timezone
+            cursor = conn.execute("""
+                SELECT timezone FROM guild_settings WHERE guild_id = %s
+            """, (int(guild_id),))
+            tz_row = cursor.fetchone()
+            guild_tz_str = tz_row['timezone'] if tz_row else 'America/New_York'
+            guild_tz = pytz.timezone(guild_tz_str)
+            
+            # Get employee name
+            cursor = conn.execute("""
+                SELECT display_name, first_name FROM employee_profiles
+                WHERE guild_id = %s AND user_id = %s
+            """, (int(guild_id), int(user_id)))
+            emp_row = cursor.fetchone()
+            emp_name = emp_row['first_name'] or emp_row['display_name'] if emp_row else 'Employee'
+            
+            # Get the session details
+            if session_id:
+                cursor = conn.execute("""
+                    SELECT clock_in_time, clock_out_time FROM timeclock_sessions
+                    WHERE session_id = %s
+                """, (session_id,))
+            else:
+                # Fallback: get most recent completed session
+                cursor = conn.execute("""
+                    SELECT clock_in_time, clock_out_time FROM timeclock_sessions
+                    WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NOT NULL
+                    ORDER BY clock_out_time DESC LIMIT 1
+                """, (str(guild_id), str(user_id)))
+            
+            session = cursor.fetchone()
+            
+            if not session:
+                return jsonify({'success': False, 'error': 'No session found'}), 400
+            
+            clock_in = session['clock_in_time']
+            clock_out = session['clock_out_time']
+            
+            # Convert to guild timezone for display
+            if clock_in.tzinfo is None:
+                clock_in = pytz.utc.localize(clock_in)
+            if clock_out.tzinfo is None:
+                clock_out = pytz.utc.localize(clock_out)
+            
+            clock_in_local = clock_in.astimezone(guild_tz)
+            clock_out_local = clock_out.astimezone(guild_tz)
+            
+            # Calculate duration
+            duration = clock_out - clock_in
+            hours = int(duration.total_seconds() // 3600)
+            minutes = int((duration.total_seconds() % 3600) // 60)
+            duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+            
+            # Save email for future use
+            cursor = conn.execute("""
+                SELECT id FROM employee_profiles WHERE guild_id = %s AND user_id = %s
+            """, (int(guild_id), int(user_id)))
+            if cursor.fetchone():
+                conn.execute("""
+                    UPDATE employee_profiles SET timesheet_email = %s
+                    WHERE guild_id = %s AND user_id = %s
+                """, (email, int(guild_id), int(user_id)))
+        
+        # Build email content
+        subject = f"Shift Summary - {clock_out_local.strftime('%B %d, %Y')}"
+        
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f2e; color: #c9d1d9; padding: 30px; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #D4AF37; margin: 0;">On the Clock</h1>
+                <p style="color: #8b949e; margin: 5px 0 0 0;">{guild_name}</p>
+            </div>
+            
+            <h2 style="color: #c9d1d9; border-bottom: 1px solid #30363d; padding-bottom: 10px;">Shift Summary</h2>
+            
+            <p>Hello {emp_name},</p>
+            <p>Here is your shift summary for today:</p>
+            
+            <div style="background: rgba(212, 175, 55, 0.1); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; color: #8b949e;">Date:</td>
+                        <td style="padding: 8px 0; text-align: right; font-weight: bold;">{clock_in_local.strftime('%A, %B %d, %Y')}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #8b949e;">Clock In:</td>
+                        <td style="padding: 8px 0; text-align: right; font-weight: bold;">{clock_in_local.strftime('%I:%M %p')}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #8b949e;">Clock Out:</td>
+                        <td style="padding: 8px 0; text-align: right; font-weight: bold;">{clock_out_local.strftime('%I:%M %p')}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #8b949e; border-top: 1px solid #30363d;">Total Time:</td>
+                        <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #D4AF37; border-top: 1px solid #30363d;">{duration_str}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <p style="color: #8b949e; font-size: 12px; text-align: center; margin-top: 30px;">
+                This is an automated message from On the Clock. Please do not reply to this email.
+            </p>
+        </div>
+        """
+        
+        text_content = f"""
+Shift Summary - {guild_name}
+
+Hello {emp_name},
+
+Here is your shift summary for today:
+
+Date: {clock_in_local.strftime('%A, %B %d, %Y')}
+Clock In: {clock_in_local.strftime('%I:%M %p')}
+Clock Out: {clock_out_local.strftime('%I:%M %p')}
+Total Time: {duration_str}
+
+This is an automated message from On the Clock.
+        """
+        
+        # Send email
+        mail_sender = ReplitMailSender()
+        
+        # Run async send in sync context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                mail_sender.send_email(
+                    to=email,
+                    subject=subject,
+                    html=html_content,
+                    text=text_content
+                )
+            )
+            app.logger.info(f"Shift summary email sent to {email} for user {user_id}")
+            return jsonify({'success': True})
+        except Exception as email_err:
+            app.logger.error(f"Failed to send shift email: {email_err}")
+            return jsonify({'success': False, 'error': 'Failed to send email'}), 500
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        app.logger.error(f"Error sending shift email: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/server/<guild_id>/kiosk-mode", methods=["GET"])

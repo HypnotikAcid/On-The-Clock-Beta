@@ -258,7 +258,7 @@
             display: flex;
         }
 
-        .adjustment-modal {
+        .adjustment-modal, .email-modal {
             background: linear-gradient(135deg, #1a1f2e 0%, #252b3d 100%);
             border: 2px solid rgba(212, 175, 55, 0.3);
             border-radius: 20px;
@@ -267,6 +267,91 @@
             max-height: 90vh;
             overflow-y: auto;
             animation: modalSlide 0.3s ease;
+        }
+
+        .email-modal {
+            max-width: 450px;
+        }
+
+        .email-prompt {
+            text-align: center;
+            font-size: 18px;
+            color: #C9D1D9;
+            margin-bottom: 25px;
+        }
+
+        .email-input-section {
+            margin-bottom: 20px;
+        }
+
+        .email-input-section label {
+            display: block;
+            font-size: 14px;
+            color: #8B949E;
+            margin-bottom: 8px;
+        }
+
+        .email-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid rgba(212, 175, 55, 0.3);
+            border-radius: 10px;
+            background: rgba(10, 15, 31, 0.6);
+            color: #C9D1D9;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .email-input:focus {
+            outline: none;
+            border-color: #D4AF37;
+        }
+
+        .email-error {
+            color: #EF4444;
+            font-size: 12px;
+            margin-top: 6px;
+            min-height: 18px;
+        }
+
+        .email-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .email-btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .email-btn.yes {
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+            color: #0a0f1f;
+        }
+
+        .email-btn.yes:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+        }
+
+        .email-btn.no {
+            background: rgba(139, 148, 158, 0.3);
+            color: #C9D1D9;
+        }
+
+        .email-btn.no:hover {
+            background: rgba(139, 148, 158, 0.5);
+        }
+
+        .email-send-section {
+            margin-top: 20px;
+            text-align: center;
         }
 
         @keyframes modalSlide {
@@ -947,6 +1032,42 @@
         </div>
     </div>
 
+    <!-- Email Receipt Modal -->
+    <div class="modal-overlay" id="emailReceiptModal">
+        <div class="email-modal">
+            <div class="modal-header">
+                <h2 class="modal-title">📧 Email Shift Summary?</h2>
+                <button class="modal-close" onclick="closeEmailModal(false)">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="email-prompt">
+                    <p>Would you like to receive an email summary of your shift?</p>
+                </div>
+                
+                <div class="email-input-section" id="emailInputSection" style="display: none;">
+                    <label for="shiftEmailInput">Email Address</label>
+                    <input type="email" id="shiftEmailInput" class="email-input" placeholder="Enter your email address">
+                    <div class="email-error" id="emailError"></div>
+                </div>
+                
+                <div class="email-buttons">
+                    <button class="email-btn yes" id="emailYesBtn" onclick="showEmailInput()">
+                        Yes, Send Email
+                    </button>
+                    <button class="email-btn no" onclick="closeEmailModal(false)">
+                        No Thanks
+                    </button>
+                </div>
+                
+                <div class="email-send-section" id="emailSendSection" style="display: none;">
+                    <button class="submit-btn" onclick="sendShiftEmail()">
+                        Send Summary
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const GUILD_ID = '{{ guild_id }}';
         let currentEmployee = null;
@@ -1220,6 +1341,9 @@
             }
         }
 
+        let lastClockOutSessionId = null;
+        let savedEmployeeEmail = null;
+
         async function clockAction(action) {
             showLoading(true);
             try {
@@ -1236,8 +1360,6 @@
                 showLoading(false);
                 
                 if (data.success) {
-                    showMessage('success', action === 'in' ? 'Clocked In Successfully!' : 'Clocked Out Successfully!');
-                    
                     // Update current employee state immediately
                     if (currentEmployee) {
                         currentEmployee.is_clocked_in = (action === 'in');
@@ -1246,17 +1368,28 @@
                     // Update UI buttons immediately
                     updateActionButtons(action === 'in');
                     
-                    // Refresh info panel for latest stats
-                    const infoResponse = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
-                    const infoData = await infoResponse.json();
-                    if (infoData.success) {
-                        renderInfoPanel(infoData);
+                    // Refresh info panel for latest stats (always do this)
+                    try {
+                        const infoResponse = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
+                        const infoData = await infoResponse.json();
+                        if (infoData.success) {
+                            renderInfoPanel(infoData);
+                        }
+                    } catch (infoErr) {
+                        console.error('Failed to refresh info panel:', infoErr);
                     }
                     
-                    // Auto-logout after 3 seconds
-                    setTimeout(() => {
-                        logout();
-                    }, 3000);
+                    if (action === 'in') {
+                        showMessage('success', 'Clocked In Successfully!');
+                        // Auto-logout after 3 seconds for clock-in
+                        setTimeout(() => {
+                            logout();
+                        }, 3000);
+                    } else {
+                        // For clock-out, save session ID and show email modal
+                        lastClockOutSessionId = data.session_id || null;
+                        showEmailReceiptModal();
+                    }
                 } else {
                     showMessage('error', data.error || 'Failed to ' + action);
                 }
@@ -1264,6 +1397,110 @@
                 showLoading(false);
                 showMessage('error', 'Connection error');
             }
+        }
+
+        async function showEmailReceiptModal() {
+            const modal = document.getElementById('emailReceiptModal');
+            const emailInput = document.getElementById('shiftEmailInput');
+            const inputSection = document.getElementById('emailInputSection');
+            const sendSection = document.getElementById('emailSendSection');
+            const buttonsSection = document.querySelector('.email-buttons');
+            
+            // Reset modal state
+            inputSection.style.display = 'none';
+            sendSection.style.display = 'none';
+            buttonsSection.style.display = 'flex';
+            document.getElementById('emailError').textContent = '';
+            
+            // Try to fetch saved email for auto-population
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/email`);
+                const data = await response.json();
+                if (data.success && data.email) {
+                    savedEmployeeEmail = data.email;
+                    emailInput.value = data.email;
+                } else {
+                    savedEmployeeEmail = null;
+                    emailInput.value = '';
+                }
+            } catch (error) {
+                console.error('Failed to fetch employee email:', error);
+                emailInput.value = '';
+            }
+            
+            modal.classList.add('active');
+            resetInactivityTimer();
+        }
+
+        function showEmailInput() {
+            const inputSection = document.getElementById('emailInputSection');
+            const sendSection = document.getElementById('emailSendSection');
+            const buttonsSection = document.querySelector('.email-buttons');
+            
+            inputSection.style.display = 'block';
+            sendSection.style.display = 'block';
+            buttonsSection.style.display = 'none';
+            
+            document.getElementById('shiftEmailInput').focus();
+            resetInactivityTimer();
+        }
+
+        async function sendShiftEmail() {
+            const emailInput = document.getElementById('shiftEmailInput');
+            const email = emailInput.value.trim();
+            const errorEl = document.getElementById('emailError');
+            
+            // Validate email
+            if (!email) {
+                errorEl.textContent = 'Please enter an email address';
+                return;
+            }
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errorEl.textContent = 'Please enter a valid email address';
+                return;
+            }
+            
+            errorEl.textContent = '';
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/send-shift-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentEmployee.user_id,
+                        email: email,
+                        session_id: lastClockOutSessionId
+                    })
+                });
+                
+                const data = await response.json();
+                showLoading(false);
+                
+                if (data.success) {
+                    closeEmailModal(true);
+                    showMessage('success', 'Shift summary sent to your email!');
+                    setTimeout(() => { logout(); }, 3000);
+                } else {
+                    errorEl.textContent = data.error || 'Failed to send email';
+                }
+            } catch (error) {
+                showLoading(false);
+                errorEl.textContent = 'Connection error. Try again.';
+            }
+        }
+
+        function closeEmailModal(emailSent) {
+            document.getElementById('emailReceiptModal').classList.remove('active');
+            
+            if (!emailSent) {
+                // User declined email, just show clock-out success and logout
+                showMessage('success', 'Clocked Out Successfully!');
+                setTimeout(() => { logout(); }, 3000);
+            }
+            resetInactivityTimer();
         }
 
         let todaySessions = [];
