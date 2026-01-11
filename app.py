@@ -309,6 +309,24 @@ def start_discord_bot():
         traceback.print_exc()
         # Don't re-raise - let Flask continue serving even if bot fails
 
+# Deferred database initialization (runs in background after Flask binds)
+def deferred_db_init():
+    """Run database migrations and table init in background thread."""
+    try:
+        print("[STARTUP] Running database migrations...")
+        from migrations import run_migrations
+        run_migrations()
+        print("[STARTUP] Database migrations complete")
+    except Exception as e:
+        print(f"[WARNING] Migration error (non-fatal): {e}")
+    
+    try:
+        print("[STARTUP] Initializing dashboard tables...")
+        init_dashboard_tables()
+        print("[STARTUP] Dashboard tables initialized")
+    except Exception as e:
+        print(f"[WARNING] Dashboard initialization warning: {e}")
+
 # Start bot thread when running under Gunicorn (only in first worker)
 if __name__ != '__main__':
     import os
@@ -318,13 +336,9 @@ if __name__ != '__main__':
     worker_id = os.environ.get('GUNICORN_WORKER_ID', '1')
     # Only start bot in first worker to avoid multiple instances
     if worker_id == '1' or 'GUNICORN_WORKER_ID' not in os.environ:
-        print("[STARTUP] Running database migrations...")
-        try:
-            from migrations import run_migrations
-            run_migrations()
-            print("[STARTUP] Database migrations complete")
-        except Exception as e:
-            print(f"[WARNING] Migration error (non-fatal): {e}")
+        print("[STARTUP] Deferring database initialization to background thread...")
+        db_init_thread = threading.Thread(target=deferred_db_init, daemon=True)
+        db_init_thread.start()
         
         print("[STARTUP] Starting Discord bot thread (non-blocking)...")
         bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
@@ -590,12 +604,8 @@ def init_dashboard_tables():
         conn.execute("DELETE FROM user_sessions WHERE expires_at < %s", 
                     (datetime.now(timezone.utc).isoformat(),))
 
-# Initialize tables when module is imported (for Gunicorn)
-try:
-    init_dashboard_tables()
-except Exception as e:
-    # Fallback to print if logger not available during import
-    print(f"[WARN] Dashboard initialization warning: {e}")
+# Dashboard tables are initialized in the Gunicorn startup block (deferred)
+# This allows the Flask app to bind to port 5000 immediately without blocking on DB
 
 # OAuth Helper Functions
 def create_oauth_state():

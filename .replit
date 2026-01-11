@@ -30,7 +30,7 @@ waitForPort = 5000
 
 [deployment]
 deploymentTarget = "vm"
-run = ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120", "--preload"]
+run = ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120", "--preload", "--log-level", "info"]
 
 [[ports]]
 localPort = 5000
