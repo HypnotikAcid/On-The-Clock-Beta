@@ -192,6 +192,68 @@ def flask_set_retention_tier(guild_id: int, tier: str, source: str = 'stripe'):
                 grant_source = COALESCE(server_subscriptions.grant_source, %s)
         """, (guild_id, tier, source if tier != 'none' else None, tier, source if tier != 'none' else None))
 
+def send_adjustment_notification_email(guild_id: int, request_id: int, user_id: int, request_type: str, reason: str):
+    """Send email notification to verified recipients when an adjustment request is submitted."""
+    import threading
+    
+    def _send_email_async():
+        try:
+            with get_db() as conn:
+                recipients_cursor = conn.execute(
+                    """SELECT email_address FROM report_recipients 
+                       WHERE guild_id = %s AND recipient_type = 'email' 
+                       AND verification_status = 'verified'""",
+                    (guild_id,)
+                )
+                recipients = [row['email_address'] for row in recipients_cursor.fetchall()]
+                
+                if not recipients:
+                    return
+                
+                guild_cursor = conn.execute(
+                    "SELECT name FROM guild_settings WHERE guild_id = %s",
+                    (guild_id,)
+                )
+                guild_row = guild_cursor.fetchone()
+                guild_name = guild_row['name'] if guild_row else f"Server {guild_id}"
+            
+            request_type_labels = {
+                'modify_clockin': 'Modify Clock-In Time',
+                'modify_clockout': 'Modify Clock-Out Time',
+                'add_session': 'Add Missing Session',
+                'delete_session': 'Delete Session'
+            }
+            request_label = request_type_labels.get(request_type, request_type)
+            
+            subject = f"Time Adjustment Request - {guild_name}"
+            text_content = f"""A new time adjustment request has been submitted.
+
+Server: {guild_name}
+Request Type: {request_label}
+
+Please review this request in the dashboard.
+
+- On the Clock Bot"""
+            
+            import asyncio
+            from email_utils import send_email
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(send_email(to=recipients, subject=subject, text=text_content))
+                if result.get('success'):
+                    app.logger.info(f"[OK] Adjustment notification email sent to {len(recipients)} recipient(s) for guild {guild_id}")
+                else:
+                    app.logger.warning(f"Failed to send adjustment notification email: {result.get('error')}")
+            finally:
+                loop.close()
+        except Exception as e:
+            app.logger.error(f"Error sending adjustment notification email: {e}")
+    
+    thread = threading.Thread(target=_send_email_async, daemon=True)
+    thread.start()
+
 # Lazy access to Discord bot instance - use get_bot() for property access
 def get_bot():
     """Lazy access to Discord bot instance."""
@@ -4721,15 +4783,15 @@ def api_update_mobile_restriction(user_session, guild_id):
 def api_get_email_recipients(user_session, guild_id):
     """API endpoint to fetch email recipients for a server"""
     try:
-        # Verify user has access
         guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
-        # Fetch email recipients
         with get_db() as conn:
             cursor = conn.execute(
-                """SELECT id, email_address, created_at 
+                """SELECT id, email_address, created_at, 
+                          COALESCE(verification_status, 'verified') as verification_status, 
+                          verified_at
                    FROM report_recipients 
                    WHERE guild_id = %s AND recipient_type = 'email'
                    ORDER BY created_at DESC""",
@@ -4741,7 +4803,9 @@ def api_get_email_recipients(user_session, guild_id):
             {
                 'id': row['id'],
                 'email': row['email_address'],
-                'created_at': row['created_at']
+                'created_at': row['created_at'],
+                'verification_status': row['verification_status'],
+                'verified_at': row.get('verified_at')
             }
             for row in recipients
         ]
@@ -4755,35 +4819,38 @@ def api_get_email_recipients(user_session, guild_id):
 @app.route("/api/server/<guild_id>/email-recipients/add", methods=["POST"])
 @require_paid_api_access
 def api_add_email_recipient(user_session, guild_id):
-    """API endpoint to add an email recipient"""
+    """API endpoint to add an email recipient with verification"""
     try:
-        # Verify user has access
         guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
-        # Get email from request
         data = request.get_json()
         if not data or 'email' not in data:
             return jsonify({'success': False, 'error': 'Missing email address'}), 400
         
-        email = data['email'].strip()
+        email = data['email'].strip().lower()
         
-        # Basic email validation
         import re
+        import secrets
+        import hashlib
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(email_pattern, email):
             return jsonify({'success': False, 'error': 'Invalid email address format'}), 400
         
-        # Add to database
+        verification_code = ''.join([str(secrets.randbelow(10)) for _ in range(6)])
+        code_hash = hashlib.sha256(verification_code.encode()).hexdigest()
+        
         with get_db() as conn:
             try:
                 cursor = conn.execute(
-                    """INSERT INTO report_recipients (guild_id, recipient_type, email_address) 
-                       VALUES (%s, 'email', %s)""",
-                    (guild_id, email)
+                    """INSERT INTO report_recipients (guild_id, recipient_type, email_address, verification_status, verification_code_hash, verification_code_sent_at) 
+                       VALUES (%s, 'email', %s, 'pending', %s, NOW())
+                       RETURNING id""",
+                    (guild_id, email, code_hash)
                 )
-                recipient_id = cursor.lastrowid
+                result = cursor.fetchone()
+                recipient_id = result['id'] if result else None
                 
                 conn.execute("""
                     INSERT INTO email_settings (guild_id, auto_send_on_clockout, auto_email_before_delete)
@@ -4791,18 +4858,208 @@ def api_add_email_recipient(user_session, guild_id):
                     ON CONFLICT (guild_id) DO NOTHING
                 """, (guild_id,))
                 
-                app.logger.info(f"[OK] Email recipient committed: {email} for guild {guild_id}")
+                app.logger.info(f"[OK] Email recipient added (pending verification): {email} for guild {guild_id}")
                 
-                return jsonify({'success': True, 'message': 'Email recipient added successfully', 'id': recipient_id, 'email': email})
             except psycopg2.IntegrityError:
-                # Context manager handles rollback automatically
                 return jsonify({'success': False, 'error': 'Email address already exists'}), 400
             except Exception as db_error:
-                # Context manager handles rollback automatically
                 app.logger.error(f"Database error adding email recipient: {db_error}")
                 raise
+        
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            subject = "Verify your email for On the Clock"
+            text_content = f"""Hello!
+
+You've added this email to receive notifications from On the Clock.
+
+Your verification code is: {verification_code}
+
+Enter this code in the dashboard to verify your email address.
+
+If you didn't request this, you can safely ignore this email.
+
+- On the Clock Bot"""
+            
+            result = loop.run_until_complete(send_email(to=[email], subject=subject, text=text_content))
+            loop.close()
+            
+            if result.get('success'):
+                app.logger.info(f"[OK] Verification email sent to {email}")
+            else:
+                app.logger.warning(f"Failed to send verification email to {email}: {result.get('error')}")
+        except Exception as email_error:
+            app.logger.error(f"Error sending verification email: {email_error}")
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Email added! Check your inbox for a verification code.', 
+            'id': recipient_id, 
+            'email': email,
+            'verification_status': 'pending'
+        })
     except Exception as e:
         app.logger.error(f"Error adding email recipient: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/email-recipients/verify", methods=["POST"])
+@require_paid_api_access
+def api_verify_email_recipient(user_session, guild_id):
+    """API endpoint to verify an email recipient with a code"""
+    try:
+        import hashlib
+        
+        guild, _ = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        if not data or 'id' not in data or 'code' not in data:
+            return jsonify({'success': False, 'error': 'Missing recipient ID or verification code'}), 400
+        
+        recipient_id = int(data['id'])
+        code = data['code'].strip()
+        
+        if not code.isdigit() or len(code) != 6:
+            return jsonify({'success': False, 'error': 'Invalid code format. Enter the 6-digit code from your email.'}), 400
+        
+        code_hash = hashlib.sha256(code.encode()).hexdigest()
+        
+        with get_db() as conn:
+            cursor = conn.execute(
+                """SELECT id, verification_code_hash, verification_status, verification_attempts, verification_code_sent_at
+                   FROM report_recipients 
+                   WHERE id = %s AND guild_id = %s AND recipient_type = 'email'""",
+                (recipient_id, guild_id)
+            )
+            recipient = cursor.fetchone()
+            
+            if not recipient:
+                return jsonify({'success': False, 'error': 'Recipient not found'}), 404
+            
+            if recipient['verification_status'] == 'verified':
+                return jsonify({'success': True, 'message': 'Email already verified'})
+            
+            attempts = recipient['verification_attempts'] or 0
+            if attempts >= 5:
+                return jsonify({'success': False, 'error': 'Too many failed attempts. Please resend the verification code.'}), 429
+            
+            if recipient['verification_code_sent_at']:
+                from datetime import datetime, timedelta
+                import pytz
+                code_sent_at = recipient['verification_code_sent_at']
+                if code_sent_at.tzinfo is None:
+                    code_sent_at = pytz.UTC.localize(code_sent_at)
+                if datetime.now(pytz.UTC) - code_sent_at > timedelta(hours=24):
+                    return jsonify({'success': False, 'error': 'Verification code expired. Please resend the code.'}), 400
+            
+            if recipient['verification_code_hash'] != code_hash:
+                new_attempts = attempts + 1
+                conn.execute(
+                    "UPDATE report_recipients SET verification_attempts = %s WHERE id = %s",
+                    (new_attempts, recipient_id)
+                )
+                remaining = max(0, 5 - new_attempts)
+                return jsonify({'success': False, 'error': f'Incorrect code. {remaining} attempts remaining.'}), 400
+            
+            conn.execute(
+                """UPDATE report_recipients 
+                   SET verification_status = 'verified', verified_at = NOW(), verification_code_hash = NULL, verification_attempts = 0
+                   WHERE id = %s""",
+                (recipient_id,)
+            )
+            
+            app.logger.info(f"[OK] Email verified for recipient {recipient_id} in guild {guild_id}")
+            
+        return jsonify({'success': True, 'message': 'Email verified successfully!'})
+    except Exception as e:
+        app.logger.error(f"Error verifying email: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/email-recipients/resend", methods=["POST"])
+@require_paid_api_access
+def api_resend_verification(user_session, guild_id):
+    """API endpoint to resend verification code"""
+    try:
+        import secrets
+        import hashlib
+        
+        guild, _ = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        if not data or 'id' not in data:
+            return jsonify({'success': False, 'error': 'Missing recipient ID'}), 400
+        
+        recipient_id = int(data['id'])
+        
+        with get_db() as conn:
+            cursor = conn.execute(
+                """SELECT id, email_address, verification_status, verification_code_sent_at
+                   FROM report_recipients 
+                   WHERE id = %s AND guild_id = %s AND recipient_type = 'email'""",
+                (recipient_id, guild_id)
+            )
+            recipient = cursor.fetchone()
+            
+            if not recipient:
+                return jsonify({'success': False, 'error': 'Recipient not found'}), 404
+            
+            if recipient['verification_status'] == 'verified':
+                return jsonify({'success': True, 'message': 'Email already verified'})
+            
+            if recipient['verification_code_sent_at']:
+                from datetime import datetime, timedelta
+                import pytz
+                code_sent_at = recipient['verification_code_sent_at']
+                if code_sent_at.tzinfo is None:
+                    code_sent_at = pytz.UTC.localize(code_sent_at)
+                if datetime.now(pytz.UTC) - code_sent_at < timedelta(minutes=1):
+                    return jsonify({'success': False, 'error': 'Please wait 1 minute before requesting a new code.'}), 429
+            
+            verification_code = ''.join([str(secrets.randbelow(10)) for _ in range(6)])
+            code_hash = hashlib.sha256(verification_code.encode()).hexdigest()
+            
+            conn.execute(
+                """UPDATE report_recipients 
+                   SET verification_code_hash = %s, verification_code_sent_at = NOW(), verification_attempts = 0
+                   WHERE id = %s""",
+                (code_hash, recipient_id)
+            )
+            
+            email = recipient['email_address']
+        
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            subject = "Your new verification code for On the Clock"
+            text_content = f"""Hello!
+
+Here's your new verification code: {verification_code}
+
+Enter this code in the dashboard to verify your email address.
+
+- On the Clock Bot"""
+            
+            result = loop.run_until_complete(send_email(to=[email], subject=subject, text=text_content))
+            loop.close()
+            
+            if result.get('success'):
+                app.logger.info(f"[OK] Verification code resent to {email}")
+            else:
+                app.logger.warning(f"Failed to resend verification email to {email}: {result.get('error')}")
+                return jsonify({'success': False, 'error': 'Failed to send email. Please try again.'}), 500
+        except Exception as email_error:
+            app.logger.error(f"Error resending verification email: {email_error}")
+            return jsonify({'success': False, 'error': 'Failed to send email'}), 500
+        
+        return jsonify({'success': True, 'message': 'New verification code sent!'})
+    except Exception as e:
+        app.logger.error(f"Error resending verification: {str(e)}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
@@ -6066,6 +6323,9 @@ def api_create_adjustment(user_session, guild_id):
                     notify_admins_of_adjustment(int(guild_id), request_id),
                     bot.loop
                 )
+            
+            # Send email notification to verified recipients
+            send_adjustment_notification_email(int(guild_id), request_id, int(user_session['user_id']), request_type, reason)
             
             return jsonify({'success': True, 'request_id': request_id})
         else:

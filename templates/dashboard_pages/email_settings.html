@@ -87,12 +87,84 @@ function renderRecipients(emails) {
         return;
     }
     
-    container.innerHTML = emails.map(r => `
-        <div class="recipient-item">
-            <span class="recipient-email">${DashboardUtils.escapeHtml(r.email)}</span>
-            <button class="btn btn-danger btn-sm" onclick="removeRecipient('${r.id}')">Remove</button>
-        </div>
-    `).join('');
+    container.innerHTML = emails.map(r => {
+        const isPending = r.verification_status === 'pending';
+        const statusBadge = isPending 
+            ? '<span class="badge badge-warning">Pending Verification</span>'
+            : '<span class="badge badge-success">Verified</span>';
+        
+        const verifyInput = isPending ? `
+            <div class="verify-row" style="margin-top: 8px;">
+                <input type="text" class="form-input form-input-sm verify-code-input" 
+                       id="verify-code-${r.id}" placeholder="Enter 6-digit code" maxlength="6" 
+                       style="width: 140px; display: inline-block;">
+                <button class="btn btn-primary btn-sm" onclick="verifyEmail('${r.id}')">Verify</button>
+                <button class="btn btn-secondary btn-sm" onclick="resendCode('${r.id}')">Resend Code</button>
+            </div>
+        ` : '';
+        
+        return `
+            <div class="recipient-item" style="flex-direction: column; align-items: flex-start;">
+                <div style="display: flex; align-items: center; gap: 10px; width: 100%; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="recipient-email">${DashboardUtils.escapeHtml(r.email)}</span>
+                        ${statusBadge}
+                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="removeRecipient('${r.id}')">Remove</button>
+                </div>
+                ${verifyInput}
+            </div>
+        `;
+    }).join('');
+}
+
+async function verifyEmail(recipientId) {
+    const codeInput = document.getElementById(`verify-code-${recipientId}`);
+    const code = codeInput.value.trim();
+    
+    if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+        DashboardUtils.showNotification('Please enter the 6-digit code from your email', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/email-recipients/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: recipientId, code: code })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('Email verified successfully!', 'success');
+            loadEmailSettings();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Verification failed', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to verify email', 'error');
+    }
+}
+
+async function resendCode(recipientId) {
+    try {
+        const response = await fetch(`/api/server/${guildId}/email-recipients/resend`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: recipientId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification('New verification code sent!', 'success');
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to resend code', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to resend code', 'error');
+    }
 }
 
 document.getElementById('add-email-btn').addEventListener('click', async function() {
@@ -115,7 +187,7 @@ document.getElementById('add-email-btn').addEventListener('click', async functio
         
         if (data.success) {
             document.getElementById('new-email').value = '';
-            DashboardUtils.showNotification('Email recipient added', 'success');
+            DashboardUtils.showNotification('Email added! Check your inbox for a 6-digit verification code.', 'success');
             loadEmailSettings();
         } else {
             DashboardUtils.showNotification(data.error || 'Failed to add email', 'error');

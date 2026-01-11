@@ -381,6 +381,21 @@ def run_migrations():
                     CREATE INDEX IF NOT EXISTS idx_timeclock_guild_clockin 
                     ON timeclock_sessions(guild_id, clock_in_time)
                 """)
+                
+                # 18. Add email verification columns to report_recipients
+                print("   Adding email verification columns to report_recipients")
+                cur.execute("ALTER TABLE report_recipients ADD COLUMN IF NOT EXISTS verification_status VARCHAR(20) DEFAULT 'pending'")
+                cur.execute("ALTER TABLE report_recipients ADD COLUMN IF NOT EXISTS verification_code_hash VARCHAR(255)")
+                cur.execute("ALTER TABLE report_recipients ADD COLUMN IF NOT EXISTS verification_code_sent_at TIMESTAMPTZ")
+                cur.execute("ALTER TABLE report_recipients ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ")
+                cur.execute("ALTER TABLE report_recipients ADD COLUMN IF NOT EXISTS verification_attempts INTEGER DEFAULT 0")
+                
+                # Update existing records to be verified (grandfather them in)
+                cur.execute("""
+                    UPDATE report_recipients 
+                    SET verification_status = 'verified', verified_at = NOW() 
+                    WHERE verification_status = 'pending' AND verified_at IS NULL
+                """)
 
         print("✅ Database schema is up to date")
         return True
