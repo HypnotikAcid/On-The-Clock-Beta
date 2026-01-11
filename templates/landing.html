@@ -20,7 +20,6 @@
             position: relative;
         }
 
-        /* Matrix Background Animation */
         #matrix-canvas {
             position: fixed;
             top: 0;
@@ -28,7 +27,7 @@
             width: 100%;
             height: 100%;
             z-index: 0;
-            opacity: 0.15;
+            opacity: 0.12;
         }
 
         .content-wrapper {
@@ -37,15 +36,14 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 3rem 2rem;
+            padding: 2rem;
         }
 
-        /* Header */
         .header {
             text-align: center;
-            margin-bottom: 4rem;
+            margin-bottom: 2rem;
             padding-top: 2rem;
         }
 
@@ -54,23 +52,23 @@
             align-items: center;
             justify-content: center;
             gap: 15px;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .logo-icon {
-            width: 55px;
-            height: 55px;
+            width: 60px;
+            height: 60px;
             background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            border-radius: 12px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.5);
         }
 
         .logo-gear {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             fill: #0D1117;
             animation: rotate 8s linear infinite;
         }
@@ -81,7 +79,7 @@
         }
 
         .logo-text {
-            font-size: 2.8rem;
+            font-size: 3rem;
             font-weight: 700;
             background: linear-gradient(135deg, #D4AF37, #F4E5A1, #D4AF37);
             background-size: 200% auto;
@@ -95,14 +93,17 @@
             to { background-position: 200% center; }
         }
 
-        .subtitle {
-            font-size: 1.1rem;
+        .tagline {
+            font-size: 1.4rem;
             color: #8B949E;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             font-weight: 400;
         }
 
-        /* Beta Notice - Subtle inline badge */
+        .tagline strong {
+            color: #10B981;
+        }
+
         .beta-notice {
             display: inline-flex;
             align-items: center;
@@ -113,34 +114,348 @@
             padding: 0.4rem 1rem;
             font-size: 0.85rem;
             color: #8B949E;
+            margin-bottom: 2rem;
         }
 
         .beta-notice span {
             color: #D4AF37;
         }
 
-        /* Pricing Styles */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 4rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #D4AF37 0%, #F4E5A1 50%, #D4AF37 100%);
+            background-size: 200% auto;
+            color: #0D1117;
+            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(212, 175, 55, 0.5);
+            background-position: right center;
+        }
+
+        .btn-secondary {
+            background: rgba(30, 35, 45, 0.8);
+            color: #C9D1D9;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(40, 45, 55, 0.9);
+            border-color: rgba(212, 175, 55, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .hero-section {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #D4AF37;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #8B949E;
+        }
+
+        .features-showcase {
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #D4AF37;
+            margin-bottom: 0.5rem;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: #8B949E;
+            margin-bottom: 3rem;
+            font-size: 1.1rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            background: rgba(30, 35, 45, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 1.75rem;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(212, 175, 55, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .feature-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #C9D1D9;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-desc {
+            font-size: 0.9rem;
+            color: #8B949E;
+            line-height: 1.5;
+        }
+
+        .how-it-works {
+            margin-bottom: 4rem;
+            padding: 3rem;
+            background: rgba(16, 185, 129, 0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .step-item {
+            text-align: center;
+            position: relative;
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #10B981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            margin: 0 auto 1rem;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .step-title {
+            font-weight: 600;
+            color: #C9D1D9;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-desc {
+            font-size: 0.85rem;
+            color: #8B949E;
+        }
+
+        .step-arrow {
+            position: absolute;
+            top: 25px;
+            right: -1rem;
+            color: rgba(16, 185, 129, 0.4);
+            font-size: 1.5rem;
+        }
+
+        .step-item:last-child .step-arrow {
+            display: none;
+        }
+
+        .pricing-section {
+            margin-bottom: 4rem;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .pricing-card {
+            background: rgba(30, 35, 45, 0.6);
+            border: 2px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .pricing-card.featured {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+            border: 2px solid #10B981;
+            transform: scale(1.05);
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2);
+        }
+
+        .pricing-badge {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+
+        .pricing-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .pricing-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .pricing-card.featured .pricing-name {
+            color: #10B981;
+        }
+
+        .pricing-price {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #C9D1D9;
+            margin-bottom: 0.3rem;
+        }
+
+        .pricing-period {
+            font-size: 0.9rem;
+            color: #8B949E;
+            margin-bottom: 1.5rem;
+        }
+
+        .pricing-features {
+            list-style: none;
+            padding: 0;
+            margin: 1.5rem 0;
+            text-align: left;
+        }
+
+        .pricing-features li {
+            padding: 0.5rem 0;
+            color: #8B949E;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+        }
+
+        .pricing-features .check {
+            color: #10B981;
+        }
+
+        .pricing-features .cross {
+            color: #EF4444;
+        }
+
+        .pricing-features .warning {
+            color: #F59E0B;
+        }
+
         .price-strikethrough {
             text-decoration: line-through;
             color: #6B7280;
-            font-size: 1.4rem;
-            font-weight: 400;
+            font-size: 1.2rem;
+            margin-right: 6px;
         }
 
-        .price-beta-tag {
+        .beta-tag {
             background: linear-gradient(135deg, #10B981, #059669);
             color: white;
             padding: 2px 8px;
             border-radius: 12px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
             margin-left: 6px;
         }
 
+        .pricing-cta {
+            display: inline-block;
+            width: 100%;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .pricing-cta.primary {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .pricing-cta.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .pricing-cta.secondary {
+            background: rgba(212, 175, 55, 0.1);
+            color: #8B949E;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
         .comparison-table {
             width: 100%;
+            max-width: 900px;
+            margin: 3rem auto 0;
             border-collapse: collapse;
-            margin-top: 3rem;
             background: rgba(30, 35, 45, 0.4);
             border-radius: 12px;
             overflow: hidden;
@@ -181,205 +496,105 @@
             padding-left: 1.5rem;
         }
 
-        .comparison-table .check {
-            color: #10B981;
-            font-size: 1.2rem;
-        }
-
-        .comparison-table .cross {
-            color: #EF4444;
-            font-size: 1.1rem;
-        }
-
-        .comparison-table .locked {
-            color: #F59E0B;
-            font-size: 0.8rem;
-        }
-
         .comparison-table tbody tr:hover {
             background: rgba(212, 175, 55, 0.05);
+        }
+
+        .cta-section {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(212, 175, 55, 0.05));
+            border-radius: 16px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .cta-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #D4AF37;
+            margin-bottom: 0.5rem;
+        }
+
+        .cta-subtitle {
+            color: #8B949E;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: #6B7280;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .footer-links a {
+            color: #8B949E;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #D4AF37;
         }
 
         @media (max-width: 900px) {
             .pricing-grid {
                 grid-template-columns: 1fr !important;
             }
-        }
-
-        @media (max-width: 768px) {
-            .comparison-table {
-                font-size: 0.8rem;
+            .pricing-card.featured {
+                transform: none;
+                order: -1;
             }
-            .comparison-table th,
-            .comparison-table td {
-                padding: 0.6rem 0.4rem;
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
-            .comparison-table .feature-name {
-                padding-left: 0.5rem;
+            .steps-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .step-arrow {
+                display: none !important;
             }
         }
 
-        /* Action Buttons - Primary Focus */
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin: 3rem 0;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 14px 28px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #D4AF37, #C19A2E);
-            color: #0D1117;
-            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 30px rgba(212, 175, 55, 0.5);
-            background: linear-gradient(135deg, #E5C147, #D4AF37);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, rgba(94, 92, 230, 0.15), rgba(124, 58, 237, 0.15));
-            color: #A78BFA;
-            border: 1px solid rgba(124, 58, 237, 0.3);
-        }
-
-        .btn-secondary:hover {
-            background: linear-gradient(135deg, rgba(94, 92, 230, 0.25), rgba(124, 58, 237, 0.25));
-            border-color: rgba(124, 58, 237, 0.5);
-            transform: translateY(-2px);
-        }
-
-        .btn-coffee {
-            background: linear-gradient(135deg, #8B4513, #A0522D);
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
-        }
-
-        .btn-coffee:hover {
-            background: linear-gradient(135deg, #A0522D, #8B4513);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(139, 69, 19, 0.5);
-        }
-
-        .coffee-icon {
-            display: inline-block;
-            animation: wiggle 2s ease-in-out infinite;
-        }
-
-        @keyframes wiggle {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-15deg); }
-            75% { transform: rotate(15deg); }
-        }
-
-        /* Features - Compact List */
-        .features-section {
-            margin: 4rem 0;
-        }
-
-        .features-title {
-            text-align: center;
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #D4AF37;
-            margin-bottom: 2rem;
-        }
-
-        .features-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .feature-item {
-            background: rgba(30, 35, 45, 0.6);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 8px;
-            padding: 1rem 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .feature-item:hover {
-            border-color: rgba(212, 175, 55, 0.5);
-            background: rgba(30, 35, 45, 0.8);
-            transform: translateX(5px);
-        }
-
-        .feature-icon {
-            font-size: 1.3rem;
-            min-width: 24px;
-        }
-
-        .feature-text {
-            font-size: 0.95rem;
-            color: #C9D1D9;
-            font-weight: 500;
-        }
-
-        /* Footer */
-        .footer {
-            text-align: center;
-            margin-top: 5rem;
-            padding: 2rem 0;
-            border-top: 1px solid rgba(212, 175, 55, 0.2);
-            color: #8B949E;
-            font-size: 0.9rem;
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .container {
-                padding: 2rem 1rem;
+        @media (max-width: 600px) {
+            .features-grid {
+                grid-template-columns: 1fr;
             }
-            
-            .logo-text {
-                font-size: 2rem;
+            .steps-grid {
+                grid-template-columns: 1fr;
             }
-
+            .hero-stats {
+                gap: 1.5rem;
+            }
             .action-buttons {
                 flex-direction: column;
-                align-items: stretch;
+                align-items: center;
             }
-
             .btn {
+                width: 100%;
+                max-width: 280px;
                 justify-content: center;
             }
-
-            .features-list {
-                grid-template-columns: 1fr;
+            .logo-text {
+                font-size: 2rem;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Matrix Canvas Background -->
     <canvas id="matrix-canvas"></canvas>
 
     <div class="content-wrapper">
         <div class="container">
-            <!-- Header -->
             <div class="header">
                 <div class="logo">
                     <div class="logo-icon">
@@ -389,92 +604,143 @@
                     </div>
                     <div class="logo-text">On the Clock</div>
                 </div>
-                <div class="subtitle">Professional Discord Timeclock Management</div>
-            </div>
-
-            <!-- Beta Notice - Subtle -->
-            <div style="text-align: center; margin-bottom: 2rem;">
+                <div class="tagline">Professional Time Tracking for <strong>Discord Teams</strong></div>
                 <div class="beta-notice">
-                    <span>🧪</span> Beta · <a href="https://discord.gg/KdTRTqdPcj" style="color: #A78BFA; text-decoration: none;">Report issues</a>
+                    <span>Beta</span> Feedback welcome! <a href="https://discord.gg/KdTRTqdPcj" style="color: #A78BFA; text-decoration: none; margin-left: 4px;">Join our Discord</a>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
             <div class="action-buttons">
                 <a href="/invite" class="btn btn-primary">
-                    <span>🤖</span>
                     <span>Add to Discord</span>
                 </a>
                 <a href="/auth/login" class="btn btn-secondary">
-                    <span>🔐</span>
                     <span>Dashboard Login</span>
                 </a>
                 <a href="https://discord.gg/KdTRTqdPcj" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
-                    <span>💬</span>
                     <span>Support Server</span>
-                </a>
-                <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="btn btn-coffee">
-                    <span class="coffee-icon">☕</span>
-                    <span>Buy Me a Coffee</span>
                 </a>
             </div>
 
-            <!-- Pricing Section -->
-            <div class="pricing-section" style="margin: 4rem 0;">
-                <h2 style="text-align: center; font-size: 1.8rem; font-weight: 700; color: #D4AF37; margin-bottom: 1rem;">Simple, Transparent Pricing</h2>
-                <p style="text-align: center; color: #8B949E; margin-bottom: 3rem; font-size: 1rem;">Start free, upgrade when you're ready</p>
+            <div class="features-showcase">
+                <h2 class="section-title">Everything Your Team Needs</h2>
+                <p class="section-subtitle">Simple, powerful time tracking that lives where your team already works</p>
                 
-                <div class="pricing-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; max-width: 1000px; margin: 0 auto;">
-                    <!-- Free Tier -->
-                    <div style="background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s ease;">
-                        <div style="font-size: 2rem; margin-bottom: 1rem;">🆓</div>
-                        <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">Free Tier</h3>
-                        <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 1rem;">$0</div>
-                        <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
-                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Basic clock in/out</li>
-                            <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>⚠️</span> 24-hour data retention</li>
-                            <li style="padding: 0.5rem 0; color: #F59E0B; display: flex; align-items: center; gap: 8px;"><span>🔒</span> Dashboard visible (locked)</li>
-                            <li style="padding: 0.5rem 0; color: #EF4444; display: flex; align-items: center; gap: 8px;"><span>✗</span> Reports locked</li>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <span class="feature-icon">⏰</span>
+                        <div class="feature-title">One-Click Clock In</div>
+                        <div class="feature-desc">Type /clock and tap a button. That's it. No training required.</div>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">📊</span>
+                        <div class="feature-title">Admin Dashboard</div>
+                        <div class="feature-desc">Full visibility into team hours with export options and employee management.</div>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">📋</span>
+                        <div class="feature-title">CSV Reports</div>
+                        <div class="feature-desc">Export detailed timesheets for payroll and record keeping.</div>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">✏️</span>
+                        <div class="feature-title">Time Adjustments</div>
+                        <div class="feature-desc">Employees request corrections, admins approve with one click.</div>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">🌍</span>
+                        <div class="feature-title">Multi-Timezone</div>
+                        <div class="feature-desc">Works perfectly for remote and global teams worldwide.</div>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">📧</span>
+                        <div class="feature-title">Email Reports</div>
+                        <div class="feature-desc">Automated daily and weekly reports delivered to your inbox.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="how-it-works">
+                <h2 class="section-title" style="color: #10B981;">Get Started in Minutes</h2>
+                <div class="steps-grid">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-title">Add Bot</div>
+                        <div class="step-desc">Click "Add to Discord" and select your server</div>
+                        <span class="step-arrow">&rarr;</span>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-title">Set Roles</div>
+                        <div class="step-desc">Define admin and employee roles in the dashboard</div>
+                        <span class="step-arrow">&rarr;</span>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-title">Clock In</div>
+                        <div class="step-desc">Employees type /clock and start tracking time</div>
+                        <span class="step-arrow">&rarr;</span>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-title">Review</div>
+                        <div class="step-desc">Admins view hours and export reports anytime</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pricing-section">
+                <h2 class="section-title">Simple, Transparent Pricing</h2>
+                <p class="section-subtitle">Start free, upgrade when you're ready</p>
+                
+                <div class="pricing-grid">
+                    <div class="pricing-card">
+                        <div class="pricing-icon">🆓</div>
+                        <div class="pricing-name" style="color: #D4AF37;">Free Tier</div>
+                        <div class="pricing-price">$0</div>
+                        <div class="pricing-period">forever</div>
+                        <ul class="pricing-features">
+                            <li><span class="check">✓</span> Basic clock in/out</li>
+                            <li><span class="warning">⚠️</span> 24-hour data retention</li>
+                            <li><span class="warning">🔒</span> Dashboard (locked)</li>
+                            <li><span class="cross">✗</span> Reports locked</li>
                         </ul>
                     </div>
 
-                    <!-- Dashboard Premium - HIGHLIGHTED -->
-                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); border: 2px solid #10B981; border-radius: 12px; padding: 2rem; text-align: center; position: relative; transition: all 0.3s ease; transform: scale(1.05); box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2);">
-                        <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 4px 16px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">⭐ BEST VALUE</div>
-                        <div style="font-size: 2rem; margin-bottom: 1rem;">💎</div>
-                        <h3 style="color: #10B981; font-size: 1.3rem; margin-bottom: 0.5rem;">Dashboard Premium</h3>
-                        <div style="margin-bottom: 0.3rem;">
-                            <span class="price-strikethrough">$10</span>
-                            <span style="font-size: 2rem; font-weight: 700; color: #C9D1D9;">$5</span>
-                            <span class="price-beta-tag">Beta Price!</span>
+                    <div class="pricing-card featured">
+                        <div class="pricing-badge">BEST VALUE</div>
+                        <div class="pricing-icon">💎</div>
+                        <div class="pricing-name">Dashboard Premium</div>
+                        <div class="pricing-price">
+                            <span class="price-strikethrough">$10</span>$5
+                            <span class="beta-tag">Beta Price!</span>
                         </div>
-                        <div style="font-size: 0.9rem; color: #8B949E; margin-bottom: 1rem;">one-time per server</div>
-                        <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Full dashboard access</li>
-                            <li style="padding: 0.5rem 0; color: #10B981; display: flex; align-items: center; gap: 8px; font-weight: 600;"><span>🎁</span> 7-day retention INCLUDED!</li>
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> CSV reports unlocked</li>
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Time adjustment requests</li>
+                        <div class="pricing-period">one-time per server</div>
+                        <ul class="pricing-features">
+                            <li><span class="check">✓</span> Full dashboard access</li>
+                            <li style="color: #10B981; font-weight: 600;"><span>🎁</span> 7-day retention INCLUDED!</li>
+                            <li><span class="check">✓</span> CSV reports unlocked</li>
+                            <li><span class="check">✓</span> Time adjustments</li>
+                            <li><span class="check">✓</span> Employee management</li>
                         </ul>
-                        <a href="/purchase/bot_access" style="display: inline-block; width: 100%; background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin-top: 1rem; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">Get Dashboard Premium</a>
+                        <a href="/purchase/bot_access" class="pricing-cta primary">Get Dashboard Premium</a>
                     </div>
 
-                    <!-- Pro Retention -->
-                    <div style="background: rgba(30, 35, 45, 0.6); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s ease;">
-                        <div style="font-size: 2rem; margin-bottom: 1rem;">📈</div>
-                        <h3 style="color: #D4AF37; font-size: 1.3rem; margin-bottom: 0.5rem;">Pro Retention</h3>
-                        <div style="font-size: 2rem; font-weight: 700; color: #C9D1D9; margin-bottom: 0.3rem;">$5</div>
-                        <div style="font-size: 0.9rem; color: #8B949E; margin-bottom: 1rem;">per month</div>
-                        <ul style="list-style: none; padding: 0; margin: 1.5rem 0; text-align: left;">
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> 30-day data retention</li>
-                            <li style="padding: 0.5rem 0; color: #C9D1D9; display: flex; align-items: center; gap: 8px;"><span style="color: #10B981;">✓</span> Extended history access</li>
-                            <li style="padding: 0.5rem 0; color: #8B949E; display: flex; align-items: center; gap: 8px;"><span style="color: #F59E0B;">ℹ️</span> Requires Dashboard Premium</li>
+                    <div class="pricing-card">
+                        <div class="pricing-icon">📈</div>
+                        <div class="pricing-name" style="color: #D4AF37;">Pro Retention</div>
+                        <div class="pricing-price">$5</div>
+                        <div class="pricing-period">per month</div>
+                        <ul class="pricing-features">
+                            <li><span class="check">✓</span> 30-day data retention</li>
+                            <li><span class="check">✓</span> Extended history access</li>
+                            <li style="color: #8B949E;"><span class="warning">ℹ️</span> Requires Dashboard Premium</li>
                         </ul>
-                        <div style="display: inline-block; width: 100%; background: rgba(212, 175, 55, 0.1); color: #8B949E; padding: 12px 24px; border-radius: 8px; font-weight: 500; margin-top: 1rem; border: 1px solid rgba(212, 175, 55, 0.3);">Add-on in Dashboard</div>
+                        <div class="pricing-cta secondary">Add-on in Dashboard</div>
                     </div>
                 </div>
 
-                <!-- Comparison Table -->
-                <table class="comparison-table" style="max-width: 900px; margin: 3rem auto 0;">
+                <table class="comparison-table">
                     <thead>
                         <tr>
                             <th style="text-align: left; padding-left: 1.5rem;">Feature</th>
@@ -486,27 +752,27 @@
                     <tbody>
                         <tr>
                             <td class="feature-name">Clock In/Out</td>
-                            <td><span class="check">✓</span></td>
-                            <td class="highlight"><span class="check">✓</span></td>
-                            <td><span class="check">✓</span></td>
+                            <td><span style="color: #10B981;">✓</span></td>
+                            <td class="highlight"><span style="color: #10B981;">✓</span></td>
+                            <td><span style="color: #10B981;">✓</span></td>
                         </tr>
                         <tr>
                             <td class="feature-name">Dashboard Access</td>
-                            <td><span class="locked">🔒 Locked</span></td>
-                            <td class="highlight"><span class="check">✓</span></td>
-                            <td><span class="check">✓</span></td>
+                            <td><span style="color: #F59E0B;">🔒</span></td>
+                            <td class="highlight"><span style="color: #10B981;">✓</span></td>
+                            <td><span style="color: #10B981;">✓</span></td>
                         </tr>
                         <tr>
                             <td class="feature-name">CSV Reports</td>
-                            <td><span class="cross">✗</span></td>
-                            <td class="highlight"><span class="check">✓</span></td>
-                            <td><span class="check">✓</span></td>
+                            <td><span style="color: #EF4444;">✗</span></td>
+                            <td class="highlight"><span style="color: #10B981;">✓</span></td>
+                            <td><span style="color: #10B981;">✓</span></td>
                         </tr>
                         <tr>
                             <td class="feature-name">Time Adjustments</td>
-                            <td><span class="cross">✗</span></td>
-                            <td class="highlight"><span class="check">✓</span></td>
-                            <td><span class="check">✓</span></td>
+                            <td><span style="color: #EF4444;">✗</span></td>
+                            <td class="highlight"><span style="color: #10B981;">✓</span></td>
+                            <td><span style="color: #10B981;">✓</span></td>
                         </tr>
                         <tr>
                             <td class="feature-name">Data Retention</td>
@@ -522,51 +788,26 @@
                         </tr>
                     </tbody>
                 </table>
-                
-                <p style="text-align: center; color: #8B949E; margin-top: 2rem; font-size: 0.95rem;">
-                    💡 Use <strong style="color: #D4AF37;">/clock</strong> in Discord to get started, then upgrade via the dashboard
-                </p>
             </div>
 
-            <!-- Compact Features List -->
-            <div class="features-section">
-                <h2 class="features-title">Core Features</h2>
-                <div class="features-list">
-                    <div class="feature-item">
-                        <span class="feature-icon">⏰</span>
-                        <span class="feature-text">Smart Clock In/Out System</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">📊</span>
-                        <span class="feature-text">Detailed CSV Reports</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">👥</span>
-                        <span class="feature-text">Role-Based Access Control</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">🌍</span>
-                        <span class="feature-text">Multi-Timezone Support</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">📧</span>
-                        <span class="feature-text">Email Notifications</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">💎</span>
-                        <span class="feature-text">Flexible Subscription Plans</span>
-                    </div>
-                </div>
+            <div class="cta-section">
+                <div class="cta-title">Ready to Transform Your Time Tracking?</div>
+                <p class="cta-subtitle">Use <strong style="color: #D4AF37;">/clock</strong> in Discord to get started, then upgrade via the dashboard</p>
+                <a href="/invite" class="btn btn-primary" style="margin-top: 0.5rem;">
+                    <span>Add On the Clock to Your Server</span>
+                </a>
             </div>
 
-            <!-- Footer -->
             <div class="footer">
+                <div class="footer-links">
+                    <a href="https://discord.gg/KdTRTqdPcj">Support</a>
+                    <a href="https://buymeacoffee.com/hypnotik">Buy Me a Coffee</a>
+                </div>
                 <p>&copy; 2025 On the Clock. All rights reserved.</p>
             </div>
         </div>
     </div>
 
-    <!-- Matrix Animation Script -->
     <script>
         const canvas = document.getElementById('matrix-canvas');
         const ctx = canvas.getContext('2d');
