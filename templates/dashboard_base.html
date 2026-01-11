@@ -12,12 +12,6 @@
 <body>
     <canvas id="matrix-canvas"></canvas>
 
-    <div class="mobile-hamburger" id="mobileHamburger">
-        <span class="hamburger-icon">☰</span>
-    </div>
-
-    <div class="mobile-overlay" id="mobileOverlay"></div>
-
     <div class="layout-container">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-logo">
@@ -134,6 +128,12 @@
         </main>
     </div>
 
+    <!-- Mobile overlay and hamburger AFTER layout-container for proper z-index stacking -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+    <div class="mobile-hamburger" id="mobileHamburger">
+        <span class="hamburger-icon">☰</span>
+    </div>
+
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
         <div class="loading-spinner"></div>
         <div class="loading-text">Loading...</div>
@@ -157,19 +157,12 @@
                 document.body.classList.add('sidebar-open');
                 sidebar.classList.remove('mobile-hidden');
                 document.body.style.overflow = 'hidden';
-                // Move hamburger to stay visible or change icon if needed
-                if (mobileHamburger) {
-                    mobileHamburger.style.zIndex = '1002';
-                }
             }
             
             function closeSidebar() {
                 document.body.classList.remove('sidebar-open');
                 sidebar.classList.add('mobile-hidden');
                 document.body.style.overflow = '';
-                if (mobileHamburger) {
-                    mobileHamburger.style.zIndex = '1001';
-                }
             }
             
             function initSidebarState() {
