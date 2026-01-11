@@ -1482,13 +1482,15 @@
                 
                 clearTimeout(timeoutId);
                 
-                if (!response.ok) {
+                let data;
+                try {
+                    data = await response.json();
+                } catch (parseErr) {
                     showLoading(false);
                     errorEl.textContent = `Server error (${response.status}). Try again.`;
                     return;
                 }
                 
-                const data = await response.json();
                 showLoading(false);
                 
                 if (data.success) {
