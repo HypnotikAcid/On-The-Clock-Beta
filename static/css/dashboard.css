@@ -272,27 +272,28 @@
             color: #D4AF37;
         }
 
-        /* Mobile Overlay */
+        /* Mobile Overlay - blur only applied when body has sidebar-open class */
         .mobile-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            background: transparent;
             z-index: 998;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
             pointer-events: none;
         }
 
-        .mobile-overlay.active {
+        /* Only apply blur and background when sidebar is actually open */
+        body.sidebar-open .mobile-overlay {
             opacity: 1;
             visibility: visible;
             pointer-events: auto;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
 
         /* Spinner for buttons */

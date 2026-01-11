@@ -154,42 +154,45 @@
             }
             
             function closeSidebar() {
+                document.body.classList.remove('sidebar-open');
                 sidebar.classList.add('mobile-hidden');
-                mobileOverlay.classList.remove('active');
                 document.body.style.overflow = '';
             }
             
             function openSidebar() {
+                document.body.classList.add('sidebar-open');
                 sidebar.classList.remove('mobile-hidden');
-                mobileOverlay.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
             
             function initSidebarState() {
+                document.body.classList.remove('sidebar-open');
+                document.body.style.overflow = '';
                 if (isMobile()) {
                     sidebar.classList.add('mobile-hidden');
-                    mobileOverlay.classList.remove('active');
                 } else {
                     sidebar.classList.remove('mobile-hidden');
-                    mobileOverlay.classList.remove('active');
                 }
-                document.body.style.overflow = '';
             }
             
             initSidebarState();
             
-            mobileHamburger.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (sidebar.classList.contains('mobile-hidden')) {
-                    openSidebar();
-                } else {
-                    closeSidebar();
-                }
-            });
+            if (mobileHamburger) {
+                mobileHamburger.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (sidebar.classList.contains('mobile-hidden')) {
+                        openSidebar();
+                    } else {
+                        closeSidebar();
+                    }
+                });
+            }
 
-            mobileOverlay.addEventListener('click', function() {
-                closeSidebar();
-            });
+            if (mobileOverlay) {
+                mobileOverlay.addEventListener('click', function() {
+                    closeSidebar();
+                });
+            }
 
             const navLinks = sidebar.querySelectorAll('.nav-item, .back-to-servers');
             navLinks.forEach(link => {
@@ -204,11 +207,11 @@
             window.addEventListener('resize', function() {
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(function() {
+                    document.body.classList.remove('sidebar-open');
+                    document.body.style.overflow = '';
                     if (!isMobile()) {
                         sidebar.classList.remove('mobile-hidden');
-                        mobileOverlay.classList.remove('active');
-                        document.body.style.overflow = '';
-                    } else if (!mobileOverlay.classList.contains('active')) {
+                    } else {
                         sidebar.classList.add('mobile-hidden');
                     }
                 }, 100);
