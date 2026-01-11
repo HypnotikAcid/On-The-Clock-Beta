@@ -55,6 +55,8 @@ const guildId = '{{ server.id }}';
 
 async function loadEmailSettings() {
     const container = document.getElementById('recipients-list');
+    const autoSendToggle = document.getElementById('auto-send-toggle');
+    
     try {
         const response = await fetch(`/api/server/${guildId}/email-recipients`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -62,20 +64,26 @@ async function loadEmailSettings() {
         
         if (data.success) {
             renderRecipients(data.emails || []);
-            // Also load auto-send setting from a different endpoint or handle it here
-            const settingsResponse = await fetch(`/api/server/${guildId}/email-settings-status`);
-            if (settingsResponse.ok) {
-                const settingsData = await settingsResponse.json();
-                if (settingsData.success) {
-                    document.getElementById('auto-send-toggle').checked = settingsData.auto_send_on_clockout !== false;
-                }
-            }
         } else {
             container.innerHTML = `<p class="error-text">Failed to load: ${data.error || 'Unknown error'}</p>`;
         }
     } catch (error) {
-        console.error('Failed to load email settings:', error);
+        console.error('Failed to load email recipients:', error);
         container.innerHTML = `<p class="error-text">Connection error. Please try again.</p>`;
+    }
+    
+    try {
+        const settingsResponse = await fetch(`/api/server/${guildId}/email-settings-status`);
+        if (!settingsResponse.ok) {
+            console.warn('Failed to load email settings status');
+            return;
+        }
+        const settingsData = await settingsResponse.json();
+        if (settingsData.success) {
+            autoSendToggle.checked = settingsData.auto_send_on_clockout !== false;
+        }
+    } catch (error) {
+        console.error('Failed to load email settings status:', error);
     }
 }
 

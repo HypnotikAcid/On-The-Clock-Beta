@@ -136,16 +136,21 @@ async function loadPendingRequests() {
     const container = document.getElementById('pending-requests');
     try {
         const response = await fetch(`/api/server/${guildId}/adjustments?status=pending`);
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
         const data = await response.json();
         
         if (data.success) {
             renderRequests(data.requests || [], 'pending-requests', true);
         } else {
             container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
+            DashboardUtils.showNotification(data.error || 'Failed to load pending requests', 'error');
         }
     } catch (error) {
         console.error('Failed to load pending requests:', error);
         container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
+        DashboardUtils.showNotification('Connection error loading requests', 'error');
     }
 }
 
@@ -153,16 +158,21 @@ async function loadHistory() {
     const container = document.getElementById('history-requests');
     try {
         const response = await fetch(`/api/server/${guildId}/adjustments?status=all`);
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
         const data = await response.json();
         
         if (data.success) {
             renderRequests(data.requests || [], 'history-requests', false);
         } else {
             container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load history</p>';
+            DashboardUtils.showNotification(data.error || 'Failed to load history', 'error');
         }
     } catch (error) {
         console.error('Failed to load history:', error);
         container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load history</p>';
+        DashboardUtils.showNotification('Connection error loading history', 'error');
     }
 }
 
@@ -170,16 +180,21 @@ async function loadMyRequests() {
     const container = document.getElementById('my-requests');
     try {
         const response = await fetch(`/api/server/${guildId}/adjustments?user_id=${userId}`);
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
         const data = await response.json();
         
         if (data.success) {
             renderRequests(data.requests || [], 'my-requests', false);
         } else {
             container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
+            DashboardUtils.showNotification(data.error || 'Failed to load your requests', 'error');
         }
     } catch (error) {
         console.error('Failed to load requests:', error);
         container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
+        DashboardUtils.showNotification('Connection error loading requests', 'error');
     }
 }
 
@@ -217,15 +232,20 @@ async function handleRequest(requestId, action) {
             headers: { 'Content-Type': 'application/json' }
         });
         
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data.success) {
             DashboardUtils.showNotification(`Request ${action === 'approve' ? 'approved' : 'denied'}`, 'success');
             loadPendingRequests();
         } else {
-            DashboardUtils.showNotification(data.error || 'Failed', 'error');
+            DashboardUtils.showNotification(data.error || 'Failed to process request', 'error');
         }
     } catch (error) {
+        console.error('Failed to handle request:', error);
         DashboardUtils.showNotification('Failed to process request', 'error');
     }
 }

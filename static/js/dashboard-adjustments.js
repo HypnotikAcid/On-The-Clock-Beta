@@ -141,6 +141,10 @@ async function loadAdminCalendarMonth(year, month) {
             `/api/guild/${guildId}/adjustments/admin-calendar?year=${year}&month=${month}`
         );
 
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
         const result = await response.json();
 
         if (!result.success) {
@@ -189,6 +193,10 @@ async function loadEmployeeCalendarMonth(year, month) {
         const response = await fetch(
             `/api/guild/${guildId}/employee/${userId}/monthly-timecard?year=${year}&month=${month}`
         );
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
 
         const result = await response.json();
 
@@ -240,9 +248,15 @@ async function checkActiveSession(guildId, userId) {
         const response = await fetch(
             `/api/guild/${guildId}/employee/${userId}/monthly-timecard?year=${now.getFullYear()}&month=${now.getMonth() + 1}`
         );
+        
+        if (!response.ok) {
+            console.warn('Failed to check active session:', response.status);
+            return;
+        }
+        
         const result = await response.json();
 
-        if (result.success && result.data.days) {
+        if (result.success && result.data && result.data.days) {
             checkForActiveSessionInData(result.data.days);
         }
     } catch (error) {
@@ -293,6 +307,10 @@ async function handleClockOut() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
 
         const result = await response.json();
 
@@ -520,6 +538,11 @@ async function handleAdminAction(requestId, action, buttonEl) {
         const response = await fetch(`/api/guild/${guildId}/adjustments/${requestId}/${action}`, {
             method: 'POST'
         });
+        
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+        
         const result = await response.json();
 
         if (result.success) {
@@ -929,9 +952,17 @@ async function submitDayAdjustment(dateStr) {
     try {
         const promises = [];
         
+        async function safeFetch(url, options) {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            return response.json();
+        }
+        
         if (changedSessions.length > 0) {
             promises.push(
-                fetch(`/api/guild/${currentCalendarData.guildId}/adjustments/submit-day`, {
+                safeFetch(`/api/guild/${currentCalendarData.guildId}/adjustments/submit-day`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -939,13 +970,13 @@ async function submitDayAdjustment(dateStr) {
                         reason: reason,
                         changes: changedSessions
                     })
-                }).then(r => r.json())
+                })
             );
         }
         
         for (const newSession of newSessions) {
             promises.push(
-                fetch(`/api/guild/${currentCalendarData.guildId}/adjustments`, {
+                safeFetch(`/api/guild/${currentCalendarData.guildId}/adjustments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -955,7 +986,7 @@ async function submitDayAdjustment(dateStr) {
                         requested_clock_in: `${dateStr}T${newSession.clock_in}:00`,
                         requested_clock_out: newSession.clock_out ? `${dateStr}T${newSession.clock_out}:00` : null
                     })
-                }).then(r => r.json())
+                })
             );
         }
 
@@ -973,7 +1004,7 @@ async function submitDayAdjustment(dateStr) {
         showToast('Adjustment request submitted successfully!', 'success');
     } catch (error) {
         console.error('Error submitting adjustment:', error);
-        alert('Failed to submit adjustment: ' + error.message);
+        showToast('Failed to submit adjustment: ' + error.message, 'error');
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit Request';
     }
@@ -1074,6 +1105,10 @@ async function submitMissingTimeRequest(dateStr) {
             })
         });
 
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
         const result = await response.json();
 
         if (result.success) {
@@ -1120,6 +1155,11 @@ async function loadPendingRequestsList(guildId, isAdmin) {
         }
 
         const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+        
         const data = await response.json();
 
         if (!data.success) {
@@ -1227,6 +1267,7 @@ async function loadPendingRequestsList(guildId, isAdmin) {
     } catch (error) {
         console.error('Error loading pending requests:', error);
         container.innerHTML = `<div class="empty-state" style="color: #EF4444;">Failed to load requests: ${escapeHtml(error.message)}</div>`;
+        showToast('Failed to load pending requests', 'error');
     }
 }
 
@@ -1241,6 +1282,11 @@ async function handleListAdjustmentAction(guildId, requestId, action, buttonEl) 
         const response = await fetch(`/api/guild/${guildId}/adjustments/${requestId}/${action}`, {
             method: 'POST'
         });
+        
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+        
         const data = await response.json();
 
         if (data.success) {
@@ -1286,11 +1332,19 @@ async function loadPastRequests(guildId, isAdmin) {
         }
 
         const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+        
         const data = await response.json();
 
         if (!data.success) {
             url = `/api/guild/${guildId}/adjustments/history`;
             const fallbackResponse = await fetch(url);
+            if (!fallbackResponse.ok) {
+                throw new Error(`Fallback server error: ${fallbackResponse.status}`);
+            }
             const fallbackData = await fallbackResponse.json();
             if (fallbackData.success) {
                 renderPastRequests(container, countBadge, fallbackData.history || [], isAdmin);
@@ -1307,6 +1361,15 @@ async function loadPastRequests(guildId, isAdmin) {
         container.innerHTML = '<div class="empty-state">No past requests found.</div>';
         if (countBadge) countBadge.textContent = '(0)';
     }
+}
+
+// Global helper for safe fetch with response.ok check
+async function safeFetchJson(url, options = {}) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+    }
+    return response.json();
 }
 
 function renderPastRequests(container, countBadge, allRequests, isAdmin) {

@@ -337,7 +337,10 @@ function renderEmployees(employees) {
     }
     
     container.innerHTML = employees.map(emp => {
-        const needsAttention = emp.pending_adjustments > 0 || !emp.first_clock_used || (emp.is_clocked_in && emp.current_session_duration > 720);
+        const pendingAdj = emp.pending_adjustments || 0;
+        const sessionDuration = emp.current_session_duration || 0;
+        const hasOnboarded = emp.first_clock_used === true;
+        const needsAttention = pendingAdj > 0 || (emp.is_clocked_in && sessionDuration > 720);
         const cardClasses = ['employee-card-collapsible'];
         if (emp.is_clocked_in) cardClasses.push('is-clocked-in');
         if (needsAttention) cardClasses.push('has-alert');
@@ -360,17 +363,17 @@ function renderEmployees(employees) {
                     </div>
                     <div class="employee-quick-stats">
                         <span class="quick-stat">This week: ${formatDuration(emp.weekly_minutes)}</span>
-                        ${emp.is_clocked_in && emp.current_session_duration ? 
-                            `<span class="quick-stat ${emp.current_session_duration > 720 ? 'alert' : ''}">
-                                Current: ${formatDuration(emp.current_session_duration)}
+                        ${emp.is_clocked_in && sessionDuration ? 
+                            `<span class="quick-stat ${sessionDuration > 720 ? 'alert' : ''}">
+                                Current: ${formatDuration(sessionDuration)}
                             </span>` : ''}
-                        ${emp.pending_adjustments > 0 ? 
-                            `<span class="quick-stat alert">${emp.pending_adjustments} pending adjustment${emp.pending_adjustments > 1 ? 's' : ''}</span>` : ''}
+                        ${pendingAdj > 0 ? 
+                            `<span class="quick-stat alert">${pendingAdj} pending adjustment${pendingAdj > 1 ? 's' : ''}</span>` : ''}
                     </div>
                 </div>
                 <div class="employee-badges">
-                    ${emp.pending_adjustments > 0 ? '<span class="badge-icon warning" title="Pending adjustments">!</span>' : ''}
-                    ${!emp.first_clock_used ? '<span class="badge-icon" title="Never clocked in">New</span>' : ''}
+                    ${pendingAdj > 0 ? '<span class="badge-icon warning" title="Pending adjustments">!</span>' : ''}
+                    ${!hasOnboarded ? '<span class="badge-icon" title="Never clocked in">New</span>' : ''}
                     ${emp.has_kiosk_pin ? '<span class="badge-icon" title="Has kiosk PIN">K</span>' : ''}
                 </div>
                 <span class="expand-icon">▼</span>
@@ -388,8 +391,8 @@ function renderEmployees(employees) {
                     <div class="detail-item">
                         <div class="detail-label">Onboarding</div>
                         <div class="detail-value">
-                            <span class="onboarding-status ${emp.first_clock_used ? '' : 'incomplete'}">
-                                ${emp.first_clock_used ? 'Complete' : 'Pending'}
+                            <span class="onboarding-status ${hasOnboarded ? '' : 'incomplete'}">
+                                ${hasOnboarded ? 'Complete' : 'Pending'}
                             </span>
                         </div>
                     </div>
@@ -403,7 +406,7 @@ function renderEmployees(employees) {
                         `<button class="action-btn warning" onclick="forceClockOut('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
                             Force Clock Out
                         </button>` : ''}
-                    ${emp.pending_adjustments > 0 ? 
+                    ${pendingAdj > 0 ? 
                         `<a href="/dashboard/server/${guildId}/adjustments" class="action-btn primary">
                             Review Adjustments
                         </a>` : ''}
@@ -411,7 +414,7 @@ function renderEmployees(employees) {
                         ${emp.has_kiosk_pin ? 'Reset PIN' : 'Generate PIN'}
                     </button>
                     <button class="action-btn" onclick="rerunOnboarding('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
-                        ${emp.first_clock_used ? 'Resend Welcome' : 'Send Welcome DM'}
+                        ${hasOnboarded ? 'Resend Welcome' : 'Send Welcome DM'}
                     </button>
                 </div>
             </div>
@@ -442,11 +445,11 @@ function filterEmployees() {
     } else if (status === 'clocked-out') {
         filtered = filtered.filter(e => !e.is_clocked_in);
     } else if (status === 'needs-attention') {
-        filtered = filtered.filter(e => 
-            e.pending_adjustments > 0 || 
-            !e.first_clock_used || 
-            (e.is_clocked_in && e.current_session_duration > 720)
-        );
+        filtered = filtered.filter(e => {
+            const pendingAdj = e.pending_adjustments || 0;
+            const sessionDuration = e.current_session_duration || 0;
+            return pendingAdj > 0 || (e.is_clocked_in && sessionDuration > 720);
+        });
     }
     
     renderEmployees(filtered);
