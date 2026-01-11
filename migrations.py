@@ -366,6 +366,21 @@ def run_migrations():
                 # 16. Add kiosk_mode_only to server_subscriptions
                 print("   Checking for kiosk_mode_only column")
                 cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS kiosk_mode_only BOOLEAN DEFAULT FALSE")
+                
+                # 17. Add indexes for timeclock_sessions table for performance
+                print("   Checking indexes for timeclock_sessions")
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_timeclock_guild_user 
+                    ON timeclock_sessions(guild_id, user_id)
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_timeclock_clockin 
+                    ON timeclock_sessions(clock_in_time)
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_timeclock_guild_clockin 
+                    ON timeclock_sessions(guild_id, clock_in_time)
+                """)
 
         print("✅ Database schema is up to date")
         return True
