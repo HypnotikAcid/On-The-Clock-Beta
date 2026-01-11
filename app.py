@@ -5049,23 +5049,49 @@ def api_get_server_employees(user_session, guild_id):
         with get_db() as conn:
             cursor = conn.execute("""
                 SELECT ep.user_id, ep.full_name, ep.display_name,
-                       ep.is_active, ep.avatar_url,
+                       ep.is_active, ep.avatar_url, ep.welcome_dm_sent, 
+                       ep.first_clock_used, ep.first_clock_at, ep.email,
                        (SELECT COUNT(*) > 0 FROM timeclock_sessions ts 
                         WHERE ts.user_id = ep.user_id AND ts.guild_id = ep.guild_id 
-                        AND ts.clock_out_time IS NULL) as is_clocked_in
+                        AND ts.clock_out_time IS NULL) as is_clocked_in,
+                       (SELECT clock_in_time FROM timeclock_sessions ts 
+                        WHERE ts.user_id = ep.user_id AND ts.guild_id = ep.guild_id 
+                        AND ts.clock_out_time IS NULL ORDER BY clock_in_time DESC LIMIT 1) as current_session_start,
+                       (SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time))), 0)
+                        FROM timeclock_sessions ts 
+                        WHERE ts.user_id = ep.user_id AND ts.guild_id = ep.guild_id
+                        AND clock_in_time >= date_trunc('week', CURRENT_DATE)) / 60.0 as weekly_minutes,
+                       (SELECT COUNT(*) FROM time_adjustment_requests tar
+                        WHERE tar.user_id = ep.user_id AND tar.guild_id = ep.guild_id
+                        AND tar.status = 'pending') as pending_adjustments,
+                       (SELECT token FROM employee_profile_tokens ept
+                        WHERE ept.user_id = ep.user_id AND ept.guild_id = ep.guild_id
+                        AND ept.expires_at > NOW() LIMIT 1) IS NOT NULL as has_kiosk_pin
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.is_active = TRUE
                 ORDER BY COALESCE(ep.display_name, ep.full_name)
             """, (int(guild_id),))
             
             for row in cursor.fetchall():
+                current_session_duration = None
+                if row['is_clocked_in'] and row.get('current_session_start'):
+                    duration_seconds = (datetime.now(pytz.UTC) - row['current_session_start'].replace(tzinfo=pytz.UTC)).total_seconds()
+                    current_session_duration = int(duration_seconds / 60)
+                
                 employees.append({
                     'user_id': str(row['user_id']),
                     'username': row['full_name'] or '',
                     'display_name': row['display_name'] or row['full_name'] or 'Unknown',
                     'is_active': row['is_active'],
                     'is_clocked_in': row['is_clocked_in'],
-                    'avatar_url': row['avatar_url']
+                    'avatar_url': row['avatar_url'],
+                    'current_session_duration': current_session_duration,
+                    'weekly_minutes': round(row.get('weekly_minutes') or 0, 1),
+                    'pending_adjustments': row.get('pending_adjustments') or 0,
+                    'has_kiosk_pin': row.get('has_kiosk_pin') or False,
+                    'welcome_dm_sent': row.get('welcome_dm_sent') or False,
+                    'first_clock_used': row.get('first_clock_used') or False,
+                    'has_email': bool(row.get('email'))
                 })
         
         return jsonify({'success': True, 'employees': employees})
@@ -7142,6 +7168,73 @@ def api_admin_clock_out_employee(user_session, guild_id, user_id):
         app.logger.error(f"Error in admin clock out: {e}")
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Failed to clock out employee'}), 500
+
+
+@app.route("/api/server/<guild_id>/employee/<user_id>/reset-pin", methods=["POST"])
+@require_paid_api_access
+def api_reset_employee_pin(user_session, guild_id, user_id):
+    """Reset/regenerate an employee's kiosk PIN token"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        
+        with get_db() as conn:
+            conn.execute("""
+                DELETE FROM employee_profile_tokens 
+                WHERE guild_id = %s AND user_id = %s
+            """, (int(guild_id), int(user_id)))
+            
+            conn.execute("""
+                INSERT INTO employee_profile_tokens (guild_id, user_id, delivery_method, expires_at)
+                VALUES (%s, %s, 'ephemeral', NOW() + INTERVAL '30 days')
+            """, (int(guild_id), int(user_id)))
+        
+        app.logger.info(f"Admin {user_session.get('username')} reset PIN for user {user_id} in guild {guild_id}")
+        return jsonify({'success': True, 'message': 'Kiosk PIN has been reset'})
+        
+    except Exception as e:
+        app.logger.error(f"Error resetting PIN: {e}")
+        return jsonify({'success': False, 'error': 'Failed to reset PIN'}), 500
+
+
+@app.route("/api/server/<guild_id>/employee/<user_id>/rerun-onboarding", methods=["POST"])
+@require_paid_api_access
+def api_rerun_employee_onboarding(user_session, guild_id, user_id):
+    """Reset onboarding flags and trigger welcome DM for an employee"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute("""
+                UPDATE employee_profiles 
+                SET welcome_dm_sent = FALSE, first_clock_used = FALSE
+                WHERE guild_id = %s AND user_id = %s
+                RETURNING display_name, full_name
+            """, (int(guild_id), int(user_id)))
+            row = cursor.fetchone()
+            
+            if not row:
+                return jsonify({'success': False, 'error': 'Employee not found'}), 404
+        
+        try:
+            from bot import trigger_welcome_dm
+            result = trigger_welcome_dm(int(guild_id), int(user_id))
+            if result.get('success'):
+                app.logger.info(f"Admin {user_session.get('username')} reran onboarding for user {user_id} in guild {guild_id}")
+                return jsonify({'success': True, 'message': 'Welcome DM sent successfully'})
+            else:
+                return jsonify({'success': True, 'message': 'Onboarding flags reset (DM may not have sent - user may have DMs disabled)'})
+        except Exception as dm_error:
+            app.logger.warning(f"DM failed during rerun onboarding: {dm_error}")
+            return jsonify({'success': True, 'message': 'Onboarding flags reset (DM could not be sent)'})
+        
+    except Exception as e:
+        app.logger.error(f"Error rerunning onboarding: {e}")
+        return jsonify({'success': False, 'error': 'Failed to rerun onboarding'}), 500
+
 
 # Employee Detail View API Endpoints
 @app.route("/api/guild/<guild_id>/employee/<user_id>/detail")

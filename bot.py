@@ -6814,6 +6814,40 @@ async def send_employee_welcome_dm(member: discord.Member, guild: discord.Guild)
         print(f"Error sending employee welcome DM to {member}: {e}")
         return False
 
+
+def trigger_welcome_dm(guild_id: int, user_id: int) -> dict:
+    """
+    Sync wrapper to trigger a welcome DM from Flask.
+    Returns {'success': True/False, 'message': str}
+    """
+    try:
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            return {'success': False, 'message': 'Guild not found'}
+        
+        member = guild.get_member(user_id)
+        if not member:
+            return {'success': False, 'message': 'Member not found in guild'}
+        
+        async def _send_dm():
+            return await send_employee_welcome_dm(member, guild)
+        
+        if bot.loop and bot.loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(_send_dm(), bot.loop)
+            result = future.result(timeout=10)
+        else:
+            return {'success': False, 'message': 'Bot event loop not running'}
+        
+        if result:
+            return {'success': True, 'message': 'Welcome DM sent'}
+        else:
+            return {'success': False, 'message': 'Could not send DM - user may have DMs disabled'}
+            
+    except Exception as e:
+        print(f"Error in trigger_welcome_dm: {e}")
+        return {'success': False, 'message': str(e)}
+
+
 @bot.event
 async def on_guild_join(guild):
     """Send welcome message with setup instructions when bot joins a new server"""

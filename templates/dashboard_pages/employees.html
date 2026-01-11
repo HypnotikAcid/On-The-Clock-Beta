@@ -5,7 +5,7 @@
 {% block content %}
 <div class="content-header">
     <h1 class="content-title">Employee Status</h1>
-    <p class="content-subtitle">View and manage employee time tracking</p>
+    <p class="content-subtitle">View and manage your team's time tracking</p>
 </div>
 
 <div class="tiles-grid">
@@ -18,24 +18,289 @@
                 <option value="all">All Employees</option>
                 <option value="clocked-in">Clocked In</option>
                 <option value="clocked-out">Clocked Out</option>
+                <option value="needs-attention">Needs Attention</option>
             </select>
         </div>
         
-        <div id="employees-grid" class="employees-grid">
+        <div id="employees-list" class="employees-list">
             <div class="loading-placeholder">Loading employees...</div>
         </div>
-    </div>
-</div>
-
-<div id="employee-modal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <button class="modal-close" onclick="closeEmployeeModal()">&times;</button>
-        <div id="modal-body"></div>
     </div>
 </div>
 {% endblock %}
 
 {% block page_scripts %}
+<style>
+.employees-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.employee-card-collapsible {
+    background: var(--card-bg, #161b22);
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.employee-card-collapsible.has-alert {
+    border-left: 3px solid #f0ad4e;
+}
+
+.employee-card-collapsible.is-clocked-in {
+    border-left: 3px solid #10B981;
+}
+
+.employee-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    gap: 0.75rem;
+    transition: background 0.2s ease;
+}
+
+.employee-header:hover {
+    background: rgba(255,255,255,0.02);
+}
+
+.employee-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.employee-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.employee-main-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.employee-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.employee-name {
+    font-weight: 600;
+    color: var(--text-primary, #c9d1d9);
+}
+
+.status-pill {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.status-pill.in {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+}
+
+.status-pill.out {
+    background: rgba(139, 148, 158, 0.15);
+    color: #8B949E;
+}
+
+.employee-quick-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #8B949E;
+    margin-top: 0.25rem;
+}
+
+.quick-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.quick-stat.alert {
+    color: #f0ad4e;
+}
+
+.employee-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.badge-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+}
+
+.badge-icon.warning {
+    background: rgba(240, 173, 78, 0.2);
+    color: #f0ad4e;
+}
+
+.expand-icon {
+    color: #8B949E;
+    transition: transform 0.2s ease;
+}
+
+.employee-card-collapsible.expanded .expand-icon {
+    transform: rotate(180deg);
+}
+
+.employee-details {
+    display: none;
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--border-color, #30363d);
+    background: rgba(0,0,0,0.1);
+}
+
+.employee-card-collapsible.expanded .employee-details {
+    display: block;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+}
+
+.detail-item {
+    text-align: center;
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+}
+
+.detail-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8B949E;
+    margin-bottom: 0.25rem;
+}
+
+.detail-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary, #c9d1d9);
+}
+
+.detail-value.highlight {
+    color: #10B981;
+}
+
+.quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.action-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color, #30363d);
+    background: transparent;
+    color: #c9d1d9;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.action-btn:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: #8B949E;
+}
+
+.action-btn.warning:hover {
+    background: rgba(240, 173, 78, 0.1);
+    border-color: #f0ad4e;
+    color: #f0ad4e;
+}
+
+.action-btn.danger:hover {
+    background: rgba(248, 81, 73, 0.1);
+    border-color: #f85149;
+    color: #f85149;
+}
+
+.action-btn.primary {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: #6366f1;
+    color: #a5b4fc;
+}
+
+.action-btn.primary:hover {
+    background: rgba(99, 102, 241, 0.2);
+}
+
+.empty-state-text {
+    text-align: center;
+    padding: 2rem;
+    color: #8B949E;
+}
+
+.onboarding-status {
+    font-size: 0.7rem;
+    color: #8B949E;
+}
+
+.onboarding-status.incomplete {
+    color: #f0ad4e;
+}
+
+@media (max-width: 768px) {
+    .employee-quick-stats {
+        flex-wrap: wrap;
+    }
+    
+    .employee-badges {
+        display: none;
+    }
+    
+    .details-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .quick-actions {
+        flex-direction: column;
+    }
+    
+    .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+
 <script>
 const guildId = '{{ server.id }}';
 let allEmployees = [];
@@ -51,46 +316,113 @@ async function loadEmployees() {
         }
     } catch (error) {
         console.error('Failed to load employees:', error);
-        document.getElementById('employees-grid').innerHTML = 
+        document.getElementById('employees-list').innerHTML = 
             '<p class="error-text">Failed to load employees. Please refresh.</p>';
     }
 }
 
+function formatDuration(minutes) {
+    if (!minutes || minutes <= 0) return '0h 0m';
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return `${hours}h ${mins}m`;
+}
+
 function renderEmployees(employees) {
-    const container = document.getElementById('employees-grid');
+    const container = document.getElementById('employees-list');
     
     if (employees.length === 0) {
-        container.innerHTML = '<p class="empty-state-text">No employees found</p>';
+        container.innerHTML = '<p class="empty-state-text">No employees found. Assign employee roles to users to see them here.</p>';
         return;
     }
     
-    container.innerHTML = employees.map(emp => `
-        <div class="employee-card ${emp.is_clocked_in ? 'clocked-in' : ''}" onclick="viewEmployee('${emp.user_id}')">
-            <div class="employee-avatar">
-                ${emp.avatar_url 
-                    ? `<img src="${emp.avatar_url}" alt="${DashboardUtils.escapeHtml(emp.display_name)}">`
-                    : `<span>${(emp.display_name || '?')[0].toUpperCase()}</span>`
-                }
-            </div>
-            <div class="employee-info">
-                <div class="employee-name">${DashboardUtils.escapeHtml(emp.display_name || emp.username)}</div>
-                <div class="status-badge ${emp.is_clocked_in ? 'in' : 'out'}">
-                    ${emp.is_clocked_in ? '🟢 Clocked In' : '⚪ Clocked Out'}
+    container.innerHTML = employees.map(emp => {
+        const needsAttention = emp.pending_adjustments > 0 || !emp.first_clock_used || (emp.is_clocked_in && emp.current_session_duration > 720);
+        const cardClasses = ['employee-card-collapsible'];
+        if (emp.is_clocked_in) cardClasses.push('is-clocked-in');
+        if (needsAttention) cardClasses.push('has-alert');
+        
+        return `
+        <div class="${cardClasses.join(' ')}" data-user-id="${emp.user_id}">
+            <div class="employee-header" onclick="toggleEmployeeCard(this)">
+                <div class="employee-avatar">
+                    ${emp.avatar_url 
+                        ? `<img src="${DashboardUtils.escapeHtml(emp.avatar_url)}" alt="${DashboardUtils.escapeHtml(emp.display_name)}">`
+                        : `<span>${(emp.display_name || '?')[0].toUpperCase()}</span>`
+                    }
                 </div>
-                ${emp.is_clocked_in && emp.current_session_duration ? 
-                    `
-                    <div class="session-time">Session: ${DashboardUtils.formatDuration(emp.current_session_duration)}</div>
-                    ${emp.current_session_duration > 720 ? '<div class="anomaly-warning">⚠️ Long Session (>12h)</div>' : ''}
-                    ` : 
-                    ''}
+                <div class="employee-main-info">
+                    <div class="employee-name-row">
+                        <span class="employee-name">${DashboardUtils.escapeHtml(emp.display_name || emp.username)}</span>
+                        <span class="status-pill ${emp.is_clocked_in ? 'in' : 'out'}">
+                            ${emp.is_clocked_in ? 'Clocked In' : 'Off'}
+                        </span>
+                    </div>
+                    <div class="employee-quick-stats">
+                        <span class="quick-stat">This week: ${formatDuration(emp.weekly_minutes)}</span>
+                        ${emp.is_clocked_in && emp.current_session_duration ? 
+                            `<span class="quick-stat ${emp.current_session_duration > 720 ? 'alert' : ''}">
+                                Current: ${formatDuration(emp.current_session_duration)}
+                            </span>` : ''}
+                        ${emp.pending_adjustments > 0 ? 
+                            `<span class="quick-stat alert">${emp.pending_adjustments} pending adjustment${emp.pending_adjustments > 1 ? 's' : ''}</span>` : ''}
+                    </div>
+                </div>
+                <div class="employee-badges">
+                    ${emp.pending_adjustments > 0 ? '<span class="badge-icon warning" title="Pending adjustments">!</span>' : ''}
+                    ${!emp.first_clock_used ? '<span class="badge-icon" title="Never clocked in">New</span>' : ''}
+                    ${emp.has_kiosk_pin ? '<span class="badge-icon" title="Has kiosk PIN">K</span>' : ''}
+                </div>
+                <span class="expand-icon">▼</span>
             </div>
-            ${emp.is_clocked_in ? `
-                <button class="btn btn-sm btn-warning force-clock-out" onclick="event.stopPropagation(); forceClockOut('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
-                    Force Out
-                </button>
-            ` : ''}
+            <div class="employee-details">
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Weekly Hours</div>
+                        <div class="detail-value ${emp.weekly_minutes > 0 ? 'highlight' : ''}">${formatDuration(emp.weekly_minutes)}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Kiosk Access</div>
+                        <div class="detail-value">${emp.has_kiosk_pin ? 'Active' : 'None'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Onboarding</div>
+                        <div class="detail-value">
+                            <span class="onboarding-status ${emp.first_clock_used ? '' : 'incomplete'}">
+                                ${emp.first_clock_used ? 'Complete' : 'Pending'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Email</div>
+                        <div class="detail-value">${emp.has_email ? 'Set' : 'Not Set'}</div>
+                    </div>
+                </div>
+                <div class="quick-actions">
+                    ${emp.is_clocked_in ? 
+                        `<button class="action-btn warning" onclick="forceClockOut('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
+                            Force Clock Out
+                        </button>` : ''}
+                    ${emp.pending_adjustments > 0 ? 
+                        `<a href="/dashboard/server/${guildId}/adjustments" class="action-btn primary">
+                            Review Adjustments
+                        </a>` : ''}
+                    <button class="action-btn" onclick="resetPin('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
+                        ${emp.has_kiosk_pin ? 'Reset PIN' : 'Generate PIN'}
+                    </button>
+                    <button class="action-btn" onclick="rerunOnboarding('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
+                        ${emp.first_clock_used ? 'Resend Welcome' : 'Send Welcome DM'}
+                    </button>
+                </div>
+            </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
+}
+
+function toggleEmployeeCard(headerEl) {
+    const card = headerEl.closest('.employee-card-collapsible');
+    card.classList.toggle('expanded');
 }
 
 function filterEmployees() {
@@ -109,6 +441,12 @@ function filterEmployees() {
         filtered = filtered.filter(e => e.is_clocked_in);
     } else if (status === 'clocked-out') {
         filtered = filtered.filter(e => !e.is_clocked_in);
+    } else if (status === 'needs-attention') {
+        filtered = filtered.filter(e => 
+            e.pending_adjustments > 0 || 
+            !e.first_clock_used || 
+            (e.is_clocked_in && e.current_session_duration > 720)
+        );
     }
     
     renderEmployees(filtered);
@@ -117,65 +455,11 @@ function filterEmployees() {
 document.getElementById('search-employees').addEventListener('input', filterEmployees);
 document.getElementById('status-filter').addEventListener('change', filterEmployees);
 
-async function viewEmployee(userId) {
-    DashboardUtils.showLoading('Loading employee details...');
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/employee/${userId}/details`);
-        const data = await response.json();
-        
-        if (data.success) {
-            showEmployeeModal(data);
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to load details', 'error');
-        }
-    } catch (error) {
-        DashboardUtils.showNotification('Failed to load employee details', 'error');
-    }
-    
-    DashboardUtils.hideLoading();
-}
-
-function showEmployeeModal(data) {
-    const modal = document.getElementById('employee-modal');
-    const body = document.getElementById('modal-body');
-    
-    body.innerHTML = `
-        <h2>${DashboardUtils.escapeHtml(data.display_name || data.username)}</h2>
-        <div class="employee-stats">
-            <div class="stat">
-                <span class="stat-label">This Week</span>
-                <span class="stat-value">${DashboardUtils.formatDuration(data.weekly_hours)}</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">This Month</span>
-                <span class="stat-value">${DashboardUtils.formatDuration(data.monthly_hours)}</span>
-            </div>
-        </div>
-        <h3>Recent Sessions</h3>
-        <div class="sessions-list">
-            ${(data.recent_sessions || []).map(s => `
-                <div class="session-item">
-                    <span>${DashboardUtils.formatDate(s.clock_in_time)}</span>
-                    <span>${DashboardUtils.formatTime(s.clock_in_time)} - ${s.clock_out_time ? DashboardUtils.formatTime(s.clock_out_time) : 'Active'}</span>
-                    <span>${DashboardUtils.formatDuration(s.duration_minutes)}</span>
-                </div>
-            `).join('') || '<p>No recent sessions</p>'}
-        </div>
-    `;
-    
-    modal.style.display = 'flex';
-}
-
-function closeEmployeeModal() {
-    document.getElementById('employee-modal').style.display = 'none';
-}
-
 async function forceClockOut(userId, displayName) {
     if (!confirm(`Force clock out ${displayName}?`)) return;
     
     try {
-        const response = await fetch(`/api/server/${guildId}/employee/${userId}/force-clock-out`, {
+        const response = await fetch(`/api/guild/${guildId}/employees/${userId}/clock-out`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -190,6 +474,50 @@ async function forceClockOut(userId, displayName) {
         }
     } catch (error) {
         DashboardUtils.showNotification('Failed to force clock out', 'error');
+    }
+}
+
+async function resetPin(userId, displayName) {
+    if (!confirm(`Reset/generate kiosk PIN for ${displayName}? They will need to use /clock in Discord to get their new PIN.`)) return;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${userId}/reset-pin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification(data.message || 'PIN has been reset', 'success');
+            loadEmployees();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to reset PIN', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to reset PIN', 'error');
+    }
+}
+
+async function rerunOnboarding(userId, displayName) {
+    if (!confirm(`Send welcome DM to ${displayName}? This will reset their onboarding status and send them a new welcome message.`)) return;
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${userId}/rerun-onboarding`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            DashboardUtils.showNotification(data.message || 'Welcome DM sent', 'success');
+            loadEmployees();
+        } else {
+            DashboardUtils.showNotification(data.error || 'Failed to send welcome DM', 'error');
+        }
+    } catch (error) {
+        DashboardUtils.showNotification('Failed to send welcome DM', 'error');
     }
 }
 
