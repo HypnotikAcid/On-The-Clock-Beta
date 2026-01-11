@@ -153,16 +153,23 @@
                 return window.innerWidth <= 1024;
             }
             
-            function closeSidebar() {
-                document.body.classList.remove('sidebar-open');
-                sidebar.classList.add('mobile-hidden');
-                document.body.style.overflow = '';
-            }
-            
             function openSidebar() {
                 document.body.classList.add('sidebar-open');
                 sidebar.classList.remove('mobile-hidden');
                 document.body.style.overflow = 'hidden';
+                // Move hamburger to stay visible or change icon if needed
+                if (mobileHamburger) {
+                    mobileHamburger.style.zIndex = '1002';
+                }
+            }
+            
+            function closeSidebar() {
+                document.body.classList.remove('sidebar-open');
+                sidebar.classList.add('mobile-hidden');
+                document.body.style.overflow = '';
+                if (mobileHamburger) {
+                    mobileHamburger.style.zIndex = '1001';
+                }
             }
             
             function initSidebarState() {

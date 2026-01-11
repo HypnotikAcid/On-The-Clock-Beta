@@ -258,13 +258,20 @@
             position: fixed;
             top: 15px;
             left: 15px;
-            z-index: 101;
-            background: rgba(30, 35, 45, 0.9);
-            border: 1px solid rgba(212, 175, 55, 0.3);
+            z-index: 1001; /* Above sidebar which is 1000 */
+            background: rgba(30, 35, 45, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.4);
             border-radius: 8px;
             padding: 10px 12px;
             cursor: pointer;
             backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        @media (max-width: 1024px) {
+            .mobile-hamburger {
+                display: block;
+            }
         }
 
         .hamburger-icon {
