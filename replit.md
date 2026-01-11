@@ -45,8 +45,8 @@ Preferred communication style: Simple, everyday language.
 - **Employee Onboarding System**: Automated welcome DMs and first-time `/clock` guides for new employees detected via role changes.
 - **Broadcast Channel Configuration**: Admins can configure which text channel receives bot announcements via the dashboard Timezone Settings section. Falls back to system channel, then first available text channel.
 
-## Planned Features
-- **Email Notifications for Adjustments**: Optional feature to send email notifications when time adjustments are submitted. Would be configurable in dashboard email settings with designated admin email recipients.
+- **Email Verification System**: When admins add email recipients in dashboard settings, a 6-digit verification code is sent. The email must be verified before receiving notifications. Includes attempt limiting (5 max), code expiration (24 hours), and resend rate limiting (1 minute).
+- **Adjustment Notification Emails**: When employees submit time adjustment requests, verified email recipients receive an email notification with request type and a link to review in the dashboard. Emails are sent asynchronously via background threads.
 
 ## Security Configuration
 - **Code Analysis**: Uses Semgrep for static analysis and secret management.
