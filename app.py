@@ -7953,6 +7953,9 @@ def api_kiosk_send_shift_email(guild_id):
         import pytz
         
         data = request.get_json()
+        if not data:
+            app.logger.error("No JSON data received in shift email request")
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
         user_id = data.get('user_id')
         email = data.get('email')
         session_id = data.get('session_id')

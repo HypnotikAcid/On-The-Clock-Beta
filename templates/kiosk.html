@@ -1466,6 +1466,9 @@
             showLoading(true);
             
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/send-shift-email`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1473,8 +1476,17 @@
                         user_id: currentEmployee.user_id,
                         email: email,
                         session_id: lastClockOutSessionId
-                    })
+                    }),
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    showLoading(false);
+                    errorEl.textContent = `Server error (${response.status}). Try again.`;
+                    return;
+                }
                 
                 const data = await response.json();
                 showLoading(false);
@@ -1488,7 +1500,12 @@
                 }
             } catch (error) {
                 showLoading(false);
-                errorEl.textContent = 'Connection error. Try again.';
+                if (error.name === 'AbortError') {
+                    errorEl.textContent = 'Request timed out. Try again.';
+                } else {
+                    errorEl.textContent = 'Connection error. Try again.';
+                    console.error('Shift email error:', error);
+                }
             }
         }
 
