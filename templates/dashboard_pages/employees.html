@@ -306,18 +306,37 @@ const guildId = '{{ server.id }}';
 let allEmployees = [];
 
 async function loadEmployees() {
+    const container = document.getElementById('employees-list');
     try {
+        console.log('[EmployeeStatus] Fetching employees for guild:', guildId);
         const response = await fetch(`/api/server/${guildId}/employees`);
         const data = await response.json();
         
+        console.log('[EmployeeStatus] API response:', response.status, data);
+        
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        
         if (data.success) {
             allEmployees = data.employees || [];
+            console.log('[EmployeeStatus] Loaded', allEmployees.length, 'employees');
             renderEmployees(allEmployees);
+        } else {
+            throw new Error(data.error || 'Unknown error');
         }
     } catch (error) {
-        console.error('Failed to load employees:', error);
-        document.getElementById('employees-list').innerHTML = 
-            '<p class="error-text">Failed to load employees. Please refresh.</p>';
+        console.error('[EmployeeStatus] Failed to load employees:', error);
+        container.innerHTML = `
+            <div class="error-state" style="text-align: center; padding: 2rem; color: #8B949E;">
+                <p style="font-size: 1.5rem; margin-bottom: 0.5rem;">⚠️</p>
+                <p style="font-weight: 600; color: #EF4444; margin-bottom: 0.5rem;">Failed to load employees</p>
+                <p style="font-size: 0.85rem;">${DashboardUtils.escapeHtml(error.message)}</p>
+                <button onclick="loadEmployees()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #3B82F6; border: none; border-radius: 6px; color: white; cursor: pointer;">
+                    Retry
+                </button>
+            </div>
+        `;
     }
 }
 

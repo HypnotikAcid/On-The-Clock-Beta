@@ -82,9 +82,15 @@ let timerInterval = null;
 
 async function loadClockStatus() {
     try {
+        console.log('[MyInfo] Fetching status for user:', userId, 'in guild:', guildId);
         const response = await fetch(`/api/server/${guildId}/employee/${userId}/status`);
-        if (!response.ok) throw new Error('Status fetch failed');
         const data = await response.json();
+        
+        console.log('[MyInfo] Status response:', response.status, data);
+        
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
         
         if (data.success) {
             clockedIn = data.is_clocked_in;
@@ -107,10 +113,10 @@ async function loadClockStatus() {
             throw new Error(data.error || 'Failed to load status');
         }
     } catch (error) {
-        console.error('Failed to load status:', error);
+        console.error('[MyInfo] Failed to load status:', error);
         document.getElementById('status-indicator').innerHTML = `
             <span class="status-dot error"></span>
-            <span class="status-text">Error loading status</span>
+            <span class="status-text">Error: ${DashboardUtils.escapeHtml(error.message)}</span>
         `;
     }
 }
@@ -161,15 +167,26 @@ function stopTimer() {
 }
 
 async function loadRecentSessions() {
+    const container = document.getElementById('recent-sessions');
     try {
+        console.log('[MyInfo] Fetching sessions for user:', userId);
         const response = await fetch(`/api/server/${guildId}/employee/${userId}/sessions?limit=10`);
         const data = await response.json();
         
+        console.log('[MyInfo] Sessions response:', response.status, data);
+        
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        
         if (data.success) {
             renderSessions(data.sessions || []);
+        } else {
+            throw new Error(data.error || 'Failed to load sessions');
         }
     } catch (error) {
-        console.error('Failed to load sessions:', error);
+        console.error('[MyInfo] Failed to load sessions:', error);
+        container.innerHTML = `<p class="error-text" style="color: #EF4444;">Failed to load sessions: ${DashboardUtils.escapeHtml(error.message)}</p>`;
     }
 }
 
