@@ -281,15 +281,18 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             z-index: 998;
-            display: none;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            pointer-events: none;
         }
 
         .mobile-overlay.active {
-            display: block;
             opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
         }
 
         /* Spinner for buttons */
