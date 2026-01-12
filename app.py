@@ -8005,29 +8005,48 @@ def kiosk_page(guild_id):
 
 @app.route("/api/kiosk/<guild_id>/employees")
 def api_kiosk_employees(guild_id):
-    """Get all employees for the kiosk display"""
+    """Get all employees for the kiosk display optimized with CTE"""
     try:
         with get_db() as conn:
-            # Get all active employees with their clock-in status (using timeclock_sessions)
+            # Using CTE (Common Table Expression) to optimize subqueries
+            # This allows us to calculate counts for all employees in one pass 
+            # rather than running a subquery per row, which scales much better.
             cursor = conn.execute("""
+                WITH pending_counts AS (
+                    SELECT user_id::text, COUNT(*) as count 
+                    FROM time_adjustment_requests 
+                    WHERE guild_id = %s AND status = 'pending'
+                    GROUP BY user_id
+                ),
+                missing_punch_counts AS (
+                    SELECT user_id::text, COUNT(*) as count
+                    FROM timeclock_sessions
+                    WHERE guild_id = %s 
+                    AND clock_out_time IS NULL
+                    AND clock_in_time < NOW() - INTERVAL '8 hours'
+                    AND DATE(clock_in_time) > CURRENT_DATE - INTERVAL '7 days'
+                    GROUP BY user_id
+                )
                 SELECT ep.user_id, ep.display_name, ep.first_name, ep.last_name, ep.avatar_url,
                        ep.position, ep.department, ep.email, ep.timesheet_email,
                        EXISTS(SELECT 1 FROM employee_pins WHERE guild_id = %s AND user_id = ep.user_id) as has_pin,
                        EXISTS(SELECT 1 FROM timeclock_sessions WHERE guild_id = %s AND user_id::text = ep.user_id::text AND clock_out_time IS NULL) as is_clocked_in,
-                       (SELECT COUNT(*) FROM time_adjustment_requests tar WHERE tar.guild_id = ep.guild_id::text AND tar.user_id = ep.user_id::text AND tar.status = 'pending') as pending_requests,
-                       (SELECT COUNT(*) FROM timeclock_sessions ts WHERE ts.guild_id = ep.guild_id::text AND ts.user_id = ep.user_id::text AND ts.clock_out_time IS NULL AND ts.clock_in_time < NOW() - INTERVAL '8 hours' AND DATE(ts.clock_in_time) > CURRENT_DATE - INTERVAL '7 days') as missing_punches
+                       COALESCE(pc.count, 0) as pending_requests,
+                       COALESCE(mpc.count, 0) as missing_punches
                 FROM employee_profiles ep
+                LEFT JOIN pending_counts pc ON pc.user_id = ep.user_id::text
+                LEFT JOIN missing_punch_counts mpc ON mpc.user_id = ep.user_id::text
                 WHERE ep.guild_id = %s AND ep.is_active = TRUE
                 ORDER BY COALESCE(ep.display_name, ep.first_name, ep.user_id::text)
-            """, (int(guild_id), str(guild_id), int(guild_id)))
+            """, (str(guild_id), str(guild_id), int(guild_id), str(guild_id), int(guild_id)))
             employees = cursor.fetchall()
         
         employee_list = []
         for emp in employees:
             display_name = emp['display_name'] or f"{emp['first_name'] or ''} {emp['last_name'] or ''}".strip() or f"User {emp['user_id']}"
             has_email = bool(emp.get('timesheet_email') or emp.get('email'))
-            pending_requests = emp.get('pending_requests', 0) or 0
-            missing_punches = emp.get('missing_punches', 0) or 0
+            pending_requests = emp.get('pending_requests', 0)
+            missing_punches = emp.get('missing_punches', 0)
             has_alerts = not has_email or pending_requests > 0 or missing_punches > 0
             
             employee_list.append({
@@ -8247,8 +8266,8 @@ def api_kiosk_employee_info(guild_id, user_id):
                     'text': f"Time {req_type} request was denied"
                 })
         
-        # Determine if there are important alerts (missing punches or pending requests)
-        has_alerts = len(missing_punches) > 0 or len(pending_requests) > 0
+        # Determine if there are important alerts (missing punches, pending requests, or missing email)
+        has_alerts = len(missing_punches) > 0 or len(pending_requests) > 0 or not employee_email
         
         return jsonify({
             'success': True,

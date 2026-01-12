@@ -1724,8 +1724,8 @@
             const inputSection = document.getElementById('emailInputSection');
             const sendSection = document.getElementById('emailSendSection');
             const buttonsSection = document.querySelector('.email-buttons');
-            const promptEl = document.querySelector('.email-prompt');
-            const yesBtn = document.querySelector('.email-btn.yes');
+            const promptEl = modal.querySelector('.email-prompt');
+            const yesBtn = modal.querySelector('.email-btn.yes');
             
             // Reset modal state
             inputSection.style.display = 'none';
@@ -2190,11 +2190,17 @@
             
             modal.classList.add('active');
             input.focus();
-            resetInactivityTimer();
+            
+            // Clear timer so it doesn't close while typing
+            if (inactivityTimer) {
+                clearTimeout(inactivityTimer);
+                inactivityTimer = null;
+            }
         }
 
         function closeSetEmailModal() {
-            document.getElementById('setEmailModal').classList.remove('active');
+            const modal = document.getElementById('setEmailModal');
+            modal.classList.remove('active');
             resetInactivityTimer();
         }
 
