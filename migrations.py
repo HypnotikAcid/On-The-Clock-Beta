@@ -396,6 +396,41 @@ def run_migrations():
                     SET verification_status = 'verified', verified_at = NOW() 
                     WHERE verification_status = 'pending' AND verified_at IS NULL
                 """)
+                
+                # 19. Create email_outbox table for reliable email delivery
+                print("   Checking table: email_outbox")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS email_outbox (
+                        id SERIAL PRIMARY KEY,
+                        guild_id BIGINT,
+                        email_type VARCHAR(50) NOT NULL,
+                        recipients TEXT NOT NULL,
+                        subject TEXT NOT NULL,
+                        text_content TEXT,
+                        html_content TEXT,
+                        attachments_json TEXT,
+                        context_json TEXT,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        attempts INTEGER DEFAULT 0,
+                        max_attempts INTEGER DEFAULT 3,
+                        last_attempt_at TIMESTAMPTZ,
+                        last_error TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        sent_at TIMESTAMPTZ,
+                        next_retry_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """)
+                
+                # Indexes for outbox processing
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_email_outbox_status_retry
+                    ON email_outbox(status, next_retry_at)
+                    WHERE status IN ('pending', 'retry')
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_email_outbox_guild
+                    ON email_outbox(guild_id)
+                """)
 
         print("✅ Database schema is up to date")
         return True

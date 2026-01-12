@@ -30,7 +30,7 @@ import hashlib
 import hmac
 
 # Import email functionality for report delivery
-from email_utils import send_timeclock_report_email
+from email_utils import send_timeclock_report_email, queue_shift_report_email, process_outbox_emails
 # Import migrations
 from migrations import run_migrations
 from scheduler import start_scheduler, stop_scheduler
@@ -4113,7 +4113,7 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
         except Exception as e:
             errors.append(f"Failed to notify legacy recipient: {str(e)}")
     
-    # Send emails to email recipients if auto-send is enabled
+    # Queue emails to email recipients if auto-send is enabled (using outbox for reliability)
     if auto_send_enabled:
         email_recipients = get_report_recipients(guild_id, recipient_type='email')
         if email_recipients:
@@ -4124,21 +4124,26 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
                 duration_hours = round(elapsed / 3600, 2)
                 csv_content = f"User ID,Clock In,Clock Out,Duration (hours)\n{interaction.user.id},{start_dt.isoformat()},{end_dt.isoformat()},{duration_hours}"
                 
-                email_addresses = [row['email_address'] for row in email_recipients if row['email_address']]
+                # Only get verified email addresses
+                email_addresses = [row['email_address'] for row in email_recipients 
+                                   if row['email_address'] and row.get('verification_status') == 'verified']
                 
                 if email_addresses:
                     report_period = f"Clock-out at {fmt(end_dt, tz_name)} - {user_name}"
-                    await send_timeclock_report_email(
-                        to=email_addresses,
+                    # Queue email to outbox for reliable delivery with retry
+                    outbox_id = queue_shift_report_email(
+                        guild_id=guild_id,
                         guild_name=guild_name,
+                        recipients=email_addresses,
                         csv_content=csv_content,
-                        report_period=report_period
+                        report_period=report_period,
+                        user_name=user_name
                     )
                     notification_sent = True
-                    print(f"✅ Clock-out email sent to {len(email_addresses)} recipient(s)")
+                    print(f"📬 Clock-out email queued #{outbox_id} for {len(email_addresses)} recipient(s)")
             except Exception as e:
-                errors.append(f"Failed to send clock-out email: {str(e)}")
-                print(f"❌ Clock-out email failed: {str(e)}")
+                errors.append(f"Failed to queue clock-out email: {str(e)}")
+                print(f"❌ Clock-out email queue failed: {str(e)}")
     
     # Report any errors to the user
     if errors and not notification_sent:

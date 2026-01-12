@@ -1,5 +1,6 @@
 # Email utility for On the Clock Discord Bot
 # Based on Replit Mail integration (blueprint:replitmail)
+# Implements a reliable outbox pattern with retry/backoff
 
 import os
 import json
@@ -7,12 +8,33 @@ import base64
 import asyncio
 import aiohttp
 import logging
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from logging.handlers import RotatingFileHandler
 from typing import List, Dict, Optional, Union
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
+
+# Database connection for email outbox
+@contextmanager
+def _get_db():
+    """Get database connection for email operations"""
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise Exception("DATABASE_URL not configured")
+    
+    conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+    try:
+        yield conn
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
 # Persistent email log file - survives workflow restarts
 EMAIL_LOG_DIR = Path("data/email_logs")
@@ -267,11 +289,270 @@ On the Clock Discord Bot
 # Global email sender instance
 email_sender = ReplitMailSender()
 
-# Convenience functions for easy import
+# ============================================
+# EMAIL OUTBOX FUNCTIONS (Reliable Delivery)
+# ============================================
+
+def queue_email(
+    email_type: str,
+    recipients: Union[str, List[str]],
+    subject: str,
+    text_content: Optional[str] = None,
+    html_content: Optional[str] = None,
+    attachments: Optional[List[Dict]] = None,
+    context: Optional[Dict] = None,
+    guild_id: Optional[int] = None
+) -> int:
+    """
+    Queue an email for reliable delivery via the outbox pattern.
+    Returns the outbox entry ID.
+    
+    Args:
+        email_type: Type of email (e.g., 'shift_report', 'adjustment_request', 'forgot_pin')
+        recipients: Email address(es) to send to
+        subject: Email subject
+        text_content: Plain text body
+        html_content: HTML body
+        attachments: List of attachment dicts (will be JSON serialized)
+        context: Additional context for logging/debugging
+        guild_id: Optional guild ID for filtering
+    """
+    recipient_list = recipients if isinstance(recipients, list) else [recipients]
+    
+    with _get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO email_outbox (
+                guild_id, email_type, recipients, subject, 
+                text_content, html_content, attachments_json, context_json,
+                status, next_retry_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending', NOW())
+            RETURNING id
+        """, (
+            guild_id,
+            email_type,
+            json.dumps(recipient_list),
+            subject,
+            text_content,
+            html_content,
+            json.dumps(attachments) if attachments else None,
+            json.dumps(context) if context else None
+        ))
+        outbox_id = cur.fetchone()['id']
+        
+    logger.info(f"📬 EMAIL QUEUED: #{outbox_id} [{email_type}] to {recipient_list}")
+    log_email_to_file(
+        event_type="queued",
+        recipients=recipient_list,
+        subject=subject,
+        context={"outbox_id": outbox_id, "email_type": email_type, **(context or {})}
+    )
+    return outbox_id
+
+
+def queue_shift_report_email(
+    guild_id: int,
+    guild_name: str,
+    recipients: Union[str, List[str]],
+    csv_content: str,
+    report_period: str,
+    user_name: Optional[str] = None
+) -> int:
+    """
+    Queue a shift report email with CSV attachment.
+    This is the reliable replacement for send_timeclock_report_email.
+    """
+    csv_base64 = base64.b64encode(csv_content.encode('utf-8')).decode('utf-8')
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"timeclock_report_{guild_name.replace(' ', '_')}_{timestamp}.csv"
+    
+    subject = f"Timeclock Report - {guild_name} ({report_period})"
+    
+    text_content = f"""
+Timeclock Report for {guild_name}
+
+Report Period: {report_period}
+Generated: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}
+
+Please find the attached CSV file containing the timeclock data.
+
+---
+On the Clock Discord Bot
+    """.strip()
+    
+    html_content = f"""
+<html>
+<body>
+    <h2>Timeclock Report for {guild_name}</h2>
+    
+    <p><strong>Report Period:</strong> {report_period}</p>
+    <p><strong>Generated:</strong> {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}</p>
+    
+    <p>Please find the attached CSV file containing the timeclock data.</p>
+    
+    <hr>
+    <p><em>On the Clock Discord Bot</em></p>
+</body>
+</html>
+    """.strip()
+    
+    attachments = [{
+        "filename": filename,
+        "content": csv_base64,
+        "contentType": "text/csv",
+        "encoding": "base64"
+    }]
+    
+    return queue_email(
+        email_type="shift_report",
+        recipients=recipients,
+        subject=subject,
+        text_content=text_content,
+        html_content=html_content,
+        attachments=attachments,
+        context={"guild_name": guild_name, "report_period": report_period, "user_name": user_name},
+        guild_id=guild_id
+    )
+
+
+async def process_outbox_emails(batch_size: int = 10) -> Dict:
+    """
+    Process pending emails from the outbox with retry logic.
+    Should be called periodically by a scheduler.
+    
+    Returns stats on processed emails.
+    """
+    stats = {"processed": 0, "sent": 0, "failed": 0, "retried": 0}
+    
+    try:
+        with _get_db() as conn:
+            cur = conn.cursor()
+            
+            # Get emails ready to process
+            cur.execute("""
+                SELECT * FROM email_outbox
+                WHERE status IN ('pending', 'retry')
+                  AND next_retry_at <= NOW()
+                ORDER BY created_at ASC
+                LIMIT %s
+                FOR UPDATE SKIP LOCKED
+            """, (batch_size,))
+            
+            emails = cur.fetchall()
+            
+            for email in emails:
+                stats["processed"] += 1
+                outbox_id = email['id']
+                
+                try:
+                    recipients = json.loads(email['recipients'])
+                    attachments = json.loads(email['attachments_json']) if email['attachments_json'] else None
+                    
+                    # Send the email
+                    await email_sender.send_email(
+                        to=recipients,
+                        subject=email['subject'],
+                        text=email['text_content'],
+                        html=email['html_content'],
+                        attachments=attachments
+                    )
+                    
+                    # Mark as sent
+                    cur.execute("""
+                        UPDATE email_outbox
+                        SET status = 'sent', sent_at = NOW(), last_attempt_at = NOW()
+                        WHERE id = %s
+                    """, (outbox_id,))
+                    conn.commit()
+                    
+                    stats["sent"] += 1
+                    logger.info(f"✅ EMAIL SENT: #{outbox_id} [{email['email_type']}]")
+                    
+                except Exception as e:
+                    error_msg = str(e)[:500]
+                    attempts = email['attempts'] + 1
+                    max_attempts = email['max_attempts']
+                    
+                    if attempts >= max_attempts:
+                        # Mark as permanently failed
+                        cur.execute("""
+                            UPDATE email_outbox
+                            SET status = 'failed', attempts = %s, last_attempt_at = NOW(), last_error = %s
+                            WHERE id = %s
+                        """, (attempts, error_msg, outbox_id))
+                        conn.commit()
+                        
+                        stats["failed"] += 1
+                        logger.error(f"❌ EMAIL FAILED PERMANENTLY: #{outbox_id} after {attempts} attempts: {error_msg}")
+                        log_email_to_file(
+                            event_type="failed_permanently",
+                            recipients=json.loads(email['recipients']),
+                            subject=email['subject'],
+                            success=False,
+                            error=error_msg,
+                            context={"outbox_id": outbox_id, "attempts": attempts}
+                        )
+                    else:
+                        # Schedule retry with exponential backoff
+                        backoff_minutes = min(2 ** attempts, 60)  # 2, 4, 8... max 60 min
+                        next_retry = datetime.now(timezone.utc) + timedelta(minutes=backoff_minutes)
+                        
+                        cur.execute("""
+                            UPDATE email_outbox
+                            SET status = 'retry', attempts = %s, last_attempt_at = NOW(), 
+                                last_error = %s, next_retry_at = %s
+                            WHERE id = %s
+                        """, (attempts, error_msg, next_retry, outbox_id))
+                        conn.commit()
+                        
+                        stats["retried"] += 1
+                        logger.warning(f"⏳ EMAIL RETRY SCHEDULED: #{outbox_id} attempt {attempts}/{max_attempts}, next retry in {backoff_minutes} min")
+                        
+    except Exception as e:
+        logger.error(f"❌ Error processing email outbox: {e}")
+    
+    return stats
+
+
+def get_outbox_stats(guild_id: Optional[int] = None) -> Dict:
+    """Get statistics about the email outbox for monitoring"""
+    with _get_db() as conn:
+        cur = conn.cursor()
+        
+        base_where = "WHERE guild_id = %s" if guild_id else "WHERE 1=1"
+        params = (guild_id,) if guild_id else ()
+        
+        cur.execute(f"""
+            SELECT 
+                status,
+                COUNT(*) as count
+            FROM email_outbox
+            {base_where}
+            GROUP BY status
+        """, params)
+        
+        by_status = {row['status']: row['count'] for row in cur.fetchall()}
+        
+        cur.execute(f"""
+            SELECT COUNT(*) as count FROM email_outbox 
+            {base_where} AND status IN ('pending', 'retry') AND next_retry_at <= NOW()
+        """, params)
+        ready_to_send = cur.fetchone()['count']
+        
+        return {
+            "pending": by_status.get('pending', 0),
+            "retry": by_status.get('retry', 0),
+            "sent": by_status.get('sent', 0),
+            "failed": by_status.get('failed', 0),
+            "ready_to_send": ready_to_send
+        }
+
+
+# Convenience functions for easy import (legacy compatibility)
 async def send_email(to: Union[str, List[str]], subject: str, text: Optional[str] = None, html: Optional[str] = None) -> Dict:
-    """Send a simple email"""
+    """Send a simple email directly (use queue_email for reliable delivery)"""
     return await email_sender.send_email(to=to, subject=subject, text=text, html=html)
 
 async def send_timeclock_report_email(to: Union[str, List[str]], guild_name: str, csv_content: str, report_period: str) -> Dict:
-    """Send timeclock report with CSV attachment"""
+    """Send timeclock report directly (use queue_shift_report_email for reliable delivery)"""
     return await email_sender.send_timeclock_report(to=to, guild_name=guild_name, csv_content=csv_content, report_period=report_period)

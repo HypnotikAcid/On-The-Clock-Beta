@@ -32,7 +32,7 @@ Preferred communication style: Simple, everyday language.
 - **Concurrent Safety**: Achieved through guild-level locking, PostgreSQL connection pooling with SSL validation, and automatic transaction management.
 - **Ephemeral Interface System**: Resolves interaction timeout issues by providing new interfaces via the `/clock` command.
 - **Bot as Boss Architecture**: All role management changes are routed through the bot's HTTP API, establishing the bot as the single source of truth for Discord roles.
-- **Email Automation**: APScheduler handles automated email tasks (e.g., clock-out reminders, scheduled reports, pre-deletion warnings).
+- **Email Automation**: APScheduler handles automated email tasks (e.g., clock-out reminders, scheduled reports, pre-deletion warnings). Uses a reliable **Email Outbox Pattern** with the `email_outbox` table - emails are queued to the database first, then processed by a background worker every 30 seconds with automatic retry (exponential backoff up to 3 attempts). This ensures emails survive process restarts and network failures.
 - **Owner Dashboard**: A web-based dashboard (`/owner` route) provides the bot owner with visibility into servers, subscriptions, active sessions, webhook events, and manual subscription management. It also includes an Owner Broadcast System for sending announcements to servers.
 - **Bulletproof Button Persistence**: A unified `/clock` command interface with stable custom IDs and `timeout=None` ensures button reliability across bot restarts, using a global `on_interaction` fallback.
 - **Signed Deep-Link System**: Secure Discord-to-Dashboard navigation using signed URLs with timestamp and SHA256 signatures, preserving user intent through the OAuth flow.

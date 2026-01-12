@@ -10,7 +10,7 @@ from apscheduler.triggers.cron import CronTrigger
 import pytz
 from contextlib import contextmanager
 
-from email_utils import send_timeclock_report_email
+from email_utils import send_timeclock_report_email, process_outbox_emails
 
 # PostgreSQL connection pool
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -455,6 +455,26 @@ async def send_predeletion_dm_warnings():
     except Exception as e:
         logger.error(f"❌ Pre-deletion DM warning job failed: {e}")
 
+
+async def process_email_outbox():
+    """
+    Process pending emails from the outbox.
+    This runs every 30 seconds to pick up queued emails and send them with retry logic.
+    """
+    try:
+        stats = await process_outbox_emails(batch_size=10)
+        
+        if stats['processed'] > 0:
+            logger.info(
+                f"📬 Email outbox processed: "
+                f"{stats['sent']} sent, "
+                f"{stats['retried']} scheduled for retry, "
+                f"{stats['failed']} failed permanently"
+            )
+    except Exception as e:
+        logger.error(f"❌ Email outbox processing failed: {e}")
+
+
 def start_scheduler(bot=None):
     """Initialize and start the scheduler
     
@@ -488,8 +508,17 @@ def start_scheduler(bot=None):
         replace_existing=True
     )
     
+    scheduler.add_job(
+        process_email_outbox,
+        trigger=CronTrigger(second='*/30'),  # Every 30 seconds
+        id='process_email_outbox',
+        name='Process pending emails from outbox',
+        replace_existing=True
+    )
+    
     scheduler.start()
     logger.info("✅ Email scheduler started successfully")
+    logger.info("✅ Email outbox processor running every 30 seconds")
     if discord_bot:
         logger.info("✅ Pre-deletion DM warnings enabled (bot connected)")
 
