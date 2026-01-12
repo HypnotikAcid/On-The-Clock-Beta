@@ -3363,24 +3363,28 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         embed.add_field(
             name="🚀 What's Next?",
             value=(
-                "• Use `/setup` to get started\n"
-                "• Add employee roles with `/add_employee_role`\n"
-                "• Employees can use `/clock` to track time\n"
-                "• Admins can generate reports with `/report`\n"
-                "• Configure email settings in the dashboard"
+                "• Use `/setup` to view setup instructions\n"
+                "• Use `/clock` to open the timeclock interface\n"
+                "• Use `/help` to see all available commands\n"
+                "• Configure roles and settings in the dashboard"
             ),
             inline=False
         )
         
+        # Get the dashboard URL dynamically
+        dashboard_url = os.getenv("REPLIT_DEV_DOMAIN", "on-the-clock.replit.app")
+        if not dashboard_url.startswith("http"):
+            dashboard_url = f"https://{dashboard_url}"
+        
         embed.add_field(
             name="📊 Dashboard Access",
-            value="Visit your [server dashboard](https://on-the-clock.replit.app/dashboard) to configure settings",
+            value=f"Visit your [server dashboard]({dashboard_url}/dashboard) to:\n• Add admin and employee roles\n• Configure email notifications\n• Set timezone and schedule\n• View time tracking reports",
             inline=False
         )
         
         embed.add_field(
             name="💾 Data Retention",
-            value="Currently using **24-hour** deletion. Upgrade to 7-day or 30-day retention for longer data storage.",
+            value="With full access, your timeclock data is stored securely. Add the Pro Retention add-on for extended 7-day or 30-day data storage.",
             inline=False
         )
         
