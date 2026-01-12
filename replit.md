@@ -4,6 +4,10 @@
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
+# Agent Instructions & Workflow
+- **Version Update Workflow**: Whenever a task is completed, update `version.json` immediately. Move completed items from the conversation/todo list to `recent_updates` and increment the version number. This ensures the landing page roadmap is always current.
+- **Fast Mode Safety**: Only perform operations in Fast mode if they are 100% safe and straightforward (small CSS tweaks, minor copy changes, simple JSON updates). If a task requires complex logic, multi-file refactoring, or deep debugging, STOP and ask the user to switch to Autonomous mode. Never proceed with uncertain changes in Fast mode.
+
 # Lessons Learned & Best Practices
 | Mistake | Fix | Rule Going Forward |
 |---------|-----|-------------------|
