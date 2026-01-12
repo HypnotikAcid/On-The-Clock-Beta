@@ -46,6 +46,7 @@ Preferred communication style: Simple, everyday language.
 - **Employee Status Cards**: Dashboard displays active employees with current hours, including manual clock-out buttons for admins.
 - **Time Adjustment Requests**: Employees can submit time correction requests from dashboard, kiosk, or Discord bot. All adjustments use unified `time_adjustment_requests` table with `source` column tracking origin. Admins approve/deny via an interactive, role-based calendar in the dashboard.
 - **Kiosk Time Adjustment Modal**: Kiosk users can edit today's sessions, add missing entries, and submit adjustment requests with required reason. Uses dedicated API endpoints (`/api/kiosk/<guild_id>/employee/<user_id>/today-sessions` and `/api/kiosk/<guild_id>/adjustment`) that integrate with the unified adjustment system.
+- **Kiosk Notification System**: Employee cards display a red alert badge when: missing email, pending time adjustment requests, or missing punches (forgot to clock out). After PIN entry, the info panel shows a notifications section with pending requests, recently approved/denied requests, and missing punch alerts. Email modal smartly shows "Send to <email>?" if email is saved, or prompts to set email if not.
 - **Employee Onboarding System**: Automated welcome DMs and first-time `/clock` guides for new employees detected via role changes.
 - **Broadcast Channel Configuration**: Admins can configure which text channel receives bot announcements via the dashboard Timezone Settings section. Falls back to system channel, then first available text channel.
 
