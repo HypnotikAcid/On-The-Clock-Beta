@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.5.0",
   "last_updated": "2026-01-12",
   "recent_updates": [
     "Optimized kiosk employee loading with CTE for 10x better performance",

@@ -46,7 +46,14 @@ bot_status = {
 }
 
 # Version and Changelog
-__version__ = "1.5.0"
+def get_current_version():
+    try:
+        with open('version.json', 'r') as f:
+            return json.load(f).get('version', '1.0.0')
+    except Exception:
+        return "1.0.0"
+
+__version__ = get_current_version()
 
 # Customer-facing update notes (latest first, max 3 shown on dashboard)
 CHANGELOG = [
