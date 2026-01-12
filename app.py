@@ -5315,6 +5315,10 @@ def api_get_server_employees(user_session, guild_id):
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
+        # Get guild timezone for accurate week calculation
+        guild_settings = get_guild_settings(guild_id)
+        guild_tz = guild_settings.get('timezone') or 'America/Chicago'
+        
         employees = []
         with get_db() as conn:
             cursor = conn.execute("""
@@ -5330,7 +5334,7 @@ def api_get_server_employees(user_session, guild_id):
                        (SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time))), 0)
                         FROM timeclock_sessions ts 
                         WHERE ts.user_id = ep.user_id AND ts.guild_id = ep.guild_id
-                        AND clock_in_time >= date_trunc('week', CURRENT_DATE)) / 60.0 as weekly_minutes,
+                        AND clock_in_time >= date_trunc('week', NOW() AT TIME ZONE %s)) / 60.0 as weekly_minutes,
                        (SELECT COUNT(*) FROM time_adjustment_requests tar
                         WHERE tar.user_id = ep.user_id AND tar.guild_id = ep.guild_id
                         AND tar.status = 'pending') as pending_adjustments,
@@ -5340,7 +5344,7 @@ def api_get_server_employees(user_session, guild_id):
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.is_active = TRUE
                 ORDER BY COALESCE(ep.display_name, ep.full_name)
-            """, (int(guild_id),))
+            """, (guild_tz, int(guild_id),))
             
             for row in cursor.fetchall():
                 current_session_duration = None
