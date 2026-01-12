@@ -7525,6 +7525,9 @@ async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) ->
     Send a broadcast message to multiple guilds.
     Returns dict with sent_count and failed_count.
     """
+    import logging
+    logger = logging.getLogger('bot.broadcast')
+    
     sent_count = 0
     failed_count = 0
     
