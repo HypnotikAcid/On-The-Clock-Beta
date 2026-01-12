@@ -8011,9 +8011,11 @@ def api_kiosk_employees(guild_id):
             # Get all active employees with their clock-in status (using timeclock_sessions)
             cursor = conn.execute("""
                 SELECT ep.user_id, ep.display_name, ep.first_name, ep.last_name, ep.avatar_url,
-                       ep.position, ep.department, ep.email,
+                       ep.position, ep.department, ep.email, ep.timesheet_email,
                        EXISTS(SELECT 1 FROM employee_pins WHERE guild_id = %s AND user_id = ep.user_id) as has_pin,
-                       EXISTS(SELECT 1 FROM timeclock_sessions WHERE guild_id = %s AND user_id::text = ep.user_id::text AND clock_out_time IS NULL) as is_clocked_in
+                       EXISTS(SELECT 1 FROM timeclock_sessions WHERE guild_id = %s AND user_id::text = ep.user_id::text AND clock_out_time IS NULL) as is_clocked_in,
+                       (SELECT COUNT(*) FROM time_adjustment_requests tar WHERE tar.guild_id = ep.guild_id::text AND tar.user_id = ep.user_id::text AND tar.status = 'pending') as pending_requests,
+                       (SELECT COUNT(*) FROM timeclock_sessions ts WHERE ts.guild_id = ep.guild_id::text AND ts.user_id = ep.user_id::text AND ts.clock_out_time IS NULL AND ts.clock_in_time < NOW() - INTERVAL '8 hours' AND DATE(ts.clock_in_time) > CURRENT_DATE - INTERVAL '7 days') as missing_punches
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.is_active = TRUE
                 ORDER BY COALESCE(ep.display_name, ep.first_name, ep.user_id::text)
@@ -8023,6 +8025,11 @@ def api_kiosk_employees(guild_id):
         employee_list = []
         for emp in employees:
             display_name = emp['display_name'] or f"{emp['first_name'] or ''} {emp['last_name'] or ''}".strip() or f"User {emp['user_id']}"
+            has_email = bool(emp.get('timesheet_email') or emp.get('email'))
+            pending_requests = emp.get('pending_requests', 0) or 0
+            missing_punches = emp.get('missing_punches', 0) or 0
+            has_alerts = not has_email or pending_requests > 0 or missing_punches > 0
+            
             employee_list.append({
                 'user_id': str(emp['user_id']),
                 'display_name': display_name,
@@ -8030,7 +8037,10 @@ def api_kiosk_employees(guild_id):
                 'position': emp['position'],
                 'has_pin': emp['has_pin'],
                 'is_clocked_in': emp['is_clocked_in'],
-                'has_email': bool(emp['email'])
+                'has_email': has_email,
+                'has_alerts': has_alerts,
+                'pending_requests': pending_requests,
+                'missing_punches': missing_punches
             })
         
         return jsonify({'success': True, 'employees': employee_list})
@@ -8106,11 +8116,16 @@ def api_kiosk_employee_info(guild_id, user_id):
         with get_db() as conn:
             # Get employee profile
             cursor = conn.execute("""
-                SELECT display_name, first_name, last_name, avatar_url, position, department, email
+                SELECT display_name, first_name, last_name, avatar_url, position, department, email, timesheet_email
                 FROM employee_profiles
                 WHERE guild_id = %s AND user_id = %s
             """, (str(guild_id), str(user_id)))
             profile = cursor.fetchone()
+            
+            # Prefer timesheet_email over regular email
+            employee_email = None
+            if profile:
+                employee_email = profile.get('timesheet_email') or profile.get('email')
             
             # Check if clocked in (using timeclock_sessions)
             cursor = conn.execute("""
@@ -8165,16 +8180,89 @@ def api_kiosk_employee_info(guild_id, user_id):
                     last_punch = f"Clocked out {last_session['clock_out_time'].strftime('%I:%M %p on %b %d')}"
                 else:
                     last_punch = f"Clocked in at {last_session['clock_in_time'].strftime('%I:%M %p')}"
+            
+            # Get pending time adjustment requests for this employee
+            cursor = conn.execute("""
+                SELECT id, request_type, created_at FROM time_adjustment_requests
+                WHERE guild_id = %s AND user_id = %s AND status = 'pending'
+                ORDER BY created_at DESC LIMIT 5
+            """, (str(guild_id), str(user_id)))
+            pending_requests = cursor.fetchall()
+            
+            # Get recently resolved requests (last 7 days)
+            cursor = conn.execute("""
+                SELECT id, request_type, status, resolved_at FROM time_adjustment_requests
+                WHERE guild_id = %s AND user_id = %s AND status IN ('approved', 'denied')
+                AND resolved_at > NOW() - INTERVAL '7 days'
+                ORDER BY resolved_at DESC LIMIT 5
+            """, (str(guild_id), str(user_id)))
+            resolved_requests = cursor.fetchall()
+            
+            # Check for missing punches (sessions from last 7 days without clock_out)
+            cursor = conn.execute("""
+                SELECT session_id, clock_in_time FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s 
+                AND clock_out_time IS NULL
+                AND clock_in_time < NOW() - INTERVAL '8 hours'
+                AND DATE(clock_in_time) > CURRENT_DATE - INTERVAL '7 days'
+                ORDER BY clock_in_time DESC
+            """, (str(guild_id), str(user_id)))
+            missing_punches = cursor.fetchall()
+        
+        # Build notifications list
+        notifications = []
+        
+        # Missing punches
+        for mp in missing_punches:
+            clock_in_dt = mp['clock_in_time']
+            notifications.append({
+                'type': 'alert',
+                'icon': '⚠️',
+                'text': f"Missing clock-out from {clock_in_dt.strftime('%b %d at %I:%M %p')}"
+            })
+        
+        # Pending requests
+        for pr in pending_requests:
+            req_type = pr['request_type'] or 'adjustment'
+            notifications.append({
+                'type': 'pending',
+                'icon': '⏳',
+                'text': f"Time {req_type} request pending review"
+            })
+        
+        # Resolved requests
+        for rr in resolved_requests:
+            req_type = rr['request_type'] or 'adjustment'
+            status = rr['status']
+            if status == 'approved':
+                notifications.append({
+                    'type': 'approved',
+                    'icon': '✅',
+                    'text': f"Time {req_type} request was approved"
+                })
+            else:
+                notifications.append({
+                    'type': 'denied',
+                    'icon': '❌',
+                    'text': f"Time {req_type} request was denied"
+                })
+        
+        # Determine if there are important alerts (missing punches or pending requests)
+        has_alerts = len(missing_punches) > 0 or len(pending_requests) > 0
         
         return jsonify({
             'success': True,
             'avatar_url': profile['avatar_url'] if profile else None,
             'position': profile['position'] if profile else None,
-            'email': profile['email'] if profile else None,
+            'email': employee_email,
             'is_clocked_in': active_session is not None,
             'today_hours': round(today_minutes),
             'week_hours': round(week_minutes),
-            'last_punch': last_punch
+            'last_punch': last_punch,
+            'notifications': notifications,
+            'has_alerts': has_alerts,
+            'pending_requests_count': len(pending_requests),
+            'missing_punches_count': len(missing_punches)
         })
     except Exception as e:
         app.logger.error(f"Error fetching kiosk employee info: {e}")
@@ -8385,14 +8473,15 @@ def api_kiosk_employee_email(guild_id, user_id):
                 return jsonify({'success': False, 'error': 'Invalid email format'}), 400
             
             with get_db() as conn:
+                # Update both email and timesheet_email for consistency
                 conn.execute("""
                     UPDATE employee_profiles 
-                    SET email = %s
+                    SET email = %s, timesheet_email = %s
                     WHERE guild_id = %s AND user_id = %s
-                """, (email, str(guild_id), str(user_id)))
+                """, (email, email, str(guild_id), str(user_id)))
             
             app.logger.info(f"Email updated for user {user_id} in guild {guild_id}")
-            return jsonify({'success': True})
+            return jsonify({'success': True, 'email': email})
         except Exception as e:
             app.logger.error(f"Error saving employee email: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500

@@ -396,9 +396,6 @@
 
         /* Actions screen back button */
         .actions-back-btn {
-            position: absolute;
-            top: 100px;
-            left: 30px;
             background: rgba(139, 148, 158, 0.2);
             border: 1px solid rgba(139, 148, 158, 0.4);
             color: #C9D1D9;
@@ -407,7 +404,8 @@
             font-size: 14px;
             cursor: pointer;
             transition: all 0.2s ease;
-            z-index: 10;
+            align-self: flex-start;
+            margin-bottom: 15px;
         }
 
         .actions-back-btn:hover {
@@ -775,24 +773,18 @@
         }
 
         /* Clock Actions Screen */
-        .actions-layout {
+        .actions-row {
             display: flex;
-            gap: 40px;
-            flex: 1;
-        }
-
-        .actions-column {
-            display: flex;
-            flex-direction: column;
             gap: 20px;
-            width: 300px;
+            margin-bottom: 20px;
         }
 
         .action-btn {
-            padding: 40px;
+            flex: 1;
+            padding: 30px 40px;
             border-radius: 16px;
             border: none;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -844,10 +836,77 @@
             background: rgba(30, 35, 45, 0.7);
             border: 1px solid rgba(212, 175, 55, 0.2);
             border-radius: 16px;
-            padding: 30px;
+            padding: 25px;
+            display: flex;
+            flex-direction: row;
+            gap: 25px;
+            overflow: hidden;
+        }
+
+        .info-main {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 25px;
+            gap: 20px;
+        }
+
+        .info-notifications {
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-left: 1px solid rgba(212, 175, 55, 0.15);
+            padding-left: 20px;
+        }
+
+        .info-notifications-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #D4AF37;
+            margin-bottom: 5px;
+        }
+
+        .notification-item {
+            background: rgba(10, 15, 31, 0.5);
+            border-radius: 10px;
+            padding: 12px 15px;
+            font-size: 13px;
+            color: #C9D1D9;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .notification-item.alert {
+            border-left: 3px solid #EF4444;
+        }
+
+        .notification-item.pending {
+            border-left: 3px solid #F59E0B;
+        }
+
+        .notification-item.approved {
+            border-left: 3px solid #10B981;
+        }
+
+        .notification-item.denied {
+            border-left: 3px solid #EF4444;
+        }
+
+        .notification-icon {
+            flex-shrink: 0;
+        }
+
+        .notification-text {
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .no-notifications {
+            color: #8B949E;
+            font-size: 13px;
+            padding: 15px;
+            text-align: center;
         }
 
         .info-user {
@@ -1020,19 +1079,26 @@
 
         /* Responsive */
         @media (max-width: 1024px) {
-            .actions-layout {
+            .actions-row {
                 flex-direction: column;
-            }
-            
-            .actions-column {
-                width: 100%;
-                flex-direction: row;
+                gap: 15px;
             }
             
             .action-btn {
-                flex: 1;
-                padding: 30px;
+                padding: 25px;
                 font-size: 18px;
+            }
+
+            .info-panel {
+                flex-direction: column;
+            }
+
+            .info-notifications {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid rgba(212, 175, 55, 0.15);
+                padding-left: 0;
+                padding-top: 20px;
             }
         }
 
@@ -1118,21 +1184,19 @@
         <!-- Screen 3: Clock Actions -->
         <div class="screen" id="actionsScreen">
             <button class="actions-back-btn" onclick="backToEmployeeGrid()">← Back</button>
-            <div class="actions-layout">
-                <div class="actions-column">
-                    <button class="action-btn clock-in" id="clockInBtn" onclick="clockAction('in')">
-                        <span>▶</span> Clock In
-                    </button>
-                    <button class="action-btn clock-out" id="clockOutBtn" onclick="clockAction('out')">
-                        <span>■</span> Clock Out
-                    </button>
-                    <button class="action-btn adjustment" onclick="requestAdjustment()">
-                        <span>📝</span> Time Adjustment
-                    </button>
-                </div>
-                <div class="info-panel" id="infoPanel">
-                    <!-- Loaded dynamically -->
-                </div>
+            <div class="actions-row">
+                <button class="action-btn clock-in" id="clockInBtn" onclick="clockAction('in')">
+                    <span>▶</span> Clock In
+                </button>
+                <button class="action-btn clock-out" id="clockOutBtn" onclick="clockAction('out')">
+                    <span>■</span> Clock Out
+                </button>
+                <button class="action-btn adjustment" onclick="requestAdjustment()">
+                    <span>📝</span> Time Adjustment
+                </button>
+            </div>
+            <div class="info-panel" id="infoPanel">
+                <!-- Loaded dynamically -->
             </div>
         </div>
     </div>
@@ -1357,7 +1421,7 @@
             const grid = document.getElementById('employeeGrid');
             grid.innerHTML = employees.map(emp => `
                 <button class="employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''}" onclick="selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-                    ${!emp.has_email ? '<div class="email-alert-badge">!</div>' : ''}
+                    ${emp.has_alerts ? '<div class="email-alert-badge">!</div>' : ''}
                     <div class="employee-avatar">
                         ${emp.avatar_url ? `<img src="${emp.avatar_url}" alt="${emp.display_name}">` : emp.display_name.charAt(0).toUpperCase()}
                     </div>
@@ -1525,34 +1589,56 @@
             const panel = document.getElementById('infoPanel');
             currentEmployeeEmail = data.email || null;
             
+            // Email display: show email with update link, or set email button
             const emailDisplay = data.email 
                 ? `<div class="info-email">📧 ${escapeHtml(data.email)} <span class="info-email-link" onclick="openSetEmailModal()">Update</span></div>`
                 : `<button class="set-email-btn" onclick="openSetEmailModal()">📧 Set Email Address</button>`;
             
+            // Build notifications HTML
+            let notificationsHtml = '';
+            const notifications = data.notifications || [];
+            
+            if (notifications.length > 0) {
+                notificationsHtml = notifications.map(n => `
+                    <div class="notification-item ${n.type}">
+                        <span class="notification-icon">${n.icon}</span>
+                        <span class="notification-text">${escapeHtml(n.text)}</span>
+                    </div>
+                `).join('');
+            } else {
+                notificationsHtml = '<div class="no-notifications">No notifications</div>';
+            }
+            
             panel.innerHTML = `
-                <div class="info-user">
-                    <div class="info-avatar">
-                        ${data.avatar_url ? `<img src="${data.avatar_url}" alt="">` : currentEmployee.display_name.charAt(0).toUpperCase()}
+                <div class="info-main">
+                    <div class="info-user">
+                        <div class="info-avatar">
+                            ${data.avatar_url ? `<img src="${data.avatar_url}" alt="">` : currentEmployee.display_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div class="info-name">${escapeHtml(currentEmployee.display_name)}</div>
+                            <div class="info-role">${escapeHtml(data.position || 'Team Member')}</div>
+                            ${emailDisplay}
+                        </div>
                     </div>
-                    <div>
-                        <div class="info-name">${escapeHtml(currentEmployee.display_name)}</div>
-                        <div class="info-role">${escapeHtml(data.position || 'Team Member')}</div>
-                        ${emailDisplay}
+                    <div class="info-stats">
+                        <div class="stat-card">
+                            <div class="stat-value">${formatDuration(data.week_hours)}</div>
+                            <div class="stat-label">This Week</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${formatDuration(data.today_hours)}</div>
+                            <div class="stat-label">Today</div>
+                        </div>
+                    </div>
+                    <div class="last-punch">
+                        <div class="last-punch-label">Last Punch</div>
+                        <div class="last-punch-value">${data.last_punch || 'No recent activity'}</div>
                     </div>
                 </div>
-                <div class="info-stats">
-                    <div class="stat-card">
-                        <div class="stat-value">${formatDuration(data.week_hours)}</div>
-                        <div class="stat-label">This Week</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${formatDuration(data.today_hours)}</div>
-                        <div class="stat-label">Today</div>
-                    </div>
-                </div>
-                <div class="last-punch">
-                    <div class="last-punch-label">Last Punch</div>
-                    <div class="last-punch-value">${data.last_punch || 'No recent activity'}</div>
+                <div class="info-notifications">
+                    <div class="info-notifications-title">Notifications</div>
+                    ${notificationsHtml}
                 </div>
             `;
         }
@@ -1638,6 +1724,8 @@
             const inputSection = document.getElementById('emailInputSection');
             const sendSection = document.getElementById('emailSendSection');
             const buttonsSection = document.querySelector('.email-buttons');
+            const promptEl = document.querySelector('.email-prompt');
+            const yesBtn = document.querySelector('.email-btn.yes');
             
             // Reset modal state
             inputSection.style.display = 'none';
@@ -1652,13 +1740,23 @@
                 if (data.success && data.email) {
                     savedEmployeeEmail = data.email;
                     emailInput.value = data.email;
+                    // Update modal to show "Send to <email>?" instead of asking to enter email
+                    promptEl.innerHTML = `Send shift summary to<br><strong>${escapeHtml(data.email)}</strong>?`;
+                    yesBtn.textContent = 'Send';
+                    yesBtn.onclick = function() { sendShiftEmail(); };
                 } else {
                     savedEmployeeEmail = null;
                     emailInput.value = '';
+                    promptEl.innerHTML = 'Would you like a shift summary sent to your email?';
+                    yesBtn.textContent = 'Yes';
+                    yesBtn.onclick = function() { showEmailInput(); };
                 }
             } catch (error) {
                 console.error('Failed to fetch employee email:', error);
                 emailInput.value = '';
+                promptEl.innerHTML = 'Would you like a shift summary sent to your email?';
+                yesBtn.textContent = 'Yes';
+                yesBtn.onclick = function() { showEmailInput(); };
             }
             
             modal.classList.add('active');
