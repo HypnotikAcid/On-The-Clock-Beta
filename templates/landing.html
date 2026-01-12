@@ -546,6 +546,60 @@
             color: #D4AF37;
         }
 
+        .btn.loading {
+            position: relative;
+            color: transparent !important;
+            pointer-events: none;
+        }
+
+        .btn.loading::after {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin: -10px 0 0 -10px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #scroll-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 45px;
+            height: 45px;
+            background: rgba(212, 175, 55, 0.8);
+            color: #0D1117;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #scroll-top.visible {
+            opacity: 1;
+        }
+
+        #scroll-top:hover {
+            background: #D4AF37;
+            transform: translateY(-3px);
+        }
+
         @media (max-width: 900px) {
             .pricing-grid {
                 grid-template-columns: 1fr !important;
@@ -843,7 +897,31 @@
         </div>
     </div>
 
+    <button id="scroll-top" title="Scroll to Top">↑</button>
+
     <script>
+        // Loading state for buttons
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                if (this.href && !this.href.startsWith('#') && !this.target) {
+                    this.classList.add('loading');
+                }
+            });
+        });
+
+        // Scroll to top button
+        const scrollTopBtn = document.getElementById('scroll-top');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 500) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
         function toggleRoadmap() {
             const content = document.getElementById('roadmap-content');
             const chevron = document.getElementById('roadmap-chevron');

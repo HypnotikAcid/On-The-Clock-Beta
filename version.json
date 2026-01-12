@@ -1,13 +1,12 @@
 {
-  "version": "1.5.1",
+  "version": "1.5.2",
   "last_updated": "2026-01-12",
   "recent_updates": [
+    "Added visual loading states to landing page buttons",
+    "Implemented a smooth 'scroll to top' feature for better navigation",
     "Updated 'Get Started' guide to highlight the /setup command",
     "Unified application versioning system (sourced from version.json)",
-    "Optimized kiosk employee loading with CTE for 10x better performance",
-    "Unified alert logic across all kiosk views (Missing Email, Pending Requests, Missing Punches)",
-    "Fixed kiosk modal interactions and auto-logout timer behavior",
-    "Implemented bulletproof button persistence for Discord timeclock commands"
+    "Optimized kiosk employee loading with CTE for 10x better performance"
   ],
   "roadmap": [
     "Mobile-responsive kiosk UI improvements",
