@@ -6680,11 +6680,11 @@ def create_setup_embed() -> discord.Embed:
     embed.add_field(
         name="🚀 Quick Setup Guide",
         value=(
-            "1️⃣ **Set Employee Roles:** Use `/add_employee_role @role` to grant timeclock access\n"
-            "2️⃣ **Set Admin Roles** (optional): Use `/add_admin_role @role` for report/upgrade access\n"
-            "3️⃣ **Start Tracking:** Use `/clock` to get your timeclock interface\n"
-            "4️⃣ **Get Reports:** Admins can use `/report @user` to export CSV timesheets\n\n"
-            "💡 **Tip:** Use `/setup` anytime to see all available commands!"
+            "1️⃣ **Visit the Dashboard:** Log in at https://on-the-clock.replit.app\n"
+            "2️⃣ **Set Employee Roles:** Add roles that can use the timeclock\n"
+            "3️⃣ **Set Admin Roles** (optional): Add roles for report/settings access\n"
+            "4️⃣ **Start Tracking:** Use `/clock` to get your timeclock interface\n\n"
+            "💡 **Tip:** Use `/setup` anytime to see setup instructions!"
         ),
         inline=False
     )
@@ -6693,11 +6693,11 @@ def create_setup_embed() -> discord.Embed:
     embed.add_field(
         name="🆓 Free Tier - What You Get",
         value=(
-            "✅ Employee role management\n"
+            "✅ Employee role management via Dashboard\n"
             "✅ Clock in/out tracking via `/clock`\n"
             "✅ View current status (who's clocked in)\n"
             "✅ Basic timezone settings\n\n"
-            "**Note:** Reports visible but locked. Upgrade to unlock CSV exports!"
+            "**Note:** Reports locked in free tier. Upgrade to unlock!"
         ),
         inline=False
     )
@@ -7013,29 +7013,27 @@ async def setup(interaction: discord.Interaction):
         )
         
         embed.add_field(
-            name="👥 Step 1: Configure Roles",
+            name="🌐 Step 1: Set Up via Dashboard",
             value=(
-                "**Admin Roles** (can view reports and manage settings):\n"
-                "`/add_admin_role @role` - Grant admin access\n"
-                "`/list_admin_roles` - View configured admin roles\n\n"
-                "**Employee Roles** (can use timeclock functions):\n"
-                "`/add_employee_role @role` - Grant timeclock access\n"
-                "`/list_employee_roles` - View configured employee roles\n\n"
-                "💡 Discord administrators always have full access"
+                f"Visit **{dashboard_url}** and log in with Discord:\n"
+                "• **Admin Roles** - Add roles that can view reports & manage settings\n"
+                "• **Employee Roles** - Add roles that can use the timeclock\n"
+                "• **Timezone** - Set your server's display timezone\n"
+                "• **Email** - Configure report delivery\n\n"
+                "💡 Discord server administrators always have full access"
             ),
             inline=False
         )
         
         embed.add_field(
-            name="🌐 Step 2: Explore the Dashboard",
+            name="🚀 Step 2: Start Using the Bot",
             value=(
-                f"Visit **{dashboard_url}** to access:\n"
-                "• **Settings** - Configure server preferences\n"
-                "• **Role Management** - Manage admin and employee roles\n"
-                "• **Email Configuration** - Set up report delivery\n"
-                "• **Timezone Settings** - Customize display timezone\n"
-                "• **Reports & Analytics** - View team activity\n\n"
-                "Login with Discord for full access to your server settings"
+                "**For Employees:**\n"
+                "• Type `/clock` to open your personal timeclock\n"
+                "• Use the buttons to clock in/out and view hours\n\n"
+                "**For Admins:**\n"
+                "• Type `/help` for available commands\n"
+                "• Use the Dashboard for reports, employee management & settings"
             ),
             inline=False
         )
@@ -7051,20 +7049,6 @@ async def setup(interaction: discord.Interaction):
                 "• Extend to 30-day data retention\n\n"
                 "💡 Free tier available for testing (24-hour data retention)\n"
                 f"🛒 Purchase: {payment_url}"
-            ),
-            inline=False
-        )
-        
-        embed.add_field(
-            name="🚀 Getting Started",
-            value=(
-                "**For Employees:**\n"
-                "• Type `/clock` to access your personal timeclock\n"
-                "• Use the buttons to clock in/out\n\n"
-                "**For Admins:**\n"
-                "• Type `/help` for a full command reference\n"
-                "• Use `/report` to generate timesheet reports\n"
-                "• Configure roles using commands above"
             ),
             inline=False
         )
