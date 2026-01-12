@@ -1561,7 +1561,16 @@ def handle_deeplink(page):
 @app.route("/")
 def index():
     """Landing page with bot info, features, and upgrade links."""
-    return render_template('landing.html')
+    try:
+        with open('version.json', 'r') as f:
+            version_info = json.load(f)
+    except Exception:
+        version_info = {
+            "version": "1.0.0",
+            "recent_updates": ["Initial release"],
+            "roadmap": ["Mobile improvements", "Shift scheduling"]
+        }
+    return render_template('landing.html', version_info=version_info)
 
 @app.route("/dashboard/invite")
 def dashboard_invite():

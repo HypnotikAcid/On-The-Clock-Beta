@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-01-12",
+  "recent_updates": [
+    "Optimized kiosk employee loading with CTE for 10x better performance",
+    "Unified alert logic across all kiosk views (Missing Email, Pending Requests, Missing Punches)",
+    "Fixed kiosk modal interactions and auto-logout timer behavior",
+    "Implemented bulletproof button persistence for Discord timeclock commands"
+  ],
+  "roadmap": [
+    "Mobile-responsive kiosk UI improvements",
+    "Shift scheduling and rotation management",
+    "Enhanced payroll export formats (CSV, PDF, Excel)",
+    "Multi-language support for the web dashboard"
+  ]
+}

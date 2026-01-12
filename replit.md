@@ -4,11 +4,28 @@
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
+# Lessons Learned & Best Practices
+| Mistake | Fix | Rule Going Forward |
+|---------|-----|-------------------|
+| Bot API auth used wrong header (`X-Bot-API-Secret`) | Changed to `Authorization: Bearer` format | Always use standard Bearer token format for internal APIs |
+| Absolute positioned buttons overlapped on mobile | Use flex layout with proper spacing | Avoid absolute positioning for interactive elements |
+| Per-row SQL subqueries slow with many employees | Refactored to CTE (Common Table Expression) | Use CTEs or JOINs for aggregate counts, never per-row subqueries |
+| `querySelector` grabbed wrong element when multiple exist | Scope to parent: `modal.querySelector('.class')` | Always scope selectors to their container |
+| Inactivity timer logged out users while typing email | Pause timer when modals are open | Disable auto-logout during user input |
+| Email saved to one column, not found later | Update both `email` and `timesheet_email` columns | Keep related columns in sync |
+| Alert badge logic inconsistent between list and detail views | Unified `has_alerts` calculation across all endpoints | Define alert conditions once, reuse everywhere |
+
 # System Architecture
 ## Bot Framework
 - **Technology**: Discord.py (version 2.3+)
 - **Language**: Python 3.x
 - **Architecture Pattern**: Event-driven bot architecture, integrating the Discord bot and an internal HTTP API server within a Gunicorn-managed Flask application.
+
+## Future Vision
+- **Mobile-responsive kiosk improvements**: Optimized layouts for smaller tablets and phones.
+- **Shift scheduling integration**: Ability for admins to set expected shifts and track attendance against them.
+- **Payroll export features**: Native integrations with common payroll providers.
+- **Multi-language support**: Localizing the dashboard and bot for global teams.
 
 ## Design Decisions
 - **UI/UX**: Features a static landing page and a route-based dashboard architecture secured by Discord OAuth. The dashboard offers role-differentiated views for Admins (full access) and Employees (limited view of personal data).
