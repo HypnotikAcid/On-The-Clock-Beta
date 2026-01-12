@@ -239,6 +239,181 @@
             color: #EF4444;
         }
 
+        /* Forgot PIN Button */
+        .forgot-pin-btn {
+            margin-top: 20px;
+            background: transparent;
+            border: none;
+            color: #8B949E;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 10px 20px;
+            transition: color 0.2s ease;
+        }
+
+        .forgot-pin-btn:hover {
+            color: #D4AF37;
+        }
+
+        /* Forgot PIN Modal */
+        .forgot-pin-modal {
+            background: linear-gradient(135deg, #1a1f2e 0%, #252b3d 100%);
+            border: 2px solid rgba(239, 68, 68, 0.4);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            animation: modalSlide 0.3s ease;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .forgot-pin-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .forgot-pin-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #EF4444;
+            margin-bottom: 15px;
+        }
+
+        .forgot-pin-text {
+            color: #C9D1D9;
+            font-size: 16px;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .forgot-pin-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .forgot-pin-confirm {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            color: white;
+            transition: all 0.2s ease;
+        }
+
+        .forgot-pin-confirm:hover {
+            transform: scale(1.05);
+        }
+
+        .forgot-pin-cancel {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            background: rgba(139, 148, 158, 0.3);
+            color: #C9D1D9;
+            transition: all 0.2s ease;
+        }
+
+        .forgot-pin-cancel:hover {
+            background: rgba(139, 148, 158, 0.5);
+        }
+
+        /* Email Alert Badge */
+        .employee-btn {
+            position: relative;
+        }
+
+        .email-alert-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 24px;
+            height: 24px;
+            background: #EF4444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            animation: pulseBadge 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulseBadge {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 10px 5px rgba(239, 68, 68, 0.3);
+            }
+        }
+
+        /* Email display on action screen */
+        .info-email {
+            font-size: 14px;
+            color: #8B949E;
+            margin-top: 5px;
+        }
+
+        .info-email-link {
+            color: #D4AF37;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+            transition: color 0.2s ease;
+        }
+
+        .info-email-link:hover {
+            color: #F4E5A1;
+            text-decoration: underline;
+        }
+
+        .set-email-btn {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 16px;
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            border-radius: 6px;
+            color: #D4AF37;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .set-email-btn:hover {
+            background: rgba(212, 175, 55, 0.3);
+        }
+
+        /* Actions screen back button */
+        .actions-back-btn {
+            position: absolute;
+            top: 100px;
+            left: 30px;
+            background: rgba(139, 148, 158, 0.2);
+            border: 1px solid rgba(139, 148, 158, 0.4);
+            color: #C9D1D9;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .actions-back-btn:hover {
+            background: rgba(139, 148, 158, 0.3);
+        }
+
         /* Time Adjustment Modal */
         .modal-overlay {
             display: none;
@@ -937,10 +1112,12 @@
                 <button class="numpad-btn" onclick="enterDigit('0')">0</button>
                 <button class="numpad-btn special delete" onclick="deleteDigit()">⌫</button>
             </div>
+            <button class="forgot-pin-btn" onclick="showForgotPinModal()">Forgot PIN?</button>
         </div>
 
         <!-- Screen 3: Clock Actions -->
         <div class="screen" id="actionsScreen">
+            <button class="actions-back-btn" onclick="backToEmployeeGrid()">← Back</button>
             <div class="actions-layout">
                 <div class="actions-column">
                     <button class="action-btn clock-in" id="clockInBtn" onclick="clockAction('in')">
@@ -1068,6 +1245,52 @@
         </div>
     </div>
 
+    <!-- Forgot PIN Modal -->
+    <div class="modal-overlay" id="forgotPinModal">
+        <div class="forgot-pin-modal">
+            <div class="forgot-pin-icon">🔑</div>
+            <div class="forgot-pin-title">Forgot Your PIN?</div>
+            <div class="forgot-pin-text">
+                Your administrator will be notified to help reset your PIN. Please speak with your manager.
+            </div>
+            <div class="forgot-pin-buttons">
+                <button class="forgot-pin-confirm" onclick="confirmForgotPin()">
+                    Notify Admin
+                </button>
+                <button class="forgot-pin-cancel" onclick="closeForgotPinModal()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set Email Modal (for action screen) -->
+    <div class="modal-overlay" id="setEmailModal">
+        <div class="email-modal">
+            <div class="modal-header">
+                <h2 class="modal-title">📧 Set Your Email</h2>
+                <button class="modal-close" onclick="closeSetEmailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="email-prompt">
+                    <p>Enter your email address to receive shift summaries and notifications.</p>
+                </div>
+                
+                <div class="email-input-section">
+                    <label for="setEmailInput">Email Address</label>
+                    <input type="email" id="setEmailInput" class="email-input" placeholder="Enter your email address">
+                    <div class="email-error" id="setEmailError"></div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="submit-btn" onclick="saveEmployeeEmail()">
+                        Save Email
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const GUILD_ID = '{{ guild_id }}';
         let currentEmployee = null;
@@ -1134,6 +1357,7 @@
             const grid = document.getElementById('employeeGrid');
             grid.innerHTML = employees.map(emp => `
                 <button class="employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''}" onclick="selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+                    ${!emp.has_email ? '<div class="email-alert-badge">!</div>' : ''}
                     <div class="employee-avatar">
                         ${emp.avatar_url ? `<img src="${emp.avatar_url}" alt="${emp.display_name}">` : emp.display_name.charAt(0).toUpperCase()}
                     </div>
@@ -1295,8 +1519,16 @@
             showScreen('actions');
         }
 
+        let currentEmployeeEmail = null;
+
         function renderInfoPanel(data) {
             const panel = document.getElementById('infoPanel');
+            currentEmployeeEmail = data.email || null;
+            
+            const emailDisplay = data.email 
+                ? `<div class="info-email">📧 ${escapeHtml(data.email)} <span class="info-email-link" onclick="openSetEmailModal()">Update</span></div>`
+                : `<button class="set-email-btn" onclick="openSetEmailModal()">📧 Set Email Address</button>`;
+            
             panel.innerHTML = `
                 <div class="info-user">
                     <div class="info-avatar">
@@ -1305,6 +1537,7 @@
                     <div>
                         <div class="info-name">${escapeHtml(currentEmployee.display_name)}</div>
                         <div class="info-role">${escapeHtml(data.position || 'Team Member')}</div>
+                        ${emailDisplay}
                     </div>
                 </div>
                 <div class="info-stats">
@@ -1797,6 +2030,152 @@
             }
         }
 
+        // Forgot PIN Modal Functions
+        function showForgotPinModal() {
+            if (!currentEmployee) return;
+            document.getElementById('forgotPinModal').classList.add('active');
+            resetInactivityTimer();
+        }
+
+        function closeForgotPinModal() {
+            document.getElementById('forgotPinModal').classList.remove('active');
+            resetInactivityTimer();
+        }
+
+        async function confirmForgotPin() {
+            if (!currentEmployee) return;
+            
+            showLoading(true);
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/forgot-pin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentEmployee.user_id,
+                        display_name: currentEmployee.display_name
+                    })
+                });
+                
+                const data = await response.json();
+                showLoading(false);
+                closeForgotPinModal();
+                
+                if (data.success) {
+                    showMessage('success', 'Admin has been notified. Please speak with your manager.');
+                } else {
+                    showMessage('error', data.error || 'Failed to send notification');
+                }
+                
+                // Return to employee grid after showing message
+                setTimeout(() => {
+                    logout();
+                }, 2500);
+            } catch (error) {
+                showLoading(false);
+                closeForgotPinModal();
+                showMessage('error', 'Connection error');
+                setTimeout(() => {
+                    logout();
+                }, 2500);
+            }
+        }
+
+        // Set Email Modal Functions
+        function openSetEmailModal() {
+            const modal = document.getElementById('setEmailModal');
+            const input = document.getElementById('setEmailInput');
+            const errorEl = document.getElementById('setEmailError');
+            
+            // Pre-populate with current email if exists
+            input.value = currentEmployeeEmail || '';
+            errorEl.textContent = '';
+            
+            modal.classList.add('active');
+            input.focus();
+            resetInactivityTimer();
+        }
+
+        function closeSetEmailModal() {
+            document.getElementById('setEmailModal').classList.remove('active');
+            resetInactivityTimer();
+        }
+
+        async function saveEmployeeEmail() {
+            const input = document.getElementById('setEmailInput');
+            const errorEl = document.getElementById('setEmailError');
+            const email = input.value.trim();
+            
+            // Validate email
+            if (!email) {
+                errorEl.textContent = 'Please enter an email address';
+                return;
+            }
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errorEl.textContent = 'Please enter a valid email address';
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+                
+                const data = await response.json();
+                showLoading(false);
+                
+                if (data.success) {
+                    currentEmployeeEmail = email;
+                    closeSetEmailModal();
+                    showMessage('success', 'Email saved successfully!');
+                    
+                    // Refresh info panel to show updated email
+                    try {
+                        const infoResponse = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
+                        const infoData = await infoResponse.json();
+                        if (infoData.success) {
+                            renderInfoPanel(infoData);
+                        }
+                    } catch (err) {
+                        console.error('Failed to refresh info panel:', err);
+                    }
+                } else {
+                    errorEl.textContent = data.error || 'Failed to save email';
+                }
+            } catch (error) {
+                showLoading(false);
+                errorEl.textContent = 'Connection error. Please try again.';
+            }
+        }
+
+        // Back button to return to employee grid
+        function backToEmployeeGrid() {
+            logout();
+        }
+
+        // History state management to prevent browser back from exiting kiosk
+        function initializeHistoryState() {
+            // Push initial state to prevent exiting kiosk with back button
+            history.pushState({ screen: 'employee' }, '', window.location.href);
+        }
+
+        // Handle browser back button
+        window.addEventListener('popstate', function(event) {
+            // Always push state back and stay in kiosk
+            history.pushState({ screen: 'kiosk' }, '', window.location.href);
+            
+            // If we're on PIN or actions screen, go back to employee grid
+            const employeeScreen = document.getElementById('employeeScreen');
+            if (!employeeScreen.classList.contains('active')) {
+                logout();
+            }
+        });
+
         function logout() {
             // Clear inactivity timer
             if (inactivityTimer) {
@@ -1806,8 +2185,12 @@
             currentEmployee = null;
             pinBuffer = '';
             pinMode = 'verify';
+            currentEmployeeEmail = null;
             loadEmployees();
             showScreen('employee');
+            
+            // Re-push history state to maintain kiosk lock
+            history.pushState({ screen: 'employee' }, '', window.location.href);
         }
 
         function showLoading(show) {
@@ -1846,6 +2229,7 @@
         }
 
         // Initialize
+        initializeHistoryState();
         loadEmployees();
     </script>
 </body>

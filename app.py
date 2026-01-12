@@ -22,6 +22,7 @@ import time as time_module
 from flask import Flask, render_template, redirect, request, session, jsonify, url_for, make_response
 from werkzeug.middleware.proxy_fix import ProxyFix
 import stripe
+import pytz
 from stripe import SignatureVerificationError
 
 app = Flask(__name__)
@@ -4877,6 +4878,7 @@ def api_add_email_recipient(user_session, guild_id):
                 raise
         
         try:
+            from email_utils import send_email
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             subject = "Verify your email for On the Clock"
@@ -5044,6 +5046,7 @@ def api_resend_verification(user_session, guild_id):
             email = recipient['email_address']
         
         try:
+            from email_utils import send_email
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             subject = "Your new verification code for On the Clock"
@@ -7696,7 +7699,7 @@ def api_kiosk_employees(guild_id):
             # Get all active employees with their clock-in status (using timeclock_sessions)
             cursor = conn.execute("""
                 SELECT ep.user_id, ep.display_name, ep.first_name, ep.last_name, ep.avatar_url,
-                       ep.position, ep.department,
+                       ep.position, ep.department, ep.email,
                        EXISTS(SELECT 1 FROM employee_pins WHERE guild_id = %s AND user_id = ep.user_id) as has_pin,
                        EXISTS(SELECT 1 FROM timeclock_sessions WHERE guild_id = %s AND user_id::text = ep.user_id::text AND clock_out_time IS NULL) as is_clocked_in
                 FROM employee_profiles ep
@@ -7714,7 +7717,8 @@ def api_kiosk_employees(guild_id):
                 'avatar_url': emp['avatar_url'],
                 'position': emp['position'],
                 'has_pin': emp['has_pin'],
-                'is_clocked_in': emp['is_clocked_in']
+                'is_clocked_in': emp['is_clocked_in'],
+                'has_email': bool(emp['email'])
             })
         
         return jsonify({'success': True, 'employees': employee_list})
@@ -7790,7 +7794,7 @@ def api_kiosk_employee_info(guild_id, user_id):
         with get_db() as conn:
             # Get employee profile
             cursor = conn.execute("""
-                SELECT display_name, first_name, last_name, avatar_url, position, department
+                SELECT display_name, first_name, last_name, avatar_url, position, department, email
                 FROM employee_profiles
                 WHERE guild_id = %s AND user_id = %s
             """, (str(guild_id), str(user_id)))
@@ -7854,6 +7858,7 @@ def api_kiosk_employee_info(guild_id, user_id):
             'success': True,
             'avatar_url': profile['avatar_url'] if profile else None,
             'position': profile['position'] if profile else None,
+            'email': profile['email'] if profile else None,
             'is_clocked_in': active_session is not None,
             'today_hours': round(today_minutes),
             'week_hours': round(week_minutes),
@@ -7861,6 +7866,133 @@ def api_kiosk_employee_info(guild_id, user_id):
         })
     except Exception as e:
         app.logger.error(f"Error fetching kiosk employee info: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Rate limiting cache for forgot-PIN requests
+# Format: {key: last_request_time} where key can be guild:user, guild, or ip
+_forgot_pin_rate_limit = {}
+_forgot_pin_guild_limit = {}  # Per-guild limit (max 10 requests per 10 minutes per guild)
+_forgot_pin_ip_limit = {}  # Per-IP limit (max 5 requests per 10 minutes per IP)
+
+def _clean_old_rate_limits():
+    """Clean up expired rate limit entries to prevent memory bloat"""
+    current_time = time_module.time()
+    cutoff = current_time - 1800  # 30 minutes
+    for cache in [_forgot_pin_rate_limit, _forgot_pin_guild_limit, _forgot_pin_ip_limit]:
+        expired_keys = [k for k, v in cache.items() if v < cutoff]
+        for k in expired_keys:
+            del cache[k]
+
+@app.route("/api/kiosk/<guild_id>/forgot-pin", methods=["POST"])
+def api_kiosk_forgot_pin(guild_id):
+    """Handle forgot PIN request - logs the request and can notify admin
+    
+    Security measures:
+    - Per-user rate limit: 1 request per 5 minutes
+    - Per-guild rate limit: 10 requests per 10 minutes
+    - Per-IP rate limit: 5 requests per 10 minutes
+    - Employee validation (no enumeration leaks)
+    """
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        display_name = data.get('display_name', 'Unknown')
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        
+        if not user_id:
+            return jsonify({'success': False, 'error': 'Missing user ID'}), 400
+        
+        current_time = time_module.time()
+        
+        # Clean old entries occasionally
+        if len(_forgot_pin_rate_limit) > 1000:
+            _clean_old_rate_limits()
+        
+        # Per-IP rate limit: Max 5 requests per 10 minutes
+        ip_key = f"ip:{client_ip}"
+        ip_requests = _forgot_pin_ip_limit.get(ip_key, [])
+        ip_requests = [t for t in ip_requests if current_time - t < 600]
+        if len(ip_requests) >= 5:
+            app.logger.warning(f"IP rate limited forgot PIN request from {client_ip}")
+            return jsonify({'success': True, 'message': 'Too many requests. Please try again later.'})
+        
+        # Per-guild rate limit: Max 10 requests per 10 minutes
+        guild_key = f"guild:{guild_id}"
+        guild_requests = _forgot_pin_guild_limit.get(guild_key, [])
+        guild_requests = [t for t in guild_requests if current_time - t < 600]
+        if len(guild_requests) >= 10:
+            app.logger.warning(f"Guild rate limited forgot PIN request for guild {guild_id}")
+            return jsonify({'success': True, 'message': 'Too many requests for this server. Please try again later.'})
+        
+        # Per-user rate limit: 1 request per 5 minutes
+        user_key = f"{guild_id}:{user_id}"
+        last_request = _forgot_pin_rate_limit.get(user_key, 0)
+        if current_time - last_request < 300:
+            remaining = int(300 - (current_time - last_request))
+            app.logger.warning(f"User rate limited forgot PIN request for {user_id} in guild {guild_id}")
+            return jsonify({'success': True, 'message': f'Request already submitted. Please wait {remaining // 60} minutes.'})
+        
+        # Validate user exists as an employee in this guild (security: prevent enumeration attacks)
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT user_id FROM employee_profiles
+                WHERE guild_id = %s AND user_id = %s
+            """, (str(guild_id), str(user_id)))
+            if not cursor.fetchone():
+                # Don't reveal whether user exists - return generic success
+                app.logger.warning(f"Forgot PIN request for non-existent user {user_id} in guild {guild_id}")
+                return jsonify({'success': True, 'message': 'If this employee exists, admin has been notified'})
+        
+        # Update all rate limits
+        _forgot_pin_rate_limit[user_key] = current_time
+        _forgot_pin_ip_limit[ip_key] = ip_requests + [current_time]
+        _forgot_pin_guild_limit[guild_key] = guild_requests + [current_time]
+        
+        # Log the forgot PIN request
+        app.logger.info(f"FORGOT PIN REQUEST: User {display_name} (ID: {user_id}) in guild {guild_id} requested PIN reset")
+        
+        # Try to send notification email to verified report recipients
+        try:
+            with get_db() as conn:
+                recipients_cursor = conn.execute(
+                    """SELECT email_address FROM report_recipients 
+                       WHERE guild_id = %s AND recipient_type = 'email' 
+                       AND verification_status = 'verified'""",
+                    (str(guild_id),)
+                )
+                recipients = [row['email_address'] for row in recipients_cursor.fetchall()]
+                
+                if recipients:
+                    import asyncio
+                    from email_utils import send_email
+                    
+                    subject = f"PIN Reset Request - {display_name}"
+                    text_content = f"""An employee has requested a PIN reset.
+
+Employee: {display_name}
+User ID: {user_id}
+
+Please assist this employee in resetting their kiosk PIN.
+
+- On the Clock Bot"""
+                    
+                    def send_notification():
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            loop.run_until_complete(send_email(to=recipients, subject=subject, text=text_content))
+                        finally:
+                            loop.close()
+                    
+                    import threading
+                    thread = threading.Thread(target=send_notification, daemon=True)
+                    thread.start()
+        except Exception as email_err:
+            app.logger.warning(f"Failed to send forgot PIN notification email: {email_err}")
+        
+        return jsonify({'success': True, 'message': 'Admin has been notified'})
+    except Exception as e:
+        app.logger.error(f"Error handling forgot PIN request: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/kiosk/<guild_id>/clock", methods=["POST"])
@@ -7923,15 +8055,43 @@ def api_kiosk_clock(guild_id):
         app.logger.error(f"Error with kiosk clock action: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route("/api/kiosk/<guild_id>/employee/<user_id>/email")
-def api_kiosk_get_employee_email(guild_id, user_id):
-    """Get saved email for kiosk employee (for auto-population)"""
+@app.route("/api/kiosk/<guild_id>/employee/<user_id>/email", methods=["GET", "POST"])
+def api_kiosk_employee_email(guild_id, user_id):
+    """Get or save email for kiosk employee"""
+    if request.method == "POST":
+        # Save email
+        try:
+            data = request.get_json()
+            email = data.get('email', '').strip()
+            
+            if not email:
+                return jsonify({'success': False, 'error': 'Email is required'}), 400
+            
+            # Basic email validation
+            import re
+            if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+                return jsonify({'success': False, 'error': 'Invalid email format'}), 400
+            
+            with get_db() as conn:
+                conn.execute("""
+                    UPDATE employee_profiles 
+                    SET email = %s
+                    WHERE guild_id = %s AND user_id = %s
+                """, (email, str(guild_id), str(user_id)))
+            
+            app.logger.info(f"Email updated for user {user_id} in guild {guild_id}")
+            return jsonify({'success': True})
+        except Exception as e:
+            app.logger.error(f"Error saving employee email: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # GET - retrieve email
     try:
         with get_db() as conn:
             cursor = conn.execute("""
                 SELECT email, timesheet_email FROM employee_profiles
                 WHERE guild_id = %s AND user_id = %s
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             profile = cursor.fetchone()
             
             if profile:
@@ -7974,7 +8134,7 @@ def api_kiosk_send_shift_email(guild_id):
             # Get guild timezone
             cursor = conn.execute("""
                 SELECT timezone FROM guild_settings WHERE guild_id = %s
-            """, (int(guild_id),))
+            """, (str(guild_id),))
             tz_row = cursor.fetchone()
             guild_tz_str = tz_row['timezone'] if tz_row else 'America/New_York'
             guild_tz = pytz.timezone(guild_tz_str)
@@ -7983,7 +8143,7 @@ def api_kiosk_send_shift_email(guild_id):
             cursor = conn.execute("""
                 SELECT display_name, first_name FROM employee_profiles
                 WHERE guild_id = %s AND user_id = %s
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             emp_row = cursor.fetchone()
             emp_name = emp_row['first_name'] or emp_row['display_name'] if emp_row else 'Employee'
             
@@ -8027,12 +8187,12 @@ def api_kiosk_send_shift_email(guild_id):
             # Save email for future use
             cursor = conn.execute("""
                 SELECT id FROM employee_profiles WHERE guild_id = %s AND user_id = %s
-            """, (int(guild_id), int(user_id)))
+            """, (str(guild_id), str(user_id)))
             if cursor.fetchone():
                 conn.execute("""
                     UPDATE employee_profiles SET timesheet_email = %s
                     WHERE guild_id = %s AND user_id = %s
-                """, (email, int(guild_id), int(user_id)))
+                """, (email, str(guild_id), str(user_id)))
         
         # Build email content
         subject = f"Shift Summary - {clock_out_local.strftime('%B %d, %Y')}"

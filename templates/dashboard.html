@@ -12,116 +12,111 @@
     <!-- Matrix Canvas Background -->
     <canvas id="matrix-canvas"></canvas>
 
-    <!-- Mobile Hamburger -->
-    <div class="mobile-hamburger" id="mobileHamburger">
-        <span class="hamburger-icon">☰</span>
-    </div>
+    <!-- Sidebar is now OUTSIDE layout-container for proper z-index stacking -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Logo -->
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">⚙️</span>
+            <div class="sidebar-logo-text">On the Clock<br>Dashboard</div>
+        </div>
 
-    <!-- Mobile Overlay -->
+        <!-- Navigation -->
+        <nav class="sidebar-nav">
+            <!-- Main Navigation (shown when no server is selected) -->
+            <div id="main-nav">
+                <div class="nav-section-title">Navigation</div>
+                <div class="nav-item active" data-section="my-servers">
+                    <span class="nav-item-icon">🏢</span>
+                    <span>My Servers</span>
+                </div>
+            </div>
+
+            <!-- Server-Specific Navigation (hidden by default) -->
+            <div id="server-nav" style="display: none;">
+                <div class="back-to-servers" id="backToServers">
+                    <span>&larr;</span>
+                    <span>Back to Servers</span>
+                </div>
+                <div class="server-nav-header" id="serverNavHeader">
+                    <div class="server-nav-icon" id="serverNavIcon">S</div>
+                    <div class="server-nav-name" id="serverNavName">Server Name</div>
+                </div>
+                <div class="nav-section-title">Server Settings</div>
+                <div class="nav-item" data-section="server-overview" data-server-menu>
+                    <span class="nav-item-icon">📊</span>
+                    <span>Server Overview</span>
+                </div>
+                <div class="nav-item admin-only" data-section="admin-roles" data-server-menu>
+                    <span class="nav-item-icon">👥</span>
+                    <span>Admin Roles</span>
+                </div>
+                <div class="nav-item admin-only" data-section="employee-roles" data-server-menu>
+                    <span class="nav-item-icon">👷</span>
+                    <span>Employee Roles</span>
+                </div>
+                <div class="nav-item admin-only" data-section="email-settings" data-server-menu>
+                    <span class="nav-item-icon">📧</span>
+                    <span>Email Settings</span>
+                </div>
+                <div class="nav-item admin-only" data-section="timezone-settings" data-server-menu>
+                    <span class="nav-item-icon">&#9200;</span>
+                    <span>Timezone Settings</span>
+                    <span class="badge tz-reminder" id="tz-reminder-badge"
+                        style="display:none; background:#F59E0B; color:#111; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:auto;">Set
+                        TZ!</span>
+                </div>
+                <div class="nav-item admin-only" data-section="employees" data-server-menu>
+                    <span class="nav-item-icon">👥</span>
+                    <span>Employee Status</span>
+                </div>
+                <div class="nav-item employee-only" data-section="on-the-clock" data-server-menu>
+                    <span class="nav-item-icon">⏰</span>
+                    <span>On the Clock</span>
+                </div>
+                <div class="nav-item" data-section="adjustments" data-server-menu>
+                    <span class="nav-item-icon">⏳</span>
+                    <span>Time Adjustments</span>
+                    <span class="badge" id="pending-count"
+                        style="display:none; background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">0</span>
+                </div>
+                <div class="nav-item admin-only" data-section="admin-calendar" data-server-menu>
+                    <span class="nav-item-icon">📅</span>
+                    <span>Admin Calendar</span>
+                </div>
+                <div class="nav-item admin-only" data-section="ban-management" data-server-menu>
+                    <span class="nav-item-icon">🚫</span>
+                    <span>Ban Management</span>
+                </div>
+                <div class="nav-item" data-section="beta-settings" data-server-menu>
+                    <span class="nav-item-icon">🧪</span>
+                    <span>Beta Settings</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- User Profile -->
+        <div class="sidebar-user">
+            <div class="sidebar-user-avatar">
+                {% if user.avatar %}
+                <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128"
+                    alt="Avatar">
+                {% else %}
+                {{ user.username[0]|upper }}
+                {% endif %}
+            </div>
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-name">{{ user.username }}</div>
+                <div class="sidebar-user-id">{{ user.user_id[:8] }}...</div>
+            </div>
+            <a href="/auth/logout" class="logout-icon" title="Logout">🚪</a>
+        </div>
+    </aside>
+
+    <!-- Mobile overlay - catches taps to close sidebar -->
     <div class="mobile-overlay" id="mobileOverlay"></div>
 
     <!-- Main Layout -->
     <div class="layout-container">
-        <!-- Left Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <!-- Logo -->
-            <div class="sidebar-logo">
-                <span class="sidebar-logo-icon">⚙️</span>
-                <div class="sidebar-logo-text">On the Clock<br>Dashboard</div>
-            </div>
-
-            <!-- Navigation -->
-            <nav class="sidebar-nav">
-                <!-- Main Navigation (shown when no server is selected) -->
-                <div id="main-nav">
-                    <div class="nav-section-title">Navigation</div>
-                    <div class="nav-item active" data-section="my-servers">
-                        <span class="nav-item-icon">🏢</span>
-                        <span>My Servers</span>
-                    </div>
-                </div>
-
-                <!-- Server-Specific Navigation (hidden by default) -->
-                <div id="server-nav" style="display: none;">
-                    <div class="back-to-servers" id="backToServers">
-                        <span>&larr;</span>
-                        <span>Back to Servers</span>
-                    </div>
-                    <div class="server-nav-header" id="serverNavHeader">
-                        <div class="server-nav-icon" id="serverNavIcon">S</div>
-                        <div class="server-nav-name" id="serverNavName">Server Name</div>
-                    </div>
-                    <div class="nav-section-title">Server Settings</div>
-                    <div class="nav-item" data-section="server-overview" data-server-menu>
-                        <span class="nav-item-icon">📊</span>
-                        <span>Server Overview</span>
-                    </div>
-                    <div class="nav-item admin-only" data-section="admin-roles" data-server-menu>
-                        <span class="nav-item-icon">👥</span>
-                        <span>Admin Roles</span>
-                    </div>
-                    <div class="nav-item admin-only" data-section="employee-roles" data-server-menu>
-                        <span class="nav-item-icon">👷</span>
-                        <span>Employee Roles</span>
-                    </div>
-                    <div class="nav-item admin-only" data-section="email-settings" data-server-menu>
-                        <span class="nav-item-icon">📧</span>
-                        <span>Email Settings</span>
-                    </div>
-                    <div class="nav-item admin-only" data-section="timezone-settings" data-server-menu>
-                        <span class="nav-item-icon">&#9200;</span>
-                        <span>Timezone Settings</span>
-                        <span class="badge tz-reminder" id="tz-reminder-badge"
-                            style="display:none; background:#F59E0B; color:#111; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:auto;">Set
-                            TZ!</span>
-                    </div>
-                    <div class="nav-item admin-only" data-section="employees" data-server-menu>
-                        <span class="nav-item-icon">👥</span>
-                        <span>Employee Status</span>
-                    </div>
-                    <div class="nav-item employee-only" data-section="on-the-clock" data-server-menu>
-                        <span class="nav-item-icon">⏰</span>
-                        <span>On the Clock</span>
-                    </div>
-                    <div class="nav-item" data-section="adjustments" data-server-menu>
-                        <span class="nav-item-icon">⏳</span>
-                        <span>Time Adjustments</span>
-                        <span class="badge" id="pending-count"
-                            style="display:none; background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">0</span>
-                    </div>
-                    <div class="nav-item admin-only" data-section="admin-calendar" data-server-menu>
-                        <span class="nav-item-icon">📅</span>
-                        <span>Admin Calendar</span>
-                    </div>
-                    <div class="nav-item admin-only" data-section="ban-management" data-server-menu>
-                        <span class="nav-item-icon">🚫</span>
-                        <span>Ban Management</span>
-                    </div>
-                    <div class="nav-item" data-section="beta-settings" data-server-menu>
-                        <span class="nav-item-icon">🧪</span>
-                        <span>Beta Settings</span>
-                    </div>
-                </div>
-            </nav>
-
-            <!-- User Profile -->
-            <div class="sidebar-user">
-                <div class="sidebar-user-avatar">
-                    {% if user.avatar %}
-                    <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128"
-                        alt="Avatar">
-                    {% else %}
-                    {{ user.username[0]|upper }}
-                    {% endif %}
-                </div>
-                <div class="sidebar-user-info">
-                    <div class="sidebar-user-name">{{ user.username }}</div>
-                    <div class="sidebar-user-id">{{ user.user_id[:8] }}...</div>
-                </div>
-                <a href="/auth/logout" class="logout-icon" title="Logout">🚪</a>
-            </div>
-        </aside>
-
         <!-- Right Content Area -->
         <main class="content-area">
             <!-- Admin/Employee View Mode Toggle -->
@@ -1479,13 +1474,18 @@
         </main>
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading...</div>
-        </div>
+    <!-- Mobile hamburger button - always on top -->
+    <div class="mobile-hamburger" id="mobileHamburger">
+        <span class="hamburger-icon">☰</span>
+    </div>
 
-        <!-- Employee Detail Modal -->
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading...</div>
+    </div>
+
+    <!-- Employee Detail Modal -->
         <div id="employee-detail-overlay" class="employee-detail-overlay" style="display: none;">
             <div class="employee-detail-modal manila-folder">
                 <div class="folder-tab">EMPLOYEE FILE</div>
@@ -1543,6 +1543,84 @@
                     }
                 }, 500);
             }
-        </script></body>
+        </script>
+
+    <!-- Sidebar Toggle Script (mobile/tablet support) -->
+    <script>
+        (function() {
+            const sidebar = document.getElementById('sidebar');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            const mobileHamburger = document.getElementById('mobileHamburger');
+            
+            function isMobile() {
+                return window.innerWidth <= 1024;
+            }
+            
+            function openSidebar() {
+                document.body.classList.add('sidebar-open');
+                sidebar.classList.remove('mobile-hidden');
+                document.body.style.overflow = 'hidden';
+            }
+            
+            function closeSidebar() {
+                document.body.classList.remove('sidebar-open');
+                sidebar.classList.add('mobile-hidden');
+                document.body.style.overflow = '';
+            }
+            
+            function initSidebarState() {
+                document.body.classList.remove('sidebar-open');
+                document.body.style.overflow = '';
+                if (isMobile()) {
+                    sidebar.classList.add('mobile-hidden');
+                } else {
+                    sidebar.classList.remove('mobile-hidden');
+                }
+            }
+            
+            initSidebarState();
+            
+            if (mobileHamburger) {
+                mobileHamburger.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (sidebar.classList.contains('mobile-hidden')) {
+                        openSidebar();
+                    } else {
+                        closeSidebar();
+                    }
+                });
+            }
+
+            if (mobileOverlay) {
+                mobileOverlay.addEventListener('click', function() {
+                    closeSidebar();
+                });
+            }
+
+            const navLinks = sidebar.querySelectorAll('.nav-item, .back-to-servers');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (isMobile()) {
+                        closeSidebar();
+                    }
+                });
+            });
+            
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    document.body.classList.remove('sidebar-open');
+                    document.body.style.overflow = '';
+                    if (!isMobile()) {
+                        sidebar.classList.remove('mobile-hidden');
+                    } else {
+                        sidebar.classList.add('mobile-hidden');
+                    }
+                }, 100);
+            });
+        })();
+    </script>
+</body>
 
 </html>
