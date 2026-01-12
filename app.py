@@ -2043,7 +2043,7 @@ def owner_dashboard(user_session):
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
-                LEFT JOIN timeclock_sessions s ON bg.guild_id = s.guild_id AND s.clock_out_time IS NULL
+                LEFT JOIN timeclock_sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out_time IS NULL
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
                 ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
             """)
@@ -2260,7 +2260,7 @@ def owner_dashboard_paid(user_session):
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
-                LEFT JOIN timeclock_sessions s ON bg.guild_id = s.guild_id AND s.clock_out_time IS NULL
+                LEFT JOIN timeclock_sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out_time IS NULL
                 WHERE ss.bot_access_paid = TRUE
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
                 ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
@@ -2343,7 +2343,7 @@ def owner_dashboard_unpaid(user_session):
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
-                LEFT JOIN timeclock_sessions s ON bg.guild_id = s.guild_id AND s.clock_out_time IS NULL
+                LEFT JOIN timeclock_sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out_time IS NULL
                 WHERE COALESCE(ss.bot_access_paid, FALSE) = FALSE AND COALESCE(bg.is_present, TRUE) = TRUE
                 GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
                 ORDER BY guild_name
