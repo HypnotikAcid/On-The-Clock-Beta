@@ -31,6 +31,32 @@
         
         <button id="add-role-btn" class="btn btn-primary" disabled>Add Employee Role</button>
     </div>
+    
+    <div class="tile tile-full">
+        <h2><span class="tile-icon">📨</span>Employee Onboarding</h2>
+        <p class="tile-description">Send profile setup invites to employees with configured roles</p>
+        
+        {% if has_bot_access %}
+        <div class="onboarding-info">
+            <p>Send a welcome DM to all employees with a link to set up their profile. This includes:</p>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem; color: #8b949e;">
+                <li>Link to their personal profile page</li>
+                <li>Instructions for setting their email</li>
+                <li>Quick start guide for the timeclock</li>
+            </ul>
+        </div>
+        <div id="onboarding-status" style="margin-bottom: 1rem;"></div>
+        <button id="send-onboarding-btn" class="btn btn-primary" onclick="sendOnboarding()">
+            📨 Send Onboarding to All Employees
+        </button>
+        {% else %}
+        <div class="premium-teaser" style="background: rgba(88, 166, 255, 0.1); border: 1px solid rgba(88, 166, 255, 0.3); border-radius: 8px; padding: 1rem; margin-top: 0.5rem;">
+            <p style="color: #58a6ff; margin: 0 0 0.5rem 0; font-weight: 600;">✨ Premium Feature</p>
+            <p style="color: #8b949e; margin: 0;">Upgrade to send personalized onboarding DMs to all employees with links to their profile pages.</p>
+            <a href="/upgrade?guild_id={{ server.id }}" class="btn btn-primary" style="margin-top: 1rem;">Upgrade to Premium</a>
+        </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
 
@@ -144,6 +170,41 @@ async function removeRole(roleId) {
     } catch (error) {
         DashboardUtils.showNotification('Failed to remove role', 'error');
     }
+}
+
+async function sendOnboarding() {
+    const btn = document.getElementById('send-onboarding-btn');
+    const statusDiv = document.getElementById('onboarding-status');
+    
+    if (!confirm('Send onboarding DMs to all employees with configured roles?')) return;
+    
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    statusDiv.innerHTML = '<span style="color: #8b949e;">Sending onboarding messages...</span>';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employees/send-onboarding`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            statusDiv.innerHTML = `<span style="color: #10B981;">✓ ${data.message}</span>`;
+            DashboardUtils.showNotification(data.message, 'success');
+        } else {
+            statusDiv.innerHTML = `<span style="color: #f85149;">✗ ${DashboardUtils.escapeHtml(data.error)}</span>`;
+            DashboardUtils.showNotification(data.error || 'Failed to send onboarding', 'error');
+        }
+    } catch (error) {
+        statusDiv.innerHTML = '<span style="color: #f85149;">✗ Failed to send onboarding</span>';
+        DashboardUtils.showNotification('Failed to send onboarding', 'error');
+    }
+    
+    btn.disabled = false;
+    btn.textContent = '📨 Send Onboarding to All Employees';
 }
 
 document.addEventListener('DOMContentLoaded', loadRoles);

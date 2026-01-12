@@ -20,12 +20,14 @@ Preferred communication style: Simple, everyday language.
   - `/dashboard/server/<id>/email` - Email settings (admin-only)
   - `/dashboard/server/<id>/timezone` - Timezone/schedule settings (admin-only)
   - `/dashboard/server/<id>/employees` - Employee status cards (admin-only)
+  - `/dashboard/server/<id>/profile/<user_id>` - Employee profile with stats (employee can view own, admin can view all)
   - `/dashboard/server/<id>/clock` - On the Clock view (employee)
   - `/dashboard/server/<id>/adjustments` - Time adjustment requests (both roles)
   - `/dashboard/server/<id>/calendar` - Admin calendar for editing entries (admin-only)
   - `/dashboard/server/<id>/bans` - Ban management (admin-only)
   - `/dashboard/server/<id>/beta` - Beta settings
   - `/owner` - Owner dashboard
+- **Employee Profile Page**: Individual profile pages for each employee showing hire date, tenure, total/weekly hours, average stats, achievements. Employees can set their email address. Admins can view all employee profiles.
 - **Template Inheritance**: All dashboard pages extend `dashboard_base.html` for consistent sidebar, header, and security checks.
 - **Shared Utilities**: Common JavaScript functions in `dashboard-common.js` (escapeHtml, fetchWithTimeout, notifications, formatting).
 - **Subscription Management**: A simplified two-tier pricing model includes a Free Tier, Dashboard Premium, and an optional Pro Retention add-on.
@@ -37,7 +39,8 @@ Preferred communication style: Simple, everyday language.
 - **Bot Access Notification**: When access is granted (via purchase or manual grant), the bot sends a rich embed to the server with setup instructions, available commands (`/setup`, `/clock`, `/help`), dynamic dashboard link, and data retention info.
 - **Bulletproof Button Persistence**: A unified `/clock` command interface with stable custom IDs and `timeout=None` ensures button reliability across bot restarts, using a global `on_interaction` fallback.
 - **Signed Deep-Link System**: Secure Discord-to-Dashboard navigation using signed URLs with timestamp and SHA256 signatures, preserving user intent through the OAuth flow.
-- **Context Menu Commands**: Right-click user actions for admins, including viewing hours, forcing clock-out, and temporarily banning users from clock functions.
+- **Context Menu Commands**: Right-click user actions for admins, including viewing hours, viewing profile, sending shift reports via email, forcing clock-out, and temporarily banning users from clock functions.
+- **Employee Onboarding Button**: Premium-only button on Employee Roles page to send onboarding DMs to all employees with links to their profile pages.
 - **Pre-Deletion Warning System**: Hourly scheduler job DMs free-tier admins before data deletion with upgrade incentives.
 - **Database Migrations**: Automatic schema migrations on startup using `migrations.py`.
 - **Employee Status Cards**: Dashboard displays active employees with current hours, including manual clock-out buttons for admins.

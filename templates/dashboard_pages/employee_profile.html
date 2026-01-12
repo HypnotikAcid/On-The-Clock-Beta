@@ -1,0 +1,463 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Employee Profile{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Employee Profile</h1>
+    <p class="content-subtitle">{% if is_own_profile %}Your personal profile and stats{% else %}View employee details{% endif %}</p>
+</div>
+
+<div id="profile-container">
+    <div class="loading-placeholder">Loading profile...</div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<style>
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: var(--card-bg, #161b22);
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-name {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.25rem;
+}
+
+.profile-role {
+    color: #8b949e;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.profile-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.profile-status.clocked-in {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10B981;
+}
+
+.profile-status.clocked-out {
+    background: rgba(139, 148, 158, 0.2);
+    color: #8b949e;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--card-bg, #161b22);
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    color: #8b949e;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-sublabel {
+    color: #6e7681;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.profile-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.profile-section {
+    background: var(--card-bg, #161b22);
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color, #30363d);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: #8b949e;
+    font-size: 0.9rem;
+}
+
+.info-value {
+    color: #fff;
+    font-weight: 500;
+}
+
+.info-value.not-set {
+    color: #6e7681;
+    font-style: italic;
+}
+
+.email-edit-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.email-edit-form input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 6px;
+    background: var(--input-bg, #0d1117);
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.email-edit-form input:focus {
+    outline: none;
+    border-color: #58a6ff;
+}
+
+.btn-save-email {
+    padding: 0.5rem 1rem;
+    background: #238636;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.btn-save-email:hover {
+    background: #2ea043;
+}
+
+.btn-save-email:disabled {
+    background: #484f58;
+    cursor: not-allowed;
+}
+
+.weekly-chart {
+    height: 120px;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.chart-bar {
+    flex: 1;
+    background: linear-gradient(to top, #238636, #2ea043);
+    border-radius: 4px 4px 0 0;
+    min-height: 4px;
+    transition: height 0.3s;
+}
+
+.chart-labels {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.chart-label {
+    flex: 1;
+    text-align: center;
+    color: #6e7681;
+    font-size: 0.7rem;
+}
+
+.save-success {
+    color: #10B981;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.save-error {
+    color: #f85149;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .profile-sections {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+const guildId = '{{ server.id }}';
+const profileUserId = '{{ profile_user_id }}';
+const isOwnProfile = {{ 'true' if is_own_profile else 'false' }};
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatHours(hours) {
+    if (!hours || hours === 0) return '0h';
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+}
+
+async function loadProfile() {
+    const container = document.getElementById('profile-container');
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (!data.success) {
+            container.innerHTML = `<div class="error-message">Failed to load profile: ${escapeHtml(data.error)}</div>`;
+            return;
+        }
+        
+        const profile = data.profile;
+        const stats = profile.stats;
+        
+        container.innerHTML = `
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    ${profile.avatar_url 
+                        ? `<img src="${escapeHtml(profile.avatar_url)}" alt="Avatar">`
+                        : escapeHtml(profile.display_name.charAt(0).toUpperCase())
+                    }
+                </div>
+                <div class="profile-info">
+                    <div class="profile-name">${escapeHtml(profile.display_name)}</div>
+                    <div class="profile-role">${escapeHtml(profile.position || profile.company_role || 'Team Member')}</div>
+                    <span class="profile-status ${profile.is_clocked_in ? 'clocked-in' : 'clocked-out'}">
+                        ${profile.is_clocked_in ? '🟢 Clocked In' : '⚪ Clocked Out'}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-value">${formatHours(stats.weekly_hours)}</div>
+                    <div class="stat-label">This Week</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value">${formatHours(stats.avg_weekly_hours)}</div>
+                    <div class="stat-label">Avg Weekly</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-value">${formatHours(stats.avg_daily_hours)}</div>
+                    <div class="stat-label">Avg Per Shift</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏆</div>
+                    <div class="stat-value">${formatHours(stats.total_hours)}</div>
+                    <div class="stat-label">All Time</div>
+                    <div class="stat-sublabel">${stats.total_sessions} shifts</div>
+                </div>
+            </div>
+            
+            <div class="profile-sections">
+                <div class="profile-section">
+                    <div class="section-title">📋 Personal Info</div>
+                    <div class="info-row">
+                        <span class="info-label">Hire Date</span>
+                        <span class="info-value ${!profile.hire_date ? 'not-set' : ''}">${profile.hire_date ? new Date(profile.hire_date).toLocaleDateString() : 'Not set'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Tenure</span>
+                        <span class="info-value">${escapeHtml(profile.tenure_text)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Department</span>
+                        <span class="info-value ${!profile.department ? 'not-set' : ''}">${escapeHtml(profile.department) || 'Not set'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">First Clock-In</span>
+                        <span class="info-value ${!stats.first_session ? 'not-set' : ''}">${stats.first_session ? new Date(stats.first_session).toLocaleDateString() : 'Never'}</span>
+                    </div>
+                </div>
+                
+                <div class="profile-section">
+                    <div class="section-title">📧 Contact</div>
+                    ${isOwnProfile ? `
+                        <div class="info-row" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+                            <span class="info-label">Email Address</span>
+                            <div class="email-edit-form">
+                                <input type="email" id="email-input" value="${escapeHtml(profile.email || '')}" placeholder="Enter your email">
+                                <button class="btn-save-email" onclick="saveEmail()">Save</button>
+                            </div>
+                            <div id="email-status"></div>
+                        </div>
+                        <p style="color: #8b949e; font-size: 0.85rem; margin-top: 0.5rem;">
+                            Your email is used for receiving shift reports and notifications.
+                        </p>
+                    ` : `
+                        <div class="info-row">
+                            <span class="info-label">Email</span>
+                            <span class="info-value ${!profile.email ? 'not-set' : ''}">${profile.email ? escapeHtml(profile.email) : 'Not set'}</span>
+                        </div>
+                    `}
+                </div>
+                
+                <div class="profile-section">
+                    <div class="section-title">🏅 Achievements</div>
+                    <div class="info-row">
+                        <span class="info-label">Longest Shift</span>
+                        <span class="info-value">${formatHours(stats.longest_shift_hours)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total Shifts</span>
+                        <span class="info-value">${stats.total_sessions}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Last Active</span>
+                        <span class="info-value ${!stats.last_session ? 'not-set' : ''}">${stats.last_session ? new Date(stats.last_session).toLocaleDateString() : 'Never'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading profile:', error);
+        container.innerHTML = `<div class="error-message">Failed to load profile. Please try again.</div>`;
+    }
+}
+
+async function saveEmail() {
+    const emailInput = document.getElementById('email-input');
+    const statusDiv = document.getElementById('email-status');
+    const btn = document.querySelector('.btn-save-email');
+    
+    const email = emailInput.value.trim();
+    
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    statusDiv.innerHTML = '';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email: email || null })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            statusDiv.innerHTML = '<span class="save-success">✓ Email saved successfully</span>';
+            setTimeout(() => { statusDiv.innerHTML = ''; }, 3000);
+        } else {
+            statusDiv.innerHTML = `<span class="save-error">✗ ${escapeHtml(data.error)}</span>`;
+        }
+    } catch (error) {
+        statusDiv.innerHTML = '<span class="save-error">✗ Failed to save email</span>';
+    }
+    
+    btn.disabled = false;
+    btn.textContent = 'Save';
+}
+
+document.addEventListener('DOMContentLoaded', loadProfile);
+</script>
+{% endblock %}

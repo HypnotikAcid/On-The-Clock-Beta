@@ -1941,6 +1941,31 @@ def dashboard_beta_settings(user_session, guild_id):
     return render_template('dashboard_pages/beta_settings.html', **context)
 
 
+@app.route("/dashboard/server/<guild_id>/profile/<user_id>")
+@require_auth
+def dashboard_employee_profile(user_session, guild_id, user_id):
+    """Employee profile page - viewable by the employee or admins"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    if not user_id.isdigit() or len(user_id) > 20:
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'profile')
+    if error:
+        return error
+    
+    # Allow access if: user is viewing their own profile OR user is admin
+    viewer_user_id = user_session.get('user_id')
+    if context['user_role'] != 'admin' and str(viewer_user_id) != str(user_id):
+        return redirect(f'/dashboard/server/{guild_id}')
+    
+    # Add profile user_id to context for the template
+    context['profile_user_id'] = user_id
+    context['is_own_profile'] = str(viewer_user_id) == str(user_id)
+    
+    return render_template('dashboard_pages/employee_profile.html', **context)
+
+
 def fetch_guild_name_from_discord(guild_id, db_conn=None):
     """
     Fetch guild name from Discord API and cache it in bot_guilds table.
@@ -5398,7 +5423,7 @@ def api_sync_server_employees(user_session, guild_id):
         import requests
         response = requests.post(
             bot_api_url,
-            headers={'X-Bot-API-Secret': bot_api_secret},
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
             json={},
             timeout=30
         )
@@ -5415,6 +5440,245 @@ def api_sync_server_employees(user_session, guild_id):
             
     except Exception as e:
         app.logger.error(f"Error syncing employees: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/employees/send-onboarding", methods=["POST"])
+@require_api_auth
+def api_send_employee_onboarding(user_session, guild_id):
+    """API endpoint to send onboarding DMs to all employees (admin only, premium only)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        if access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        
+        # Check premium access
+        guild_settings = get_guild_settings(guild_id)
+        if not guild_settings.get('has_bot_access'):
+            return jsonify({'success': False, 'error': 'Premium feature - please upgrade'}), 403
+        
+        # Call bot API to send onboarding DMs
+        bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/employees/send-onboarding"
+        bot_api_secret = os.environ.get('BOT_API_SECRET')
+        
+        if not bot_api_secret:
+            bot_module = _get_bot_module()
+            if bot_module:
+                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
+        
+        if not bot_api_secret:
+            return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
+        
+        import requests
+        response = requests.post(
+            bot_api_url,
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            json={},
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'success': True,
+                'message': data.get('message', 'Onboarding sent'),
+                'sent_count': data.get('sent_count', 0)
+            })
+        else:
+            error_data = response.json() if response.content else {}
+            return jsonify({'success': False, 'error': error_data.get('error', 'Failed to send onboarding')}), 500
+            
+    except Exception as e:
+        app.logger.error(f"Error sending onboarding: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/employee/<user_id>/profile", methods=["GET"])
+@require_api_auth
+def api_get_employee_profile(user_session, guild_id, user_id):
+    """API endpoint to fetch employee profile with stats"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Allow access if: user is viewing their own profile OR user is admin
+        viewer_user_id = user_session.get('user_id')
+        is_admin = access_level == 'admin'
+        is_own_profile = str(viewer_user_id) == str(user_id)
+        
+        if not is_admin and not is_own_profile:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Get guild timezone
+        guild_settings = get_guild_settings(guild_id)
+        guild_tz = guild_settings.get('timezone') or 'America/Chicago'
+        
+        with get_db() as conn:
+            # Get employee profile info
+            cursor = conn.execute("""
+                SELECT ep.user_id, ep.full_name, ep.display_name, ep.avatar_url,
+                       ep.email, ep.hire_date, ep.position, ep.department, ep.company_role,
+                       ep.first_clock_at, ep.bio, ep.is_active,
+                       ep.profile_setup_completed, ep.welcome_dm_sent, ep.first_clock_used
+                FROM employee_profiles ep
+                WHERE ep.guild_id = %s AND ep.user_id = %s
+            """, (int(guild_id), int(user_id)))
+            profile_row = cursor.fetchone()
+            
+            if not profile_row:
+                return jsonify({'success': False, 'error': 'Employee not found'}), 404
+            
+            # Calculate stats from timeclock_sessions
+            stats_cursor = conn.execute("""
+                SELECT 
+                    COUNT(*) as total_sessions,
+                    COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time))), 0) / 3600.0 as total_hours,
+                    COALESCE(MAX(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) / 3600.0 as longest_shift_hours,
+                    MIN(clock_in_time) as first_session,
+                    MAX(clock_in_time) as last_session
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NOT NULL
+            """, (int(guild_id), int(user_id)))
+            stats_row = stats_cursor.fetchone()
+            
+            # Calculate this week's hours
+            week_cursor = conn.execute("""
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time))), 0) / 3600.0 as weekly_hours
+                FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s
+                AND clock_in_time >= date_trunc('week', NOW() AT TIME ZONE %s)
+            """, (int(guild_id), int(user_id), guild_tz))
+            week_row = week_cursor.fetchone()
+            
+            # Calculate average weekly hours (total hours / weeks since first clock)
+            first_clock = profile_row.get('first_clock_at') or stats_row.get('first_session')
+            avg_weekly = 0
+            if first_clock and stats_row.get('total_hours'):
+                weeks_active = max(1, (datetime.now() - first_clock.replace(tzinfo=None)).days / 7)
+                avg_weekly = round(stats_row['total_hours'] / weeks_active, 1)
+            
+            # Calculate average daily hours
+            avg_daily = 0
+            if stats_row.get('total_sessions') and stats_row['total_sessions'] > 0:
+                avg_daily = round(stats_row['total_hours'] / stats_row['total_sessions'], 1)
+            
+            # Calculate tenure
+            hire_date = profile_row.get('hire_date')
+            tenure_text = "Not set"
+            if hire_date:
+                days = (datetime.now(pytz.UTC) - hire_date.replace(tzinfo=pytz.UTC)).days
+                if days < 30:
+                    tenure_text = f"{days} days"
+                elif days < 365:
+                    months = days // 30
+                    tenure_text = f"{months} month{'s' if months > 1 else ''}"
+                else:
+                    years = days // 365
+                    months = (days % 365) // 30
+                    tenure_text = f"{years} year{'s' if years > 1 else ''}"
+                    if months > 0:
+                        tenure_text += f", {months} mo"
+            
+            # Check if currently clocked in
+            clock_cursor = conn.execute("""
+                SELECT clock_in_time FROM timeclock_sessions
+                WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                ORDER BY clock_in_time DESC LIMIT 1
+            """, (int(guild_id), int(user_id)))
+            clock_row = clock_cursor.fetchone()
+            is_clocked_in = clock_row is not None
+            
+            profile_data = {
+                'user_id': str(profile_row['user_id']),
+                'display_name': profile_row['display_name'] or profile_row['full_name'] or 'Unknown',
+                'full_name': profile_row['full_name'] or '',
+                'avatar_url': profile_row['avatar_url'],
+                'email': profile_row['email'] if is_own_profile or is_admin else None,
+                'hire_date': profile_row['hire_date'].isoformat() if profile_row.get('hire_date') else None,
+                'position': profile_row['position'] or '',
+                'department': profile_row['department'] or '',
+                'company_role': profile_row['company_role'] or '',
+                'bio': profile_row['bio'] or '',
+                'is_active': profile_row['is_active'],
+                'is_clocked_in': is_clocked_in,
+                'tenure_text': tenure_text,
+                'stats': {
+                    'total_hours': round(stats_row.get('total_hours') or 0, 1),
+                    'total_sessions': stats_row.get('total_sessions') or 0,
+                    'weekly_hours': round(week_row.get('weekly_hours') or 0, 1),
+                    'avg_weekly_hours': avg_weekly,
+                    'avg_daily_hours': avg_daily,
+                    'longest_shift_hours': round(stats_row.get('longest_shift_hours') or 0, 1),
+                    'first_session': stats_row.get('first_session').isoformat() if stats_row.get('first_session') else None,
+                    'last_session': stats_row.get('last_session').isoformat() if stats_row.get('last_session') else None
+                }
+            }
+            
+            return jsonify({'success': True, 'profile': profile_data, 'is_own_profile': is_own_profile})
+    except Exception as e:
+        app.logger.error(f"Error fetching employee profile: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/employee/<user_id>/profile", methods=["POST"])
+@require_api_auth
+def api_update_employee_profile(user_session, guild_id, user_id):
+    """API endpoint to update employee's own profile (email, etc.)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Only allow updating own profile (or admin can update any)
+        viewer_user_id = user_session.get('user_id')
+        is_admin = access_level == 'admin'
+        is_own_profile = str(viewer_user_id) == str(user_id)
+        
+        if not is_admin and not is_own_profile:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Fields that can be updated by employee
+        allowed_fields = ['email']
+        if is_admin:
+            allowed_fields.extend(['hire_date', 'position', 'department', 'company_role'])
+        
+        updates = []
+        params = []
+        
+        for field in allowed_fields:
+            if field in data:
+                value = data[field]
+                if field == 'email' and value:
+                    # Basic email validation
+                    import re
+                    if not re.match(r'^[^@]+@[^@]+\.[^@]+$', value):
+                        return jsonify({'success': False, 'error': 'Invalid email format'}), 400
+                updates.append(f"{field} = %s")
+                params.append(value if value else None)
+        
+        if not updates:
+            return jsonify({'success': False, 'error': 'No valid fields to update'}), 400
+        
+        params.extend([int(guild_id), int(user_id)])
+        
+        with get_db() as conn:
+            conn.execute(f"""
+                UPDATE employee_profiles 
+                SET {', '.join(updates)}, updated_at = NOW()
+                WHERE guild_id = %s AND user_id = %s
+            """, params)
+        
+        return jsonify({'success': True, 'message': 'Profile updated'})
+    except Exception as e:
+        app.logger.error(f"Error updating employee profile: {str(e)}")
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 

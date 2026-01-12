@@ -7301,6 +7301,8 @@ async def help_command(interaction: discord.Interaction):
         value=(
             "Right-click any user → Apps:\n"
             "• **View Hours** - See employee's weekly hours\n"
+            "• **View Profile** - Open employee's dashboard profile\n"
+            "• **Send Shift Report** - Email shift report to recipients\n"
             "• **Force Clock Out** - Clock out an employee\n"
             "• **Ban from Timeclock** - Temporarily block access"
         ),
@@ -7312,7 +7314,7 @@ async def help_command(interaction: discord.Interaction):
         value=(
             "**[on-the-clock.replit.app/dashboard](https://on-the-clock.replit.app/dashboard)**\n\n"
             "• **Role Management** - Set admin & employee roles\n"
-            "• **Employee Cards** - Manage your team\n"
+            "• **Team Management** - Manage your team\n"
             "• **Time Adjustments** - Review & approve corrections\n"
             "• **Reports** - Export CSV timesheets\n"
             "• **Email Automation** - Daily reports & reminders\n"
@@ -8011,6 +8013,119 @@ async def context_ban_user(interaction: discord.Interaction, user: discord.Membe
     await interaction.followup.send(f"🚫 {user.display_name} has been banned from the timeclock for 24 hours.", ephemeral=True)
 
 
+@tree.context_menu(name="View Profile")
+async def context_view_profile(interaction: discord.Interaction, user: discord.Member):
+    """Right-click context menu to view employee profile in dashboard"""
+    await interaction.response.defer(ephemeral=True)
+    
+    # Check if invoker is admin or the user themselves
+    is_admin = interaction.user.guild_permissions.administrator
+    is_self = interaction.user.id == user.id
+    
+    if not is_admin and not is_self:
+        await interaction.followup.send("❌ You can only view your own profile or be an admin.", ephemeral=True)
+        return
+    
+    # Check if user has an employee profile
+    with get_db() as conn:
+        cursor = conn.execute("""
+            SELECT user_id FROM employee_profiles
+            WHERE guild_id = %s AND user_id = %s AND is_active = TRUE
+        """, (interaction.guild_id, user.id))
+        profile = cursor.fetchone()
+    
+    if not profile:
+        await interaction.followup.send(f"ℹ️ {user.display_name} doesn't have an employee profile yet.", ephemeral=True)
+        return
+    
+    domain = get_domain()
+    profile_url = f"https://{domain}/dashboard/server/{interaction.guild_id}/profile/{user.id}"
+    
+    embed = discord.Embed(
+        title=f"📋 Profile: {user.display_name}",
+        description=f"[Click here to view {'your' if is_self else 'their'} profile]({profile_url})",
+        color=discord.Color.blue()
+    )
+    embed.set_thumbnail(url=user.display_avatar.url)
+    
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+@tree.context_menu(name="Send Shift Report")
+async def context_send_shift_report(interaction: discord.Interaction, user: discord.Member):
+    """Right-click context menu to email employee's shift report to configured recipients"""
+    await interaction.response.defer(ephemeral=True)
+    
+    # Check if invoker is admin
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.followup.send("❌ Only admins can send shift reports.", ephemeral=True)
+        return
+    
+    guild_id = interaction.guild_id
+    
+    # Get verified email recipients
+    with get_db() as conn:
+        cursor = conn.execute("""
+            SELECT email FROM email_recipients
+            WHERE guild_id = %s AND verified = TRUE
+        """, (guild_id,))
+        recipients = [row['email'] for row in cursor.fetchall()]
+    
+    if not recipients:
+        await interaction.followup.send("❌ No verified email recipients configured. Add emails in Dashboard → Email Settings.", ephemeral=True)
+        return
+    
+    # Get guild settings for timezone and sessions
+    with get_db() as conn:
+        tz_cursor = conn.execute("SELECT timezone FROM guild_settings WHERE guild_id = %s", (str(guild_id),))
+        tz_row = tz_cursor.fetchone()
+        guild_tz = tz_row['timezone'] if tz_row and tz_row.get('timezone') else 'America/Chicago'
+        
+        cursor = conn.execute("""
+            SELECT clock_in_time, clock_out_time,
+                   EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time)) / 3600.0 as hours
+            FROM timeclock_sessions
+            WHERE guild_id = %s AND user_id = %s
+            AND clock_in_time >= date_trunc('week', NOW() AT TIME ZONE %s)
+            ORDER BY clock_in_time
+        """, (guild_id, user.id, guild_tz))
+        sessions = cursor.fetchall()
+    
+    if not sessions:
+        await interaction.followup.send(f"ℹ️ {user.display_name} has no sessions this week.", ephemeral=True)
+        return
+    
+    # Build report content
+    total_hours = sum(s['hours'] or 0 for s in sessions)
+    
+    report_lines = [f"Shift Report for {user.display_name}", f"Server: {interaction.guild.name}", f"Week of {datetime.now().strftime('%B %d, %Y')}", "", "Sessions:"]
+    
+    for s in sessions:
+        clock_in = s['clock_in_time'].strftime('%a %m/%d %I:%M %p') if s['clock_in_time'] else 'N/A'
+        clock_out = s['clock_out_time'].strftime('%I:%M %p') if s['clock_out_time'] else 'In Progress'
+        hours = s['hours'] or 0
+        report_lines.append(f"  {clock_in} - {clock_out} ({hours:.2f} hrs)")
+    
+    report_lines.append(f"\nTotal Hours: {total_hours:.2f}")
+    report_text = "\n".join(report_lines)
+    
+    # Queue emails using email outbox pattern
+    try:
+        from email_utils import queue_email
+        for email in recipients:
+            queue_email(
+                to_email=email,
+                subject=f"Shift Report: {user.display_name} - {interaction.guild.name}",
+                body=report_text,
+                guild_id=str(guild_id)
+            )
+        
+        await interaction.followup.send(f"✅ Shift report for {user.display_name} queued for {len(recipients)} recipient(s).\n\n**Total Hours:** {total_hours:.2f}", ephemeral=True)
+    except Exception as e:
+        print(f"❌ Error sending shift report: {e}")
+        await interaction.followup.send(f"❌ Failed to send report: {str(e)}", ephemeral=True)
+
+
 # --- Bot HTTP API Server for Dashboard Integration ---
 BOT_API_PORT = int(os.getenv("BOT_API_PORT", "8081"))
 BOT_API_SECRET = os.getenv("BOT_API_SECRET", secrets.token_hex(32))  # Shared secret for auth
@@ -8191,6 +8306,96 @@ async def handle_sync_employees(request: web.Request):
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+async def handle_send_onboarding(request: web.Request):
+    """HTTP endpoint: Send onboarding DMs to all employees with profile links"""
+    if not verify_api_request(request):
+        print(f"⚠️ Unauthorized onboarding attempt")
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        guild_id = int(request.match_info['guild_id'])
+        
+        print(f"📨 API: Sending onboarding DMs for guild {guild_id}")
+        
+        guild = client.get_guild(guild_id)
+        if not guild:
+            return web.json_response({'success': False, 'error': 'Guild not found'}, status=404)
+        
+        # Get all employee profiles for this guild
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT user_id, display_name, full_name FROM employee_profiles
+                WHERE guild_id = %s AND is_active = TRUE
+            """, (guild_id,))
+            employees = cursor.fetchall()
+        
+        if not employees:
+            return web.json_response({'success': False, 'error': 'No employees found'}, status=404)
+        
+        sent_count = 0
+        failed_count = 0
+        domain = get_domain()
+        
+        for emp in employees:
+            try:
+                user_id = emp['user_id']
+                display_name = emp['display_name'] or emp['full_name'] or 'Team Member'
+                
+                member = guild.get_member(user_id)
+                if not member:
+                    continue
+                
+                profile_url = f"https://{domain}/dashboard/server/{guild_id}/profile/{user_id}"
+                
+                embed = discord.Embed(
+                    title="📋 Welcome! Set Up Your Profile",
+                    description=f"Hi {display_name}! Your admin has invited you to set up your profile for **{guild.name}**.",
+                    color=discord.Color.blue()
+                )
+                
+                embed.add_field(
+                    name="🔗 Your Profile Page",
+                    value=f"**[Click here to set up your profile]({profile_url})**\n\nOn your profile page you can:\n• Set your email for notifications\n• View your hours and stats\n• Track your work history",
+                    inline=False
+                )
+                
+                embed.add_field(
+                    name="⏰ Using the Timeclock",
+                    value="Use `/clock` in Discord to clock in/out and view your hours.",
+                    inline=False
+                )
+                
+                embed.set_footer(text="On the Clock • Professional Time Tracking")
+                
+                await member.send(embed=embed)
+                sent_count += 1
+                print(f"  ✓ Sent onboarding to {member.display_name}")
+                
+            except discord.Forbidden:
+                failed_count += 1
+                print(f"  ✗ Cannot DM user {emp['user_id']} (DMs disabled)")
+            except Exception as e:
+                failed_count += 1
+                print(f"  ✗ Failed to send to {emp['user_id']}: {e}")
+        
+        message = f"Sent onboarding to {sent_count} employees"
+        if failed_count > 0:
+            message += f" ({failed_count} failed - DMs may be disabled)"
+        
+        print(f"✅ API: {message}")
+        
+        return web.json_response({
+            'success': True,
+            'message': message,
+            'sent_count': sent_count,
+            'failed_count': failed_count
+        })
+    except Exception as e:
+        print(f"❌ Error sending onboarding (guild {request.match_info.get('guild_id')}): {e}")
+        import traceback
+        traceback.print_exc()
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
 async def handle_broadcast(request: web.Request):
     """HTTP endpoint: Send broadcast message to guilds"""
     if not verify_api_request(request):
@@ -8307,6 +8512,7 @@ async def start_bot_api_server():
     app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
     app.router.add_post('/api/guild/{guild_id}/employee-roles/remove', handle_remove_employee_role)
     app.router.add_post('/api/guild/{guild_id}/employees/sync', handle_sync_employees)
+    app.router.add_post('/api/guild/{guild_id}/employees/send-onboarding', handle_send_onboarding)
     app.router.add_get('/api/guild/{guild_id}/user/{user_id}/check-admin', handle_check_user_admin)
     app.router.add_post('/api/broadcast', handle_broadcast)
     
