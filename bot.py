@@ -8083,6 +8083,39 @@ async def handle_remove_admin_role(request: web.Request):
         print(f"❌ Error removing admin role via API: {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+async def sync_employees_for_role(guild_id: int, role_id: int) -> int:
+    """Sync all members with a given role into employee_profiles. Returns count of new profiles created."""
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        print(f"⚠️ Cannot sync employees - guild {guild_id} not found")
+        return 0
+    
+    role = guild.get_role(role_id)
+    if not role:
+        print(f"⚠️ Cannot sync employees - role {role_id} not found in guild {guild_id}")
+        return 0
+    
+    new_count = 0
+    for member in role.members:
+        if member.bot:
+            continue
+        
+        avatar_url = str(member.display_avatar.url) if member.display_avatar else None
+        is_new = ensure_employee_profile(
+            guild_id=guild_id,
+            user_id=member.id,
+            username=member.name,
+            display_name=member.display_name,
+            avatar_url=avatar_url
+        )
+        if is_new:
+            new_count += 1
+    
+    if new_count > 0:
+        print(f"👥 Synced {new_count} new employees from role '{role.name}' in guild {guild_id}")
+    
+    return new_count
+
 async def handle_add_employee_role(request: web.Request):
     """HTTP endpoint: Add employee role"""
     if not verify_api_request(request):
@@ -8099,12 +8132,16 @@ async def handle_add_employee_role(request: web.Request):
         # Use existing bot function
         add_employee_role(guild_id, role_id)
         
-        print(f"✅ API: Successfully added employee role {role_id} to guild {guild_id}")
+        # Sync members with this role into employee_profiles
+        synced_count = await sync_employees_for_role(guild_id, role_id)
+        
+        print(f"✅ API: Successfully added employee role {role_id} to guild {guild_id} (synced {synced_count} employees)")
         
         return web.json_response({
             'success': True,
-            'message': 'Employee role added successfully',
-            'role_id': str(role_id)
+            'message': f'Employee role added successfully. {synced_count} employees synced.',
+            'role_id': str(role_id),
+            'synced_count': synced_count
         })
     except Exception as e:
         print(f"❌ Error adding employee role via API (guild {request.match_info.get('guild_id')}): {e}")
@@ -8135,6 +8172,39 @@ async def handle_remove_employee_role(request: web.Request):
         })
     except Exception as e:
         print(f"❌ Error removing employee role via API (guild {request.match_info.get('guild_id')}): {e}")
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
+async def handle_sync_employees(request: web.Request):
+    """HTTP endpoint: Sync all employees from configured roles into employee_profiles"""
+    if not verify_api_request(request):
+        print(f"⚠️ Unauthorized employee sync attempt")
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        guild_id = int(request.match_info['guild_id'])
+        
+        print(f"📥 API: Syncing employees for guild {guild_id}")
+        
+        # Get all employee roles for this guild
+        employee_role_ids = get_employee_roles(guild_id)
+        
+        total_synced = 0
+        for role_id in employee_role_ids:
+            synced = await sync_employees_for_role(guild_id, role_id)
+            total_synced += synced
+        
+        print(f"✅ API: Synced {total_synced} employees across {len(employee_role_ids)} roles for guild {guild_id}")
+        
+        return web.json_response({
+            'success': True,
+            'message': f'Synced {total_synced} new employees from {len(employee_role_ids)} roles',
+            'synced_count': total_synced,
+            'roles_checked': len(employee_role_ids)
+        })
+    except Exception as e:
+        print(f"❌ Error syncing employees via API (guild {request.match_info.get('guild_id')}): {e}")
+        import traceback
+        traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def handle_broadcast(request: web.Request):
@@ -8252,6 +8322,7 @@ async def start_bot_api_server():
     app.router.add_post('/api/guild/{guild_id}/admin-roles/remove', handle_remove_admin_role)
     app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
     app.router.add_post('/api/guild/{guild_id}/employee-roles/remove', handle_remove_employee_role)
+    app.router.add_post('/api/guild/{guild_id}/employees/sync', handle_sync_employees)
     app.router.add_get('/api/guild/{guild_id}/user/{user_id}/check-admin', handle_check_user_admin)
     app.router.add_post('/api/broadcast', handle_broadcast)
     

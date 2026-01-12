@@ -5370,6 +5370,50 @@ def api_get_server_employees(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
+@app.route("/api/server/<guild_id>/employees/sync", methods=["POST"])
+@require_api_auth
+def api_sync_server_employees(user_session, guild_id):
+    """API endpoint to sync employees from Discord roles into employee_profiles (admin only)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Call bot API to sync employees
+        bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/employees/sync"
+        bot_api_secret = os.environ.get('BOT_API_SECRET')
+        
+        if not bot_api_secret:
+            bot_module = _get_bot_module()
+            if bot_module:
+                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
+        
+        if not bot_api_secret:
+            return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
+        
+        import requests
+        response = requests.post(
+            bot_api_url,
+            headers={'X-Bot-API-Secret': bot_api_secret},
+            json={},
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'success': True,
+                'message': data.get('message', 'Employees synced'),
+                'synced_count': data.get('synced_count', 0)
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Failed to sync employees'}), 500
+            
+    except Exception as e:
+        app.logger.error(f"Error syncing employees: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
 @app.route("/api/server/<guild_id>/roles", methods=["GET"])
 @require_api_auth
 def api_get_server_roles(user_session, guild_id):
