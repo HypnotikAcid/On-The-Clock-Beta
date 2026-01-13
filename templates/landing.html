@@ -1097,7 +1097,7 @@
         function toggleRoadmap() {
             const content = document.getElementById('roadmap-content');
             const chevron = document.getElementById('roadmap-chevron');
-            if (content.style.maxHeight === '0px') {
+            if (content.style.maxHeight === '0px' || content.style.maxHeight === '') {
                 content.style.maxHeight = '1000px';
                 chevron.style.transform = 'rotate(0deg)';
             } else {
@@ -1108,14 +1108,13 @@
 
         // Auto-collapse logic
         window.addEventListener('load', () => {
-            setTimeout(() => {
-                const content = document.getElementById('roadmap-content');
-                const chevron = document.getElementById('roadmap-chevron');
-                if (content && window.innerWidth > 600) { // Only auto-collapse on desktop to avoid jarring mobile shift
-                    content.style.maxHeight = '0px';
-                    chevron.style.transform = 'rotate(-90deg)';
-                }
-            }, 3000);
+            const content = document.getElementById('roadmap-content');
+            const chevron = document.getElementById('roadmap-chevron');
+            if (content) {
+                // Auto-collapse on mobile and desktop load
+                content.style.maxHeight = '0px';
+                chevron.style.transform = 'rotate(-90deg)';
+            }
         });
 
         const canvas = document.getElementById('matrix-canvas');
