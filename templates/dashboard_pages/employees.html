@@ -306,65 +306,10 @@
 
 <script>
 const guildId = '{{ server.id }}';
-const devPreviewMode = {{ 'true' if dev_preview_mode else 'false' }};
 let allEmployees = [];
-
-{% if mock_employees_json %}
-const MOCK_EMPLOYEES_DATA = {{ mock_employees_json|safe }};
-{% else %}
-const MOCK_EMPLOYEES_DATA = null;
-{% endif %}
-
-function getMockEmployees() {
-    if (MOCK_EMPLOYEES_DATA) {
-        return MOCK_EMPLOYEES_DATA.map(emp => ({
-            user_id: emp.user_id,
-            username: emp.username,
-            display_name: emp.display_name,
-            avatar_url: emp.avatar || null,
-            is_active: emp.is_active,
-            is_clocked_in: emp.is_clocked_in,
-            weekly_minutes: Math.round((emp.weekly_hours || 0) * 60),
-            current_session_duration: Math.round((emp.current_session_hours || 0) * 60),
-            pending_adjustments: emp.pending_adjustments || 0,
-            has_email: !!emp.email,
-            first_clock_used: !emp.forgot_clock_out,
-            has_alert: emp.has_alert || false
-        }));
-    }
-    
-    const names = [
-        'Alex Smith', 'Jordan Johnson', 'Taylor Williams', 'Morgan Brown', 'Casey Jones',
-        'Riley Garcia', 'Jamie Miller', 'Quinn Davis', 'Avery Rodriguez', 'Cameron Martinez',
-        'Hayden Wilson', 'Peyton Anderson', 'Skyler Taylor', 'Dakota Thomas', 'Reese Moore',
-        'Finley Jackson', 'Charlie Martin', 'Drew Lee', 'Logan Thompson', 'Parker White',
-        'Sage Harris', 'Blake Clark', 'Emerson Lewis', 'Rowan Robinson', 'Kendall Walker'
-    ];
-    
-    return names.map((name, i) => ({
-        user_id: String(1000000000000000000 + i),
-        username: name.toLowerCase().replace(' ', '.'),
-        display_name: name,
-        avatar_url: null,
-        is_active: true,
-        is_clocked_in: i < 9,
-        weekly_minutes: Math.floor(Math.random() * 2400) + 600,
-        current_session_duration: i < 9 ? Math.floor(Math.random() * 360) + 30 : 0,
-        pending_adjustments: i % 7 === 0 ? 1 : 0,
-        has_email: Math.random() > 0.2,
-        first_clock_used: Math.random() > 0.1
-    }));
-}
 
 async function loadEmployees() {
     const container = document.getElementById('employees-list');
-    
-    if (devPreviewMode) {
-        allEmployees = getMockEmployees();
-        console.log('[EmployeeStatus] Dev Preview: Using mock data with', allEmployees.length, 'employees');
-        renderEmployees(allEmployees);
-        return;
-    }
     
     try {
         console.log('[EmployeeStatus] Fetching employees for guild:', guildId);

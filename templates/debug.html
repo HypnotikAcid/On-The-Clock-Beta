@@ -700,54 +700,6 @@
 
             <div class="card">
                 <div class="card-header">
-                    <div class="card-icon preview">&#128247;</div>
-                    <div>
-                        <div class="card-title">Mock Dashboard Preview</div>
-                        <div class="card-subtitle">View dashboard pages with 25 mock employees</div>
-                    </div>
-                </div>
-                <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
-                    Click any page to open it with realistic mock data (20-30 employees). 
-                    Use your browser's screenshot tool to capture images for marketing.
-                </p>
-                <div class="preview-gallery">
-                    <div class="preview-item" onclick="openDevPreview('landing')">
-                        <div class="preview-thumb">&#127968;</div>
-                        <div class="preview-label">Landing Page</div>
-                    </div>
-                    <div class="preview-item" onclick="openDevPreview('dashboard')">
-                        <div class="preview-thumb">&#128202;</div>
-                        <div class="preview-label">My Servers</div>
-                    </div>
-                    <div class="preview-item" onclick="openDevPreview('server')">
-                        <div class="preview-thumb">&#128421;</div>
-                        <div class="preview-label">Server Overview</div>
-                    </div>
-                    <div class="preview-item" onclick="openDevPreview('employees')">
-                        <div class="preview-thumb">&#128101;</div>
-                        <div class="preview-label">Employees</div>
-                    </div>
-                    <div class="preview-item" onclick="openDevPreview('calendar')">
-                        <div class="preview-thumb">&#128197;</div>
-                        <div class="preview-label">Calendar</div>
-                    </div>
-                    <div class="preview-item" onclick="openDevPreview('profile')">
-                        <div class="preview-thumb">&#128100;</div>
-                        <div class="preview-label">Profile</div>
-                    </div>
-                    <div class="preview-item" onclick="openDevPreview('adjustments')">
-                        <div class="preview-thumb">&#9203;</div>
-                        <div class="preview-label">Adjustments</div>
-                    </div>
-                    <div class="preview-item" onclick="openDevPreview('admin-roles')">
-                        <div class="preview-thumb">&#128273;</div>
-                        <div class="preview-label">Admin Roles</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
                     <div class="card-icon api">&#128640;</div>
                     <div>
                         <div class="card-title">API Health Tests</div>
@@ -903,21 +855,6 @@
                     </div>
                 </div>
                 <button class="btn-primary" onclick="clearConsole()" style="background: rgba(100, 100, 120, 0.3); color: #9CA3AF;">Clear Console</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="previewModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title" id="modalTitle">Preview</div>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
-            </div>
-            <div id="modalBody">
-                <div class="screenshot-placeholder">
-                    <span>&#128247;</span>
-                    <p>Screenshot will appear here</p>
-                </div>
             </div>
         </div>
     </div>
@@ -1128,32 +1065,6 @@
             }
         }
 
-        function openDevPreview(page) {
-            const url = `/dev/preview/${page}`;
-            window.open(url, '_blank');
-            logMessage('info', `Opened mock preview: ${page}`);
-        }
-        
-        async function openDevPreviewWithKey(page) {
-            try {
-                const resp = await fetch('/debug/get-preview-key');
-                const data = await resp.json();
-                if (data.key) {
-                    const url = `/dev/preview/${data.key}/${page}`;
-                    window.open(url, '_blank');
-                    logMessage('info', `Opened mock preview: ${page} (with key)`);
-                } else {
-                    openDevPreview(page);
-                }
-            } catch {
-                openDevPreview(page);
-            }
-        }
-
-        function closeModal() {
-            document.getElementById('previewModal').classList.remove('active');
-        }
-
         async function loadVersionInfo() {
             try {
                 const resp = await fetch('/debug/version-info');
@@ -1174,9 +1085,6 @@
             refreshHealth();
         });
 
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeModal();
-        });
     </script>
 </body>
 </html>
