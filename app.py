@@ -1818,6 +1818,45 @@ def check_premium_access(context, feature_name='advanced_settings'):
     return None
 
 
+def check_premium_api_access(guild_id, feature_name='advanced_settings'):
+    """
+    Check if a server has premium access for API endpoints.
+    Returns None if access granted, or a JSON error response if denied.
+    For use in API routes that don't have the full page context.
+    """
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT bot_access_paid, retention_tier, tier, COALESCE(grandfathered, FALSE) as grandfathered
+                FROM server_subscriptions WHERE guild_id = %s
+            """, (int(guild_id),))
+            sub_row = cursor.fetchone()
+            
+            if not sub_row:
+                return jsonify({'success': False, 'error': 'Premium feature - please upgrade', 'premium_required': True}), 403
+            
+            bot_access_paid = sub_row.get('bot_access_paid', False)
+            retention_tier = sub_row.get('retention_tier', 'none')
+            tier = sub_row.get('tier', 'free')
+            is_grandfathered = tier == 'grandfathered' or bool(sub_row.get('grandfathered', False))
+            
+            guild_tier = Entitlements.get_guild_tier(bot_access_paid, retention_tier, is_grandfathered)
+            
+            if not Entitlements.can_access_feature(guild_tier, UserRole.ADMIN, feature_name):
+                locked_msg = Entitlements.get_locked_message(feature_name)
+                return jsonify({
+                    'success': False, 
+                    'error': locked_msg['message'],
+                    'premium_required': True,
+                    'upgrade_price': locked_msg['beta_price']
+                }), 403
+            
+            return None
+    except Exception as e:
+        logging.error(f"Premium API check error: {e}")
+        return jsonify({'success': False, 'error': 'Premium feature - please upgrade', 'premium_required': True}), 403
+
+
 @app.route("/dashboard/server/<guild_id>")
 @require_auth
 def dashboard_server_overview(user_session, guild_id):
