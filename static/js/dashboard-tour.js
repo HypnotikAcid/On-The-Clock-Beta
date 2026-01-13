@@ -5,14 +5,15 @@ const DashboardTour = {
     tooltip: null,
     spotlight: null,
     isActive: false,
+    currentRole: null,
     
-    // Role-specific completion keys
     keys: {
         admin: 'otcTour_admin_completed',
         employee: 'otcTour_employee_completed'
     },
+    
+    stateKey: 'otcTour_state',
 
-    // Lightbox for Discord Previews
     lightbox: null,
 
     adminSteps: [
@@ -20,7 +21,7 @@ const DashboardTour = {
             target: '.sidebar-user',
             title: 'Admin Profile',
             content: 'As an admin, you have full control over your server settings.',
-            position: 'right'
+            position: 'top'
         },
         {
             target: '[data-section="admin-roles"]',
@@ -39,7 +40,7 @@ const DashboardTour = {
             title: 'Time Adjustments',
             content: 'Review and approve/deny employee time modification requests.',
             position: 'right',
-            preview: 'adjustments' // Link to Discord preview
+            preview: 'adjustments'
         },
         {
             target: '[data-section="admin-calendar"]',
@@ -54,7 +55,7 @@ const DashboardTour = {
             target: '.sidebar-user',
             title: 'Your Profile',
             content: 'Customize your personal profile with avatars and themes.',
-            position: 'right'
+            position: 'top'
         },
         {
             target: '[data-section="on-the-clock"]',
@@ -87,20 +88,49 @@ const DashboardTour = {
     init() {
         this.createElements();
         this.bindEvents();
-        
-        // Check for role and auto-start
+        this.checkResume();
+    },
+    
+    checkResume() {
+        const saved = sessionStorage.getItem(this.stateKey);
+        if (saved) {
+            try {
+                const state = JSON.parse(saved);
+                if (state.role && state.step >= 0) {
+                    setTimeout(() => {
+                        this.currentRole = state.role;
+                        this.steps = state.role === 'admin' ? this.adminSteps : this.employeeSteps;
+                        this.currentStep = state.step;
+                        this.isActive = true;
+                        this.overlay.classList.add('active');
+                        this.showStep();
+                    }, 500);
+                    return;
+                }
+            } catch (e) {}
+        }
         this.checkAutoStart();
+    },
+    
+    saveState() {
+        if (this.isActive && this.currentRole) {
+            sessionStorage.setItem(this.stateKey, JSON.stringify({
+                role: this.currentRole,
+                step: this.currentStep
+            }));
+        }
+    },
+    
+    clearState() {
+        sessionStorage.removeItem(this.stateKey);
     },
     
     checkAutoStart() {
         const urlParams = new URLSearchParams(window.location.search);
         const viewAs = urlParams.get('view_as');
-        
-        // Auto-detect role if not explicitly set in URL
         const detectedRole = viewAs || (window.location.pathname.includes('/server/') ? 'admin' : (window.location.pathname.includes('/profile') ? 'employee' : null));
         
         if (detectedRole && !localStorage.getItem(this.keys[detectedRole])) {
-            // Check if we already migrated from old single key
             if (localStorage.getItem('tourCompleted')) {
                 localStorage.setItem(this.keys.admin, 'true');
                 localStorage.setItem(this.keys.employee, 'true');
@@ -112,7 +142,6 @@ const DashboardTour = {
     },
 
     createElements() {
-        // Overlay, Spotlight, Tooltip logic remains but updated with preview support
         this.overlay = document.createElement('div');
         this.overlay.className = 'tour-overlay';
         this.overlay.innerHTML = '<div class="tour-backdrop"></div>';
@@ -133,7 +162,7 @@ const DashboardTour = {
                 See in Discord
             </div>
             <div class="tour-actions">
-                <button class="tour-btn tour-btn-skip">Skip</button>
+                <button class="tour-btn tour-btn-skip">Skip Tour</button>
                 <div class="tour-nav">
                     <button class="tour-btn tour-btn-prev">Back</button>
                     <button class="tour-btn tour-btn-next">Next</button>
@@ -148,7 +177,7 @@ const DashboardTour = {
             <div style="max-width:800px; width:100%; border: 2px solid #00FFFF; box-shadow: 0 0 20px #00FFFF; border-radius:12px; overflow:hidden; background:#0a0f1f;">
                 <div style="padding:15px; border-bottom:1px solid rgba(0,255,255,0.2); display:flex; justify-content:space-between; align-items:center;">
                     <h3 class="lightbox-title" style="margin:0; color:#00FFFF;"></h3>
-                    <button onclick="DashboardTour.hideLightbox()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+                    <button class="lightbox-close" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
                 </div>
                 <img class="lightbox-img" style="width:100%; display:block;" src="">
                 <div class="lightbox-desc" style="padding:15px; color:#8B949E; font-size:0.9rem;"></div>
@@ -162,31 +191,47 @@ const DashboardTour = {
     },
     
     bindEvents() {
-        this.tooltip.querySelector('.tour-close').addEventListener('click', () => this.end());
-        this.tooltip.querySelector('.tour-btn-skip').addEventListener('click', () => this.skip());
-        this.tooltip.querySelector('.tour-btn-prev').addEventListener('click', () => this.prev());
-        this.tooltip.querySelector('.tour-btn-next').addEventListener('click', () => this.next());
-        this.tooltip.querySelector('.tour-preview-link').addEventListener('click', () => this.showLightbox());
-        
-        this.overlay.addEventListener('click', (e) => {
-            if (e.target === this.overlay.querySelector('.tour-backdrop')) this.end();
+        this.tooltip.querySelector('.tour-close').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.skip();
+        });
+        this.tooltip.querySelector('.tour-btn-skip').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.skip();
+        });
+        this.tooltip.querySelector('.tour-btn-prev').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.prev();
+        });
+        this.tooltip.querySelector('.tour-btn-next').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.next();
+        });
+        this.tooltip.querySelector('.tour-preview-link').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showLightbox();
         });
         
-        // Keyboard navigation
+        this.tooltip.addEventListener('click', (e) => e.stopPropagation());
+        this.spotlight.addEventListener('click', (e) => e.stopPropagation());
+        
+        this.lightbox.querySelector('.lightbox-close').addEventListener('click', () => this.hideLightbox());
+        this.lightbox.addEventListener('click', (e) => {
+            if (e.target === this.lightbox) this.hideLightbox();
+        });
+        
         document.addEventListener('keydown', (e) => {
             if (!this.isActive) return;
             
-            // Handle Escape - close lightbox first, then tour
             if (e.key === 'Escape') {
                 if (this.lightbox.style.display === 'flex') {
                     this.hideLightbox();
                 } else {
-                    this.end();
+                    this.skip();
                 }
                 return;
             }
             
-            // Don't allow step navigation while lightbox is open
             if (this.lightbox.style.display === 'flex') return;
             
             if (e.key === 'ArrowRight' || e.key === 'Enter') {
@@ -195,6 +240,8 @@ const DashboardTour = {
                 this.prev();
             }
         });
+        
+        window.addEventListener('beforeunload', () => this.saveState());
     },
     
     start(role = 'admin') {
@@ -203,52 +250,75 @@ const DashboardTour = {
         this.currentStep = 0;
         this.isActive = true;
         this.overlay.classList.add('active');
+        this.saveState();
         this.showStep();
     },
     
     showStep() {
         const step = this.steps[this.currentStep];
-        if (!step) return this.end();
+        if (!step) return this.complete();
         
         const target = document.querySelector(step.target);
         if (!target) {
             this.currentStep++;
+            this.saveState();
             return this.showStep();
         }
 
-        // Positioning logic (similar to old version)
-        const rect = target.getBoundingClientRect();
-        this.spotlight.style.display = 'block';
-        this.spotlight.style.top = `${rect.top - 8 + window.scrollY}px`;
-        this.spotlight.style.left = `${rect.left - 8}px`;
-        this.spotlight.style.width = `${rect.width + 16}px`;
-        this.spotlight.style.height = `${rect.height + 16}px`;
-        
-        this.tooltip.querySelector('.tour-step-indicator').textContent = `Step ${this.currentStep + 1} of ${this.steps.length}`;
-        this.tooltip.querySelector('.tour-title').textContent = step.title;
-        this.tooltip.querySelector('.tour-content').textContent = step.content;
-        
-        // Update prev button visibility
-        const prevBtn = this.tooltip.querySelector('.tour-btn-prev');
-        prevBtn.style.display = this.currentStep === 0 ? 'none' : 'inline-block';
-        
-        // Update next button text on last step
-        const nextBtn = this.tooltip.querySelector('.tour-btn-next');
-        nextBtn.textContent = this.currentStep === this.steps.length - 1 ? 'Finish' : 'Next';
-        
-        const previewLink = this.tooltip.querySelector('.tour-preview-link');
-        if (step.preview) {
-            previewLink.style.display = 'block';
-            this.currentPreview = step.preview;
-        } else {
-            previewLink.style.display = 'none';
-        }
-
-        this.tooltip.style.display = 'block';
-        this.tooltip.style.top = `${rect.bottom + 20 + window.scrollY}px`;
-        this.tooltip.style.left = `${rect.left}px`;
-        
         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        setTimeout(() => {
+            const rect = target.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            
+            this.spotlight.style.display = 'block';
+            this.spotlight.style.position = 'fixed';
+            this.spotlight.style.top = `${rect.top - 8}px`;
+            this.spotlight.style.left = `${rect.left - 8}px`;
+            this.spotlight.style.width = `${rect.width + 16}px`;
+            this.spotlight.style.height = `${rect.height + 16}px`;
+            
+            this.tooltip.querySelector('.tour-step-indicator').textContent = `Step ${this.currentStep + 1} of ${this.steps.length}`;
+            this.tooltip.querySelector('.tour-title').textContent = step.title;
+            this.tooltip.querySelector('.tour-content').textContent = step.content;
+            
+            const prevBtn = this.tooltip.querySelector('.tour-btn-prev');
+            prevBtn.style.display = this.currentStep === 0 ? 'none' : 'inline-block';
+            
+            const nextBtn = this.tooltip.querySelector('.tour-btn-next');
+            nextBtn.textContent = this.currentStep === this.steps.length - 1 ? 'Finish' : 'Next';
+            
+            const previewLink = this.tooltip.querySelector('.tour-preview-link');
+            if (step.preview) {
+                previewLink.style.display = 'block';
+                this.currentPreview = step.preview;
+            } else {
+                previewLink.style.display = 'none';
+            }
+
+            this.tooltip.style.display = 'block';
+            this.tooltip.style.position = 'fixed';
+            
+            const tooltipHeight = this.tooltip.offsetHeight || 200;
+            const spaceBelow = viewportHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            
+            if (step.position === 'top' || spaceBelow < tooltipHeight + 30) {
+                this.tooltip.style.top = `${rect.top - tooltipHeight - 20}px`;
+            } else {
+                this.tooltip.style.top = `${rect.bottom + 20}px`;
+            }
+            
+            let leftPos = rect.left;
+            const tooltipWidth = this.tooltip.offsetWidth || 320;
+            if (leftPos + tooltipWidth > window.innerWidth - 20) {
+                leftPos = window.innerWidth - tooltipWidth - 20;
+            }
+            if (leftPos < 20) leftPos = 20;
+            this.tooltip.style.left = `${leftPos}px`;
+            
+            this.saveState();
+        }, 300);
     },
 
     showLightbox() {
@@ -267,6 +337,7 @@ const DashboardTour = {
     prev() {
         if (this.currentStep > 0) {
             this.currentStep--;
+            this.saveState();
             this.showStep();
         }
     },
@@ -274,6 +345,7 @@ const DashboardTour = {
     next() {
         if (this.currentStep < this.steps.length - 1) {
             this.currentStep++;
+            this.saveState();
             this.showStep();
         } else {
             this.complete();
@@ -282,11 +354,13 @@ const DashboardTour = {
 
     complete() {
         localStorage.setItem(this.keys[this.currentRole], 'true');
+        this.clearState();
         this.end();
     },
 
     skip() {
         localStorage.setItem(this.keys[this.currentRole], 'true');
+        this.clearState();
         this.end();
     },
 
@@ -298,6 +372,7 @@ const DashboardTour = {
     },
 
     reset(role) {
+        this.clearState();
         if (role) {
             localStorage.removeItem(this.keys[role]);
         } else {
