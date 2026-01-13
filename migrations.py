@@ -367,6 +367,20 @@ def run_migrations():
                 print("   Checking for kiosk_mode_only column")
                 cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS kiosk_mode_only BOOLEAN DEFAULT FALSE")
                 
+                # 22. Add grandfathered column to server_subscriptions
+                print("   Checking for grandfathered column in server_subscriptions")
+                cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS grandfathered BOOLEAN DEFAULT FALSE")
+                
+                # 23. Mark existing bot_access_paid servers as grandfathered (if no active subscription)
+                print("   Marking legacy bot_access_paid servers as grandfathered")
+                cur.execute("""
+                    UPDATE server_subscriptions 
+                    SET grandfathered = TRUE 
+                    WHERE bot_access_paid = TRUE 
+                    AND grandfathered = FALSE
+                    AND (subscription_id IS NULL OR status != 'active')
+                """)
+                
                 # 17. Add indexes for timeclock_sessions table for performance
                 print("   Checking indexes for timeclock_sessions")
                 cur.execute("""

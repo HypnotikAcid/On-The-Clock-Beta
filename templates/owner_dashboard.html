@@ -1046,42 +1046,39 @@
                 <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 20px;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
                         <span style="font-size: 20px;">🔵</span>
-                        <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Manual Owner Grant</h3>
+                        <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Tier Grant (Owner)</h3>
                     </div>
                     <p style="color: #8B949E; font-size: 12px; margin-bottom: 16px; line-height: 1.5;">
-                        For general overrides and freebies. Sets source to "Granted".
+                        Grant subscription tiers manually. Sets source to "Granted".
                     </p>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <button class="tool-btn" onclick="quickGrant('bot_access', 'granted')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #3b82f6, #2563eb);">
-                            Grant Bot Access
+                        <button class="tool-btn" onclick="quickGrant('premium', 'granted')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                            Grant Premium ($8/mo equivalent)
                         </button>
-                        <button class="tool-btn" onclick="quickGrant('7day', 'granted')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #60a5fa, #3b82f6);">
-                            + 7-Day Retention
+                        <button class="tool-btn" onclick="quickGrant('pro', 'granted')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                            Grant Pro ($15/mo equivalent)
                         </button>
-                        <button class="tool-btn" onclick="quickGrant('30day', 'granted')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #93c5fd, #60a5fa);">
-                            + 30-Day Retention
+                        <button class="tool-btn" onclick="quickRevoke()" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #ef4444, #dc2626);">
+                            Revoke All Access
                         </button>
                     </div>
                 </div>
                 
-                <!-- Stripe Manual Grant Panel -->
+                <!-- Stripe Fix Panel -->
                 <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
                         <span style="font-size: 20px;">💳</span>
-                        <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Stripe Manual Grant</h3>
+                        <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Stripe Customer Fix</h3>
                     </div>
                     <p style="color: #8B949E; font-size: 12px; margin-bottom: 16px; line-height: 1.5;">
                         For fixing paid customer issues. Sets source to "Stripe".
                     </p>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <button class="tool-btn" onclick="quickGrant('bot_access', 'stripe')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #10b981, #059669);">
-                            Grant Bot Access
+                        <button class="tool-btn" onclick="quickGrant('premium', 'stripe')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #10b981, #059669);">
+                            Grant Premium (Stripe Fix)
                         </button>
-                        <button class="tool-btn" onclick="quickGrant('7day', 'stripe')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #34d399, #10b981);">
-                            + 7-Day Retention
-                        </button>
-                        <button class="tool-btn" onclick="quickGrant('30day', 'stripe')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #6ee7b7, #34d399);">
-                            + 30-Day Retention
+                        <button class="tool-btn" onclick="quickGrant('pro', 'stripe')" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #34d399, #10b981);">
+                            Grant Pro (Stripe Fix)
                         </button>
                     </div>
                 </div>
@@ -1122,13 +1119,17 @@
                 <div class="stat-label">Paid Servers</div>
                 <div class="stat-value">{{ stats.paid_servers }}</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">7-Day Retention</div>
-                <div class="stat-value">{{ stats.retention_7day_count }}</div>
+            <div class="stat-card" style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(184, 134, 11, 0.1)); border-color: rgba(212, 175, 55, 0.4);">
+                <div class="stat-label" style="color: #D4AF37;">Grandfathered</div>
+                <div class="stat-value" style="color: #D4AF37;">{{ stats.grandfathered_count }}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">30-Day Retention</div>
+                <div class="stat-label">Premium (30-Day)</div>
                 <div class="stat-value">{{ stats.retention_30day_count }}</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.1)); border-color: rgba(139, 92, 246, 0.4);">
+                <div class="stat-label" style="color: #8B5CF6;">Pro Tier</div>
+                <div class="stat-value" style="color: #8B5CF6;">{{ stats.pro_count }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Active Sessions</div>
@@ -1152,8 +1153,9 @@
                 <div class="filter-tabs">
                     <div class="filter-tab active" onclick="filterServers(event, 'active')">Active ({{ stats.active_servers }})</div>
                     <div class="filter-tab" onclick="filterServers(event, 'paid')">Paid ({{ stats.paid_servers }})</div>
-                    <div class="filter-tab" onclick="filterServers(event, '7day')">7-Day</div>
-                    <div class="filter-tab" onclick="filterServers(event, '30day')">30-Day</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'grandfathered')" style="border-color: #D4AF37;">Grandfathered ({{ stats.grandfathered_count }})</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'premium')">Premium</div>
+                    <div class="filter-tab" onclick="filterServers(event, 'pro')" style="border-color: #8B5CF6;">Pro</div>
                     <div class="filter-tab" onclick="filterServers(event, 'all')">All ({{ stats.total_servers }})</div>
                     <div class="filter-tab" onclick="filterServers(event, 'inactive')">Historical ({{ stats.inactive_servers }})</div>
                     {% if stats.past_due_count > 0 %}
@@ -1164,7 +1166,7 @@
             {% if servers %}
             <div id="serversContainer">
                 {% for server in servers %}
-                <div class="server-card" data-retention="{{ server.retention_tier or 'free' }}" data-status="{{ server.status or 'active' }}" data-paid="{{ '1' if server.bot_access else '0' }}" data-guild-id="{{ server.guild_id }}" data-present="{{ '1' if server.bot_is_present else '0' }}">
+                <div class="server-card" data-retention="{{ server.retention_tier or 'free' }}" data-tier="{{ 'grandfathered' if server.grandfathered else ('pro' if server.retention_tier == 'pro' else ('premium' if server.retention_tier == '30day' or server.bot_access else 'free')) }}" data-status="{{ server.status or 'active' }}" data-paid="{{ '1' if server.bot_access else '0' }}" data-guild-id="{{ server.guild_id }}" data-present="{{ '1' if server.bot_is_present else '0' }}" data-grandfathered="{{ '1' if server.grandfathered else '0' }}">
                     <div class="server-card-header" onclick="toggleServerCard(this)">
                         <div class="server-icon">{{ server.guild_name[0]|upper if server.guild_name and server.guild_name != 'Unknown Server' else '?' }}</div>
                         <div class="server-info">
@@ -1274,30 +1276,25 @@
                         {% endif %}
                         
                         <div class="grant-buttons">
-                            <button class="grant-btn granted" disabled style="opacity: 0.8;">
-                                {% if server.bot_access %}✓ Bot Access{% else %}No Bot Access{% endif %}
+                            {% if server.grandfathered %}
+                            <button class="grant-btn granted" disabled style="opacity: 1; background: linear-gradient(135deg, #D4AF37, #B8860B); cursor: default;">
+                                ⭐ Grandfathered (Protected)
+                            </button>
+                            <button class="grant-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                Legacy $5 Lifetime - Cannot Revoke
+                            </button>
+                            {% else %}
+                            <button class="grant-btn {% if server.retention_tier == '30day' or server.bot_access %}granted{% endif %}" disabled style="opacity: 0.8;">
+                                {% if server.retention_tier == 'pro' %}✓ Pro Active
+                                {% elif server.retention_tier == '30day' or server.bot_access %}✓ Premium Active
+                                {% else %}Free Tier{% endif %}
                             </button>
                             <button class="revoke-btn" 
-                                    onclick="revokeAccess('{{ server.guild_id }}', 'bot_access', this)"
-                                    {% if not server.bot_access %}disabled{% endif %}>
-                                Revoke Bot Access
+                                    onclick="revokeAccess('{{ server.guild_id }}', 'all', this)"
+                                    {% if not server.bot_access and server.retention_tier == 'none' %}disabled{% endif %}>
+                                Revoke Access
                             </button>
-                            <button class="grant-btn {% if server.retention_tier == '7day' %}granted{% endif %}" disabled style="opacity: 0.8;">
-                                {% if server.retention_tier == '7day' %}✓ 7-Day Active{% else %}No 7-Day{% endif %}
-                            </button>
-                            <button class="revoke-btn" 
-                                    onclick="revokeAccess('{{ server.guild_id }}', '7day', this)"
-                                    {% if server.retention_tier != '7day' %}disabled{% endif %}>
-                                Revoke 7-Day
-                            </button>
-                            <button class="grant-btn {% if server.retention_tier == '30day' %}granted{% endif %}" disabled style="opacity: 0.8;">
-                                {% if server.retention_tier == '30day' %}✓ 30-Day Active{% else %}No 30-Day{% endif %}
-                            </button>
-                            <button class="revoke-btn" 
-                                    onclick="revokeAccess('{{ server.guild_id }}', '30day', this)"
-                                    {% if server.retention_tier != '30day' %}disabled{% endif %}>
-                                Revoke 30-Day
-                            </button>
+                            {% endif %}
                         </div>
                         
                         <div class="server-actions">
@@ -1774,9 +1771,11 @@
                     resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
                     resultDiv.style.color = '#34D399';
                     
-                    const accessLabel = accessType === 'bot_access' ? 'Bot Access' : 
+                    const accessLabel = accessType === 'premium' ? 'Premium Tier' : 
+                                       accessType === 'pro' ? 'Pro Tier' :
+                                       accessType === 'bot_access' ? 'Bot Access' : 
                                        accessType === '7day' ? '7-Day Retention' : '30-Day Retention';
-                    const sourceLabel = source === 'stripe' ? ' (as Stripe)' : ' (as Owner)';
+                    const sourceLabel = source === 'stripe' ? ' (Stripe Fix)' : ' (Owner Grant)';
                     const serverName = selectedServer ? selectedServer.name : guildId;
                     resultDiv.textContent = `Successfully granted ${accessLabel}${sourceLabel} to ${serverName}`;
                     
@@ -1957,11 +1956,70 @@
             }
         }
 
+        // Quick revoke function for header section
+        async function quickRevoke() {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+            
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
+            
+            const serverName = selectedServer ? selectedServer.name : guildId;
+            if (!confirm(`Are you sure you want to revoke ALL access for ${serverName}?`)) {
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Revoking access...';
+            
+            try {
+                const response = await fetch('/api/owner/revoke-access', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: guildId, access_type: 'all' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
+                    resultDiv.textContent = `Successfully revoked access for ${serverName}`;
+                    clearServerSelection();
+                    guildIdInput.value = '';
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Quick revoke error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to revoke access.';
+            }
+        }
+        
         // Revoke access API call
         async function revokeAccess(guildId, accessType, button) {
             if (button.disabled) return;
             
-            if (!confirm(`Are you sure you want to revoke ${accessType === 'bot_access' ? 'Bot Access' : accessType.toUpperCase() + ' Retention'} for this server?`)) {
+            const typeLabel = accessType === 'all' ? 'ALL access' : accessType === 'bot_access' ? 'Bot Access' : accessType.toUpperCase() + ' Retention';
+            if (!confirm(`Are you sure you want to revoke ${typeLabel} for this server?`)) {
                 return;
             }
             
@@ -2174,8 +2232,12 @@
                     card.style.display = card.dataset.retention === 'free' ? '' : 'none';
                 } else if (filterType === '7day') {
                     card.style.display = card.dataset.retention === '7day' ? '' : 'none';
-                } else if (filterType === '30day') {
-                    card.style.display = card.dataset.retention === '30day' ? '' : 'none';
+                } else if (filterType === '30day' || filterType === 'premium') {
+                    card.style.display = (card.dataset.tier === 'premium' || card.dataset.retention === '30day') ? '' : 'none';
+                } else if (filterType === 'pro') {
+                    card.style.display = (card.dataset.tier === 'pro' || card.dataset.retention === 'pro') ? '' : 'none';
+                } else if (filterType === 'grandfathered') {
+                    card.style.display = (card.dataset.tier === 'grandfathered' || card.dataset.grandfathered === '1') ? '' : 'none';
                 } else if (filterType === 'past_due') {
                     card.style.display = card.dataset.status === 'past_due' ? '' : 'none';
                 }

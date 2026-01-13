@@ -1,17 +1,17 @@
 {
-  "version": "1.5.8",
+  "version": "1.5.9",
   "last_updated": "2026-01-13",
   "recent_updates": [
-    "Integrated trial coupon (vzRYNZed) into Stripe checkout flow",
-    "Added trial eligibility check at checkout (one trial per server)",
-    "Trial usage automatically recorded in database after successful checkout",
-    "Added phone number field to employee profile (contact section)",
-    "Added trial_usage database table for tracking $5 first-month trials"
+    "Owner dashboard redesigned with Premium/Pro tier terminology",
+    "Added grandfathered badge for legacy $5 lifetime users",
+    "Grandfathered servers protected from accidental revocation",
+    "New grant controls: Premium ($8/mo) and Pro ($15/mo) tiers",
+    "Stats display shows grandfathered and pro tier counts",
+    "Filter tabs for grandfathered, premium, and pro servers"
   ],
   "roadmap": [
-    "Phase 1: Database Grandfathering Migration",
-    "Phase 2: Owner Dashboard Tier Management Redesign",
     "Phase 3: Dashboard UI Tier Badge Updates",
+    "Phase 4: Purchase Flow Messaging Updates",
     "Custom avatar field for employee profiles",
     "Google AdSense integration for free tier ads"
   ]

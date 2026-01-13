@@ -2093,13 +2093,14 @@ def owner_dashboard(user_session):
                     ss.granted_by,
                     ss.granted_at,
                     ss.grant_source,
+                    COALESCE(ss.grandfathered, FALSE) as grandfathered,
                     COUNT(DISTINCT s.session_id) as active_sessions,
                     COALESCE(bg.is_present, TRUE) as bot_is_present,
                     bg.left_at
                 FROM bot_guilds bg
                 LEFT JOIN server_subscriptions ss ON ss.guild_id = CAST(bg.guild_id AS BIGINT)
                 LEFT JOIN timeclock_sessions s ON CAST(bg.guild_id AS BIGINT) = s.guild_id AND s.clock_out_time IS NULL
-                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, bg.is_present, bg.left_at
+                GROUP BY bg.guild_id, bg.guild_name, ss.bot_access_paid, ss.retention_tier, ss.status, ss.subscription_id, ss.customer_id, ss.manually_granted, ss.granted_by, ss.granted_at, ss.grant_source, ss.grandfathered, bg.is_present, bg.left_at
                 ORDER BY COALESCE(bg.is_present, TRUE) DESC, guild_name
             """)
             servers = []
@@ -2124,6 +2125,7 @@ def owner_dashboard(user_session):
                     'granted_by': row['granted_by'],
                     'granted_at': row['granted_at'].isoformat() if row.get('granted_at') else None,
                     'grant_source': grant_source,
+                    'grandfathered': bool(row.get('grandfathered', False)),
                     'active_sessions': row['active_sessions'],
                     'bot_is_present': bot_is_present,
                     'left_at': left_at.isoformat() if left_at else None,
@@ -2216,8 +2218,10 @@ def owner_dashboard(user_session):
                 SELECT 
                     COUNT(*) as total_servers,
                     SUM(CASE WHEN COALESCE(ss.bot_access_paid, FALSE) = TRUE THEN 1 ELSE 0 END) as paid_servers,
+                    SUM(CASE WHEN COALESCE(ss.grandfathered, FALSE) = TRUE THEN 1 ELSE 0 END) as grandfathered_count,
                     SUM(CASE WHEN ss.retention_tier = '7day' THEN 1 ELSE 0 END) as retention_7day_count,
                     SUM(CASE WHEN ss.retention_tier = '30day' THEN 1 ELSE 0 END) as retention_30day_count,
+                    SUM(CASE WHEN ss.retention_tier = 'pro' THEN 1 ELSE 0 END) as pro_count,
                     SUM(CASE WHEN ss.status = 'past_due' THEN 1 ELSE 0 END) as past_due_count,
                     SUM(CASE WHEN COALESCE(bg.is_present, TRUE) = TRUE THEN 1 ELSE 0 END) as active_servers,
                     SUM(CASE WHEN COALESCE(bg.is_present, TRUE) = FALSE THEN 1 ELSE 0 END) as inactive_servers,
@@ -2229,8 +2233,10 @@ def owner_dashboard(user_session):
             stats = {
                 'total_servers': stats_row['total_servers'],
                 'paid_servers': stats_row['paid_servers'],
+                'grandfathered_count': stats_row['grandfathered_count'] or 0,
                 'retention_7day_count': stats_row['retention_7day_count'],
                 'retention_30day_count': stats_row['retention_30day_count'],
+                'pro_count': stats_row['pro_count'] or 0,
                 'past_due_count': stats_row['past_due_count'],
                 'active_servers': stats_row['active_servers'],
                 'inactive_servers': stats_row['inactive_servers'],
@@ -2791,13 +2797,18 @@ def api_owner_grant_access(user_session):
         if not guild_id or not access_type:
             return jsonify({'success': False, 'error': 'Missing guild_id or access_type'}), 400
         
-        if access_type not in ['bot_access', '7day', '30day']:
-            return jsonify({'success': False, 'error': 'Invalid access_type. Must be bot_access, 7day, or 30day'}), 400
+        if access_type not in ['bot_access', '7day', '30day', 'premium', 'pro']:
+            return jsonify({'success': False, 'error': 'Invalid access_type. Must be premium, pro, bot_access, 7day, or 30day'}), 400
+        
+        # Map new tier names to database values
+        original_type = access_type
+        if access_type == 'premium':
+            access_type = '30day'  # Premium = 30-day retention + bot_access
         
         if grant_source not in ['granted', 'stripe']:
             grant_source = 'granted'
         
-        app.logger.info(f"Owner {user_session.get('username')} granting {access_type} (source={grant_source}) to guild {guild_id}")
+        app.logger.info(f"Owner {user_session.get('username')} granting {original_type} (mapped to {access_type}, source={grant_source}) to guild {guild_id}")
         
         with get_db() as conn:
             # Check if server exists in server_subscriptions
@@ -2825,18 +2836,12 @@ def api_owner_grant_access(user_session):
                 """, (user_session['user_id'], grant_source, guild_id))
                 app.logger.info(f"[OK] Granted bot access (source={grant_source}) to guild {guild_id}")
                 
-            elif access_type in ['7day', '30day']:
-                # Ensure bot access is paid first
-                cursor = conn.execute("SELECT bot_access_paid FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
-                bot_access = cursor.fetchone()
-                
-                if not bot_access or not bot_access['bot_access_paid']:
-                    # Raise exception to trigger rollback via context manager
-                    raise ValueError('Bot access must be granted before retention tiers. Grant bot access first.')
-                
+            elif access_type in ['7day', '30day', 'pro']:
+                # For premium/pro, also grant bot_access automatically
                 conn.execute("""
                     UPDATE server_subscriptions 
                     SET retention_tier = %s,
+                        bot_access_paid = TRUE,
                         manually_granted = TRUE,
                         granted_by = %s,
                         granted_at = NOW(),
@@ -2844,7 +2849,7 @@ def api_owner_grant_access(user_session):
                         grant_source = %s
                     WHERE guild_id = %s
                 """, (access_type, user_session['user_id'], grant_source, guild_id))
-                app.logger.info(f"[OK] Granted {access_type} retention (source={grant_source}) to guild {guild_id}")
+                app.logger.info(f"[OK] Granted {original_type} tier (retention={access_type}, source={grant_source}) to guild {guild_id}")
             
             # Context manager handles commit automatically
             app.logger.info(f"[OK] Transaction will be committed for guild {guild_id}")
@@ -2998,14 +3003,14 @@ def api_owner_revoke_access(user_session):
         if not guild_id or not access_type:
             return jsonify({'success': False, 'error': 'Missing guild_id or access_type'}), 400
         
-        if access_type not in ['bot_access', '7day', '30day']:
-            return jsonify({'success': False, 'error': 'Invalid access_type. Must be bot_access, 7day, or 30day'}), 400
+        if access_type not in ['bot_access', '7day', '30day', 'pro', 'all']:
+            return jsonify({'success': False, 'error': 'Invalid access_type. Must be bot_access, 7day, 30day, pro, or all'}), 400
         
         app.logger.info(f"Owner {user_session.get('username')} revoking {access_type} from guild {guild_id}")
         
         with get_db() as conn:
             # Check if server exists in server_subscriptions
-            cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
+            cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier, grandfathered FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
             server = cursor.fetchone()
             
             if not server:
@@ -3020,8 +3025,32 @@ def api_owner_revoke_access(user_session):
                 cursor = conn.execute("SELECT guild_id, bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
                 server = cursor.fetchone()
             
+            # Protect grandfathered servers from revocation (but allow upgrades)
+            if server.get('grandfathered') and access_type in ['all', 'bot_access']:
+                app.logger.warning(f"Attempted to revoke core access from grandfathered server {guild_id}")
+                return jsonify({
+                    'success': False, 
+                    'error': 'Cannot revoke core access from grandfathered servers. These are legacy $5 lifetime users with permanent Premium access.'
+                }), 400
+            
             # Revoke the appropriate access
-            if access_type == 'bot_access':
+            if access_type == 'all':
+                # Revoke all access (bot access + retention tier)
+                conn.execute("""
+                    UPDATE server_subscriptions 
+                    SET bot_access_paid = FALSE,
+                        tier = 'free',
+                        retention_tier = 'none',
+                        status = 'cancelled',
+                        manually_granted = FALSE,
+                        granted_by = NULL,
+                        granted_at = NULL,
+                        grant_source = NULL
+                    WHERE guild_id = %s
+                """, (guild_id,))
+                app.logger.info(f"[REVOKE] Revoked ALL access from guild {guild_id}")
+                
+            elif access_type == 'bot_access':
                 # Revoke bot access and also clear retention tier
                 # CRITICAL: Set tier to 'free' to prevent migration from re-enabling access
                 conn.execute("""
@@ -3035,9 +3064,9 @@ def api_owner_revoke_access(user_session):
                         granted_at = NULL
                     WHERE guild_id = %s
                 """, (guild_id,))
-                app.logger.info(f"[ERROR] Revoked bot access from guild {guild_id} (tier set to 'free', retention cleared)")
+                app.logger.info(f"[REVOKE] Revoked bot access from guild {guild_id} (tier set to 'free', retention cleared)")
                 
-            elif access_type in ['7day', '30day']:
+            elif access_type in ['7day', '30day', 'pro']:
                 # Only revoke if this is the current retention tier
                 if server['retention_tier'] == access_type:
                     conn.execute("""
@@ -3046,7 +3075,7 @@ def api_owner_revoke_access(user_session):
                             status = 'active'
                         WHERE guild_id = %s
                     """, (guild_id,))
-                    app.logger.info(f"[ERROR] Revoked {access_type} retention from guild {guild_id}")
+                    app.logger.info(f"[REVOKE] Revoked {access_type} retention from guild {guild_id}")
                 else:
                     return jsonify({
                         'success': False, 

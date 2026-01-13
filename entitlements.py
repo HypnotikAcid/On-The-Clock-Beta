@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any
 
 class UserTier(Enum):
     FREE = "free"
+    GRANDFATHERED = "grandfathered"  # Legacy $5 lifetime users - equivalent to Premium
     PREMIUM = "premium"  # $8/mo, 30-day retention
     PRO = "pro"          # $15/mo, Advanced features
 
@@ -17,10 +18,12 @@ class Entitlements:
     """Check user entitlements for features"""
     
     @staticmethod
-    def get_guild_tier(bot_access_paid: bool, retention_tier: str) -> UserTier:
+    def get_guild_tier(bot_access_paid: bool, retention_tier: str, grandfathered: bool = False) -> UserTier:
         """Determine guild tier from database values"""
         if retention_tier == 'pro':
             return UserTier.PRO
+        elif grandfathered:
+            return UserTier.GRANDFATHERED
         elif bot_access_paid or retention_tier == '30day':
             return UserTier.PREMIUM
         return UserTier.FREE
@@ -29,9 +32,11 @@ class Entitlements:
     def get_retention_days(tier: UserTier) -> int:
         """Get retention days for a tier"""
         if tier == UserTier.PRO:
-            return 30 # For now, keep at 30
+            return 30
         elif tier == UserTier.PREMIUM:
             return 30
+        elif tier == UserTier.GRANDFATHERED:
+            return 30  # Grandfathered users keep Premium retention
         return 1  # Free tier = 24 hours (strictly enforced)
     
     @staticmethod
@@ -68,9 +73,12 @@ class Entitlements:
         if feature in free_features:
             return True
             
-        # Check if premium required
+        # Check if premium required (Grandfathered users have Premium access)
         if feature in premium_features and tier == UserTier.FREE:
             return False
+        
+        # Grandfathered tier has same access as Premium
+        # (Already passes above check since tier != FREE)
             
         # Check if admin required
         if feature in admin_features and role != UserRole.ADMIN:
