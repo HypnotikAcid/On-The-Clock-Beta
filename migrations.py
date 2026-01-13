@@ -479,11 +479,16 @@ def run_migrations():
                 print("   Adding profile customization columns")
                 profile_customization_columns = [
                     "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS profile_background VARCHAR(50) DEFAULT 'default'",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS accent_color VARCHAR(50) DEFAULT 'cyan'",
                     "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS catchphrase VARCHAR(50)",
                     "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS selected_stickers TEXT"
                 ]
                 for query in profile_customization_columns:
                     cur.execute(query)
+
+                # 23. Add kiosk customization toggle to guild_settings
+                print("   Checking for allow_kiosk_customization column in guild_settings")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS allow_kiosk_customization BOOLEAN DEFAULT TRUE")
                 
                 # 23. Add last_demo_reset column to guild_settings for demo server tracking
                 print("   Checking for last_demo_reset column in guild_settings")

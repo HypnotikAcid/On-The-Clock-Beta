@@ -172,8 +172,22 @@
             }
         }
 
-        /* Main Layout Container */
-        .layout-container {
+        /* Theme Presets for Profile & Kiosk */
+        .theme-preset-default { --theme-gradient: linear-gradient(135deg, #0A0F1F, #1E2750); --theme-accent: #00FFFF; }
+        .theme-preset-neon-pink { --theme-gradient: linear-gradient(135deg, #2D0B24, #5D1451); --theme-accent: #FF00FF; }
+        .theme-preset-cyber-gold { --theme-gradient: linear-gradient(135deg, #1A1A00, #333300); --theme-accent: #D4AF37; }
+        .theme-preset-matrix-green { --theme-gradient: linear-gradient(135deg, #001A00, #003300); --theme-accent: #00FF41; }
+        .theme-preset-deep-ocean { --theme-gradient: linear-gradient(135deg, #001122, #002244); --theme-accent: #0077FF; }
+        .theme-preset-lava-burst { --theme-gradient: linear-gradient(135deg, #220000, #440000); --theme-accent: #FF4444; }
+        .theme-preset-violet-vibe { --theme-gradient: linear-gradient(135deg, #110022, #220044); --theme-accent: #9D00FF; }
+        .theme-preset-electric-ice { --theme-gradient: linear-gradient(135deg, #002222, #004444); --theme-accent: #00F5FF; }
+
+        /* Kiosk Button with Customization */
+        .kiosk-employee-btn.custom-themed {
+            background: var(--theme-gradient) !important;
+            border-color: var(--theme-accent) !important;
+            box-shadow: 0 0 15px var(--theme-accent) !important;
+        }
             position: relative;
             z-index: 1;
             display: flex;
