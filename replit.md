@@ -19,6 +19,8 @@ Preferred communication style: Simple, everyday language.
 - **Orphaned Code Caution**: Before removing "orphaned" code blocks that seem to have wrong indentation, verify if they were intentionally placed to execute at module import time (e.g., for startup verification).
 - **Dashboard Component Guarding**: Use specific page identifiers (like `active_page` in Jinja2 or `data-page` in HTML) to ensure components like the Admin Calendar or specific JS initializations only load on their intended routes.
 - **Admin Calendar Leak Prevention**: The Admin Calendar must be explicitly guarded with `{% if active_page == 'calendar' %}` in templates to prevent it from appearing on the server selection or other overview pages.
+- **Demo Server View Toggle**: Demo server (ID: 1419894879894507661) allows visitors to toggle between Admin and Employee views via query parameter (`?view_as=admin` or `?view_as=employee`) stored in session for persistence across navigation.
+- **Demo Data Seeding**: Owner-only endpoint `/debug/seed-demo-data` (POST) seeds sample employees, timeclock sessions, and adjustment requests for the demo server. All IDs must use integer types to match BIGINT database columns.
 
 # System Architecture
 ## Bot Framework
