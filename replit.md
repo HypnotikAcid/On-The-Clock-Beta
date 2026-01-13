@@ -88,7 +88,8 @@ Preferred communication style: Simple, everyday language.
 - **Time Adjustment Requests**: Employees submit requests via dashboard, kiosk, or bot; admins approve/deny via dashboard calendar. Kiosk users can edit today's sessions and add missing entries with reasons.
 - **Kiosk Notification System**: Employee cards and info panel show alerts for missing email, pending adjustments, or missing punches.
 - **Broadcast Channel Configuration**: Admins configure bot announcement channel via dashboard.
-- **Profile & Kiosk Customization**: Employees can personalize their profiles with background themes, accent colors (Pro tier), catchphrases, and flair stickers. These customizations sync to their kiosk buttons if the server-level `allow_kiosk_customization` setting is enabled.
+    - **Profile & Kiosk Customization**: Employees can personalize their profiles with background themes, accent colors (Premium tier), catchphrases, and flair stickers. These customizations sync to their kiosk buttons if the server-level `allow_kiosk_customization` setting is enabled.
+    - **Alerts & Reminders**: Always alert the user to updates when changing prices or adding significant features, and prompt for a manual republish.
 - **Theme Presets**: Multiple Neon Cyber themed backgrounds (sunset, ocean, forest, etc.) and 8 accent colors (cyan, magenta, gold, green, blue, red, purple, teal) available for profiles. Accent colors create glowing button borders on kiosk.
 - **Admin Control**: Admins can toggle `allow_kiosk_customization` on/off via Beta Settings to maintain a uniform look or allow personalized kiosk buttons.
 
