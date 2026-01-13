@@ -37,6 +37,10 @@ build = ["pip", "install", "-r", "requirements.txt"]
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
 [agent]
 expertMode = true
 integrations = ["flask_stripe:1.0.0", "replitmail:1.0.0"]
