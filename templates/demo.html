@@ -20,28 +20,50 @@
             position: relative;
         }
 
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.12;
+        }
+
+        .clock-fade-mask {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(10, 15, 31, 0.9) 0%, rgba(10, 15, 31, 0.6) 40%, transparent 70%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
         .clock-background {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 0;
+            z-index: 2;
             pointer-events: none;
         }
 
         .clock-container {
-            --clock-size: 500px;
+            --clock-size: 450px;
             position: relative;
             width: var(--clock-size);
             height: var(--clock-size);
-            opacity: 0.15;
+            opacity: 0.35;
         }
 
         .clock-face {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            filter: drop-shadow(0 0 30px rgba(212, 175, 55, 0.3));
+            filter: drop-shadow(0 0 40px rgba(0, 255, 255, 0.3)) drop-shadow(0 0 20px rgba(212, 175, 55, 0.2));
         }
 
         .clock-hand {
@@ -49,51 +71,54 @@
             top: 50%;
             left: 50%;
             transform-origin: 50% 100%;
-            filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.5));
+            filter: drop-shadow(0 0 8px rgba(0, 255, 255, 0.8));
         }
 
         .hour-hand {
-            width: calc(var(--clock-size) * 0.016);
-            height: calc(var(--clock-size) * 0.24);
-            background: linear-gradient(to top, #D4AF37, #F4E5A1);
-            border-radius: calc(var(--clock-size) * 0.008);
-            margin-left: calc(var(--clock-size) * -0.008);
-            margin-top: calc(var(--clock-size) * -0.24);
+            width: calc(var(--clock-size) * 0.02);
+            height: calc(var(--clock-size) * 0.22);
+            background: linear-gradient(to top, #00CED1, #00FFFF);
+            border-radius: calc(var(--clock-size) * 0.01);
+            margin-left: calc(var(--clock-size) * -0.01);
+            margin-top: calc(var(--clock-size) * -0.22);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
         }
 
         .minute-hand {
-            width: calc(var(--clock-size) * 0.01);
-            height: calc(var(--clock-size) * 0.34);
+            width: calc(var(--clock-size) * 0.012);
+            height: calc(var(--clock-size) * 0.32);
             background: linear-gradient(to top, #D4AF37, #F4E5A1);
             border-radius: calc(var(--clock-size) * 0.006);
-            margin-left: calc(var(--clock-size) * -0.005);
-            margin-top: calc(var(--clock-size) * -0.34);
+            margin-left: calc(var(--clock-size) * -0.006);
+            margin-top: calc(var(--clock-size) * -0.32);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.8);
         }
 
         .second-hand {
             width: calc(var(--clock-size) * 0.004);
-            height: calc(var(--clock-size) * 0.36);
-            background: linear-gradient(to top, #FF6B6B, #FFE66D);
+            height: calc(var(--clock-size) * 0.35);
+            background: linear-gradient(to top, #FF6B6B, #FF4757);
             border-radius: calc(var(--clock-size) * 0.002);
             margin-left: calc(var(--clock-size) * -0.002);
-            margin-top: calc(var(--clock-size) * -0.36);
+            margin-top: calc(var(--clock-size) * -0.35);
+            box-shadow: 0 0 8px rgba(255, 71, 87, 0.8);
         }
 
         .clock-center {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: calc(var(--clock-size) * 0.032);
-            height: calc(var(--clock-size) * 0.032);
-            background: radial-gradient(circle, #F4E5A1, #D4AF37);
+            width: calc(var(--clock-size) * 0.04);
+            height: calc(var(--clock-size) * 0.04);
+            background: radial-gradient(circle, #00FFFF, #00CED1);
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.8);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
         }
 
         .content-wrapper {
             position: relative;
-            z-index: 1;
+            z-index: 10;
         }
 
         .container {
@@ -111,12 +136,13 @@
         .logo-text {
             font-size: 3rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1, #D4AF37);
+            background: linear-gradient(135deg, #00FFFF, #D4AF37, #00FFFF);
             background-size: 200% auto;
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             animation: shimmer 3s linear infinite;
+            text-shadow: none;
         }
 
         @keyframes shimmer {
@@ -125,12 +151,12 @@
 
         .demo-badge {
             display: inline-block;
-            background: rgba(212, 175, 55, 0.2);
-            border: 1px solid rgba(212, 175, 55, 0.4);
+            background: rgba(0, 255, 255, 0.15);
+            border: 1px solid rgba(0, 255, 255, 0.4);
             border-radius: 20px;
             padding: 0.5rem 1.5rem;
             font-size: 0.9rem;
-            color: #D4AF37;
+            color: #00FFFF;
             margin-top: 1rem;
         }
 
@@ -145,12 +171,13 @@
 
         .time-display {
             text-align: center;
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: 300;
-            color: #D4AF37;
+            color: #00FFFF;
             margin: 2rem 0;
             font-family: 'Courier New', monospace;
-            text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+            letter-spacing: 0.1em;
         }
 
         .controls {
@@ -163,24 +190,26 @@
         }
 
         .control-btn {
-            background: rgba(212, 175, 55, 0.15);
-            border: 1px solid rgba(212, 175, 55, 0.4);
-            color: #D4AF37;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            color: #00FFFF;
             padding: 0.8rem 1.5rem;
             border-radius: 8px;
             cursor: pointer;
             font-size: 0.95rem;
-            transition: background 0.3s, transform 0.2s;
+            transition: all 0.3s ease;
         }
 
         .control-btn:hover {
-            background: rgba(212, 175, 55, 0.25);
+            background: rgba(0, 255, 255, 0.2);
+            border-color: rgba(0, 255, 255, 0.6);
             transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 255, 0.3);
         }
 
         .control-btn.active {
-            background: rgba(212, 175, 55, 0.4);
-            border-color: #D4AF37;
+            background: rgba(0, 255, 255, 0.3);
+            border-color: #00FFFF;
         }
 
         .slider-control {
@@ -190,14 +219,13 @@
 
         .slider-control label {
             color: #8B949E;
-            margin-right: 1rem;
             display: block;
             margin-bottom: 0.5rem;
         }
 
         .slider {
             width: 250px;
-            accent-color: #D4AF37;
+            accent-color: #00FFFF;
         }
 
         .back-link {
@@ -211,20 +239,21 @@
         }
 
         .back-link:hover {
-            color: #D4AF37;
+            color: #00FFFF;
         }
 
         .info-box {
-            background: rgba(30, 39, 80, 0.6);
-            border: 1px solid rgba(212, 175, 55, 0.2);
+            background: rgba(30, 39, 80, 0.7);
+            border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 1.5rem;
             margin: 2rem 0;
             text-align: center;
+            backdrop-filter: blur(10px);
         }
 
         .info-box h3 {
-            color: #D4AF37;
+            color: #00FFFF;
             margin-bottom: 0.5rem;
         }
 
@@ -235,9 +264,12 @@
     </style>
 </head>
 <body>
+    <canvas id="matrix-canvas"></canvas>
+    <div class="clock-fade-mask"></div>
+    
     <div class="clock-background">
         <div class="clock-container" id="clockContainer">
-            <img src="/static/backgrounds/vintage_alarm_clock_face.png" alt="Clock Face" class="clock-face">
+            <img src="/static/backgrounds/futuristic_transparent_alarm_clock.png" alt="Clock Face" class="clock-face">
             <div class="hour-hand clock-hand" id="hourHand"></div>
             <div class="minute-hand clock-hand" id="minuteHand"></div>
             <div class="second-hand clock-hand" id="secondHand"></div>
@@ -249,34 +281,35 @@
         <div class="container">
             <header class="header">
                 <h1 class="logo-text">On the Clock</h1>
-                <div class="demo-badge">Background Demo v2</div>
+                <div class="demo-badge">Background Demo v3 - Futuristic</div>
             </header>
 
             <p class="description">
-                A single elegant vintage clock, centered and subtle, with hands that move in real-time 
-                synced to your local time. Clean, professional, and on-brand.
+                A futuristic transparent clock floats above the matrix rain effect. 
+                Animated hands sync to your local time. The matrix fades softly behind the clock.
             </p>
 
             <div class="time-display" id="timeDisplay">--:--:--</div>
 
             <div class="info-box">
-                <h3>Your Local Time</h3>
+                <h3>Real-Time Sync</h3>
                 <p>The clock hands rotate to match your current time, updating every second.</p>
             </div>
 
             <div class="controls">
                 <button class="control-btn" onclick="toggleSecondHand(this)">Toggle Second Hand</button>
                 <button class="control-btn" onclick="toggleClock(this)">Hide Clock</button>
+                <button class="control-btn" onclick="toggleMatrix(this)">Toggle Matrix</button>
             </div>
 
             <div class="slider-control">
-                <label>Clock Opacity: <span id="opacityValue">15%</span></label>
-                <input type="range" class="slider" min="5" max="40" value="15" onchange="changeOpacity(this.value)">
+                <label>Clock Opacity: <span id="opacityValue">35%</span></label>
+                <input type="range" class="slider" min="10" max="60" value="35" onchange="changeOpacity(this.value)">
             </div>
 
             <div class="slider-control">
-                <label>Clock Size: <span id="sizeValue">500px</span></label>
-                <input type="range" class="slider" min="300" max="800" value="500" onchange="changeSize(this.value)">
+                <label>Clock Size: <span id="sizeValue">450px</span></label>
+                <input type="range" class="slider" min="250" max="700" value="450" onchange="changeSize(this.value)">
             </div>
 
             <div style="text-align: center;">
@@ -291,9 +324,12 @@
         const secondHand = document.getElementById('secondHand');
         const timeDisplay = document.getElementById('timeDisplay');
         const clockContainer = document.getElementById('clockContainer');
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
         
         let showSecondHand = true;
         let clockVisible = true;
+        let matrixVisible = true;
 
         function updateClock() {
             const now = new Date();
@@ -324,9 +360,17 @@
 
         function toggleClock(btn) {
             clockVisible = !clockVisible;
-            clockContainer.style.display = clockVisible ? 'block' : 'none';
+            document.querySelector('.clock-background').style.display = clockVisible ? 'block' : 'none';
+            document.querySelector('.clock-fade-mask').style.display = clockVisible ? 'block' : 'none';
             btn.textContent = clockVisible ? 'Hide Clock' : 'Show Clock';
             btn.classList.toggle('active', !clockVisible);
+        }
+
+        function toggleMatrix(btn) {
+            matrixVisible = !matrixVisible;
+            canvas.style.display = matrixVisible ? 'block' : 'none';
+            btn.textContent = matrixVisible ? 'Toggle Matrix' : 'Show Matrix';
+            btn.classList.toggle('active', !matrixVisible);
         }
 
         function changeOpacity(value) {
@@ -337,10 +381,89 @@
         function changeSize(value) {
             clockContainer.style.setProperty('--clock-size', value + 'px');
             document.getElementById('sizeValue').textContent = value + 'px';
+            const mask = document.querySelector('.clock-fade-mask');
+            mask.style.width = (parseInt(value) + 150) + 'px';
+            mask.style.height = (parseInt(value) + 150) + 'px';
         }
 
         updateClock();
         setInterval(updateClock, 1000);
+
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>?';
+        const fontSize = 14;
+        let columns, drops;
+
+        function initMatrix() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            ctx.scale(dpr, dpr);
+
+            columns = Math.floor(window.innerWidth / fontSize);
+            drops = [];
+            for (let i = 0; i < columns; i++) {
+                drops[i] = Math.random() * -100;
+            }
+        }
+
+        function drawMatrix() {
+            if (!matrixVisible) {
+                requestAnimationFrame(drawMatrix);
+                return;
+            }
+            
+            ctx.fillStyle = 'rgba(10, 15, 31, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                
+                const gradient = ctx.createLinearGradient(
+                    i * fontSize, drops[i] * fontSize - 20,
+                    i * fontSize, drops[i] * fontSize + 20
+                );
+                gradient.addColorStop(0, 'rgba(0, 255, 255, 0)');
+                gradient.addColorStop(0.5, 'rgba(0, 255, 255, 0.9)');
+                gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+                
+                ctx.fillStyle = gradient;
+                
+                if (i % 3 === 0) {
+                    ctx.shadowColor = 'rgba(0, 255, 255, 0.8)';
+                    ctx.shadowBlur = 12;
+                }
+                
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                ctx.shadowBlur = 0;
+
+                if (drops[i] * fontSize > window.innerHeight && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+            
+            requestAnimationFrame(drawMatrix);
+        }
+
+        initMatrix();
+        requestAnimationFrame(drawMatrix);
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                initMatrix();
+            }, 250);
+        });
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            canvas.style.display = 'none';
+            matrixVisible = false;
+        }
     </script>
 </body>
 </html>
