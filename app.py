@@ -1622,6 +1622,11 @@ def index():
         }
     return render_template('landing.html', version_info=version_info)
 
+@app.route("/demo")
+def demo_page():
+    """Demo page for testing clock-themed background visuals."""
+    return render_template('demo.html')
+
 @app.route("/dashboard/invite")
 def dashboard_invite():
     """Page shown when user tries to access dashboard but bot is not invited to their server."""
