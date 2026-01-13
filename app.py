@@ -56,6 +56,9 @@ def get_current_version():
 __version__ = get_current_version()
 
 # Customer-facing update notes (latest first, max 3 shown on dashboard)
+# Demo server configuration - grant admin access to all demo server visitors
+DEMO_SERVER_ID = '1419894879894507661'
+
 CHANGELOG = [
     {
         "version": "1.5.0",
@@ -136,6 +139,9 @@ def get_pending_adjustments(*args, **kwargs):
 
 def get_user_adjustment_history(*args, **kwargs):
     return _get_bot_func('get_user_adjustment_history')(*args, **kwargs)
+
+def get_all_adjustment_history(*args, **kwargs):
+    return _get_bot_func('get_all_adjustment_history')(*args, **kwargs)
 
 def approve_adjustment(*args, **kwargs):
     return _get_bot_func('approve_adjustment')(*args, **kwargs)
@@ -820,6 +826,10 @@ def check_user_admin_realtime(user_id, guild_id):
     Returns dict with: {'is_member': bool, 'is_admin': bool, 'reason': str}
     Performs fresh lookup via bot's Discord cache on every call (no caching).
     """
+    # Demo server override: Grant admin access to all users for demo exploration
+    if str(guild_id) == DEMO_SERVER_ID:
+        return {'is_member': True, 'is_admin': True, 'reason': 'demo_server'}
+    
     try:
         import requests
         
@@ -4200,6 +4210,7 @@ def api_owner_time_report(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+
 def verify_guild_access(user_session, guild_id, allow_employee=False):
     """
     Verify user has access to a specific guild.
@@ -4215,6 +4226,22 @@ def verify_guild_access(user_session, guild_id, allow_employee=False):
         access_level is 'admin' or 'employee'
     """
     all_guilds = user_session.get('guilds', [])
+    
+    # Demo server override: Grant admin access to all users for demo exploration
+    if str(guild_id) == DEMO_SERVER_ID:
+        with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT guild_name FROM bot_guilds WHERE guild_id = %s",
+                (DEMO_SERVER_ID,)
+            )
+            row = cursor.fetchone()
+            guild_name = row['guild_name'] if row else 'On The Clock Demo'
+        return ({
+            'id': guild_id,
+            'name': guild_name,
+            'owner': False,
+            'permissions': '0'
+        }, 'admin')
     
     # First check admin access (from OAuth guilds)
     for guild in all_guilds:
@@ -7465,22 +7492,45 @@ def api_submit_day_adjustment(user_session, guild_id):
 @require_api_auth
 def api_get_adjustment_history(user_session, guild_id):
     """
-    Get adjustment request history for the current user.
+    Get adjustment request history.
+    For employees: returns their own requests.
+    For admins: returns all requests (or filtered by user_id param).
     Returns all requests (pending, approved, denied) for audit trail.
     """
     try:
-        user_id = int(user_session['user_id'])
-        requests = get_user_adjustment_history(int(guild_id), user_id)
+        viewer_user_id = int(user_session['user_id'])
+        
+        # Check if user is admin
+        admin_status = check_user_admin_realtime(viewer_user_id, guild_id)
+        is_admin = admin_status.get('is_admin', False)
+        
+        # Determine which user's requests to fetch
+        requested_user_id = request.args.get('user_id')
+        if requested_user_id:
+            target_user_id = int(requested_user_id)
+        else:
+            target_user_id = viewer_user_id
+        
+        # Non-admins can only see their own requests
+        if not is_admin and target_user_id != viewer_user_id:
+            target_user_id = viewer_user_id
+        
+        if is_admin and not requested_user_id:
+            # Admin viewing all - get all history
+            adjustment_requests = get_all_adjustment_history(int(guild_id))
+        else:
+            # Get specific user's history
+            adjustment_requests = get_user_adjustment_history(int(guild_id), target_user_id)
         
         serialized_requests = []
-        for req in requests:
+        for req in adjustment_requests:
             req_dict = dict(req)
             for key, value in req_dict.items():
                 if isinstance(value, datetime):
                     req_dict[key] = value.isoformat()
             serialized_requests.append(req_dict)
             
-        return jsonify({'success': True, 'history': serialized_requests})
+        return jsonify({'success': True, 'requests': serialized_requests, 'history': serialized_requests})
         
     except Exception as e:
         app.logger.error(f"Error fetching adjustment history: {e}")

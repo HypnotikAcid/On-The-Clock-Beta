@@ -3988,12 +3988,34 @@ def get_user_adjustment_history(guild_id: int, user_id: int, limit: int = 50):
             SELECT r.id, r.request_type, r.status, r.reason,
                    r.original_clock_in, r.original_clock_out,
                    r.requested_clock_in, r.requested_clock_out,
-                   r.created_at, r.reviewed_at, r.reviewed_by
+                   r.created_at, r.reviewed_at, r.reviewed_by,
+                   ep.display_name
             FROM time_adjustment_requests r
+            LEFT JOIN employee_profiles ep ON ep.guild_id = r.guild_id AND ep.user_id = r.user_id
             WHERE r.guild_id = %s AND r.user_id = %s
             ORDER BY r.created_at DESC
             LIMIT %s
         """, (guild_id, user_id, limit))
+        return cursor.fetchall()
+
+def get_all_adjustment_history(guild_id: int, limit: int = 100):
+    """
+    Get all adjustment request history for a guild (admin view).
+    Returns all requests from all users (pending, approved, denied).
+    """
+    with db() as conn:
+        cursor = conn.execute("""
+            SELECT r.id, r.user_id, r.request_type, r.status, r.reason,
+                   r.original_clock_in, r.original_clock_out,
+                   r.requested_clock_in, r.requested_clock_out,
+                   r.created_at, r.reviewed_at, r.reviewed_by,
+                   ep.display_name, r.session_date as request_date
+            FROM time_adjustment_requests r
+            LEFT JOIN employee_profiles ep ON ep.guild_id = r.guild_id AND ep.user_id = r.user_id
+            WHERE r.guild_id = %s
+            ORDER BY r.created_at DESC
+            LIMIT %s
+        """, (guild_id, limit))
         return cursor.fetchall()
 
 # --- Report Recipients Management ---

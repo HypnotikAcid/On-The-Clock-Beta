@@ -135,7 +135,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 async function loadPendingRequests() {
     const container = document.getElementById('pending-requests');
     try {
-        const response = await fetch(`/api/server/${guildId}/adjustments?status=pending`);
+        const response = await fetch(`/api/guild/${guildId}/adjustments/pending`);
         if (!response.ok) {
             throw new Error(`Server error: ${response.status}`);
         }
@@ -157,7 +157,7 @@ async function loadPendingRequests() {
 async function loadHistory() {
     const container = document.getElementById('history-requests');
     try {
-        const response = await fetch(`/api/server/${guildId}/adjustments?status=all`);
+        const response = await fetch(`/api/guild/${guildId}/adjustments/history`);
         if (!response.ok) {
             throw new Error(`Server error: ${response.status}`);
         }
@@ -179,7 +179,7 @@ async function loadHistory() {
 async function loadMyRequests() {
     const container = document.getElementById('my-requests');
     try {
-        const response = await fetch(`/api/server/${guildId}/adjustments?user_id=${userId}`);
+        const response = await fetch(`/api/guild/${guildId}/adjustments/history?user_id=${userId}`);
         if (!response.ok) {
             throw new Error(`Server error: ${response.status}`);
         }
@@ -227,7 +227,7 @@ function renderRequests(requests, containerId, showActions) {
 
 async function handleRequest(requestId, action) {
     try {
-        const response = await fetch(`/api/server/${guildId}/adjustments/${requestId}/${action}`, {
+        const response = await fetch(`/api/guild/${guildId}/adjustments/${requestId}/${action}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -278,7 +278,7 @@ if (document.getElementById('submit-request-btn')) {
         this.textContent = 'Submitting...';
         
         try {
-            const response = await fetch(`/api/server/${guildId}/adjustments`, {
+            const response = await fetch(`/api/guild/${guildId}/adjustments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
