@@ -20,11 +20,17 @@ def db_connection():
     finally:
         conn.close()
 
+_migrations_run = False
+
 def run_migrations():
     """
     Run database migrations to ensure schema is up to date.
     Safe to run on every startup (idempotent).
     """
+    global _migrations_run
+    if _migrations_run:
+        return True
+    
     print("🔄 Checking database schema...")
     
     try:
@@ -479,6 +485,7 @@ def run_migrations():
                 for query in profile_customization_columns:
                     cur.execute(query)
 
+        _migrations_run = True
         print("✅ Database schema is up to date")
         return True
 

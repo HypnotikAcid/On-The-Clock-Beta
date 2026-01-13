@@ -6968,6 +6968,29 @@ async def on_guild_join(guild):
 async def on_member_join(member):
     """Handle new members joining - special handling for demo server"""
     if member.guild.id != DEMO_SERVER_ID:
+        # Check if they are a registered employee in a non-demo server
+        try:
+            with db() as conn:
+                cursor = conn.execute(
+                    "SELECT 1 FROM employee_profiles WHERE guild_id = %s AND user_id = %s",
+                    (member.guild.id, member.id)
+                )
+                is_employee = cursor.fetchone()
+                
+                if is_employee:
+                    # They are a returning employee, re-apply the role if configured
+                    cursor = conn.execute(
+                        "SELECT employee_role_id FROM guild_settings WHERE guild_id = %s",
+                        (member.guild.id,)
+                    )
+                    row = cursor.fetchone()
+                    if row and row['employee_role_id']:
+                        role = member.guild.get_role(int(row['employee_role_id']))
+                        if role:
+                            await member.add_roles(role, reason="Auto-assigned for returning employee")
+                            print(f"✅ Re-assigned employee role to {member.display_name} in {member.guild.name}")
+        except Exception as e:
+            print(f"❌ Error checking/assigning role for returning member {member.id} in {member.guild.id}: {e}")
         return
     
     print(f"👋 New member joined demo server: {member.display_name}")
