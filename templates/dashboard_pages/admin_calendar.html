@@ -100,7 +100,7 @@ let selectedDate = null;
 
 async function loadEmployees() {
     try {
-        const response = await fetch(`/api/server/${guildId}/employees`);
+        const response = await fetch(`/api/server/${guildId}/employees`, { credentials: 'include' });
         const data = await response.json();
         
         if (data.success) {
@@ -197,7 +197,8 @@ async function loadMasterCalendar() {
     
     try {
         const response = await fetch(
-            `/api/server/${guildId}/calendar/monthly-summary?year=${currentYear}&month=${currentMonth + 1}`
+            `/api/server/${guildId}/calendar/monthly-summary?year=${currentYear}&month=${currentMonth + 1}`,
+            { credentials: 'include' }
         );
         const data = await response.json();
         
@@ -282,17 +283,20 @@ async function openDayDetail(date) {
     document.getElementById('new-session-clock-out').value = clockOutDefault;
     
     try {
-        const response = await fetch(`/api/server/${guildId}/calendar/day-detail?date=${date}`);
+        const response = await fetch(`/api/server/${guildId}/calendar/day-detail?date=${date}`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (data.success) {
             renderDaySessions(data.sessions || []);
         } else {
-            document.getElementById('day-sessions-list').innerHTML = '<p>Failed to load sessions</p>';
+            console.error('API error:', data.error);
+            document.getElementById('day-sessions-list').innerHTML = `<p>Failed to load sessions: ${DashboardUtils.escapeHtml(data.error || 'Unknown error')}</p>`;
         }
     } catch (error) {
         console.error('Failed to load day detail:', error);
-        document.getElementById('day-sessions-list').innerHTML = '<p>Failed to load sessions</p>';
+        document.getElementById('day-sessions-list').innerHTML = '<p>Failed to load sessions: Network error</p>';
     }
 }
 
@@ -370,7 +374,7 @@ function editSession(sessionId, userId, displayName) {
     
     const sessions = Array.from(document.querySelectorAll(`[data-session-id="${sessionId}"]`));
     
-    fetch(`/api/server/${guildId}/employee/${userId}/entries?start=${selectedDate}&end=${selectedDate}`)
+    fetch(`/api/server/${guildId}/employee/${userId}/entries?start=${selectedDate}&end=${selectedDate}`, { credentials: 'include' })
         .then(r => r.json())
         .then(data => {
             if (data.success) {
@@ -421,6 +425,7 @@ document.getElementById('save-entry-btn').addEventListener('click', async functi
         const response = await fetch(`/api/server/${guildId}/entries/${selectedEntry.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({
                 clock_in_time: clockIn,
                 clock_out_time: clockOut || null
@@ -453,7 +458,8 @@ document.getElementById('delete-entry-btn').addEventListener('click', async func
     try {
         const response = await fetch(`/api/server/${guildId}/entries/${selectedEntry.id}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
         });
         
         const data = await response.json();
@@ -493,6 +499,7 @@ document.getElementById('add-session-btn').addEventListener('click', async funct
         const response = await fetch(`/api/server/${guildId}/sessions/admin-create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({
                 user_id: userId,
                 clock_in_time: clockIn,
@@ -527,7 +534,8 @@ async function loadEmployeeCalendar() {
         const endDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
         
         const response = await fetch(
-            `/api/server/${guildId}/employee/${currentEmployee}/entries?start=${startDate}&end=${endDate}`
+            `/api/server/${guildId}/employee/${currentEmployee}/entries?start=${startDate}&end=${endDate}`,
+            { credentials: 'include' }
         );
         const data = await response.json();
         
