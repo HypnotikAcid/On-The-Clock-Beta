@@ -4,9 +4,43 @@
 
 {% block content %}
 <div class="content-header">
-    <h1 class="content-title">Admin Calendar</h1>
+    <h1 class="content-title">Admin Calendar <button class="help-btn" onclick="showPageHelp('calendar-help-content')">?</button></h1>
     <p class="content-subtitle">View and manage all employee time entries</p>
 </div>
+
+<template id="calendar-help-content">
+    <div class="help-modal-title">📅 Admin Calendar Help</div>
+    
+    <div class="help-modal-section">
+        <h4>Overview</h4>
+        <p>The Admin Calendar gives you a complete view of all employee time entries across your team. Use it to review hours, make adjustments, and add missing entries.</p>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Calendar Views</h4>
+        <ul>
+            <li><strong>Master View:</strong> Shows all employees at once. Each day displays total hours and employee count.</li>
+            <li><strong>Single Employee:</strong> Focus on one employee's calendar. Select them from the dropdown above.</li>
+        </ul>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Viewing Day Details</h4>
+        <p>Click any day on the calendar to see who worked and their exact clock times. From this view you can:</p>
+        <ul>
+            <li>Filter by employee using the dropdown</li>
+            <li>Edit any session by clicking the Edit button</li>
+            <li>Add a new session for any employee</li>
+        </ul>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Editing Sessions</h4>
+        <p>When editing a session, you can change the clock in and clock out times. All changes are logged for audit purposes.</p>
+    </div>
+    
+    <div class="help-tip">Click on an employee's name in the day details to view their full profile and timecard history.</div>
+</template>
 
 <div class="calendar-controls">
     <div class="view-toggle">

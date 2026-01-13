@@ -4,9 +4,49 @@
 
 {% block content %}
 <div class="content-header">
-    <h1 class="content-title">Email Settings</h1>
+    <h1 class="content-title">Email Settings <button class="help-btn" onclick="showPageHelp('email-help-content')">?</button></h1>
     <p class="content-subtitle">Configure automated report delivery</p>
 </div>
+
+<template id="email-help-content">
+    <div class="help-modal-title">📧 Email Settings Help</div>
+    
+    <div class="help-modal-section">
+        <h4>Overview</h4>
+        <p>Set up automated daily reports to be sent to managers, payroll, or any email address you choose. Reports include complete timesheet data for all employees.</p>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Email Recipients</h4>
+        <p>Add one or more email addresses to receive reports:</p>
+        <ul>
+            <li>Enter an email address and click Add</li>
+            <li>Recipients will receive a verification email</li>
+            <li>Only verified emails receive reports</li>
+            <li>Remove an email anytime by clicking the X</li>
+        </ul>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Report Settings</h4>
+        <ul>
+            <li><strong>Auto-send on clock-out:</strong> Automatically send a report when the last employee clocks out for the day</li>
+            <li><strong>Test Email:</strong> Send a sample report to verify everything is working</li>
+        </ul>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Report Contents</h4>
+        <p>Each report includes:</p>
+        <ul>
+            <li>Employee names and total hours</li>
+            <li>Clock in/out times for each session</li>
+            <li>Summary of daily activity</li>
+        </ul>
+    </div>
+    
+    <div class="help-tip">Test the email feature before relying on automated reports to ensure delivery is working correctly.</div>
+</template>
 
 <div class="tiles-grid">
     <div class="tile">

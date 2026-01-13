@@ -347,6 +347,136 @@
         })();
     </script>
     <script src="/static/js/dashboard-tour.js"></script>
+    
+    <style>
+        .help-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            border-radius: 50%;
+            color: #60A5FA;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: all 0.2s ease;
+            vertical-align: middle;
+        }
+        .help-btn:hover {
+            background: rgba(59, 130, 246, 0.4);
+            border-color: #60A5FA;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+        }
+        .help-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .help-modal-content {
+            background: #161B22;
+            border: 1px solid #30363D;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 550px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .help-modal-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #8B949E;
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .help-modal-close:hover {
+            color: #C9D1D9;
+        }
+        .help-modal-title {
+            color: #60A5FA;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .help-modal-section {
+            margin-bottom: 16px;
+        }
+        .help-modal-section h4 {
+            color: #C9D1D9;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .help-modal-section p,
+        .help-modal-section ul {
+            color: #8B949E;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .help-modal-section ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .help-modal-section li {
+            margin-bottom: 6px;
+        }
+        .help-tip {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            color: #6EE7B7;
+            font-size: 12px;
+            margin-top: 16px;
+        }
+        .help-tip::before {
+            content: "💡 Tip: ";
+            font-weight: 600;
+        }
+    </style>
+    
+    <div id="page-help-modal" class="help-modal" onclick="closePageHelp()">
+        <div class="help-modal-content" onclick="event.stopPropagation()">
+            <button class="help-modal-close" onclick="closePageHelp()">&times;</button>
+            <div id="page-help-content"></div>
+        </div>
+    </div>
+    
+    <script>
+        function showPageHelp(contentId) {
+            const content = document.getElementById(contentId);
+            if (!content) return;
+            document.getElementById('page-help-content').innerHTML = content.innerHTML;
+            document.getElementById('page-help-modal').style.display = 'flex';
+        }
+        function closePageHelp() {
+            document.getElementById('page-help-modal').style.display = 'none';
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('page-help-modal').style.display === 'flex') {
+                closePageHelp();
+            }
+        });
+    </script>
 </body>
 
 </html>

@@ -4,9 +4,72 @@
 
 {% block content %}
 <div class="content-header">
-    <h1 class="content-title">Time Adjustments</h1>
+    <h1 class="content-title">Time Adjustments <button class="help-btn" onclick="showPageHelp('adjustments-help-content')">?</button></h1>
     <p class="content-subtitle">{% if user_role == 'admin' %}Review and manage time correction requests{% else %}Request time corrections{% endif %}</p>
 </div>
+
+<template id="adjustments-help-content">
+    <div class="help-modal-title">⏱️ Time Adjustments Help</div>
+    
+    {% if user_role == 'admin' %}
+    <div class="help-modal-section">
+        <h4>Overview</h4>
+        <p>Employees can request corrections to their time entries when they forget to clock in or out. As an admin, you review and approve or deny these requests.</p>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Request Types</h4>
+        <ul>
+            <li><strong>Add Missing Entry:</strong> Employee forgot to clock in/out for an entire shift</li>
+            <li><strong>Edit Existing Entry:</strong> Employee needs to correct clock in or out time</li>
+            <li><strong>Delete Entry:</strong> Employee clocked in by mistake</li>
+        </ul>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Reviewing Requests</h4>
+        <p>The Pending tab shows all requests awaiting your decision. For each request:</p>
+        <ul>
+            <li>Review the original time and requested change</li>
+            <li>Check the reason provided by the employee</li>
+            <li>Approve to apply the change, or Deny to reject it</li>
+        </ul>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Calendar View</h4>
+        <p>See pending requests visualized on a calendar. Days with requests are highlighted, making it easy to spot patterns.</p>
+    </div>
+    
+    <div class="help-tip">All approved and denied requests are logged in the History tab for audit purposes.</div>
+    {% else %}
+    <div class="help-modal-section">
+        <h4>Overview</h4>
+        <p>If you forgot to clock in or out, or made a mistake with your time, you can submit a correction request here.</p>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>How to Submit a Request</h4>
+        <ul>
+            <li>Choose the type of correction you need</li>
+            <li>Enter the correct time details</li>
+            <li>Provide a clear reason for the change</li>
+            <li>Submit and wait for admin approval</li>
+        </ul>
+    </div>
+    
+    <div class="help-modal-section">
+        <h4>Request Status</h4>
+        <ul>
+            <li><strong>Pending:</strong> Waiting for admin review</li>
+            <li><strong>Approved:</strong> Change has been applied</li>
+            <li><strong>Denied:</strong> Request was rejected</li>
+        </ul>
+    </div>
+    
+    <div class="help-tip">Include a clear reason in your request to help admins approve it quickly.</div>
+    {% endif %}
+</template>
 
 {% if user_role == 'admin' %}
 <div class="tabs">
