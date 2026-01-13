@@ -3054,6 +3054,130 @@ def api_owner_revoke_access(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+@app.route("/api/owner/trial/grant", methods=["POST"])
+@require_api_auth
+def api_owner_trial_grant(user_session):
+    """Owner-only API to manually grant trial usage to a server"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
+        
+        data = request.get_json()
+        guild_id = data.get('guild_id', '').strip()
+        
+        if not guild_id:
+            return jsonify({'success': False, 'error': 'Guild ID is required'}), 400
+        
+        with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM trial_usage WHERE guild_id = %s",
+                (guild_id,)
+            )
+            existing = cursor.fetchone()
+            
+            if existing:
+                return jsonify({
+                    'success': False, 
+                    'error': f'Trial already used on {existing["used_at"].strftime("%Y-%m-%d %H:%M")} ({existing["grant_type"]})'
+                }), 400
+            
+            conn.execute("""
+                INSERT INTO trial_usage (guild_id, granted_by, grant_type)
+                VALUES (%s, %s, 'owner_grant')
+            """, (guild_id, user_session['user_id']))
+            
+            app.logger.info(f"Trial granted to guild {guild_id} by owner {user_session.get('username')}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Trial marked as used for server {guild_id}. They will not see the $5 discount at checkout.'
+            })
+    
+    except Exception as e:
+        app.logger.error(f"Trial grant error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route("/api/owner/trial/status/<guild_id>", methods=["GET"])
+@require_api_auth
+def api_owner_trial_status(user_session, guild_id):
+    """Owner-only API to check trial status for a server"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
+        
+        with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM trial_usage WHERE guild_id = %s",
+                (guild_id,)
+            )
+            trial = cursor.fetchone()
+            
+            if trial:
+                return jsonify({
+                    'success': True,
+                    'trial_used': True,
+                    'used_at': trial['used_at'].strftime('%Y-%m-%d %H:%M'),
+                    'grant_type': trial['grant_type'],
+                    'stripe_coupon_id': trial.get('stripe_coupon_id'),
+                    'granted_by': trial.get('granted_by')
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'trial_used': False,
+                    'message': 'Trial available'
+                })
+    
+    except Exception as e:
+        app.logger.error(f"Trial status check error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route("/api/owner/trial/reset", methods=["POST"])
+@require_api_auth
+def api_owner_trial_reset(user_session):
+    """Owner-only API to reset trial usage for a server (allow re-use)"""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
+        
+        data = request.get_json()
+        guild_id = data.get('guild_id', '').strip()
+        
+        if not guild_id:
+            return jsonify({'success': False, 'error': 'Guild ID is required'}), 400
+        
+        with get_db() as conn:
+            cursor = conn.execute(
+                "DELETE FROM trial_usage WHERE guild_id = %s RETURNING id",
+                (guild_id,)
+            )
+            deleted = cursor.fetchone()
+            
+            if deleted:
+                app.logger.info(f"Trial reset for guild {guild_id} by owner {user_session.get('username')}")
+                return jsonify({
+                    'success': True,
+                    'message': f'Trial reset for server {guild_id}. They can now use the $5 first-month discount.'
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'message': 'No trial record found - server already has trial available.'
+                })
+    
+    except Exception as e:
+        app.logger.error(f"Trial reset error: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 @app.route("/api/owner/broadcast", methods=["POST"])
 @require_api_auth
 def api_owner_broadcast(user_session):

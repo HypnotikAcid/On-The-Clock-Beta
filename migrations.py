@@ -431,6 +431,25 @@ def run_migrations():
                     CREATE INDEX IF NOT EXISTS idx_email_outbox_guild
                     ON email_outbox(guild_id)
                 """)
+                
+                # 20. Create trial_usage table for tracking one-time $5 first-month trials
+                print("   Checking table: trial_usage")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS trial_usage (
+                        id SERIAL PRIMARY KEY,
+                        guild_id BIGINT NOT NULL UNIQUE,
+                        used_at TIMESTAMPTZ DEFAULT NOW(),
+                        stripe_coupon_id VARCHAR(50),
+                        stripe_checkout_session_id VARCHAR(255),
+                        granted_by BIGINT,
+                        grant_type VARCHAR(20) DEFAULT 'checkout'
+                    )
+                """)
+                
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_trial_usage_guild
+                    ON trial_usage(guild_id)
+                """)
 
         print("✅ Database schema is up to date")
         return True

@@ -1086,6 +1086,28 @@
                     </div>
                 </div>
                 
+                <!-- Trial Grant Panel -->
+                <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">🎟️</span>
+                        <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Trial Management</h3>
+                    </div>
+                    <p style="color: #8B949E; font-size: 12px; margin-bottom: 16px; line-height: 1.5;">
+                        Grant or reset 1-month trial ($5 first month). Each server gets one trial.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="tool-btn" onclick="grantTrial()" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #D4AF37, #B8860B);">
+                            Grant 1-Month Trial
+                        </button>
+                        <button class="tool-btn" onclick="checkTrialStatus()" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #8B949E, #6e7681);">
+                            Check Trial Status
+                        </button>
+                        <button class="tool-btn" onclick="resetTrial()" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #EF4444, #DC2626);">
+                            Reset Trial (Allow Re-use)
+                        </button>
+                    </div>
+                </div>
+                
             </div>
             
             <div id="quickGrantResult" class="tool-result" style="margin-top: 15px;"></div>
@@ -1774,6 +1796,164 @@
                 resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
                 resultDiv.style.color = '#FF6B6B';
                 resultDiv.textContent = 'Failed to grant access. Please try again.';
+            }
+        }
+
+        // Trial management functions
+        async function grantTrial() {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+            
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Granting trial...';
+            
+            try {
+                const response = await fetch('/api/owner/trial/grant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: guildId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
+                    resultDiv.textContent = data.message || 'Trial granted successfully!';
+                    clearServerSelection();
+                    guildIdInput.value = '';
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Grant trial error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to grant trial. Please try again.';
+            }
+        }
+        
+        async function checkTrialStatus() {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+            
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Checking trial status...';
+            
+            try {
+                const response = await fetch(`/api/owner/trial/status/${guildId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.trial_used) {
+                        resultDiv.style.background = 'rgba(255, 165, 0, 0.1)';
+                        resultDiv.style.border = '1px solid rgba(255, 165, 0, 0.3)';
+                        resultDiv.style.color = '#FFA500';
+                        resultDiv.textContent = `Trial already used on ${data.used_at} (${data.grant_type})`;
+                    } else {
+                        resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                        resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                        resultDiv.style.color = '#34D399';
+                        resultDiv.textContent = 'Trial available - server has not used their $5 first month yet';
+                    }
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Check trial error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to check trial status.';
+            }
+        }
+        
+        async function resetTrial() {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+            
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to reset the trial for this server? This will allow them to use the $5 first-month discount again.')) {
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Resetting trial...';
+            
+            try {
+                const response = await fetch('/api/owner/trial/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: guildId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
+                    resultDiv.textContent = data.message || 'Trial reset successfully!';
+                    clearServerSelection();
+                    guildIdInput.value = '';
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Reset trial error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to reset trial.';
             }
         }
 
