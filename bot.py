@@ -8513,9 +8513,29 @@ async def handle_check_user_admin(request: web.Request):
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+async def handle_health(request: web.Request):
+    """Health check endpoint for the bot API"""
+    auth_header = request.headers.get('Authorization', '')
+    expected_token = f'Bearer {BOT_API_SECRET}'
+    
+    if auth_header != expected_token:
+        return web.json_response({'healthy': False, 'error': 'Unauthorized'}, status=401)
+    
+    bot_ready = bot.is_ready() if bot else False
+    guild_count = len(bot.guilds) if bot and bot_ready else 0
+    
+    return web.json_response({
+        'healthy': bot_ready,
+        'message': f'Bot ready with {guild_count} guilds' if bot_ready else 'Bot not ready',
+        'guilds': guild_count,
+        'latency_ms': round(bot.latency * 1000, 2) if bot_ready else None
+    })
+
+
 async def start_bot_api_server():
     """Start aiohttp server for bot API endpoints"""
     app = web.Application()
+    app.router.add_get('/health', handle_health)
     app.router.add_post('/api/guild/{guild_id}/admin-roles/add', handle_add_admin_role)
     app.router.add_post('/api/guild/{guild_id}/admin-roles/remove', handle_remove_admin_role)
     app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
