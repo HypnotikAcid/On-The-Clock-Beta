@@ -8042,10 +8042,10 @@ async def context_view_hours(interaction: discord.Interaction, user: discord.Mem
     with db() as conn:
         cursor = conn.execute("""
             SELECT 
-                SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out, NOW()) - clock_in))/3600) as total_hours
-            FROM time_sessions
+                SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time))/3600) as total_hours
+            FROM timeclock_sessions
             WHERE guild_id = %s AND user_id = %s
-            AND clock_in > NOW() - INTERVAL '7 days'
+            AND clock_in_time > NOW() - INTERVAL '7 days'
         """, (interaction.guild_id, user.id))
         result = cursor.fetchone()
         hours = result['total_hours'] if result and result['total_hours'] else 0
@@ -8072,10 +8072,10 @@ async def context_force_clockout(interaction: discord.Interaction, user: discord
     # Find active session and clock out
     with db() as conn:
         cursor = conn.execute("""
-            UPDATE time_sessions 
-            SET clock_out = NOW()
-            WHERE guild_id = %s AND user_id = %s AND clock_out IS NULL
-            RETURNING id
+            UPDATE timeclock_sessions 
+            SET clock_out_time = NOW()
+            WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+            RETURNING session_id
         """, (interaction.guild_id, user.id))
         result = cursor.fetchone()
     
