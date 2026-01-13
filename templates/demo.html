@@ -27,7 +27,7 @@
             width: 100%;
             height: 100%;
             z-index: 0;
-            opacity: 0.12;
+            opacity: 0.15;
         }
 
         .clock-fade-mask {
@@ -37,7 +37,7 @@
             transform: translate(-50%, -50%);
             width: 600px;
             height: 600px;
-            background: radial-gradient(circle, rgba(10, 15, 31, 0.9) 0%, rgba(10, 15, 31, 0.6) 40%, transparent 70%);
+            background: radial-gradient(circle, rgba(10, 15, 31, 0.85) 0%, rgba(10, 15, 31, 0.5) 35%, transparent 65%);
             z-index: 1;
             pointer-events: none;
         }
@@ -52,18 +52,62 @@
         }
 
         .clock-container {
-            --clock-size: 450px;
+            --clock-size: 400px;
             position: relative;
             width: var(--clock-size);
             height: var(--clock-size);
-            opacity: 0.35;
+            opacity: 0.5;
         }
 
         .clock-face {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
-            filter: drop-shadow(0 0 40px rgba(0, 255, 255, 0.3)) drop-shadow(0 0 20px rgba(212, 175, 55, 0.2));
+            border-radius: 50%;
+            border: calc(var(--clock-size) * 0.02) solid rgba(0, 255, 255, 0.6);
+            background: transparent;
+            box-shadow: 
+                0 0 60px rgba(0, 255, 255, 0.3),
+                0 0 30px rgba(0, 255, 255, 0.2),
+                inset 0 0 40px rgba(0, 255, 255, 0.1),
+                inset 0 0 80px rgba(212, 175, 55, 0.05);
+        }
+
+        .clock-face::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 90%;
+            height: 90%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .hour-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: calc(var(--clock-size) * 0.008);
+            height: calc(var(--clock-size) * 0.06);
+            background: linear-gradient(to bottom, rgba(0, 255, 255, 0.8), rgba(0, 255, 255, 0.3));
+            transform-origin: 50% calc(var(--clock-size) * 0.43);
+            margin-left: calc(var(--clock-size) * -0.004);
+            margin-top: calc(var(--clock-size) * -0.43);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        }
+
+        .hour-marker.major {
+            width: calc(var(--clock-size) * 0.012);
+            height: calc(var(--clock-size) * 0.08);
+            margin-left: calc(var(--clock-size) * -0.006);
+            margin-top: calc(var(--clock-size) * -0.43);
+            background: linear-gradient(to bottom, #00FFFF, rgba(0, 255, 255, 0.5));
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.7);
         }
 
         .clock-hand {
@@ -71,49 +115,49 @@
             top: 50%;
             left: 50%;
             transform-origin: 50% 100%;
-            filter: drop-shadow(0 0 8px rgba(0, 255, 255, 0.8));
         }
 
         .hour-hand {
-            width: calc(var(--clock-size) * 0.02);
+            width: calc(var(--clock-size) * 0.025);
             height: calc(var(--clock-size) * 0.22);
             background: linear-gradient(to top, #00CED1, #00FFFF);
-            border-radius: calc(var(--clock-size) * 0.01);
-            margin-left: calc(var(--clock-size) * -0.01);
+            border-radius: calc(var(--clock-size) * 0.0125) calc(var(--clock-size) * 0.0125) 0 0;
+            margin-left: calc(var(--clock-size) * -0.0125);
             margin-top: calc(var(--clock-size) * -0.22);
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.9), 0 0 30px rgba(0, 255, 255, 0.5);
         }
 
         .minute-hand {
-            width: calc(var(--clock-size) * 0.012);
+            width: calc(var(--clock-size) * 0.015);
             height: calc(var(--clock-size) * 0.32);
             background: linear-gradient(to top, #D4AF37, #F4E5A1);
-            border-radius: calc(var(--clock-size) * 0.006);
-            margin-left: calc(var(--clock-size) * -0.006);
+            border-radius: calc(var(--clock-size) * 0.0075) calc(var(--clock-size) * 0.0075) 0 0;
+            margin-left: calc(var(--clock-size) * -0.0075);
             margin-top: calc(var(--clock-size) * -0.32);
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.8);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.9), 0 0 30px rgba(212, 175, 55, 0.5);
         }
 
         .second-hand {
-            width: calc(var(--clock-size) * 0.004);
-            height: calc(var(--clock-size) * 0.35);
+            width: calc(var(--clock-size) * 0.006);
+            height: calc(var(--clock-size) * 0.38);
             background: linear-gradient(to top, #FF6B6B, #FF4757);
-            border-radius: calc(var(--clock-size) * 0.002);
-            margin-left: calc(var(--clock-size) * -0.002);
-            margin-top: calc(var(--clock-size) * -0.35);
-            box-shadow: 0 0 8px rgba(255, 71, 87, 0.8);
+            border-radius: calc(var(--clock-size) * 0.003);
+            margin-left: calc(var(--clock-size) * -0.003);
+            margin-top: calc(var(--clock-size) * -0.38);
+            box-shadow: 0 0 12px rgba(255, 71, 87, 0.9), 0 0 25px rgba(255, 71, 87, 0.5);
         }
 
         .clock-center {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: calc(var(--clock-size) * 0.04);
-            height: calc(var(--clock-size) * 0.04);
+            width: calc(var(--clock-size) * 0.05);
+            height: calc(var(--clock-size) * 0.05);
             background: radial-gradient(circle, #00FFFF, #00CED1);
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 40px rgba(0, 255, 255, 0.6);
+            z-index: 10;
         }
 
         .content-wrapper {
@@ -269,7 +313,19 @@
     
     <div class="clock-background">
         <div class="clock-container" id="clockContainer">
-            <img src="/static/backgrounds/futuristic_transparent_alarm_clock.png" alt="Clock Face" class="clock-face">
+            <div class="clock-face"></div>
+            <div class="hour-marker major" style="transform: rotate(0deg);"></div>
+            <div class="hour-marker" style="transform: rotate(30deg);"></div>
+            <div class="hour-marker" style="transform: rotate(60deg);"></div>
+            <div class="hour-marker major" style="transform: rotate(90deg);"></div>
+            <div class="hour-marker" style="transform: rotate(120deg);"></div>
+            <div class="hour-marker" style="transform: rotate(150deg);"></div>
+            <div class="hour-marker major" style="transform: rotate(180deg);"></div>
+            <div class="hour-marker" style="transform: rotate(210deg);"></div>
+            <div class="hour-marker" style="transform: rotate(240deg);"></div>
+            <div class="hour-marker major" style="transform: rotate(270deg);"></div>
+            <div class="hour-marker" style="transform: rotate(300deg);"></div>
+            <div class="hour-marker" style="transform: rotate(330deg);"></div>
             <div class="hour-hand clock-hand" id="hourHand"></div>
             <div class="minute-hand clock-hand" id="minuteHand"></div>
             <div class="second-hand clock-hand" id="secondHand"></div>
@@ -281,19 +337,20 @@
         <div class="container">
             <header class="header">
                 <h1 class="logo-text">On the Clock</h1>
-                <div class="demo-badge">Background Demo v3 - Futuristic</div>
+                <div class="demo-badge">Background Demo v4 - Pure CSS Clock</div>
             </header>
 
             <p class="description">
                 A futuristic transparent clock floats above the matrix rain effect. 
-                Animated hands sync to your local time. The matrix fades softly behind the clock.
+                Built entirely with CSS - no images - for true transparency.
+                Animated hands sync to your local time.
             </p>
 
             <div class="time-display" id="timeDisplay">--:--:--</div>
 
             <div class="info-box">
-                <h3>Real-Time Sync</h3>
-                <p>The clock hands rotate to match your current time, updating every second.</p>
+                <h3>True Transparency</h3>
+                <p>Pure CSS clock face with neon glow - the matrix rain flows through perfectly.</p>
             </div>
 
             <div class="controls">
@@ -303,17 +360,17 @@
             </div>
 
             <div class="slider-control">
-                <label>Clock Opacity: <span id="opacityValue">35%</span></label>
-                <input type="range" class="slider" min="10" max="60" value="35" onchange="changeOpacity(this.value)">
+                <label>Clock Opacity: <span id="opacityValue">50%</span></label>
+                <input type="range" class="slider" min="20" max="80" value="50" onchange="changeOpacity(this.value)">
             </div>
 
             <div class="slider-control">
-                <label>Clock Size: <span id="sizeValue">450px</span></label>
-                <input type="range" class="slider" min="250" max="700" value="450" onchange="changeSize(this.value)">
+                <label>Clock Size: <span id="sizeValue">400px</span></label>
+                <input type="range" class="slider" min="200" max="600" value="400" onchange="changeSize(this.value)">
             </div>
 
             <div style="text-align: center;">
-                <a href="/" class="back-link">← Back to Landing Page</a>
+                <a href="/" class="back-link">&larr; Back to Landing Page</a>
             </div>
         </div>
     </div>
@@ -382,8 +439,8 @@
             clockContainer.style.setProperty('--clock-size', value + 'px');
             document.getElementById('sizeValue').textContent = value + 'px';
             const mask = document.querySelector('.clock-fade-mask');
-            mask.style.width = (parseInt(value) + 150) + 'px';
-            mask.style.height = (parseInt(value) + 150) + 'px';
+            mask.style.width = (parseInt(value) + 200) + 'px';
+            mask.style.height = (parseInt(value) + 200) + 'px';
         }
 
         updateClock();
