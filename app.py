@@ -247,7 +247,7 @@ Request Type: {request_label}
 
 Please review this request in the dashboard.
 
-- On the Clock Bot"""
+- Time Warden Bot"""
             
             import asyncio
             from email_utils import send_email
@@ -1269,7 +1269,7 @@ Stripe Session: {stripe_session_id}
 This purchase has been automatically processed and the customer should now have access.
 
 ---
-On the Clock Bot - Purchase Notification
+Time Warden Bot - Purchase Notification
 """
             
             try:
@@ -4770,7 +4770,7 @@ def purchase_page(guild_id):
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Get Bot Access - On the Clock</title>
+            <title>Get Bot Access - Time Warden</title>
             <style>
                 body {{
                     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -5615,10 +5615,10 @@ def api_add_email_recipient(user_session, guild_id):
             from email_utils import send_email
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            subject = "Verify your email for On the Clock"
+            subject = "Verify your email for Time Warden"
             text_content = f"""Hello!
 
-You've added this email to receive notifications from On the Clock.
+You've added this email to receive notifications from Time Warden.
 
 Your verification code is: {verification_code}
 
@@ -5626,7 +5626,7 @@ Enter this code in the dashboard to verify your email address.
 
 If you didn't request this, you can safely ignore this email.
 
-- On the Clock Bot"""
+- Time Warden Bot"""
             
             result = loop.run_until_complete(send_email(to=[email], subject=subject, text=text_content))
             loop.close()
@@ -5783,14 +5783,14 @@ def api_resend_verification(user_session, guild_id):
             from email_utils import send_email
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            subject = "Your new verification code for On the Clock"
+            subject = "Your new verification code for Time Warden"
             text_content = f"""Hello!
 
 Here's your new verification code: {verification_code}
 
 Enter this code in the dashboard to verify your email address.
 
-- On the Clock Bot"""
+- Time Warden Bot"""
             
             result = loop.run_until_complete(send_email(to=[email], subject=subject, text=text_content))
             loop.close()
@@ -5897,7 +5897,7 @@ def api_send_test_email(user_session, guild_id):
         import asyncio
         
         subject = f"Test Email - {guild_name}"
-        text_content = f"""Test Email from On the Clock
+        text_content = f"""Test Email from Time Warden
 
 This is a test email to confirm your email setup is working correctly.
 
@@ -5907,8 +5907,8 @@ Recipients: {', '.join(recipients)}
 If you received this email, your daily report emails are configured correctly!
 
 ---
-On the Clock Discord Bot
-https://on-the-clock.replit.app
+Time Warden Discord Bot
+https://time-warden.com
 """
         
         log_email_to_file(
@@ -7191,7 +7191,7 @@ def purchase_success():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Purchase Successful - On the Clock</title>
+        <title>Purchase Successful - Time Warden</title>
         <style>
             body {
                 font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
@@ -7260,7 +7260,7 @@ def purchase_cancel():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Purchase Cancelled - On the Clock</title>
+        <title>Purchase Cancelled - Time Warden</title>
         <style>
             body {
                 font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
@@ -9247,7 +9247,7 @@ User ID: {user_id}
 
 Please assist this employee in resetting their kiosk PIN.
 
-- On the Clock Bot"""
+- Time Warden Bot"""
                     
                     def send_notification():
                         loop = asyncio.new_event_loop()
@@ -9474,7 +9474,7 @@ def api_kiosk_send_shift_email(guild_id):
         html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f2e; color: #c9d1d9; padding: 30px; border-radius: 12px;">
             <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #D4AF37; margin: 0;">On the Clock</h1>
+                <h1 style="color: #D4AF37; margin: 0;">Time Warden</h1>
                 <p style="color: #8b949e; margin: 5px 0 0 0;">{guild_name}</p>
             </div>
             
@@ -9505,7 +9505,7 @@ def api_kiosk_send_shift_email(guild_id):
             </div>
             
             <p style="color: #8b949e; font-size: 12px; text-align: center; margin-top: 30px;">
-                This is an automated message from On the Clock. Please do not reply to this email.
+                This is an automated message from Time Warden. Please do not reply to this email.
             </p>
         </div>
         """
@@ -9522,7 +9522,7 @@ Clock In: {clock_in_local.strftime('%I:%M %p')}
 Clock Out: {clock_out_local.strftime('%I:%M %p')}
 Total Time: {duration_str}
 
-This is an automated message from On the Clock.
+This is an automated message from Time Warden.
         """
         
         # Send email

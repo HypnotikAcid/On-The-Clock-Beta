@@ -292,7 +292,7 @@ def get_domain() -> str:
     # Check if we're in production mode
     if os.getenv('REPLIT_ENVIRONMENT') == 'production':
         # In production, use the published domain
-        return 'on-the-clock.replit.app'
+        return 'time-warden.com'
     else:
         # In development, use the dev domain
         domains = os.getenv('REPLIT_DOMAINS', '')
@@ -310,7 +310,7 @@ def generate_dashboard_deeplink(guild_id: int, user_id: int, page: str, secret: 
     signature = hashlib.sha256(f"{data}:{secret}".encode()).hexdigest()[:16]
     
     # Build URL
-    base_url = "https://on-the-clock.replit.app"
+    base_url = "https://time-warden.com"
     return f"{base_url}/deeplink/{page}?guild={guild_id}&user={user_id}&t={timestamp}&sig={signature}"
 
 
@@ -3379,7 +3379,7 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         )
         
         # Get the dashboard URL dynamically
-        dashboard_url = os.getenv("REPLIT_DEV_DOMAIN", "on-the-clock.replit.app")
+        dashboard_url = os.getenv("REPLIT_DEV_DOMAIN", "time-warden.com")
         if not dashboard_url.startswith("http"):
             dashboard_url = f"https://{dashboard_url}"
         
@@ -5952,7 +5952,7 @@ class SetupInstructionsView(discord.ui.View):
 # --- Timeclock Hub View (Bulletproof Button Persistence) ---
 # Uses stable custom_ids with "tc:" prefix for maximum reliability
 SUPPORT_DISCORD_URL = "https://discord.gg/KdTRTqdPcj"
-LANDING_PAGE_URL = "https://on-the-clock.replit.app"
+LANDING_PAGE_URL = "https://time-warden.com"
 
 class TimeclockHubView(discord.ui.View):
     """
@@ -6692,7 +6692,7 @@ async def on_ready():
 def create_setup_embed() -> discord.Embed:
     """Create the setup instructions embed (reusable for DMs and button responses)"""
     embed = discord.Embed(
-        title="⏰ Welcome to On the Clock!",
+        title="⏰ Welcome to Time Warden!",
         description=(
             "Thanks for adding our professional Discord timeclock bot to your server!\n\n"
             "**⚠️ Free mode is for testing - data is auto-deleted after 24 hours.**"
@@ -6714,7 +6714,7 @@ def create_setup_embed() -> discord.Embed:
     embed.add_field(
         name="🚀 Quick Setup Guide",
         value=(
-            "1️⃣ **Visit the Dashboard:** Log in at https://on-the-clock.replit.app\n"
+            "1️⃣ **Visit the Dashboard:** Log in at https://time-warden.com\n"
             "2️⃣ **Set Employee Roles:** Add roles that can use the timeclock\n"
             "3️⃣ **Set Admin Roles** (optional): Add roles for report/settings access\n"
             "4️⃣ **Start Tracking:** Use `/clock` to get your timeclock interface\n\n"
@@ -6998,10 +6998,10 @@ async def on_member_join(member):
     
     try:
         # Use production URL for OAuth compatibility
-        dashboard_url = "https://on-the-clock.replit.app"
+        dashboard_url = "https://time-warden.com"
         
         embed = discord.Embed(
-            title="Welcome to On The Clock!",
+            title="Welcome to Time Warden!",
             description="Thanks for checking out our Discord timeclock bot! You now have demo access to explore all features.",
             color=0xFFC107
         )
@@ -7020,7 +7020,7 @@ async def on_member_join(member):
             value="Check the server channels for FAQs or ask in chat!",
             inline=False
         )
-        embed.set_footer(text="On the Clock - Professional Time Tracking for Discord Teams")
+        embed.set_footer(text="Time Warden - Professional Time Tracking for Discord Teams")
         
         await member.send(embed=embed)
         print(f"✅ Sent welcome DM to {member.display_name}")
@@ -7117,7 +7117,7 @@ async def setup(interaction: discord.Interaction):
         payment_url = f"https://{get_domain()}/upgrade"
         
         embed = discord.Embed(
-            title="⏰ Welcome to On the Clock!",
+            title="⏰ Welcome to Time Warden!",
             description="Complete onboarding guide for setting up your timeclock bot",
             color=discord.Color.blue()
         )
@@ -7422,7 +7422,7 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(
         name="🌐 Dashboard Features",
         value=(
-            "**[on-the-clock.replit.app/dashboard](https://on-the-clock.replit.app/dashboard)**\n\n"
+            "**[time-warden.com/dashboard](https://time-warden.com/dashboard)**\n\n"
             "• **Role Management** - Set admin & employee roles\n"
             "• **Team Management** - Manage your team\n"
             "• **Time Adjustments** - Review & approve corrections\n"
