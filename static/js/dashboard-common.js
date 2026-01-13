@@ -31,23 +31,29 @@ function toggleMatrix() {
     }
 }
 
-// Initialize state on page load
-document.addEventListener('DOMContentLoaded', () => {
-    const isHidden = localStorage.getItem('matrixHidden') === 'true';
-    const text = document.getElementById('matrix-toggle-text');
-    const knob = document.getElementById('matrix-toggle-knob');
-    const container = document.getElementById('matrix-container');
-    
-    if (isHidden) {
-        if (container) container.style.display = 'none';
-        if (text) text.innerText = 'Enter The Matrix';
-        if (knob) {
-            knob.style.left = '3px';
-            knob.style.right = 'auto';
-            knob.style.boxShadow = 'none';
+    // Initialize state on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const isHidden = localStorage.getItem('matrixHidden') === 'true';
+        const text = document.getElementById('matrix-toggle-text');
+        const knob = document.getElementById('matrix-toggle-knob');
+        const container = document.getElementById('matrix-container');
+        
+        if (isHidden) {
+            if (container) container.style.display = 'none';
+            if (text) text.innerText = 'Enter The Matrix';
+            if (knob) {
+                knob.style.left = '3px';
+                knob.style.right = 'auto';
+                knob.style.boxShadow = 'none';
+            }
+        } else {
+            // ONLY start matrix if we are on a page that supports it (has canvas)
+            const canvas = document.getElementById('matrix-canvas');
+            if (canvas && typeof window.startDashboardMatrix === 'function') {
+                window.startDashboardMatrix();
+            }
         }
-    }
-});
+    });
 
 function escapeHtml(text) {
     if (text === null || text === undefined) return '';
