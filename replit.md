@@ -24,6 +24,7 @@ Preferred communication style: Simple, everyday language.
 - **Demo Data Seeding**: Owner-only endpoint `/debug/seed-demo-data` (POST) seeds sample employees, timeclock sessions, and adjustment requests for the demo server. All IDs must use integer types to match BIGINT database columns.
 - **Demo Auto-Reset**: APScheduler job resets demo server data daily at midnight UTC. `last_demo_reset` timestamp stored in `guild_settings` and displayed in demo mode toggle panel.
 - **Guided Tour System**: `dashboard-tour.js` provides spotlight/tooltip onboarding walkthrough. Uses localStorage to track completion status. Auto-starts for new users, manual trigger via "Take the Tour" sidebar button. Role-specific tours track completion via `otcTour_admin_completed` and `otcTour_employee_completed` keys.
+- **Mode Discipline**: When using the trigger prompt ("Read replit.md first, then plan this request. Split tasks by mode..."), the agent MUST create a task list split by mode (Quick Edit vs Build), then STOP and WAIT for mode confirmation before executing. Quick Edit tasks execute only in Quick Edit mode; Build tasks wait for Build mode. Never execute all tasks in a single mode.
 
 # System Architecture
 ## Bot Framework

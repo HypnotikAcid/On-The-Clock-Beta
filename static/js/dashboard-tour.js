@@ -171,6 +171,22 @@ const DashboardTour = {
         this.overlay.addEventListener('click', (e) => {
             if (e.target === this.overlay.querySelector('.tour-backdrop')) this.end();
         });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (!this.isActive) return;
+            if (e.key === 'Escape') {
+                if (this.lightbox.style.display === 'flex') {
+                    this.hideLightbox();
+                } else {
+                    this.end();
+                }
+            } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+                this.next();
+            } else if (e.key === 'ArrowLeft') {
+                this.prev();
+            }
+        });
     },
     
     start(role = 'admin') {
@@ -200,8 +216,17 @@ const DashboardTour = {
         this.spotlight.style.width = `${rect.width + 16}px`;
         this.spotlight.style.height = `${rect.height + 16}px`;
         
+        this.tooltip.querySelector('.tour-step-indicator').textContent = `Step ${this.currentStep + 1} of ${this.steps.length}`;
         this.tooltip.querySelector('.tour-title').textContent = step.title;
         this.tooltip.querySelector('.tour-content').textContent = step.content;
+        
+        // Update prev button visibility
+        const prevBtn = this.tooltip.querySelector('.tour-btn-prev');
+        prevBtn.style.display = this.currentStep === 0 ? 'none' : 'inline-block';
+        
+        // Update next button text on last step
+        const nextBtn = this.tooltip.querySelector('.tour-btn-next');
+        nextBtn.textContent = this.currentStep === this.steps.length - 1 ? 'Finish' : 'Next';
         
         const previewLink = this.tooltip.querySelector('.tour-preview-link');
         if (step.preview) {
@@ -229,6 +254,13 @@ const DashboardTour = {
 
     hideLightbox() {
         this.lightbox.style.display = 'none';
+    },
+
+    prev() {
+        if (this.currentStep > 0) {
+            this.currentStep--;
+            this.showStep();
+        }
     },
 
     next() {
