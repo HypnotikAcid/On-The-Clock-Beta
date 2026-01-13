@@ -3193,18 +3193,12 @@ def debug_checklist(user_session):
     return jsonify({'checks': checks})
 
 
-@app.route("/debug/seed-demo-data", methods=["POST"])
-@require_auth
-def debug_seed_demo_data(user_session):
-    """Seed demo data for the demo server (owner only)"""
-    from datetime import timedelta
+def seed_demo_data_internal():
+    """Internal function to seed demo data for the demo server."""
+    from datetime import datetime, timedelta, timezone
     import random
     
-    bot_owner_id = str(os.getenv("BOT_OWNER_ID", "107103438139056128"))
-    if str(user_session['user_id']) != bot_owner_id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
-    demo_server_id_int = int(DEMO_SERVER_ID)
+    demo_guild_id = 1419894879894507661
     demo_employees = [
         {'user_id': 100000000000000001, 'display_name': 'Alex Manager', 'full_name': 'Alex Thompson', 'first_name': 'Alex', 'last_name': 'Thompson', 'email': 'alex.demo@ontheclock.app', 'position': 'Store Manager', 'department': 'Management', 'company_role': 'Manager', 'bio': 'Demo manager account - 5 years with the company', 'role_tier': 'admin'},
         {'user_id': 100000000000000002, 'display_name': 'Jordan Sales', 'full_name': 'Jordan Rivera', 'first_name': 'Jordan', 'last_name': 'Rivera', 'email': 'jordan.demo@ontheclock.app', 'position': 'Sales Associate', 'department': 'Sales', 'company_role': 'Employee', 'bio': 'Top performer in sales department', 'role_tier': 'employee'},
@@ -3215,24 +3209,33 @@ def debug_seed_demo_data(user_session):
     
     try:
         with get_db() as conn:
-            employees_created = 0
-            sessions_created = 0
-            requests_created = 0
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             
+            # 1. Seed Employees
             for emp in demo_employees:
                 conn.execute("""
                     INSERT INTO employee_profiles (guild_id, user_id, display_name, full_name, first_name, last_name, email, position, department, company_role, bio, role_tier, is_active, profile_setup_completed, hire_date)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE, %s)
-                    ON CONFLICT (guild_id, user_id) DO UPDATE SET display_name = EXCLUDED.display_name, full_name = EXCLUDED.full_name, first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, email = EXCLUDED.email, position = EXCLUDED.position, department = EXCLUDED.department, company_role = EXCLUDED.company_role, bio = EXCLUDED.bio, role_tier = EXCLUDED.role_tier, is_active = TRUE, profile_setup_completed = TRUE
-                """, (demo_server_id_int, emp['user_id'], emp['display_name'], emp['full_name'], emp['first_name'], emp['last_name'], emp['email'], emp['position'], emp['department'], emp['company_role'], emp['bio'], emp['role_tier'], now - timedelta(days=random.randint(30, 365))))
-                employees_created += 1
+                    ON CONFLICT (guild_id, user_id) DO UPDATE SET 
+                        display_name = EXCLUDED.display_name, 
+                        full_name = EXCLUDED.full_name, 
+                        first_name = EXCLUDED.first_name, 
+                        last_name = EXCLUDED.last_name, 
+                        email = EXCLUDED.email, 
+                        position = EXCLUDED.position, 
+                        department = EXCLUDED.department, 
+                        company_role = EXCLUDED.company_role, 
+                        bio = EXCLUDED.bio, 
+                        role_tier = EXCLUDED.role_tier, 
+                        is_active = TRUE, 
+                        profile_setup_completed = TRUE
+                """, (demo_guild_id, emp['user_id'], emp['display_name'], emp['full_name'], emp['first_name'], emp['last_name'], emp['email'], emp['position'], emp['department'], emp['company_role'], emp['bio'], emp['role_tier'], now - timedelta(days=random.randint(30, 365))))
             
+            # 2. Clear and Seed Sessions
             demo_user_ids = [e['user_id'] for e in demo_employees]
-            conn.execute("DELETE FROM timeclock_sessions WHERE guild_id = %s AND user_id = ANY(%s)", (demo_server_id_int, demo_user_ids))
+            conn.execute("DELETE FROM timeclock_sessions WHERE guild_id = %s AND user_id = ANY(%s)", (demo_guild_id, demo_user_ids))
             
-            session_data = []
-            for emp in demo_employees:
+            for emp_id in demo_user_ids:
                 work_days = random.randint(15, 25)
                 for day_offset in range(30, 0, -1):
                     if random.random() > (work_days / 30.0):
@@ -3245,53 +3248,56 @@ def debug_seed_demo_data(user_session):
                     clock_in = work_date.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
                     shift_length = random.uniform(4, 9)
                     clock_out = clock_in + timedelta(hours=shift_length)
-                    if random.random() < 0.15:
-                        clock_out -= timedelta(hours=random.uniform(0.5, 1.0))
-                    session_data.append((demo_server_id_int, emp['user_id'], clock_in, clock_out))
-                    sessions_created += 1
+                    conn.execute("INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time, clock_out_time) VALUES (%s, %s, %s, %s)", (demo_guild_id, emp_id, clock_in.isoformat(), clock_out.isoformat()))
             
-            for s in session_data:
-                conn.execute("INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time, clock_out_time) VALUES (%s, %s, %s, %s)", s)
+            # 3. Add one active session
+            active_emp = random.choice(demo_employees[1:])
+            today_start = now.replace(hour=random.randint(7, 10), minute=random.choice([0, 15, 30]), second=0, microsecond=0)
+            conn.execute("INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time, clock_out_time) VALUES (%s, %s, %s, NULL)", (demo_guild_id, active_emp['user_id'], today_start.isoformat()))
             
-            if random.random() > 0.3:
-                active_emp = random.choice(demo_employees[1:])
-                today_start = now.replace(hour=random.randint(7, 10), minute=random.choice([0, 15, 30]), second=0, microsecond=0)
-                conn.execute("INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time, clock_out_time) VALUES (%s, %s, %s, NULL)", (demo_server_id_int, active_emp['user_id'], today_start))
-                sessions_created += 1
-            
-            conn.execute("DELETE FROM time_adjustment_requests WHERE guild_id = %s AND user_id = ANY(%s)", (demo_server_id_int, demo_user_ids))
-            
+            # 4. Clear and Seed Adjustment Requests
+            conn.execute("DELETE FROM time_adjustment_requests WHERE guild_id = %s AND user_id = ANY(%s)", (demo_guild_id, demo_user_ids))
             request_scenarios = [
-                {'employee_idx': 1, 'request_type': 'add_session', 'reason': 'Forgot to clock in - was in morning meeting', 'status': 'pending', 'days_ago': 2},
-                {'employee_idx': 2, 'request_type': 'modify_clockout', 'reason': 'System logged me out early, worked until 5pm', 'status': 'pending', 'days_ago': 1},
-                {'employee_idx': 3, 'request_type': 'add_session', 'reason': 'Worked from home - forgot to use app', 'status': 'approved', 'days_ago': 5},
-                {'employee_idx': 4, 'request_type': 'modify_clockin', 'reason': 'Arrived 30 min early to help with shipment', 'status': 'denied', 'days_ago': 7}
+                {'employee_idx': 1, 'request_type': 'add_session', 'reason': 'Forgot to clock in - morning meeting', 'status': 'pending', 'days_ago': 2},
+                {'employee_idx': 2, 'request_type': 'modify_clockout', 'reason': 'System logged me out early', 'status': 'pending', 'days_ago': 1},
+                {'employee_idx': 3, 'request_type': 'add_session', 'reason': 'Worked from home', 'status': 'approved', 'days_ago': 5},
+                {'employee_idx': 4, 'request_type': 'modify_clockin', 'reason': 'Arrived early to help', 'status': 'denied', 'days_ago': 7}
             ]
-            
             for scenario in request_scenarios:
                 emp = demo_employees[scenario['employee_idx']]
                 request_date = now - timedelta(days=scenario['days_ago'])
-                requested_clock_in = request_date.replace(hour=9, minute=0, second=0, microsecond=0)
-                requested_clock_out = request_date.replace(hour=17, minute=0, second=0, microsecond=0)
-                reviewed_by = demo_employees[0]['user_id'] if scenario['status'] != 'pending' else None
-                reviewed_at = now - timedelta(days=scenario['days_ago'] - 1) if scenario['status'] != 'pending' else None
-                conn.execute("INSERT INTO time_adjustment_requests (guild_id, user_id, request_type, reason, status, requested_clock_in, requested_clock_out, reviewed_by, reviewed_at, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (demo_server_id_int, emp['user_id'], scenario['request_type'], scenario['reason'], scenario['status'], requested_clock_in, requested_clock_out, reviewed_by, reviewed_at, request_date))
-                requests_created += 1
+                req_in = request_date.replace(hour=9, minute=0, second=0, microsecond=0)
+                req_out = request_date.replace(hour=17, minute=0, second=0, microsecond=0)
+                rev_by = demo_employees[0]['user_id'] if scenario['status'] != 'pending' else None
+                rev_at = now - timedelta(days=scenario['days_ago'] - 1) if scenario['status'] != 'pending' else None
+                conn.execute("INSERT INTO time_adjustment_requests (guild_id, user_id, request_type, reason, status, requested_clock_in, requested_clock_out, reviewed_by, reviewed_at, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (demo_guild_id, emp['user_id'], scenario['request_type'], scenario['reason'], scenario['status'], req_in.isoformat(), req_out.isoformat(), rev_by, rev_at.isoformat() if rev_at else None, request_date.isoformat()))
+            
+            # 5. Track last reset
+            conn.execute("""
+                INSERT INTO guild_settings (guild_id, name, last_demo_reset)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (guild_id) DO UPDATE SET last_demo_reset = EXCLUDED.last_demo_reset
+            """, (demo_guild_id, "On The Clock Demo", now.isoformat()))
             
             conn.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Demo data seeded successfully',
-            'details': {
-                'employees': employees_created,
-                'sessions': sessions_created,
-                'adjustment_requests': requests_created
-            }
-        })
+            return True
     except Exception as e:
-        app.logger.error(f"Error seeding demo data: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"Error seeding demo data: {e}")
+        return False
+
+@app.route("/debug/seed-demo-data", methods=["POST"])
+@require_auth
+def debug_seed_demo_data(user_session):
+    """Owner-only endpoint to manually seed demo data."""
+    bot_owner_id = str(os.getenv("BOT_OWNER_ID", "107103438139056128"))
+    if str(user_session['user_id']) != bot_owner_id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    success = seed_demo_data_internal()
+    if success:
+        return jsonify({'success': True, 'message': 'Demo data seeded successfully'}), 200
+    else:
+        return jsonify({'success': False, 'error': 'Seeding failed'}), 500
 
 
 @app.route("/api/owner/grant-access", methods=["POST"])

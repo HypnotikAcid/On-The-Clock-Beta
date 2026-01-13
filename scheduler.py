@@ -474,6 +474,19 @@ async def process_email_outbox():
     except Exception as e:
         logger.error(f"❌ Email outbox processing failed: {e}")
 
+async def reset_demo_data_job():
+    """Job to reset demo server data by calling the internal seeding function."""
+    logger.info("🔄 Running scheduled demo data reset...")
+    try:
+        from app import seed_demo_data_internal
+        success = seed_demo_data_internal()
+        if success:
+            logger.info("✅ Demo data reset successfully")
+        else:
+            logger.error("❌ Demo data reset failed")
+    except Exception as e:
+        logger.error(f"❌ Error during demo data reset job: {e}")
+
 
 def start_scheduler(bot=None):
     """Initialize and start the scheduler
@@ -513,6 +526,15 @@ def start_scheduler(bot=None):
         trigger=CronTrigger(second='*/30'),  # Every 30 seconds
         id='process_email_outbox',
         name='Process pending emails from outbox',
+        replace_existing=True
+    )
+    
+    # Scheduled job to reset demo server data every 24 hours
+    scheduler.add_job(
+        reset_demo_data_job,
+        trigger=CronTrigger(hour=0, minute=0),  # Every day at midnight
+        id='reset_demo_data',
+        name='Auto-reset demo server data',
         replace_existing=True
     )
     
