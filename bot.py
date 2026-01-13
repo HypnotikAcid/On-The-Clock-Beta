@@ -8117,7 +8117,7 @@ async def context_view_profile(interaction: discord.Interaction, user: discord.M
     await interaction.response.defer(ephemeral=True)
     
     # Check if invoker is admin or the user themselves
-    is_admin = interaction.user.guild_permissions.administrator
+    is_admin = isinstance(interaction.user, discord.Member) and interaction.user.guild_permissions.administrator
     is_self = interaction.user.id == user.id
     
     if not is_admin and not is_self:
@@ -8195,6 +8195,9 @@ async def context_send_shift_report(interaction: discord.Interaction, user: disc
         await interaction.followup.send(f"ℹ️ {user.display_name} has no sessions this week.", ephemeral=True)
         return
     
+    # Calculate total hours
+    total_hours = sum(s['hours'] or 0 for s in sessions)
+    
     if interaction.guild:
         server_name = interaction.guild.name
     else:
@@ -8211,15 +8214,17 @@ async def context_send_shift_report(interaction: discord.Interaction, user: disc
     report_lines.append(f"\nTotal Hours: {total_hours:.2f}")
     report_text = "\n".join(report_lines)
     
+    # Import at function level to avoid circular imports
+    from email_utils import queue_email
+    
     try:
-        from email_utils import queue_email
         for email in recipients:
             queue_email(
                 email_type="shift_report",
                 recipients=[email],
-                subject=f"Shift Report: {user.display_name} - {interaction.guild.name}",
-                content=report_text,
-                guild_id=str(guild_id)
+                subject=f"Shift Report: {user.display_name} - {server_name}",
+                text_content=report_text,
+                guild_id=int(guild_id) if guild_id else None
             )
         
         await interaction.followup.send(f"✅ Shift report for {user.display_name} queued for {len(recipients)} recipient(s).\n\n**Total Hours:** {total_hours:.2f}", ephemeral=True)
@@ -8419,12 +8424,12 @@ async def handle_send_onboarding(request: web.Request):
         
         print(f"📨 API: Sending onboarding DMs for guild {guild_id}")
         
-        guild = client.get_guild(guild_id)
+        guild = bot.get_guild(guild_id)
         if not guild:
             return web.json_response({'success': False, 'error': 'Guild not found'}, status=404)
         
         # Get all employee profiles for this guild
-        with get_db() as conn:
+        with db() as conn:
             cursor = conn.execute("""
                 SELECT user_id, display_name, full_name FROM employee_profiles
                 WHERE guild_id = %s AND is_active = TRUE
