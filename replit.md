@@ -5,7 +5,15 @@
 Preferred communication style: Simple, everyday language.
 
 # Agent Instructions & Workflow
-- **Version Update Workflow**: Whenever a task is completed, update `version.json` immediately. Move completed items from the conversation/todo list to `recent_updates` and increment the version number. This ensures the landing page roadmap is always current.
+- **Two-Tier Roadmap System**: When completing tasks, update BOTH files:
+  1. `version.json` - Technical/internal tracking (detailed, can include internal terminology)
+  2. `public_roadmap.json` - User-facing landing page (polished, marketing-friendly language)
+  - **Translation Rules**: Convert technical items to user-friendly descriptions. Examples:
+    - "Database Grandfathering Migration" → "Improved subscription management"
+    - "Owner Dashboard Tier Redesign" → "Enhanced admin controls"
+    - "Custom avatar field for employee profiles" → "Custom profile photos for employees"
+  - **Omit from public**: Never include in public_roadmap.json: monetization strategies (AdSense, ads), internal API names, database migrations, coupon codes, or debugging features.
+  - **Increment version** in both files when features are completed.
 - **Fast Mode Safety**: Only perform operations in Fast mode if they are 100% safe and straightforward (small CSS tweaks, minor copy changes, simple JSON updates). If a task requires complex logic, multi-file refactoring, or deep debugging, STOP and ask the user to switch to Autonomous mode. Never proceed with uncertain changes in Fast mode.
 
 # Lessons Learned & Best Practices
