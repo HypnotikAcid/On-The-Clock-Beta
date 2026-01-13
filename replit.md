@@ -4,12 +4,24 @@
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
+# Lessons Learned
+- **Workflow Rule**: ALWAYS read `replit.md` before making any code alterations or additions to ensure precise alignment with project vision and past learnings.
+- **Visual Identity**: The "Neon Cyber" theme with animated pure CSS clock and cyan matrix rain is the primary visual identity.
+- **Component Persistence**: Theme toggles or visual preferences must persist using `localStorage` to ensure a fluent experience across landing and dashboard pages.
+- **Accessibility**: Decorative visual elements like the background clock and matrix rain should always include `aria-hidden="true"`.
+- **Mobile First**: Interactive components like the roadmap accordion must be explicitly tested for auto-collapse behavior on mobile viewports.
+
 # System Architecture
 ## Bot Framework
-- **Technology**: Discord.py (version 2.3+), Python 3.x
-- **Architecture Pattern**: Event-driven bot integrating Discord bot and an internal HTTP API server within a Gunicorn-managed Flask application.
-- **UI/UX**: Static landing page and a route-based dashboard secured by Discord OAuth, offering role-differentiated views for Admins and Employees. Dashboard features consistent sidebar, header, and security checks via `dashboard_base.html` inheritance.
-- **Visual Identity**: Planned custom landing page backgrounds with clock-themed elements (floating clock faces, watch gears, hourglasses, punch cards) and smooth scrolling effects.
+... (existing content)
+- **Visual Identity**: Full-screen "Neon Cyber" theme centered around an animated, transparent CSS clock overlay (500px, 80% opacity) with cyan matrix rain background effects.
+- **Theme Palette**:
+    - Primary: Cyan (#00FFFF)
+    - Background: Deep Dark Blue (#0a0f1f)
+    - Accents: Gold (#D4AF37)
+    - Secondary: Neon Red (#FF4757)
+- **Matrix Toggle**: A persistent "Enter/Exit The Matrix" toggle in the top-right corner allows users to enable/disable the background effects project-wide.
+... (rest of existing content)
 - **Onboarding System**: Interactive dashboard guide (spotlight effects, speech bubbles) and automated welcome DMs for new employees, with first-time `/clock` guides.
 - **Route-Based Dashboard**: Dedicated routes for server overview, role management, email settings, timezone/schedule, employee status cards, individual employee profiles, clock interface, time adjustments, calendar, bans, and owner dashboard.
 - **Subscription Management**:
