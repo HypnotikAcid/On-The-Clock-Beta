@@ -1,17 +1,18 @@
 {
-  "version": "1.5.2",
+  "version": "1.5.3",
   "last_updated": "2026-01-12",
   "recent_updates": [
+    "Revised pricing model: Free, Premium ($8/mo), and Pro tiers",
+    "Introduced $5 Beta Special (1-month full access trial)",
     "Added visual loading states to landing page buttons",
     "Implemented a smooth 'scroll to top' feature for better navigation",
-    "Updated 'Get Started' guide to highlight the /setup command",
-    "Unified application versioning system (sourced from version.json)",
     "Optimized kiosk employee loading with CTE for 10x better performance"
   ],
   "roadmap": [
+    "Google AdSense integration for free tier",
+    "Enhanced employee profile setup with phone/contact fields",
     "Mobile-responsive kiosk UI improvements",
     "Shift scheduling and rotation management",
-    "Enhanced payroll export formats (CSV, PDF, Excel)",
-    "Multi-language support for the web dashboard"
+    "Enhanced payroll export formats (CSV, PDF, Excel)"
   ]
 }
