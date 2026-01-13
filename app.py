@@ -6253,11 +6253,10 @@ def api_update_employee_profile(user_session, guild_id, user_id):
                         return jsonify({'success': False, 'error': 'Invalid phone number'}), 400
                 if field == 'avatar_choice' and value:
                     # Validate avatar choice against allowed list
-                    allowed_avatars = ['discord', 'random', 'steampunk_brass', 'steampunk_silver', 'steampunk_rose',
-                                       'gothic_purple', 'gothic_red', 'gothic_teal', 'neon_cyan', 'neon_pink', 
-                                       'neon_green', 'minimalist_white', 'minimalist_black', 'minimalist_blue',
-                                       'vintage_cream', 'vintage_green', 'vintage_burgundy', 'nature_green', 
-                                       'nature_pink', 'nature_blue']
+                    allowed_avatars = ['discord', 'random', 'superhero', 'ninja', 'pirate', 'astronaut',
+                                       'wizard', 'unicorn', 'dinosaur', 'robot', 'skater', 'beach',
+                                       'pumpkin', 'vampire', 'ghost', 'santa', 'snowman', 'cupid', 
+                                       'leprechaun', 'bunny']
                     if value not in allowed_avatars:
                         return jsonify({'success': False, 'error': 'Invalid avatar choice'}), 400
                 if field == 'profile_background' and value:

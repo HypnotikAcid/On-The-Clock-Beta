@@ -20,12 +20,11 @@
         </div>
         <div class="avatar-categories">
             <button class="category-btn active" data-category="all">All</button>
-            <button class="category-btn" data-category="steampunk">Steampunk</button>
-            <button class="category-btn" data-category="gothic">Gothic</button>
-            <button class="category-btn" data-category="neon">Neon</button>
-            <button class="category-btn" data-category="minimalist">Minimalist</button>
-            <button class="category-btn" data-category="vintage">Vintage</button>
-            <button class="category-btn" data-category="nature">Nature</button>
+            <button class="category-btn" data-category="adventure">Adventure</button>
+            <button class="category-btn" data-category="fantasy">Fantasy</button>
+            <button class="category-btn" data-category="fun">Fun</button>
+            <button class="category-btn" data-category="halloween">Halloween</button>
+            <button class="category-btn" data-category="holiday">Holiday</button>
         </div>
         <div class="avatar-grid" id="avatar-grid"></div>
         <div class="avatar-modal-footer">
@@ -551,24 +550,24 @@ const profileUserId = '{{ profile_user_id }}';
 const isOwnProfile = {{ 'true' if is_own_profile else 'false' }};
 
 const AVATAR_OPTIONS = [
-    { id: 'steampunk_brass', name: 'Steampunk Brass', category: 'steampunk', url: '/static/avatars/steampunk_brass_clock_avatar.png' },
-    { id: 'steampunk_silver', name: 'Steampunk Silver', category: 'steampunk', url: '/static/avatars/steampunk_silver_clock_avatar.png' },
-    { id: 'steampunk_rose', name: 'Steampunk Rose Gold', category: 'steampunk', url: '/static/avatars/steampunk_rose_gold_avatar.png' },
-    { id: 'gothic_purple', name: 'Gothic Purple', category: 'gothic', url: '/static/avatars/gothic_purple_clock_avatar.png' },
-    { id: 'gothic_red', name: 'Gothic Red', category: 'gothic', url: '/static/avatars/gothic_red_clock_avatar.png' },
-    { id: 'gothic_teal', name: 'Gothic Teal', category: 'gothic', url: '/static/avatars/gothic_teal_clock_avatar.png' },
-    { id: 'neon_cyan', name: 'Neon Cyan', category: 'neon', url: '/static/avatars/neon_cyan_clock_avatar.png' },
-    { id: 'neon_pink', name: 'Neon Pink', category: 'neon', url: '/static/avatars/neon_pink_clock_avatar.png' },
-    { id: 'neon_green', name: 'Neon Green', category: 'neon', url: '/static/avatars/neon_green_clock_avatar.png' },
-    { id: 'minimalist_white', name: 'Minimalist White', category: 'minimalist', url: '/static/avatars/minimalist_white_clock_avatar.png' },
-    { id: 'minimalist_black', name: 'Minimalist Black', category: 'minimalist', url: '/static/avatars/minimalist_black_clock_avatar.png' },
-    { id: 'minimalist_blue', name: 'Minimalist Blue', category: 'minimalist', url: '/static/avatars/minimalist_blue_clock_avatar.png' },
-    { id: 'vintage_cream', name: 'Vintage Cream', category: 'vintage', url: '/static/avatars/vintage_cream_clock_avatar.png' },
-    { id: 'vintage_green', name: 'Vintage Green', category: 'vintage', url: '/static/avatars/vintage_green_clock_avatar.png' },
-    { id: 'vintage_burgundy', name: 'Vintage Burgundy', category: 'vintage', url: '/static/avatars/vintage_burgundy_clock_avatar.png' },
-    { id: 'nature_green', name: 'Nature Sundial', category: 'nature', url: '/static/avatars/nature_sundial_green_avatar.png' },
-    { id: 'nature_pink', name: 'Crystal Garden', category: 'nature', url: '/static/avatars/nature_crystal_pink_avatar.png' },
-    { id: 'nature_blue', name: 'Ocean Coral', category: 'nature', url: '/static/avatars/nature_ocean_blue_avatar.png' }
+    { id: 'superhero', name: 'Superhero', category: 'adventure', url: '/static/avatars/superhero_clock_cartoon_avatar.png' },
+    { id: 'ninja', name: 'Ninja', category: 'adventure', url: '/static/avatars/ninja_clock_cartoon_avatar.png' },
+    { id: 'pirate', name: 'Pirate', category: 'adventure', url: '/static/avatars/pirate_clock_cartoon_avatar.png' },
+    { id: 'astronaut', name: 'Astronaut', category: 'adventure', url: '/static/avatars/astronaut_clock_cartoon_avatar.png' },
+    { id: 'wizard', name: 'Wizard', category: 'fantasy', url: '/static/avatars/wizard_clock_cartoon_avatar.png' },
+    { id: 'unicorn', name: 'Unicorn', category: 'fantasy', url: '/static/avatars/unicorn_clock_cartoon_avatar.png' },
+    { id: 'dinosaur', name: 'Dinosaur', category: 'fun', url: '/static/avatars/dinosaur_clock_cartoon_avatar.png' },
+    { id: 'robot', name: 'Robot', category: 'fun', url: '/static/avatars/robot_clock_cartoon_avatar.png' },
+    { id: 'skater', name: 'Skater', category: 'fun', url: '/static/avatars/skater_clock_cartoon_avatar.png' },
+    { id: 'beach', name: 'Beach Vibes', category: 'fun', url: '/static/avatars/beach_vacation_clock_avatar.png' },
+    { id: 'pumpkin', name: 'Pumpkin', category: 'halloween', url: '/static/avatars/halloween_pumpkin_clock_avatar.png' },
+    { id: 'vampire', name: 'Vampire', category: 'halloween', url: '/static/avatars/vampire_clock_cartoon_avatar.png' },
+    { id: 'ghost', name: 'Ghost', category: 'halloween', url: '/static/avatars/ghost_clock_cartoon_avatar.png' },
+    { id: 'santa', name: 'Santa', category: 'holiday', url: '/static/avatars/christmas_santa_clock_avatar.png' },
+    { id: 'snowman', name: 'Snowman', category: 'holiday', url: '/static/avatars/snowman_clock_cartoon_avatar.png' },
+    { id: 'cupid', name: 'Cupid', category: 'holiday', url: '/static/avatars/valentine_cupid_clock_avatar.png' },
+    { id: 'leprechaun', name: 'Leprechaun', category: 'holiday', url: '/static/avatars/st_patricks_leprechaun_avatar.png' },
+    { id: 'bunny', name: 'Easter Bunny', category: 'holiday', url: '/static/avatars/easter_bunny_clock_avatar.png' }
 ];
 
 let currentProfile = null;
