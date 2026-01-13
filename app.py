@@ -2106,6 +2106,17 @@ def dashboard_beta_settings(user_session, guild_id):
     if error:
         return error
     
+    # Fetch beta settings
+    with get_db() as conn:
+        cursor = conn.execute("SELECT beta_enabled, allow_kiosk_customization FROM guild_settings WHERE guild_id = %s", (guild_id,))
+        settings = cursor.fetchone()
+        
+    beta_enabled = settings['beta_enabled'] if settings else False
+    allow_kiosk_customization = settings['allow_kiosk_customization'] if settings else True
+
+    context['beta_enabled'] = beta_enabled
+    context['allow_kiosk_customization'] = allow_kiosk_customization
+    
     if context['user_role'] != 'admin':
         return redirect(f'/dashboard/server/{guild_id}')
     
@@ -5483,69 +5494,33 @@ def api_update_work_day_time(user_session, guild_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
-@app.route("/api/server/<guild_id>/mobile-restriction", methods=["POST"])
+@app.route("/api/server/<guild_id>/kiosk-customization", methods=["POST"])
 @require_paid_api_access
-def api_update_mobile_restriction(user_session, guild_id):
-    """API endpoint to update mobile device restriction setting"""
+def api_update_kiosk_customization(user_session, guild_id):
+    """API endpoint to update kiosk button customization setting"""
     try:
-        app.logger.info(f"≡ƒoº Mobile restriction API called for guild {guild_id}")
-        
-        # Verify user has access
         guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
-            app.logger.warning(f"[ERROR] Access denied for guild {guild_id}")
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
-        # Get mobile restriction setting from request
         data = request.get_json()
-        if data is None:
-            app.logger.error(f"[ERROR] Missing data in request for guild {guild_id}")
-            return jsonify({'success': False, 'error': 'Missing data'}), 400
+        if not data or 'allow_kiosk_customization' not in data:
+            return jsonify({'success': False, 'error': 'Missing setting'}), 400
         
-        restrict_mobile = bool(data.get('restrict_mobile', False))
-        app.logger.info(f"≡ƒô▒ Setting mobile restriction to {restrict_mobile} for guild {guild_id}")
+        allow_customization = bool(data['allow_kiosk_customization'])
         
-        # Update or insert mobile restriction setting
         with get_db() as conn:
-            # Ensure a record exists in server_subscriptions
-            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = %s", (int(guild_id),))
-            exists = cursor.fetchone()
+            conn.execute("""
+                INSERT INTO guild_settings (guild_id, allow_kiosk_customization)
+                VALUES (%s, %s)
+                ON CONFLICT (guild_id) DO UPDATE SET allow_kiosk_customization = EXCLUDED.allow_kiosk_customization
+            """, (guild_id, allow_customization))
             
-            if exists:
-                app.logger.info(f"≡ƒoa Updating existing record for guild {guild_id}")
-                conn.execute(
-                    "UPDATE server_subscriptions SET restrict_mobile_clockin = %s WHERE guild_id = %s",
-                    (restrict_mobile, int(guild_id))
-                )
-            else:
-                app.logger.info(f"Γ₧ò Inserting new record for guild {guild_id}")
-                # Insert new record with all required default values
-                conn.execute(
-                    """INSERT INTO server_subscriptions 
-                       (guild_id, tier, bot_access_paid, retention_tier, restrict_mobile_clockin) 
-                       VALUES (%s, 'free', FALSE, 'none', %s)""",
-                    (int(guild_id), restrict_mobile)
-                )
+            app.logger.info(f"[OK] Kiosk customization setting committed: {allow_customization} for guild {guild_id}")
             
-            # Verify the save
-            verify_cursor = conn.execute(
-                "SELECT restrict_mobile_clockin FROM server_subscriptions WHERE guild_id = %s",
-                (int(guild_id),)
-            )
-            verify_result = verify_cursor.fetchone()
-            if verify_result:
-                app.logger.info(f"[OK] Verified database value: {verify_result['restrict_mobile_clockin']} for guild {guild_id}")
-            
-            app.logger.info(f"[OK] Mobile restriction setting committed: {restrict_mobile} for guild {guild_id}")
-            
-            return jsonify({
-                'success': True, 
-                'message': 'Mobile restriction setting updated successfully',
-                'restrict_mobile': restrict_mobile
-            })
+            return jsonify({'success': True, 'allow_kiosk_customization': allow_customization})
     except Exception as e:
-        app.logger.error(f"[ERROR] Error updating mobile restriction: {str(e)}")
-        app.logger.error(traceback.format_exc())
+        app.logger.error(f"Error updating kiosk customization: {str(e)}")
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/email-recipients", methods=["GET"])

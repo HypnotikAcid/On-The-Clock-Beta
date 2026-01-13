@@ -12,6 +12,22 @@
     {# Kiosk Mode section hidden - feature only available to select beta partners #}
 
     <div class="tile">
+        <h2><span class="tile-icon">🧪</span>Kiosk Customization</h2>
+        <p class="tile-description">Allow employees to personalize their buttons on the kiosk screen with their profile theme.</p>
+        
+        <div class="beta-feature-item">
+            <div class="feature-info">
+                <span class="feature-name">Button Themes</span>
+                <span class="feature-description">Employees can set custom colors and backgrounds</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="allow_kiosk_customization" {% if allow_kiosk_customization %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="tile">
         <h2><span class="tile-icon">🧪</span>Beta Features</h2>
         <p class="tile-description">Try out new features before they're released</p>
         
@@ -253,6 +269,33 @@ async function copyKioskUrl() {
         } catch (e) {
             DashboardUtils.showNotification('Please copy the URL manually', 'error');
         }
+    }
+    // Handle kiosk customization toggle
+    const customizationToggle = document.getElementById('allow_kiosk_customization');
+    if (customizationToggle) {
+        customizationToggle.addEventListener('change', async function() {
+            try {
+                const response = await fetch(`/api/server/${guildId}/kiosk-customization`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allow_kiosk_customization: this.checked })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    DashboardUtils.showNotification(
+                        this.checked ? 'Kiosk customization enabled' : 'Kiosk customization disabled',
+                        'success'
+                    );
+                } else {
+                    this.checked = !this.checked;
+                    DashboardUtils.showNotification(data.error || 'Failed to update', 'error');
+                }
+            } catch (error) {
+                this.checked = !this.checked;
+                DashboardUtils.showNotification('Failed to update settings', 'error');
+            }
+        });
     }
 }
 
