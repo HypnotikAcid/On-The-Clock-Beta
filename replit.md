@@ -59,8 +59,9 @@ Preferred communication style: Simple, everyday language.
 - **Time Adjustment Requests**: Employees submit requests via dashboard, kiosk, or bot; admins approve/deny via dashboard calendar. Kiosk users can edit today's sessions and add missing entries with reasons.
 - **Kiosk Notification System**: Employee cards and info panel show alerts for missing email, pending adjustments, or missing punches.
 - **Broadcast Channel Configuration**: Admins configure bot announcement channel via dashboard.
-- **Email Verification**: 6-digit code verification for admin email recipients with attempt/resend limiting.
-- **Adjustment Notification Emails**: Verified email recipients receive asynchronous notifications for time adjustment requests.
+- **Profile & Kiosk Customization**: Employees can personalize their profiles with background themes and accent colors. These customizations sync to their kiosk buttons if the server-level `allow_kiosk_customization` setting is enabled.
+- **Theme Presets**: Multiple Neon Cyber themed gradients and accent colors available for profiles.
+- **Admin Control**: Admins can toggle employee customization on/off via the dashboard to maintain a uniform look if desired.
 
 ## Security Configuration
 - **Code Analysis**: Semgrep for static analysis and secret management.
