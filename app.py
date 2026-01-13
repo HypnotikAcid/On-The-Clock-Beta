@@ -375,7 +375,11 @@ def has_permission(permissions, permission_flag):
         return int(permissions) & permission_flag != 0
     except (ValueError, TypeError):
         return False
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+_session_secret = os.environ.get('SESSION_SECRET') or os.environ.get('SECRET_KEY')
+if not _session_secret:
+    print("[WARNING] Neither SESSION_SECRET nor SECRET_KEY is set - using random key (sessions will reset on restart)")
+    _session_secret = secrets.token_hex(32)
+app.secret_key = _session_secret
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
