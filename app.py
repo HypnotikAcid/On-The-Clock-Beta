@@ -6188,6 +6188,18 @@ def api_get_employee_profile(user_session, guild_id, user_id):
             clock_row = clock_cursor.fetchone()
             is_clocked_in = clock_row is not None
             
+            # Check server subscription tier for premium customization access
+            tier_cursor = conn.execute("""
+                SELECT COALESCE(tier, 'free') as tier, 
+                       COALESCE(retention_tier, 'free') as retention_tier,
+                       COALESCE(bot_access_paid, FALSE) as bot_access_paid,
+                       COALESCE(grandfathered, FALSE) as grandfathered
+                FROM server_subscriptions WHERE guild_id = %s
+            """, (int(guild_id),))
+            tier_row = tier_cursor.fetchone()
+            server_tier = tier_row['tier'] if tier_row else 'free'
+            has_pro_customization = server_tier == 'pro'
+            
             profile_data = {
                 'user_id': str(profile_row['user_id']),
                 'display_name': profile_row['display_name'] or profile_row['full_name'] or 'Unknown',
@@ -6219,7 +6231,13 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 }
             }
             
-            return jsonify({'success': True, 'profile': profile_data, 'is_own_profile': is_own_profile})
+            return jsonify({
+                'success': True, 
+                'profile': profile_data, 
+                'is_own_profile': is_own_profile,
+                'has_pro_customization': has_pro_customization,
+                'server_tier': server_tier
+            })
     except Exception as e:
         app.logger.error(f"Error fetching employee profile: {str(e)}")
         return jsonify({'success': False, 'error': 'Server error'}), 500
@@ -6246,8 +6264,34 @@ def api_update_employee_profile(user_session, guild_id, user_id):
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
         
-        # Fields that can be updated by employee (free tier can edit email/phone + customization)
-        allowed_fields = ['email', 'phone', 'avatar_choice', 'profile_background', 'catchphrase', 'selected_stickers']
+        # Check server subscription tier for premium customization access
+        with get_db() as conn:
+            tier_cursor = conn.execute("""
+                SELECT COALESCE(tier, 'free') as tier FROM server_subscriptions WHERE guild_id = %s
+            """, (int(guild_id),))
+            tier_row = tier_cursor.fetchone()
+            server_tier = tier_row['tier'] if tier_row else 'free'
+            has_pro_customization = server_tier == 'pro'
+        
+        # Basic fields available to all tiers (text-based info)
+        allowed_fields = ['email', 'phone', 'catchphrase']
+        
+        # Premium customization fields only for Pro tier
+        pro_only_fields = ['avatar_choice', 'profile_background', 'selected_stickers']
+        
+        # Check if trying to update Pro-only fields without Pro tier
+        for field in pro_only_fields:
+            if field in data and not has_pro_customization:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Profile customization requires Pro tier. Upgrade to unlock custom avatars, backgrounds, and stickers.',
+                    'upgrade_required': True
+                }), 403
+        
+        # Add Pro fields if server has Pro tier
+        if has_pro_customization:
+            allowed_fields.extend(pro_only_fields)
+        
         if is_admin:
             allowed_fields.extend(['hire_date', 'position', 'department', 'company_role'])
         
