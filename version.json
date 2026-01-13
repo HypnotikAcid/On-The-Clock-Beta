@@ -1,15 +1,15 @@
 {
-  "version": "1.5.3",
-  "last_updated": "2026-01-12",
+  "version": "1.5.4",
+  "last_updated": "2026-01-13",
   "recent_updates": [
+    "Updated landing page pricing section with new Free/Premium/Pro tiers",
+    "Added ad container infrastructure for free-tier dashboard users",
+    "Updated comparison table to reflect new feature breakdown",
     "Revised pricing model: Free, Premium ($8/mo), and Pro tiers",
-    "Introduced $5 Beta Special (1-month full access trial)",
-    "Added visual loading states to landing page buttons",
-    "Implemented a smooth 'scroll to top' feature for better navigation",
-    "Optimized kiosk employee loading with CTE for 10x better performance"
+    "Introduced $5 Beta Special (1-month full access trial)"
   ],
   "roadmap": [
-    "Google AdSense integration for free tier",
+    "Google AdSense script integration for free tier ads",
     "Enhanced employee profile setup with phone/contact fields",
     "Mobile-responsive kiosk UI improvements",
     "Shift scheduling and rotation management",

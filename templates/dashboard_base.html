@@ -131,6 +131,70 @@
         <main class="content-area">
             {% block content %}{% endblock %}
         </main>
+        
+        {% if server_settings and not server_settings.bot_access_paid %}
+        <div class="ad-container" id="dashboard-ad-container">
+            <div class="ad-placeholder">
+                <span class="ad-label">Advertisement</span>
+                <div class="ad-content">
+                    <a href="/auth/login" class="ad-upgrade-link">
+                        Upgrade to Premium for an ad-free experience
+                    </a>
+                </div>
+            </div>
+        </div>
+        <style>
+            .ad-container {
+                position: fixed;
+                bottom: 0;
+                left: 260px;
+                right: 0;
+                background: linear-gradient(180deg, rgba(22, 27, 34, 0.95), #161b22);
+                border-top: 1px solid rgba(212, 175, 55, 0.2);
+                padding: 12px 20px;
+                z-index: 100;
+                text-align: center;
+            }
+            .ad-placeholder {
+                max-width: 728px;
+                margin: 0 auto;
+            }
+            .ad-label {
+                font-size: 10px;
+                color: #6e7681;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                display: block;
+                margin-bottom: 4px;
+            }
+            .ad-content {
+                min-height: 50px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(30, 35, 45, 0.5);
+                border-radius: 8px;
+                border: 1px dashed rgba(212, 175, 55, 0.3);
+            }
+            .ad-upgrade-link {
+                color: #D4AF37;
+                text-decoration: none;
+                font-size: 14px;
+                transition: color 0.2s;
+            }
+            .ad-upgrade-link:hover {
+                color: #F4E5A1;
+            }
+            .content-area {
+                padding-bottom: 100px !important;
+            }
+            @media (max-width: 1024px) {
+                .ad-container {
+                    left: 0;
+                }
+            }
+        </style>
+        {% endif %}
     </div>
 
     <!-- Mobile hamburger button - always on top -->
