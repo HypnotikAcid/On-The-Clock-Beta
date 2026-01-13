@@ -6332,6 +6332,7 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 'tenure_text': tenure_text,
                 'avatar_choice': profile_row.get('avatar_choice') or 'random',
                 'profile_background': profile_row.get('profile_background') or 'default',
+                'accent_color': profile_row.get('accent_color') or 'cyan',
                 'catchphrase': profile_row.get('catchphrase') or '',
                 'selected_stickers': _parse_stickers(profile_row.get('selected_stickers')),
                 'stats': {
@@ -6392,7 +6393,7 @@ def api_update_employee_profile(user_session, guild_id, user_id):
         allowed_fields = ['email', 'phone', 'catchphrase']
         
         # Premium customization fields only for Pro tier
-        pro_only_fields = ['avatar_choice', 'profile_background', 'selected_stickers']
+        pro_only_fields = ['avatar_choice', 'profile_background', 'accent_color', 'selected_stickers']
         
         # Check if trying to update Pro-only fields without Pro tier
         for field in pro_only_fields:
@@ -6440,6 +6441,10 @@ def api_update_employee_profile(user_session, guild_id, user_id):
                                            'candy', 'aurora', 'cosmic', 'golden', 'mint', 'cherry']
                     if value not in allowed_backgrounds:
                         return jsonify({'success': False, 'error': 'Invalid background choice'}), 400
+                if field == 'accent_color' and value:
+                    allowed_accents = ['cyan', 'magenta', 'gold', 'green', 'blue', 'red', 'purple', 'teal']
+                    if value not in allowed_accents:
+                        return jsonify({'success': False, 'error': 'Invalid accent color'}), 400
                 if field == 'catchphrase' and value:
                     if len(value) > 50:
                         return jsonify({'success': False, 'error': 'Catchphrase too long (max 50 characters)'}), 400
@@ -8841,6 +8846,14 @@ def api_kiosk_employees(guild_id):
     """Get all employees for the kiosk display optimized with CTE"""
     try:
         with get_db() as conn:
+            # Check if kiosk customization is enabled for this guild
+            settings_cursor = conn.execute("""
+                SELECT COALESCE(allow_kiosk_customization, false) as allow_kiosk_customization
+                FROM guild_settings WHERE guild_id = %s
+            """, (int(guild_id),))
+            settings_row = settings_cursor.fetchone()
+            allow_kiosk_customization = settings_row['allow_kiosk_customization'] if settings_row else False
+            
             # Using CTE (Common Table Expression) to optimize subqueries
             # This allows us to calculate counts for all employees in one pass 
             # rather than running a subquery per row, which scales much better.
@@ -8861,7 +8874,7 @@ def api_kiosk_employees(guild_id):
                     GROUP BY user_id
                 )
                 SELECT ep.user_id, ep.display_name, ep.first_name, ep.last_name, ep.avatar_url,
-                       ep.position, ep.department, ep.email, ep.timesheet_email,
+                       ep.position, ep.department, ep.email, ep.timesheet_email, ep.accent_color,
                        EXISTS(SELECT 1 FROM employee_pins WHERE guild_id = %s AND user_id = ep.user_id) as has_pin,
                        EXISTS(SELECT 1 FROM timeclock_sessions WHERE guild_id = %s AND user_id::text = ep.user_id::text AND clock_out_time IS NULL) as is_clocked_in,
                        COALESCE(pc.count, 0) as pending_requests,
@@ -8892,10 +8905,15 @@ def api_kiosk_employees(guild_id):
                 'has_email': has_email,
                 'has_alerts': has_alerts,
                 'pending_requests': pending_requests,
-                'missing_punches': missing_punches
+                'missing_punches': missing_punches,
+                'accent_color': emp.get('accent_color') or 'cyan'
             })
         
-        return jsonify({'success': True, 'employees': employee_list})
+        return jsonify({
+            'success': True, 
+            'employees': employee_list,
+            'allow_kiosk_customization': allow_kiosk_customization
+        })
     except Exception as e:
         app.logger.error(f"Error fetching kiosk employees: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

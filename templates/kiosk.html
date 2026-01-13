@@ -157,6 +157,25 @@
             color: #8B949E;
         }
 
+        /* Accent color customization for employee buttons */
+        .employee-btn.accent-cyan { border-color: rgba(0, 255, 255, 0.5); box-shadow: 0 0 15px rgba(0, 255, 255, 0.3); }
+        .employee-btn.accent-magenta { border-color: rgba(255, 0, 255, 0.5); box-shadow: 0 0 15px rgba(255, 0, 255, 0.3); }
+        .employee-btn.accent-gold { border-color: rgba(212, 175, 55, 0.5); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); }
+        .employee-btn.accent-green { border-color: rgba(0, 255, 65, 0.5); box-shadow: 0 0 15px rgba(0, 255, 65, 0.3); }
+        .employee-btn.accent-blue { border-color: rgba(0, 119, 255, 0.5); box-shadow: 0 0 15px rgba(0, 119, 255, 0.3); }
+        .employee-btn.accent-red { border-color: rgba(255, 68, 68, 0.5); box-shadow: 0 0 15px rgba(255, 68, 68, 0.3); }
+        .employee-btn.accent-purple { border-color: rgba(157, 0, 255, 0.5); box-shadow: 0 0 15px rgba(157, 0, 255, 0.3); }
+        .employee-btn.accent-teal { border-color: rgba(0, 245, 255, 0.5); box-shadow: 0 0 15px rgba(0, 245, 255, 0.3); }
+        
+        .employee-btn.accent-cyan:hover { border-color: rgba(0, 255, 255, 0.8); box-shadow: 0 0 25px rgba(0, 255, 255, 0.5); }
+        .employee-btn.accent-magenta:hover { border-color: rgba(255, 0, 255, 0.8); box-shadow: 0 0 25px rgba(255, 0, 255, 0.5); }
+        .employee-btn.accent-gold:hover { border-color: rgba(212, 175, 55, 0.8); box-shadow: 0 0 25px rgba(212, 175, 55, 0.5); }
+        .employee-btn.accent-green:hover { border-color: rgba(0, 255, 65, 0.8); box-shadow: 0 0 25px rgba(0, 255, 65, 0.5); }
+        .employee-btn.accent-blue:hover { border-color: rgba(0, 119, 255, 0.8); box-shadow: 0 0 25px rgba(0, 119, 255, 0.5); }
+        .employee-btn.accent-red:hover { border-color: rgba(255, 68, 68, 0.8); box-shadow: 0 0 25px rgba(255, 68, 68, 0.5); }
+        .employee-btn.accent-purple:hover { border-color: rgba(157, 0, 255, 0.8); box-shadow: 0 0 25px rgba(157, 0, 255, 0.5); }
+        .employee-btn.accent-teal:hover { border-color: rgba(0, 245, 255, 0.8); box-shadow: 0 0 25px rgba(0, 245, 255, 0.5); }
+
         /* PIN Pad Screen - inherits display from .screen/.screen.active */
         .pin-screen.active {
             flex-direction: column;
@@ -1398,6 +1417,9 @@
         setInterval(updateClock, 1000);
         updateClock();
 
+        // Kiosk customization setting
+        let allowKioskCustomization = false;
+
         // Load employees
         async function loadEmployees() {
             showLoading(true);
@@ -1406,6 +1428,7 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    allowKioskCustomization = data.allow_kiosk_customization || false;
                     renderEmployees(data.employees);
                 } else {
                     showMessage('error', data.error || 'Failed to load employees');
@@ -1419,8 +1442,10 @@
 
         function renderEmployees(employees) {
             const grid = document.getElementById('employeeGrid');
-            grid.innerHTML = employees.map(emp => `
-                <button class="employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''}" onclick="selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+            grid.innerHTML = employees.map(emp => {
+                const accentClass = allowKioskCustomization ? `accent-${emp.accent_color || 'cyan'}` : '';
+                return `
+                <button class="employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''} ${accentClass}" onclick="selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
                     ${emp.has_alerts ? '<div class="email-alert-badge">!</div>' : ''}
                     <div class="employee-avatar">
                         ${emp.avatar_url ? `<img src="${emp.avatar_url}" alt="${emp.display_name}">` : emp.display_name.charAt(0).toUpperCase()}
@@ -1430,7 +1455,8 @@
                         ${emp.is_clocked_in ? 'Clocked In' : 'Clocked Out'}
                     </div>
                 </button>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function selectEmployee(employee) {

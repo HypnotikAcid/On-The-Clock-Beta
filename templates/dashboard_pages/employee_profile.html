@@ -599,6 +599,39 @@
 .bg-mint { background: linear-gradient(135deg, #00b09b, #96c93d); }
 .bg-cherry { background: linear-gradient(135deg, #eb3349, #f45c43); }
 
+.accent-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.accent-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.accent-option:hover {
+    transform: scale(1.15);
+}
+
+.accent-option.selected {
+    border-color: #fff;
+    transform: scale(1.1);
+}
+
+.accent-option.selected::after {
+    content: '✓';
+    position: absolute;
+    color: #000;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
 .profile-header.bg-sunset { background: linear-gradient(135deg, #f093fb, #f5576c) !important; }
 .profile-header.bg-ocean { background: linear-gradient(135deg, #4facfe, #00f2fe) !important; }
 .profile-header.bg-forest { background: linear-gradient(135deg, #11998e, #38ef7d) !important; }
@@ -776,8 +809,34 @@ const AVATAR_OPTIONS = [
 let currentProfile = null;
 let selectedAvatarId = null;
 let selectedBackground = 'default';
+let selectedAccentColor = 'cyan';
 let selectedStickers = [];
 let hasProCustomization = false;
+
+const ACCENT_COLOR_OPTIONS = [
+    { id: 'cyan', name: 'Neon Cyan', color: '#00FFFF' },
+    { id: 'magenta', name: 'Neon Pink', color: '#FF00FF' },
+    { id: 'gold', name: 'Cyber Gold', color: '#D4AF37' },
+    { id: 'green', name: 'Matrix Green', color: '#00FF41' },
+    { id: 'blue', name: 'Deep Ocean', color: '#0077FF' },
+    { id: 'red', name: 'Lava Red', color: '#FF4444' },
+    { id: 'purple', name: 'Violet Vibe', color: '#9D00FF' },
+    { id: 'teal', name: 'Electric Ice', color: '#00F5FF' }
+];
+
+function renderAccentColorOptions(currentColor) {
+    return ACCENT_COLOR_OPTIONS.map(c => 
+        `<div class="accent-option ${(currentColor || 'cyan') === c.id ? 'selected' : ''}" 
+              style="background-color: ${c.color}; box-shadow: 0 0 10px ${c.color};"
+              onclick="selectAccentColor('${c.id}')" title="${c.name}"></div>`
+    ).join('');
+}
+
+function selectAccentColor(colorId) {
+    selectedAccentColor = colorId;
+    document.querySelectorAll('.accent-option').forEach(opt => opt.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+}
 
 const STICKER_OPTIONS = [
     { id: 'star', name: 'Gold Star', url: '/static/stickers/gold_star_sticker.png' },
@@ -906,6 +965,7 @@ async function loadProfile() {
         const hasCustomAvatar = profile.avatar_choice && profile.avatar_choice !== 'random' && profile.avatar_choice !== 'discord';
         const bgClass = profile.profile_background && profile.profile_background !== 'default' ? `bg-${profile.profile_background}` : '';
         selectedBackground = profile.profile_background || 'default';
+        selectedAccentColor = profile.accent_color || 'cyan';
         selectedStickers = profile.selected_stickers || [];
         
         container.innerHTML = `
@@ -1037,6 +1097,13 @@ async function loadProfile() {
                         <span class="customization-label">Profile Background</span>
                         <div class="background-picker" id="background-picker">
                             ${renderBackgroundOptions(profile.profile_background)}
+                        </div>
+                    </div>
+                    
+                    <div class="customization-row">
+                        <span class="customization-label">Accent Color (Kiosk Button Glow)</span>
+                        <div class="accent-picker" id="accent-picker">
+                            ${renderAccentColorOptions(profile.accent_color)}
                         </div>
                     </div>
                     
@@ -1223,6 +1290,7 @@ async function saveCustomization() {
         
         if (hasProCustomization) {
             payload.profile_background = selectedBackground || 'default';
+            payload.accent_color = selectedAccentColor || 'cyan';
             payload.selected_stickers = selectedStickers;
         }
         
