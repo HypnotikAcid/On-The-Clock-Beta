@@ -37,6 +37,12 @@
         <button class="modal-close" onclick="closeDayDetailModal()">&times;</button>
         <h2 id="day-modal-title">Day Details</h2>
         <div id="day-modal-body">
+            <div class="employee-filter-wrapper" style="margin-bottom: 15px;">
+                <label for="day-employee-filter" style="color: #8B949E; font-size: 13px; margin-right: 8px;">Filter by Employee:</label>
+                <select id="day-employee-filter" class="form-select" style="max-width: 250px; display: inline-block;" onchange="filterDaySessions()">
+                    <option value="">All Employees</option>
+                </select>
+            </div>
             <div class="day-sessions-list" id="day-sessions-list"></div>
             <div class="add-session-section">
                 <h3>Add New Session</h3>
@@ -97,6 +103,7 @@ let selectedEntry = null;
 let currentView = 'master';
 let monthlyData = {};
 let selectedDate = null;
+let currentDaySessions = [];
 
 async function loadEmployees() {
     try {
@@ -269,6 +276,7 @@ function renderMasterCalendar() {
 
 async function openDayDetail(date) {
     selectedDate = date;
+    currentDaySessions = [];
     const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { 
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
     });
@@ -276,6 +284,7 @@ async function openDayDetail(date) {
     document.getElementById('day-modal-title').textContent = formattedDate;
     document.getElementById('day-detail-modal').style.display = 'flex';
     document.getElementById('day-sessions-list').innerHTML = '<p>Loading sessions...</p>';
+    document.getElementById('day-employee-filter').value = '';
     
     const clockInDefault = `${date}T09:00`;
     const clockOutDefault = `${date}T17:00`;
@@ -289,7 +298,9 @@ async function openDayDetail(date) {
         const data = await response.json();
         
         if (data.success) {
-            renderDaySessions(data.sessions || []);
+            currentDaySessions = data.sessions || [];
+            populateDayEmployeeFilter();
+            renderDaySessions();
         } else {
             console.error('API error:', data.error);
             document.getElementById('day-sessions-list').innerHTML = `<p>Failed to load sessions: ${DashboardUtils.escapeHtml(data.error || 'Unknown error')}</p>`;
@@ -300,11 +311,38 @@ async function openDayDetail(date) {
     }
 }
 
-function renderDaySessions(sessions) {
+function populateDayEmployeeFilter() {
+    const filterSelect = document.getElementById('day-employee-filter');
+    const uniqueEmployees = {};
+    
+    currentDaySessions.forEach(s => {
+        if (!uniqueEmployees[s.user_id]) {
+            uniqueEmployees[s.user_id] = s.display_name || 'Unknown';
+        }
+    });
+    
+    filterSelect.innerHTML = '<option value="">All Employees</option>' +
+        Object.entries(uniqueEmployees).map(([userId, name]) => 
+            `<option value="${userId}">${DashboardUtils.escapeHtml(name)}</option>`
+        ).join('');
+}
+
+function filterDaySessions() {
+    renderDaySessions();
+}
+
+function renderDaySessions() {
     const container = document.getElementById('day-sessions-list');
+    const filterUserId = document.getElementById('day-employee-filter').value;
+    
+    const sessions = filterUserId 
+        ? currentDaySessions.filter(s => s.user_id === filterUserId)
+        : currentDaySessions;
     
     if (sessions.length === 0) {
-        container.innerHTML = '<p class="empty-state-text">No sessions for this day</p>';
+        container.innerHTML = filterUserId 
+            ? '<p class="empty-state-text">No sessions for selected employee</p>'
+            : '<p class="empty-state-text">No sessions for this day</p>';
         return;
     }
     
