@@ -6958,9 +6958,8 @@ async def on_member_join(member):
         print(f"❌ Error assigning role: {e}")
     
     try:
-        dashboard_url = os.getenv('REPLIT_DEV_DOMAIN', 'https://on-the-clock-2-0.replit.app')
-        if not dashboard_url.startswith('http'):
-            dashboard_url = f"https://{dashboard_url}"
+        # Use production URL for OAuth compatibility
+        dashboard_url = "https://on-the-clock.replit.app"
         
         embed = discord.Embed(
             title="Welcome to On The Clock!",
