@@ -6575,12 +6575,13 @@ def api_get_employee_entries(user_session, guild_id, user_id):
             
             entries = []
             for row in cursor.fetchall():
+                duration = row['duration_seconds']
                 entries.append({
                     'id': row['session_id'],
                     'user_id': str(row['user_id']),
                     'clock_in_time': row['clock_in_time'].isoformat() if row['clock_in_time'] else None,
                     'clock_out_time': row['clock_out_time'].isoformat() if row['clock_out_time'] else None,
-                    'duration_seconds': row['duration_seconds'] or 0
+                    'duration_seconds': float(duration) if duration else 0
                 })
         
         return jsonify({'success': True, 'entries': entries})
@@ -6689,7 +6690,7 @@ def api_get_employee_sessions(user_session, guild_id, user_id):
             
             sessions = []
             for row in cursor.fetchall():
-                duration_seconds = row['duration_seconds'] if row['duration_seconds'] else 0
+                duration_seconds = float(row['duration_seconds']) if row['duration_seconds'] else 0
                 duration_minutes = int(duration_seconds // 60) if duration_seconds else 0
                 sessions.append({
                     'id': row['session_id'],
@@ -6867,12 +6868,13 @@ def api_get_day_detail(user_session, guild_id):
             
             sessions = []
             for row in cursor.fetchall():
+                duration = row['duration_seconds']
                 sessions.append({
                     'session_id': row['session_id'],
                     'user_id': str(row['user_id']),
                     'clock_in_time': row['clock_in_time'].isoformat() if row['clock_in_time'] else None,
                     'clock_out_time': row['clock_out_time'].isoformat() if row['clock_out_time'] else None,
-                    'duration_seconds': row['duration_seconds'] or 0,
+                    'duration_seconds': float(duration) if duration else 0,
                     'display_name': row['display_name'] or row['username'] or 'Unknown',
                     'username': row['username'],
                     'avatar_url': row['avatar_url'],
@@ -6885,7 +6887,8 @@ def api_get_day_detail(user_session, guild_id):
             'sessions': sessions
         })
     except Exception as e:
-        app.logger.error(f"Error fetching day detail: {str(e)}")
+        import traceback
+        app.logger.error(f"Error fetching day detail for guild {guild_id}, date {request.args.get('date')}: {str(e)}\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
