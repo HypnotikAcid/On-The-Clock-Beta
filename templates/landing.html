@@ -27,7 +27,132 @@
             width: 100%;
             height: 100%;
             z-index: 0;
-            opacity: 0.12;
+            opacity: 0.15;
+        }
+
+        .clock-fade-mask {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(10, 15, 31, 0.85) 0%, rgba(10, 15, 31, 0.5) 35%, transparent 65%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .clock-background {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .clock-container {
+            --clock-size: 500px;
+            position: relative;
+            width: var(--clock-size);
+            height: var(--clock-size);
+            opacity: 0.8;
+        }
+
+        .clock-face {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: calc(var(--clock-size) * 0.02) solid rgba(0, 255, 255, 0.6);
+            background: transparent;
+            box-shadow: 0 0 60px rgba(0, 255, 255, 0.3), 0 0 30px rgba(0, 255, 255, 0.2), inset 0 0 40px rgba(0, 255, 255, 0.1);
+        }
+
+        .clock-face::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 90%;
+            height: 90%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .hour-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: calc(var(--clock-size) * 0.008);
+            height: calc(var(--clock-size) * 0.06);
+            background: linear-gradient(to bottom, rgba(0, 255, 255, 0.8), rgba(0, 255, 255, 0.3));
+            transform-origin: 50% calc(var(--clock-size) * 0.43);
+            margin-left: calc(var(--clock-size) * -0.004);
+            margin-top: calc(var(--clock-size) * -0.43);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        }
+
+        .hour-marker.major {
+            width: calc(var(--clock-size) * 0.012);
+            height: calc(var(--clock-size) * 0.08);
+            margin-left: calc(var(--clock-size) * -0.006);
+            background: linear-gradient(to bottom, #00FFFF, rgba(0, 255, 255, 0.5));
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.7);
+        }
+
+        .clock-hand {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: 50% 100%;
+        }
+
+        .hour-hand {
+            width: calc(var(--clock-size) * 0.025);
+            height: calc(var(--clock-size) * 0.22);
+            background: linear-gradient(to top, #00CED1, #00FFFF);
+            border-radius: calc(var(--clock-size) * 0.0125) calc(var(--clock-size) * 0.0125) 0 0;
+            margin-left: calc(var(--clock-size) * -0.0125);
+            margin-top: calc(var(--clock-size) * -0.22);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.9), 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        .minute-hand {
+            width: calc(var(--clock-size) * 0.015);
+            height: calc(var(--clock-size) * 0.32);
+            background: linear-gradient(to top, #D4AF37, #F4E5A1);
+            border-radius: calc(var(--clock-size) * 0.0075) calc(var(--clock-size) * 0.0075) 0 0;
+            margin-left: calc(var(--clock-size) * -0.0075);
+            margin-top: calc(var(--clock-size) * -0.32);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.9), 0 0 30px rgba(212, 175, 55, 0.5);
+        }
+
+        .second-hand {
+            width: calc(var(--clock-size) * 0.006);
+            height: calc(var(--clock-size) * 0.38);
+            background: linear-gradient(to top, #FF6B6B, #FF4757);
+            border-radius: calc(var(--clock-size) * 0.003);
+            margin-left: calc(var(--clock-size) * -0.003);
+            margin-top: calc(var(--clock-size) * -0.38);
+            box-shadow: 0 0 12px rgba(255, 71, 87, 0.9), 0 0 25px rgba(255, 71, 87, 0.5);
+        }
+
+        .clock-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: calc(var(--clock-size) * 0.05);
+            height: calc(var(--clock-size) * 0.05);
+            background: radial-gradient(circle, #00FFFF, #00CED1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 40px rgba(0, 255, 255, 0.6);
+            z-index: 10;
         }
 
         .content-wrapper {
@@ -664,6 +789,28 @@
 </head>
 <body>
     <canvas id="matrix-canvas"></canvas>
+    <div class="clock-fade-mask"></div>
+    <div class="clock-background">
+        <div class="clock-container" id="clockContainer">
+            <div class="clock-face"></div>
+            <div class="hour-marker major" style="transform: rotate(0deg);"></div>
+            <div class="hour-marker" style="transform: rotate(30deg);"></div>
+            <div class="hour-marker" style="transform: rotate(60deg);"></div>
+            <div class="hour-marker major" style="transform: rotate(90deg);"></div>
+            <div class="hour-marker" style="transform: rotate(120deg);"></div>
+            <div class="hour-marker" style="transform: rotate(150deg);"></div>
+            <div class="hour-marker major" style="transform: rotate(180deg);"></div>
+            <div class="hour-marker" style="transform: rotate(210deg);"></div>
+            <div class="hour-marker" style="transform: rotate(240deg);"></div>
+            <div class="hour-marker major" style="transform: rotate(270deg);"></div>
+            <div class="hour-marker" style="transform: rotate(300deg);"></div>
+            <div class="hour-marker" style="transform: rotate(330deg);"></div>
+            <div class="hour-hand clock-hand" id="hourHand"></div>
+            <div class="minute-hand clock-hand" id="minuteHand"></div>
+            <div class="second-hand clock-hand" id="secondHand"></div>
+            <div class="clock-center"></div>
+        </div>
+    </div>
 
     <div class="content-wrapper">
         <div class="container">
@@ -971,10 +1118,32 @@
 
         const canvas = document.getElementById('matrix-canvas');
         const ctx = canvas.getContext('2d');
+        const hourHand = document.getElementById('hourHand');
+        const minuteHand = document.getElementById('minuteHand');
+        const secondHand = document.getElementById('secondHand');
 
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>?';
         const fontSize = 14;
         let columns, drops;
+
+        function updateClock() {
+            if (!hourHand || !minuteHand || !secondHand) return;
+            const now = new Date();
+            const hours = now.getHours() % 12;
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            const hourDeg = (hours * 30) + (minutes * 0.5);
+            const minuteDeg = (minutes * 6) + (seconds * 0.1);
+            const secondDeg = seconds * 6;
+
+            hourHand.style.transform = `rotate(${hourDeg}deg)`;
+            minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+            secondHand.style.transform = `rotate(${secondDeg}deg)`;
+        }
+
+        updateClock();
+        setInterval(updateClock, 1000);
 
         function initMatrix() {
             const dpr = window.devicePixelRatio || 1;
@@ -982,6 +1151,7 @@
             canvas.height = window.innerHeight * dpr;
             canvas.style.width = window.innerWidth + 'px';
             canvas.style.height = window.innerHeight + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(dpr, dpr);
 
             columns = Math.floor(window.innerWidth / fontSize);
@@ -1004,14 +1174,14 @@
                     i * fontSize, drops[i] * fontSize - 20,
                     i * fontSize, drops[i] * fontSize + 20
                 );
-                gradient.addColorStop(0, 'rgba(212, 175, 55, 0)');
-                gradient.addColorStop(0.5, 'rgba(212, 175, 55, 0.9)');
-                gradient.addColorStop(1, 'rgba(212, 175, 55, 0)');
+                gradient.addColorStop(0, 'rgba(0, 255, 255, 0)');
+                gradient.addColorStop(0.5, 'rgba(0, 255, 255, 0.9)');
+                gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
                 
                 ctx.fillStyle = gradient;
                 
                 if (i % 3 === 0) {
-                    ctx.shadowColor = 'rgba(212, 175, 55, 0.8)';
+                    ctx.shadowColor = 'rgba(0, 255, 255, 0.8)';
                     ctx.shadowBlur = 12;
                 }
                 
