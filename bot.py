@@ -2771,9 +2771,13 @@ def start_health_server():
     print(f"🔧 Health check server starting on http://0.0.0.0:{HTTP_PORT}")
     httpd.serve_forever()
 
+_db_pool_initialized = False
+
 def init_db_pool():
     """Initialize PostgreSQL connection pool"""
-    global db_pool
+    global db_pool, _db_pool_initialized
+    if _db_pool_initialized and db_pool is not None:
+        return
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable is not set")
     db_pool = psycopg2.pool.ThreadedConnectionPool(
@@ -2781,10 +2785,10 @@ def init_db_pool():
         maxconn=10,
         dsn=DATABASE_URL
     )
+    _db_pool_initialized = True
     print("✅ PostgreSQL connection pool initialized")
     
-    # Run migrations on startup
-    print("🔄 Running database migrations...")
+    # Run migrations on startup (guarded internally)
     run_migrations()
 
 class ConnectionWrapper:
@@ -2840,19 +2844,6 @@ def db():
         # Always return connection to pool
         db_pool.putconn(conn)
 
-    # Run migrations on startup
-    print("🔄 Running database migrations...")
-    from migrations import run_migrations as actual_run_migrations
-    actual_run_migrations()
-    
-    try:
-        with db() as conn:
-            conn.execute("SELECT 1")
-        print("✅ PostgreSQL connection verified")
-        return True
-    except Exception as e:
-        print(f"❌ PostgreSQL connection failed: {e}")
-        return False
 
 def run_migrations_old_sqlite():
     """OLD SQLite migrations - no longer used"""

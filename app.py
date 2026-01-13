@@ -6095,18 +6095,6 @@ def api_send_employee_onboarding(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
-def dashboard_update_employee_profile(user_session, guild_id, user_id):
-    """Handle profile update form submission"""
-    viewer_user_id = user_session.get('user_id')
-    is_self = str(viewer_user_id) == str(user_id)
-    
-    # In a real app we'd verify access level here too
-    if not is_self:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-        
-    # Proxy to the existing API update function
-    return api_update_employee_profile(user_session, guild_id, user_id)
-
 @app.route("/api/server/<guild_id>/employee/<user_id>/profile", methods=["GET"])
 @require_api_auth
 def api_get_employee_profile(user_session, guild_id, user_id):
