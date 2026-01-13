@@ -3,7 +3,20 @@
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
-**Standardized Workflow**: Always start requests with: *"Read replit.md first, then plan this request. Split tasks by mode (Quick Edit vs Build) before starting:"*
+
+## Two-Phase Workflow
+**Trigger Prompt** (use in Plan Mode):
+> "Read replit.md first, then plan this request. Split tasks by Quick Edit vs Build. STOP after planning."
+
+**Phase Execution:**
+1. **Plan Mode** → Agent creates task list split by mode → Agent STOPS and waits
+2. **User switches to Quick Edit** → Agent says "Starting Quick Edit tasks only" → Executes ONLY Quick Edit tasks → Agent STOPS and says "Quick Edit phase complete. Switch to Build Mode when ready."
+3. **User switches to Build Mode** → Agent says "Starting Build tasks" → Executes Build tasks
+
+**Critical Rules:**
+- Agent must explicitly announce which phase it's executing
+- Agent must STOP between phases and wait for mode switch
+- If user says "go ahead" in Plan Mode, agent asks: "Which phase? Quick Edit first, or Build?"
 
 # Lessons Learned
 - **Workflow Rule**: ALWAYS read `replit.md` before making any code alterations or additions to ensure precise alignment with project vision and past learnings.
