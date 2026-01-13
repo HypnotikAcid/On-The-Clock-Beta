@@ -6929,6 +6929,63 @@ async def on_guild_join(guild):
     except Exception as e:
         print(f"❌ Error adding guild to bot_guilds table: {e}")
 
+
+DEMO_SERVER_ID = 1419894879894507661
+DEMO_EMPLOYEE_ROLE_ID = 1460483767050178631
+
+@bot.event
+async def on_member_join(member):
+    """Handle new members joining - special handling for demo server"""
+    if member.guild.id != DEMO_SERVER_ID:
+        return
+    
+    print(f"👋 New member joined demo server: {member.display_name}")
+    
+    try:
+        role = member.guild.get_role(DEMO_EMPLOYEE_ROLE_ID)
+        if role:
+            await member.add_roles(role, reason="Auto-assigned for demo access")
+            print(f"✅ Assigned Test Employee role to {member.display_name}")
+    except discord.Forbidden:
+        print(f"❌ Could not assign role to {member.display_name} - missing permissions")
+    except Exception as e:
+        print(f"❌ Error assigning role: {e}")
+    
+    try:
+        dashboard_url = os.getenv('REPLIT_DEV_DOMAIN', 'https://on-the-clock-2-0.replit.app')
+        if not dashboard_url.startswith('http'):
+            dashboard_url = f"https://{dashboard_url}"
+        
+        embed = discord.Embed(
+            title="Welcome to On The Clock!",
+            description="Thanks for checking out our Discord timeclock bot! You now have demo access to explore all features.",
+            color=0xFFC107
+        )
+        embed.add_field(
+            name="Try the Dashboard",
+            value=f"[Open Dashboard]({dashboard_url}/auth/login)\n\nLog in with Discord to see the employee view with sample data.",
+            inline=False
+        )
+        embed.add_field(
+            name="Discord Commands",
+            value="• `/clock` - Open your personal timeclock\n• `/help` - See all available commands",
+            inline=False
+        )
+        embed.add_field(
+            name="Questions?",
+            value="Check the server channels for FAQs or ask in chat!",
+            inline=False
+        )
+        embed.set_footer(text="On the Clock - Professional Time Tracking for Discord Teams")
+        
+        await member.send(embed=embed)
+        print(f"✅ Sent welcome DM to {member.display_name}")
+    except discord.Forbidden:
+        print(f"⚠️ Could not DM {member.display_name} - DMs disabled")
+    except Exception as e:
+        print(f"❌ Error sending welcome DM: {e}")
+
+
 @bot.event
 async def on_guild_remove(guild):
     """Handle bot being removed from a server - archive paid servers, delete non-paid server data"""
