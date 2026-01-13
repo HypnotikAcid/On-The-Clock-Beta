@@ -3146,6 +3146,129 @@ def debug_checklist(user_session):
     return jsonify({'checks': checks})
 
 
+DEV_MODE = os.getenv('REPL_ID') is not None
+DEV_PREVIEW_SECRET = os.getenv('BOT_API_SECRET', 'dev-preview-key')
+
+@app.route("/dev/preview/<key>/<page>")
+@app.route("/dev/preview/<page>")
+def dev_preview_page(page, key=None):
+    """Dev-only routes to render dashboard pages with mock data for screenshots.
+    Access via: /dev/preview/KEY/employees (path-based auth for screenshots)
+    Or via authenticated session (owner only)
+    """
+    secret_key = key or request.args.get('key', '')
+    
+    if secret_key == DEV_PREVIEW_SECRET:
+        pass
+    else:
+        session_id = session.get('session_id')
+        if not session_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        user_session = get_user_session(session_id)
+        if not user_session:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        if user_session['user_id'] != bot_owner_id:
+            return "Unauthorized - Owner only", 403
+    
+    from mock_data import get_full_mock_context, generate_mock_employees, generate_mock_adjustment_requests
+    
+    mock = get_full_mock_context()
+    
+    template_map = {
+        'landing': 'landing.html',
+        'dashboard': 'dashboard.html',
+        'server': 'dashboard_pages/server_overview.html',
+        'employees': 'dashboard_pages/employees.html',
+        'calendar': 'dashboard_pages/admin_calendar.html',
+        'profile': 'dashboard_pages/employee_profile.html',
+        'adjustments': 'dashboard_pages/adjustments.html',
+        'admin-roles': 'dashboard_pages/admin_roles.html',
+        'email': 'dashboard_pages/email_settings.html',
+        'timezone': 'dashboard_pages/timezone_settings.html'
+    }
+    
+    template = template_map.get(page)
+    if not template:
+        return f"Unknown page: {page}. Valid pages: {list(template_map.keys())}", 404
+    
+    context = {
+        'server': mock['server'],
+        'user': mock['user'],
+        'user_role': 'admin',
+        'is_also_employee': True,
+        'active_page': page.replace('-', '_'),
+        'pending_adjustments': mock['pending_adjustments'],
+        'show_tz_reminder': False,
+        'tier': 'premium',
+        'guild_id': mock['server']['id'],
+        'dev_preview_mode': True,
+        'mock_employees_json': json.dumps(mock['employees'])
+    }
+    
+    if page == 'landing':
+        return render_template('landing.html')
+    
+    if page == 'dashboard':
+        mock_servers = [
+            {'id': '1234567890123456789', 'name': 'Demo Company Inc.', 'icon': None, 'role': 'admin', 'bot_present': True, 'member_count': 85},
+            {'id': '9876543210987654321', 'name': 'Acme Corp Team', 'icon': None, 'role': 'admin', 'bot_present': True, 'member_count': 42},
+            {'id': '5555555555555555555', 'name': 'Tech Startup HQ', 'icon': None, 'role': 'employee', 'bot_present': True, 'member_count': 28}
+        ]
+        return render_template('dashboard.html', 
+            user=mock['user'],
+            admin_servers=mock_servers[:2],
+            employee_servers=[mock_servers[2]],
+            has_any_servers=True
+        )
+    
+    if page == 'profile':
+        employee = mock['employees'][0]
+        context['employee'] = employee
+        context['employee_stats'] = {
+            'total_hours': employee['total_hours'],
+            'weekly_hours': employee['weekly_hours'],
+            'avg_daily_hours': 7.5,
+            'sessions_count': 156
+        }
+    
+    return render_template(template, **context)
+
+
+@app.route("/dev/preview-list")
+@require_api_auth  
+def dev_preview_list(user_session):
+    """Return list of available preview pages"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    pages = [
+        {'id': 'landing', 'name': 'Landing Page', 'icon': '🏠'},
+        {'id': 'dashboard', 'name': 'My Servers', 'icon': '📊'},
+        {'id': 'server', 'name': 'Server Overview', 'icon': '🖥️'},
+        {'id': 'employees', 'name': 'Employees', 'icon': '👥'},
+        {'id': 'calendar', 'name': 'Calendar', 'icon': '📅'},
+        {'id': 'profile', 'name': 'Profile', 'icon': '👤'},
+        {'id': 'adjustments', 'name': 'Adjustments', 'icon': '⏳'},
+        {'id': 'admin-roles', 'name': 'Admin Roles', 'icon': '🔑'},
+        {'id': 'email', 'name': 'Email Settings', 'icon': '📧'},
+        {'id': 'timezone', 'name': 'Timezone', 'icon': '⏰'}
+    ]
+    return jsonify({'pages': pages})
+
+
+@app.route("/debug/get-preview-key")
+@require_api_auth
+def debug_get_preview_key(user_session):
+    """Return preview key for owner to use in dev preview URLs"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'key': None}), 403
+    
+    return jsonify({'key': DEV_PREVIEW_SECRET})
+
+
 @app.route("/api/owner/grant-access", methods=["POST"])
 @require_api_auth
 def api_owner_grant_access(user_session):

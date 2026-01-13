@@ -702,34 +702,46 @@
                 <div class="card-header">
                     <div class="card-icon preview">&#128247;</div>
                     <div>
-                        <div class="card-title">Dashboard Previews</div>
-                        <div class="card-subtitle">Click to view each section</div>
+                        <div class="card-title">Mock Dashboard Preview</div>
+                        <div class="card-subtitle">View dashboard pages with 25 mock employees</div>
                     </div>
                 </div>
+                <p style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
+                    Click any page to open it with realistic mock data (20-30 employees). 
+                    Use your browser's screenshot tool to capture images for marketing.
+                </p>
                 <div class="preview-gallery">
-                    <div class="preview-item" onclick="showPreview('landing')">
+                    <div class="preview-item" onclick="openDevPreview('landing')">
                         <div class="preview-thumb">&#127968;</div>
                         <div class="preview-label">Landing Page</div>
                     </div>
-                    <div class="preview-item" onclick="showPreview('dashboard')">
+                    <div class="preview-item" onclick="openDevPreview('dashboard')">
                         <div class="preview-thumb">&#128202;</div>
                         <div class="preview-label">My Servers</div>
                     </div>
-                    <div class="preview-item" onclick="showPreview('server')">
+                    <div class="preview-item" onclick="openDevPreview('server')">
                         <div class="preview-thumb">&#128421;</div>
                         <div class="preview-label">Server Overview</div>
                     </div>
-                    <div class="preview-item" onclick="showPreview('employees')">
+                    <div class="preview-item" onclick="openDevPreview('employees')">
                         <div class="preview-thumb">&#128101;</div>
                         <div class="preview-label">Employees</div>
                     </div>
-                    <div class="preview-item" onclick="showPreview('calendar')">
+                    <div class="preview-item" onclick="openDevPreview('calendar')">
                         <div class="preview-thumb">&#128197;</div>
                         <div class="preview-label">Calendar</div>
                     </div>
-                    <div class="preview-item" onclick="showPreview('profile')">
+                    <div class="preview-item" onclick="openDevPreview('profile')">
                         <div class="preview-thumb">&#128100;</div>
                         <div class="preview-label">Profile</div>
+                    </div>
+                    <div class="preview-item" onclick="openDevPreview('adjustments')">
+                        <div class="preview-thumb">&#9203;</div>
+                        <div class="preview-label">Adjustments</div>
+                    </div>
+                    <div class="preview-item" onclick="openDevPreview('admin-roles')">
+                        <div class="preview-thumb">&#128273;</div>
+                        <div class="preview-label">Admin Roles</div>
                     </div>
                 </div>
             </div>
@@ -1116,27 +1128,26 @@
             }
         }
 
-        function showPreview(section) {
-            document.getElementById('previewModal').classList.add('active');
-            document.getElementById('modalTitle').textContent = `Preview: ${section.charAt(0).toUpperCase() + section.slice(1)}`;
-            
-            const body = document.getElementById('modalBody');
-            body.innerHTML = `
-                <div class="screenshot-placeholder">
-                    <span>&#128247;</span>
-                    <p>Screenshot of ${section} section</p>
-                    <p style="font-size: 12px; margin-top: 10px; color: #6B7280;">
-                        To add screenshots, save images to<br>
-                        <code>static/previews/${section}.png</code>
-                    </p>
-                </div>
-            `;
-            
-            const img = new Image();
-            img.onload = function() {
-                body.innerHTML = `<img src="/static/previews/${section}.png" class="screenshot-img" alt="${section} preview">`;
-            };
-            img.src = `/static/previews/${section}.png`;
+        function openDevPreview(page) {
+            const url = `/dev/preview/${page}`;
+            window.open(url, '_blank');
+            logMessage('info', `Opened mock preview: ${page}`);
+        }
+        
+        async function openDevPreviewWithKey(page) {
+            try {
+                const resp = await fetch('/debug/get-preview-key');
+                const data = await resp.json();
+                if (data.key) {
+                    const url = `/dev/preview/${data.key}/${page}`;
+                    window.open(url, '_blank');
+                    logMessage('info', `Opened mock preview: ${page} (with key)`);
+                } else {
+                    openDevPreview(page);
+                }
+            } catch {
+                openDevPreview(page);
+            }
         }
 
         function closeModal() {
