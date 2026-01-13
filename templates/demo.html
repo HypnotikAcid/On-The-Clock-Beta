@@ -22,37 +22,73 @@
 
         .clock-background {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             z-index: 0;
-            overflow: hidden;
             pointer-events: none;
         }
 
-        .clock-item {
-            position: absolute;
+        .clock-container {
+            --clock-size: 500px;
+            position: relative;
+            width: var(--clock-size);
+            height: var(--clock-size);
             opacity: 0.15;
-            animation: float-up linear infinite;
-            filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.3));
         }
 
-        @keyframes float-up {
-            0% {
-                transform: translateY(100vh) rotate(0deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 0.15;
-            }
-            90% {
-                opacity: 0.15;
-            }
-            100% {
-                transform: translateY(-100px) rotate(360deg);
-                opacity: 0;
-            }
+        .clock-face {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 30px rgba(212, 175, 55, 0.3));
+        }
+
+        .clock-hand {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: 50% 100%;
+            filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.5));
+        }
+
+        .hour-hand {
+            width: calc(var(--clock-size) * 0.016);
+            height: calc(var(--clock-size) * 0.24);
+            background: linear-gradient(to top, #D4AF37, #F4E5A1);
+            border-radius: calc(var(--clock-size) * 0.008);
+            margin-left: calc(var(--clock-size) * -0.008);
+            margin-top: calc(var(--clock-size) * -0.24);
+        }
+
+        .minute-hand {
+            width: calc(var(--clock-size) * 0.01);
+            height: calc(var(--clock-size) * 0.34);
+            background: linear-gradient(to top, #D4AF37, #F4E5A1);
+            border-radius: calc(var(--clock-size) * 0.006);
+            margin-left: calc(var(--clock-size) * -0.005);
+            margin-top: calc(var(--clock-size) * -0.34);
+        }
+
+        .second-hand {
+            width: calc(var(--clock-size) * 0.004);
+            height: calc(var(--clock-size) * 0.36);
+            background: linear-gradient(to top, #FF6B6B, #FFE66D);
+            border-radius: calc(var(--clock-size) * 0.002);
+            margin-left: calc(var(--clock-size) * -0.002);
+            margin-top: calc(var(--clock-size) * -0.36);
+        }
+
+        .clock-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: calc(var(--clock-size) * 0.032);
+            height: calc(var(--clock-size) * 0.032);
+            background: radial-gradient(circle, #F4E5A1, #D4AF37);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.8);
         }
 
         .content-wrapper {
@@ -61,7 +97,7 @@
         }
 
         .container {
-            max-width: 1100px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 2rem;
         }
@@ -100,45 +136,21 @@
 
         .description {
             text-align: center;
-            max-width: 700px;
+            max-width: 600px;
             margin: 2rem auto;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #8B949E;
             line-height: 1.7;
         }
 
-        .image-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1.5rem;
-            margin: 3rem 0;
-        }
-
-        .image-card {
-            background: rgba(30, 39, 80, 0.6);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 12px;
-            padding: 1rem;
+        .time-display {
             text-align: center;
-            transition: transform 0.3s, border-color 0.3s;
-        }
-
-        .image-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(212, 175, 55, 0.5);
-        }
-
-        .image-card img {
-            width: 100%;
-            height: 120px;
-            object-fit: contain;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-        }
-
-        .image-card p {
-            font-size: 0.85rem;
-            color: #8B949E;
+            font-size: 3rem;
+            font-weight: 300;
+            color: #D4AF37;
+            margin: 2rem 0;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
         }
 
         .controls {
@@ -171,6 +183,23 @@
             border-color: #D4AF37;
         }
 
+        .slider-control {
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+
+        .slider-control label {
+            color: #8B949E;
+            margin-right: 1rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .slider {
+            width: 250px;
+            accent-color: #D4AF37;
+        }
+
         .back-link {
             display: inline-block;
             color: #8B949E;
@@ -185,92 +214,69 @@
             color: #D4AF37;
         }
 
-        .speed-control {
+        .info-box {
+            background: rgba(30, 39, 80, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
             text-align: center;
-            margin: 1.5rem 0;
         }
 
-        .speed-control label {
+        .info-box h3 {
+            color: #D4AF37;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box p {
             color: #8B949E;
-            margin-right: 1rem;
-        }
-
-        .speed-slider {
-            width: 200px;
-            accent-color: #D4AF37;
+            font-size: 0.95rem;
         }
     </style>
 </head>
 <body>
-    <div class="clock-background" id="clockBackground"></div>
+    <div class="clock-background">
+        <div class="clock-container" id="clockContainer">
+            <img src="/static/backgrounds/vintage_alarm_clock_face.png" alt="Clock Face" class="clock-face">
+            <div class="hour-hand clock-hand" id="hourHand"></div>
+            <div class="minute-hand clock-hand" id="minuteHand"></div>
+            <div class="second-hand clock-hand" id="secondHand"></div>
+            <div class="clock-center"></div>
+        </div>
+    </div>
 
     <div class="content-wrapper">
         <div class="container">
             <header class="header">
                 <h1 class="logo-text">On the Clock</h1>
-                <div class="demo-badge">Background Demo</div>
+                <div class="demo-badge">Background Demo v2</div>
             </header>
 
             <p class="description">
-                Preview of the new clock-themed scrolling background. These time-related images 
-                float upward to create an engaging visual experience that reinforces the timekeeping brand.
+                A single elegant vintage clock, centered and subtle, with hands that move in real-time 
+                synced to your local time. Clean, professional, and on-brand.
             </p>
 
+            <div class="time-display" id="timeDisplay">--:--:--</div>
+
+            <div class="info-box">
+                <h3>Your Local Time</h3>
+                <p>The clock hands rotate to match your current time, updating every second.</p>
+            </div>
+
             <div class="controls">
-                <button class="control-btn active" id="enableBtn" onclick="toggleBackground(this, true)">Enable Background</button>
-                <button class="control-btn" id="disableBtn" onclick="toggleBackground(this, false)">Disable Background</button>
-                <button class="control-btn" onclick="changeOpacity(this, 0.1)">Subtle</button>
-                <button class="control-btn" onclick="changeOpacity(this, 0.2)">Medium</button>
-                <button class="control-btn" onclick="changeOpacity(this, 0.3)">Bold</button>
+                <button class="control-btn" onclick="toggleSecondHand(this)">Toggle Second Hand</button>
+                <button class="control-btn" onclick="toggleClock(this)">Hide Clock</button>
             </div>
 
-            <div class="speed-control">
-                <label>Animation Speed:</label>
-                <input type="range" class="speed-slider" min="10" max="60" value="30" onchange="changeSpeed(this.value)">
+            <div class="slider-control">
+                <label>Clock Opacity: <span id="opacityValue">15%</span></label>
+                <input type="range" class="slider" min="5" max="40" value="15" onchange="changeOpacity(this.value)">
             </div>
 
-            <h3 style="text-align: center; color: #D4AF37; margin: 2rem 0 1rem;">Available Clock Images</h3>
-            <div class="image-grid">
-                <div class="image-card">
-                    <img src="/static/backgrounds/floating_analog_clock_face.png" alt="Analog Clock">
-                    <p>Analog Clock</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/steampunk_watch_gears.png" alt="Watch Gears">
-                    <p>Watch Gears</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/glowing_hourglass.png" alt="Hourglass">
-                    <p>Hourglass</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/vintage_punch_card.png" alt="Punch Card">
-                    <p>Punch Card</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/digital_clock_display.png" alt="Digital Clock">
-                    <p>Digital Clock</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/abstract_time_spiral.png" alt="Time Spiral">
-                    <p>Time Spiral</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/vintage_pocket_watch.png" alt="Pocket Watch">
-                    <p>Pocket Watch</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/chrome_stopwatch.png" alt="Stopwatch">
-                    <p>Stopwatch</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/ancient_sundial.png" alt="Sundial">
-                    <p>Sundial</p>
-                </div>
-                <div class="image-card">
-                    <img src="/static/backgrounds/retro_alarm_clock.png" alt="Alarm Clock">
-                    <p>Alarm Clock</p>
-                </div>
+            <div class="slider-control">
+                <label>Clock Size: <span id="sizeValue">500px</span></label>
+                <input type="range" class="slider" min="300" max="800" value="500" onchange="changeSize(this.value)">
             </div>
 
             <div style="text-align: center;">
@@ -280,79 +286,61 @@
     </div>
 
     <script>
-        const clockImages = [
-            '/static/backgrounds/floating_analog_clock_face.png',
-            '/static/backgrounds/steampunk_watch_gears.png',
-            '/static/backgrounds/glowing_hourglass.png',
-            '/static/backgrounds/vintage_punch_card.png',
-            '/static/backgrounds/digital_clock_display.png',
-            '/static/backgrounds/abstract_time_spiral.png',
-            '/static/backgrounds/vintage_pocket_watch.png',
-            '/static/backgrounds/chrome_stopwatch.png',
-            '/static/backgrounds/ancient_sundial.png',
-            '/static/backgrounds/retro_alarm_clock.png'
-        ];
+        const hourHand = document.getElementById('hourHand');
+        const minuteHand = document.getElementById('minuteHand');
+        const secondHand = document.getElementById('secondHand');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const clockContainer = document.getElementById('clockContainer');
+        
+        let showSecondHand = true;
+        let clockVisible = true;
 
-        let animationSpeed = 30;
-        let currentOpacity = 0.15;
-        let backgroundEnabled = true;
-        let spawnInterval;
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours() % 12;
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
 
-        function createClockItem() {
-            if (!backgroundEnabled) return;
+            const hourDeg = (hours * 30) + (minutes * 0.5);
+            const minuteDeg = (minutes * 6) + (seconds * 0.1);
+            const secondDeg = seconds * 6;
 
-            const container = document.getElementById('clockBackground');
-            const item = document.createElement('img');
-            item.className = 'clock-item';
-            item.src = clockImages[Math.floor(Math.random() * clockImages.length)];
-            
-            const size = Math.random() * 60 + 40;
-            item.style.width = size + 'px';
-            item.style.height = size + 'px';
-            item.style.left = Math.random() * 100 + '%';
-            item.style.animationDuration = animationSpeed + 's';
-            item.style.opacity = currentOpacity;
-            
-            container.appendChild(item);
+            hourHand.style.transform = `rotate(${hourDeg}deg)`;
+            minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+            secondHand.style.transform = `rotate(${secondDeg}deg)`;
 
-            setTimeout(() => {
-                item.remove();
-            }, animationSpeed * 1000);
+            const displayHours = now.getHours().toString().padStart(2, '0');
+            const displayMinutes = minutes.toString().padStart(2, '0');
+            const displaySeconds = seconds.toString().padStart(2, '0');
+            timeDisplay.textContent = `${displayHours}:${displayMinutes}:${displaySeconds}`;
         }
 
-        function startSpawning() {
-            if (spawnInterval) clearInterval(spawnInterval);
-            spawnInterval = setInterval(createClockItem, 2000);
-            for (let i = 0; i < 8; i++) {
-                setTimeout(createClockItem, i * 250);
-            }
+        function toggleSecondHand(btn) {
+            showSecondHand = !showSecondHand;
+            secondHand.style.display = showSecondHand ? 'block' : 'none';
+            btn.textContent = showSecondHand ? 'Toggle Second Hand' : 'Show Second Hand';
+            btn.classList.toggle('active', !showSecondHand);
         }
 
-        function toggleBackground(btn, enabled) {
-            backgroundEnabled = enabled;
-            document.getElementById('enableBtn').classList.remove('active');
-            document.getElementById('disableBtn').classList.remove('active');
-            btn.classList.add('active');
-            
-            if (!enabled) {
-                document.getElementById('clockBackground').innerHTML = '';
-            } else {
-                startSpawning();
-            }
+        function toggleClock(btn) {
+            clockVisible = !clockVisible;
+            clockContainer.style.display = clockVisible ? 'block' : 'none';
+            btn.textContent = clockVisible ? 'Hide Clock' : 'Show Clock';
+            btn.classList.toggle('active', !clockVisible);
         }
 
-        function changeOpacity(btn, opacity) {
-            currentOpacity = opacity;
-            document.querySelectorAll('.clock-item').forEach(item => {
-                item.style.opacity = opacity;
-            });
+        function changeOpacity(value) {
+            clockContainer.style.opacity = value / 100;
+            document.getElementById('opacityValue').textContent = value + '%';
         }
 
-        function changeSpeed(speed) {
-            animationSpeed = parseInt(speed);
+        function changeSize(value) {
+            clockContainer.style.setProperty('--clock-size', value + 'px');
+            document.getElementById('sizeValue').textContent = value + 'px';
         }
 
-        startSpawning();
+        updateClock();
+        setInterval(updateClock, 1000);
     </script>
 </body>
 </html>
