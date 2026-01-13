@@ -1,0 +1,185 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Premium Required{% endblock %}
+
+{% block content %}
+<div class="premium-gate-container">
+    <div class="premium-gate-card">
+        <div class="premium-icon">
+            <span>✨</span>
+        </div>
+        <h1 class="premium-title">Premium Feature</h1>
+        <p class="premium-subtitle">This feature requires a Premium subscription to access.</p>
+        
+        <div class="feature-highlight">
+            <div class="feature-name">{{ locked_message.message }}</div>
+        </div>
+        
+        <div class="pricing-card">
+            <div class="pricing-header">Unlock Premium</div>
+            <div class="pricing-price">
+                <span class="original-price">$8</span>
+                <span class="trial-price">$5</span>
+                <span class="price-period">first month</span>
+            </div>
+            <ul class="premium-features">
+                <li>Full dashboard access</li>
+                <li>Time adjustment requests</li>
+                <li>Employee management</li>
+                <li>CSV reports</li>
+                <li>Email notifications</li>
+                <li>30-day data retention</li>
+            </ul>
+            <a href="/dashboard/server/{{ server.id }}/purchase" class="upgrade-btn">Upgrade to Premium</a>
+        </div>
+        
+        <a href="/dashboard/server/{{ server.id }}" class="back-link">Back to Server Overview</a>
+    </div>
+</div>
+
+<style>
+.premium-gate-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 100px);
+    padding: 2rem;
+}
+
+.premium-gate-card {
+    max-width: 500px;
+    background: rgba(22, 27, 34, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 16px;
+    padding: 3rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.premium-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+}
+
+.premium-title {
+    font-size: 1.75rem;
+    color: #D4AF37;
+    margin-bottom: 0.5rem;
+}
+
+.premium-subtitle {
+    color: #8B949E;
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.feature-highlight {
+    background: rgba(13, 17, 23, 0.6);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.feature-name {
+    color: #C9D1D9;
+    font-size: 0.95rem;
+}
+
+.pricing-card {
+    background: rgba(13, 17, 23, 0.5);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.pricing-header {
+    color: #D4AF37;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+}
+
+.pricing-price {
+    margin-bottom: 1rem;
+}
+
+.original-price {
+    color: #8B949E;
+    text-decoration: line-through;
+    font-size: 1.1rem;
+    margin-right: 0.5rem;
+}
+
+.trial-price {
+    color: #D4AF37;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.price-period {
+    color: #8B949E;
+    font-size: 0.9rem;
+}
+
+.premium-features {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    text-align: left;
+}
+
+.premium-features li {
+    color: #C9D1D9;
+    padding: 0.4rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.premium-features li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #4CAF50;
+}
+
+.upgrade-btn {
+    display: block;
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+    color: #0D1117;
+    font-weight: 600;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upgrade-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.back-link {
+    display: inline-block;
+    margin-top: 1rem;
+    color: #8B949E;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.back-link:hover {
+    color: #D4AF37;
+}
+</style>
+{% endblock %}

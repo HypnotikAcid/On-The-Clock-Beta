@@ -1764,7 +1764,7 @@ def get_server_page_context(user_session, guild_id, active_page):
             show_tz_reminder = not tz_row or not tz_row.get('timezone')
         
         cursor = conn.execute("""
-            SELECT bot_access_paid, retention_tier, tier 
+            SELECT bot_access_paid, retention_tier, tier, COALESCE(grandfathered, FALSE) as grandfathered
             FROM server_subscriptions WHERE guild_id = %s
         """, (int(guild_id),))
         sub_row = cursor.fetchone()
@@ -1772,7 +1772,8 @@ def get_server_page_context(user_session, guild_id, active_page):
             server_settings = {
                 'bot_access_paid': sub_row.get('bot_access_paid', False),
                 'retention_tier': sub_row.get('retention_tier', 'none'),
-                'tier': sub_row.get('tier', 'free')
+                'tier': sub_row.get('tier', 'free'),
+                'grandfathered': bool(sub_row.get('grandfathered', False))
             }
     
     context = {
@@ -1791,6 +1792,30 @@ def get_server_page_context(user_session, guild_id, active_page):
     }
     
     return context, None
+
+
+def check_premium_access(context, feature_name='advanced_settings'):
+    """
+    Check if the server has premium access for a given feature.
+    Returns None if access granted, or a redirect/template response if denied.
+    """
+    server_settings = context.get('server_settings', {})
+    bot_access_paid = server_settings.get('bot_access_paid', False)
+    retention_tier = server_settings.get('retention_tier', 'none')
+    tier = server_settings.get('tier', 'free')
+    
+    is_grandfathered = tier == 'grandfathered' or server_settings.get('grandfathered', False)
+    guild_tier = Entitlements.get_guild_tier(bot_access_paid, retention_tier, is_grandfathered)
+    user_role = UserRole.ADMIN if context['user_role'] == 'admin' else UserRole.EMPLOYEE
+    
+    if not Entitlements.can_access_feature(guild_tier, user_role, feature_name):
+        gate_context = context.copy()
+        gate_context['premium_required'] = True
+        gate_context['premium_feature'] = feature_name
+        gate_context['locked_message'] = Entitlements.get_locked_message(feature_name)
+        return render_template('dashboard_pages/premium_required.html', **gate_context)
+    
+    return None
 
 
 @app.route("/dashboard/server/<guild_id>")
@@ -1855,6 +1880,10 @@ def dashboard_email_settings(user_session, guild_id):
     if context['user_role'] != 'admin':
         return redirect(f'/dashboard/server/{guild_id}')
     
+    premium_block = check_premium_access(context, 'email_automation')
+    if premium_block:
+        return premium_block
+    
     return render_template('dashboard_pages/email_settings.html', **context)
 
 
@@ -1889,6 +1918,10 @@ def dashboard_employees(user_session, guild_id):
     if context['user_role'] != 'admin':
         return redirect(f'/dashboard/server/{guild_id}')
     
+    premium_block = check_premium_access(context, 'employee_profiles_extended')
+    if premium_block:
+        return premium_block
+    
     return render_template('dashboard_pages/employees.html', **context)
 
 
@@ -1917,6 +1950,10 @@ def dashboard_adjustments(user_session, guild_id):
     if error:
         return error
     
+    premium_block = check_premium_access(context, 'time_adjustments')
+    if premium_block:
+        return premium_block
+    
     return render_template('dashboard_pages/adjustments.html', **context)
 
 
@@ -1934,6 +1971,10 @@ def dashboard_admin_calendar(user_session, guild_id):
     if context['user_role'] != 'admin':
         return redirect(f'/dashboard/server/{guild_id}')
     
+    premium_block = check_premium_access(context, 'advanced_settings')
+    if premium_block:
+        return premium_block
+    
     return render_template('dashboard_pages/admin_calendar.html', **context)
 
 
@@ -1950,6 +1991,10 @@ def dashboard_ban_management(user_session, guild_id):
     
     if context['user_role'] != 'admin':
         return redirect(f'/dashboard/server/{guild_id}')
+    
+    premium_block = check_premium_access(context, 'ban_management')
+    if premium_block:
+        return premium_block
     
     return render_template('dashboard_pages/ban_management.html', **context)
 
