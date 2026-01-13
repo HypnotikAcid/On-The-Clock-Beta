@@ -789,6 +789,12 @@
 </head>
 <body>
     <div id="matrix-container" aria-hidden="true">
+        <div id="matrix-toggle" onclick="toggleMatrix()" style="position: fixed; top: 1rem; right: 1rem; z-index: 1001; cursor: pointer; background: rgba(10, 15, 31, 0.7); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 255, 255, 0.3); font-size: 0.75rem; color: rgba(0, 255, 255, 0.8); display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; user-select: none;">
+            <span id="matrix-toggle-text">Exit The Matrix</span>
+            <div style="width: 30px; height: 16px; background: rgba(0, 255, 255, 0.1); border-radius: 10px; position: relative; border: 1px solid rgba(0, 255, 255, 0.3);">
+                <div id="matrix-toggle-knob" style="width: 10px; height: 10px; background: #00FFFF; border-radius: 50%; position: absolute; top: 2px; right: 3px; transition: all 0.3s ease; box-shadow: 0 0 8px #00FFFF;"></div>
+            </div>
+        </div>
         <canvas id="matrix-canvas"></canvas>
         <div class="clock-fade-mask"></div>
         <div class="clock-background">
@@ -1117,7 +1123,57 @@
             }
         });
 
-        const canvas = document.getElementById('matrix-canvas');
+        function toggleMatrix() {
+            const container = document.getElementById('matrix-container');
+            const text = document.getElementById('matrix-toggle-text');
+            const knob = document.getElementById('matrix-toggle-knob');
+            const isHidden = localStorage.getItem('matrixHidden') === 'true';
+            
+            if (isHidden) {
+                // Turn ON
+                container.style.opacity = '1';
+                container.style.pointerEvents = 'auto';
+                text.innerText = 'Exit The Matrix';
+                knob.style.right = '3px';
+                knob.style.left = 'auto';
+                localStorage.setItem('matrixHidden', 'false');
+            } else {
+                // Turn OFF
+                container.style.opacity = '0';
+                container.style.pointerEvents = 'none';
+                text.innerText = 'Enter The Matrix';
+                knob.style.left = '3px';
+                knob.style.right = 'auto';
+                localStorage.setItem('matrixHidden', 'true');
+            }
+            // Toggle the container visibility except for the button itself
+            // We need the button to stay visible
+            const canvas = document.getElementById('matrix-canvas');
+            const mask = document.querySelector('.clock-fade-mask');
+            const clock = document.querySelector('.clock-background');
+            
+            const elements = [canvas, mask, clock];
+            elements.forEach(el => {
+                if (el) el.style.display = isHidden ? 'block' : 'none';
+            });
+        }
+
+        // Initialize state
+        window.addEventListener('load', () => {
+            const isHidden = localStorage.getItem('matrixHidden') === 'true';
+            const text = document.getElementById('matrix-toggle-text');
+            const knob = document.getElementById('matrix-toggle-knob');
+            const canvas = document.getElementById('matrix-canvas');
+            const mask = document.querySelector('.clock-fade-mask');
+            const clock = document.querySelector('.clock-background');
+            
+            if (isHidden) {
+                text.innerText = 'Enter The Matrix';
+                knob.style.left = '3px';
+                knob.style.right = 'auto';
+                [canvas, mask, clock].forEach(el => { if (el) el.style.display = 'none'; });
+            }
+        });
         const ctx = canvas.getContext('2d');
         const hourHand = document.getElementById('hourHand');
         const minuteHand = document.getElementById('minuteHand');

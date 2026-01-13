@@ -1,3 +1,62 @@
+function toggleMatrix() {
+    const container = document.getElementById('matrix-container');
+    const text = document.getElementById('matrix-toggle-text');
+    const knob = document.getElementById('matrix-toggle-knob');
+    const isHidden = localStorage.getItem('matrixHidden') === 'true';
+    
+    if (isHidden) {
+        // Turn ON
+        if (container) container.style.opacity = '1';
+        if (container) container.style.pointerEvents = 'auto';
+        if (text) text.innerText = 'Exit The Matrix';
+        if (knob) {
+            knob.style.right = '3px';
+            knob.style.left = 'auto';
+            knob.style.boxShadow = '0 0 8px #00FFFF';
+        }
+        localStorage.setItem('matrixHidden', 'false');
+    } else {
+        // Turn OFF
+        if (container) container.style.opacity = '0';
+        if (container) container.style.pointerEvents = 'none';
+        if (text) text.innerText = 'Enter The Matrix';
+        if (knob) {
+            knob.style.left = '3px';
+            knob.style.right = 'auto';
+            knob.style.boxShadow = 'none';
+        }
+        localStorage.setItem('matrixHidden', 'true');
+    }
+    
+    const canvas = document.getElementById('matrix-canvas');
+    const mask = document.querySelector('.clock-fade-mask');
+    const clock = document.querySelector('.clock-background');
+    
+    [canvas, mask, clock].forEach(el => {
+        if (el) el.style.display = isHidden ? 'block' : 'none';
+    });
+}
+
+// Initialize state
+document.addEventListener('DOMContentLoaded', () => {
+    const isHidden = localStorage.getItem('matrixHidden') === 'true';
+    const text = document.getElementById('matrix-toggle-text');
+    const knob = document.getElementById('matrix-toggle-knob');
+    const canvas = document.getElementById('matrix-canvas');
+    const mask = document.querySelector('.clock-fade-mask');
+    const clock = document.querySelector('.clock-background');
+    
+    if (isHidden) {
+        if (text) text.innerText = 'Enter The Matrix';
+        if (knob) {
+            knob.style.left = '3px';
+            knob.style.right = 'auto';
+            knob.style.boxShadow = 'none';
+        }
+        [canvas, mask, clock].forEach(el => { if (el) el.style.display = 'none'; });
+    }
+});
+
 function escapeHtml(text) {
     if (text === null || text === undefined) return '';
     const div = document.createElement('div');
