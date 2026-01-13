@@ -23,6 +23,12 @@
             <a href="/dashboard/server/{{ server.id }}?view_as=admin" style="padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: 0.7rem; {% if not view_as_employee %}background: rgba(212, 175, 55, 0.3); color: #D4AF37; border: 1px solid #D4AF37;{% else %}background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1);{% endif %}">Admin View</a>
             <a href="/dashboard/server/{{ server.id }}?view_as=employee" style="padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: 0.7rem; {% if view_as_employee %}background: rgba(0, 255, 255, 0.3); color: #00FFFF; border: 1px solid #00FFFF;{% else %}background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1);{% endif %}">Employee View</a>
         </div>
+        {% if last_demo_reset %}
+        <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(212, 175, 55, 0.3); font-size: 0.65rem; color: rgba(255,255,255,0.5); text-align: center;">
+            Last reset: {{ last_demo_reset.strftime('%b %d, %H:%M UTC') if last_demo_reset else 'Never' }}<br>
+            <span style="color: rgba(16, 185, 129, 0.8);">Auto-resets daily at midnight UTC</span>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
     <div id="matrix-container" aria-hidden="true">

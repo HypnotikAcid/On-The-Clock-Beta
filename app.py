@@ -1767,6 +1767,7 @@ def get_server_page_context(user_session, guild_id, active_page):
     
     is_demo_server = str(guild_id) == DEMO_SERVER_ID
     view_as_employee = False
+    last_demo_reset = None
     
     if is_demo_server:
         view_as_employee = request.args.get('view_as') == 'employee' or session.get('demo_view_as_employee', False)
@@ -1819,6 +1820,15 @@ def get_server_page_context(user_session, guild_id, active_page):
                 'tier': sub_row.get('tier', 'free'),
                 'grandfathered': bool(sub_row.get('grandfathered', False))
             }
+        
+        # Get demo reset info if this is the demo server
+        if is_demo_server:
+            cursor = conn.execute("""
+                SELECT last_demo_reset FROM guild_settings WHERE guild_id = %s
+            """, (int(guild_id),))
+            demo_row = cursor.fetchone()
+            if demo_row and demo_row.get('last_demo_reset'):
+                last_demo_reset = demo_row['last_demo_reset']
     
     context = {
         'user': user_session,
@@ -1834,7 +1844,8 @@ def get_server_page_context(user_session, guild_id, active_page):
         'show_tz_reminder': show_tz_reminder,
         'server_settings': server_settings,
         'is_demo_server': is_demo_server,
-        'view_as_employee': view_as_employee
+        'view_as_employee': view_as_employee,
+        'last_demo_reset': last_demo_reset
     }
     
     return context, None

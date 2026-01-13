@@ -484,6 +484,10 @@ def run_migrations():
                 ]
                 for query in profile_customization_columns:
                     cur.execute(query)
+                
+                # 23. Add last_demo_reset column to guild_settings for demo server tracking
+                print("   Checking for last_demo_reset column in guild_settings")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS last_demo_reset TIMESTAMPTZ")
 
         _migrations_run = True
         print("✅ Database schema is up to date")

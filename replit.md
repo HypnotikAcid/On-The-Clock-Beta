@@ -21,6 +21,7 @@ Preferred communication style: Simple, everyday language.
 - **Admin Calendar Leak Prevention**: The Admin Calendar must be explicitly guarded with `{% if active_page == 'calendar' %}` in templates to prevent it from appearing on the server selection or other overview pages.
 - **Demo Server View Toggle**: Demo server (ID: 1419894879894507661) allows visitors to toggle between Admin and Employee views via query parameter (`?view_as=admin` or `?view_as=employee`) stored in session for persistence across navigation.
 - **Demo Data Seeding**: Owner-only endpoint `/debug/seed-demo-data` (POST) seeds sample employees, timeclock sessions, and adjustment requests for the demo server. All IDs must use integer types to match BIGINT database columns.
+- **Demo Auto-Reset**: APScheduler job resets demo server data daily at midnight UTC. `last_demo_reset` timestamp stored in `guild_settings` and displayed in demo mode toggle panel.
 
 # System Architecture
 ## Bot Framework
