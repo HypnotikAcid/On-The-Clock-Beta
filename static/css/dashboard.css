@@ -188,11 +188,8 @@
             border-color: var(--theme-accent) !important;
             box-shadow: 0 0 15px var(--theme-accent) !important;
         }
-            position: relative;
-            z-index: 1;
-            display: flex;
-            min-height: 100vh;
-        }
+
+        .layout-container {
 
         /* Left Sidebar */
         .sidebar {
