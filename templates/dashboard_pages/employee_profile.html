@@ -542,6 +542,141 @@
     font-size: 0.75rem;
     text-align: right;
 }
+
+.background-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.bg-option {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.bg-option:hover {
+    transform: scale(1.1);
+    border-color: #58a6ff;
+}
+
+.bg-option.selected {
+    border-color: #238636;
+    box-shadow: 0 0 12px rgba(35, 134, 54, 0.5);
+}
+
+.bg-option.selected::after {
+    content: '✓';
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: #238636;
+    color: white;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+}
+
+.bg-default { background: linear-gradient(135deg, #667eea, #764ba2); }
+.bg-sunset { background: linear-gradient(135deg, #f093fb, #f5576c); }
+.bg-ocean { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.bg-forest { background: linear-gradient(135deg, #11998e, #38ef7d); }
+.bg-fire { background: linear-gradient(135deg, #f12711, #f5af19); }
+.bg-midnight { background: linear-gradient(135deg, #232526, #414345); }
+.bg-candy { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+.bg-aurora { background: linear-gradient(135deg, #a8edea, #fed6e3); }
+.bg-cosmic { background: linear-gradient(135deg, #8e2de2, #4a00e0); }
+.bg-golden { background: linear-gradient(135deg, #f7971e, #ffd200); }
+.bg-mint { background: linear-gradient(135deg, #00b09b, #96c93d); }
+.bg-cherry { background: linear-gradient(135deg, #eb3349, #f45c43); }
+
+.profile-header.bg-sunset { background: linear-gradient(135deg, #f093fb, #f5576c) !important; }
+.profile-header.bg-ocean { background: linear-gradient(135deg, #4facfe, #00f2fe) !important; }
+.profile-header.bg-forest { background: linear-gradient(135deg, #11998e, #38ef7d) !important; }
+.profile-header.bg-fire { background: linear-gradient(135deg, #f12711, #f5af19) !important; }
+.profile-header.bg-midnight { background: linear-gradient(135deg, #232526, #414345) !important; }
+.profile-header.bg-candy { background: linear-gradient(135deg, #ff9a9e, #fecfef) !important; }
+.profile-header.bg-aurora { background: linear-gradient(135deg, #a8edea, #fed6e3) !important; }
+.profile-header.bg-cosmic { background: linear-gradient(135deg, #8e2de2, #4a00e0) !important; }
+.profile-header.bg-golden { background: linear-gradient(135deg, #f7971e, #ffd200) !important; }
+.profile-header.bg-mint { background: linear-gradient(135deg, #00b09b, #96c93d) !important; }
+.profile-header.bg-cherry { background: linear-gradient(135deg, #eb3349, #f45c43) !important; }
+
+.sticker-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.sticker-option {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    background: var(--input-bg, #0d1117);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sticker-option:hover {
+    transform: scale(1.1);
+    border-color: #58a6ff;
+}
+
+.sticker-option.selected {
+    border-color: #238636;
+    background: rgba(35, 134, 54, 0.2);
+}
+
+.sticker-option img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.profile-stickers {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.profile-sticker {
+    width: 36px;
+    height: 36px;
+}
+
+.profile-sticker img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.sticker-count {
+    color: #6e7681;
+    font-size: 0.75rem;
+    text-align: right;
+}
+
+.personalize-section {
+    grid-column: 1 / -1;
+}
 </style>
 
 <script>
@@ -572,6 +707,89 @@ const AVATAR_OPTIONS = [
 
 let currentProfile = null;
 let selectedAvatarId = null;
+let selectedBackground = 'default';
+let selectedStickers = [];
+
+const STICKER_OPTIONS = [
+    { id: 'star', name: 'Gold Star', url: '/static/stickers/gold_star_sticker.png' },
+    { id: 'coffee', name: 'Coffee', url: '/static/stickers/coffee_cup_sticker.png' },
+    { id: 'fire', name: 'Fire', url: '/static/stickers/fire_flame_sticker.png' },
+    { id: 'heart', name: 'Heart Wings', url: '/static/stickers/winged_heart_sticker.png' },
+    { id: 'lightning', name: 'Lightning', url: '/static/stickers/lightning_bolt_sticker.png' },
+    { id: 'rainbow', name: 'Rainbow', url: '/static/stickers/rainbow_sticker.png' },
+    { id: 'pizza', name: 'Pizza', url: '/static/stickers/pizza_slice_sticker.png' },
+    { id: 'music', name: 'Music', url: '/static/stickers/music_notes_sticker.png' },
+    { id: 'diamond', name: 'Diamond', url: '/static/stickers/diamond_gem_sticker.png' },
+    { id: 'crown', name: 'Crown', url: '/static/stickers/crown_sticker.png' }
+];
+
+const BACKGROUND_OPTIONS = [
+    { id: 'default', name: 'Purple Haze' },
+    { id: 'sunset', name: 'Sunset' },
+    { id: 'ocean', name: 'Ocean Wave' },
+    { id: 'forest', name: 'Forest' },
+    { id: 'fire', name: 'Fire' },
+    { id: 'midnight', name: 'Midnight' },
+    { id: 'candy', name: 'Candy' },
+    { id: 'aurora', name: 'Aurora' },
+    { id: 'cosmic', name: 'Cosmic' },
+    { id: 'golden', name: 'Golden' },
+    { id: 'mint', name: 'Mint' },
+    { id: 'cherry', name: 'Cherry' }
+];
+
+function renderBackgroundOptions(currentBg) {
+    return BACKGROUND_OPTIONS.map(bg => 
+        `<div class="bg-option bg-${bg.id} ${(currentBg || 'default') === bg.id ? 'selected' : ''}" 
+              onclick="selectBackground('${bg.id}')" title="${bg.name}"></div>`
+    ).join('');
+}
+
+function selectBackground(bgId) {
+    selectedBackground = bgId;
+    document.querySelectorAll('.bg-option').forEach(opt => opt.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+}
+
+function renderStickerOptions() {
+    return STICKER_OPTIONS.map(sticker => 
+        `<div class="sticker-option ${selectedStickers.includes(sticker.id) ? 'selected' : ''}" 
+              onclick="toggleSticker('${sticker.id}')" title="${sticker.name}">
+            <img src="${sticker.url}" alt="${sticker.name}">
+        </div>`
+    ).join('');
+}
+
+function toggleSticker(stickerId) {
+    const idx = selectedStickers.indexOf(stickerId);
+    if (idx > -1) {
+        selectedStickers.splice(idx, 1);
+    } else if (selectedStickers.length < 5) {
+        selectedStickers.push(stickerId);
+    }
+    document.querySelectorAll('.sticker-option').forEach(opt => opt.classList.remove('selected'));
+    selectedStickers.forEach(id => {
+        const sticker = STICKER_OPTIONS.find(s => s.id === id);
+        if (sticker) {
+            const opts = document.querySelectorAll('.sticker-option');
+            opts.forEach(o => {
+                if (o.title === sticker.name) o.classList.add('selected');
+            });
+        }
+    });
+    const countEl = document.getElementById('sticker-count');
+    if (countEl) countEl.textContent = `${selectedStickers.length}/5`;
+}
+
+function renderProfileStickers(stickers) {
+    if (!stickers || stickers.length === 0) return '';
+    return `<div class="profile-stickers">
+        ${stickers.map(id => {
+            const sticker = STICKER_OPTIONS.find(s => s.id === id);
+            return sticker ? `<div class="profile-sticker"><img src="${sticker.url}" alt="${sticker.name}"></div>` : '';
+        }).join('')}
+    </div>`;
+}
 
 function escapeHtml(text) {
     if (!text) return '';
@@ -616,9 +834,12 @@ async function loadProfile() {
         
         const avatarUrl = getAvatarUrl(profile.avatar_choice, profile.avatar_url);
         const hasCustomAvatar = profile.avatar_choice && profile.avatar_choice !== 'random' && profile.avatar_choice !== 'discord';
+        const bgClass = profile.profile_background && profile.profile_background !== 'default' ? `bg-${profile.profile_background}` : '';
+        selectedBackground = profile.profile_background || 'default';
+        selectedStickers = profile.selected_stickers || [];
         
         container.innerHTML = `
-            <div class="profile-header">
+            <div class="profile-header ${bgClass}">
                 <div class="profile-avatar ${isOwnProfile ? 'clickable' : ''}" ${isOwnProfile ? 'onclick="openAvatarModal()"' : ''} title="${isOwnProfile ? 'Click to change avatar' : ''}">
                     ${avatarUrl 
                         ? `<img src="${escapeHtml(avatarUrl)}" alt="Avatar">`
@@ -629,6 +850,7 @@ async function loadProfile() {
                     <div class="profile-name">${escapeHtml(profile.display_name)}</div>
                     <div class="profile-role">${escapeHtml(profile.position || profile.company_role || 'Team Member')}</div>
                     ${profile.catchphrase ? `<div class="profile-catchphrase">"${escapeHtml(profile.catchphrase)}"</div>` : ''}
+                    ${renderProfileStickers(selectedStickers)}
                     <span class="profile-status ${profile.is_clocked_in ? 'clocked-in' : 'clocked-out'}">
                         ${profile.is_clocked_in ? '🟢 Clocked In' : '⚪ Clocked Out'}
                     </span>
@@ -727,6 +949,37 @@ async function loadProfile() {
                         <span class="info-value ${!stats.last_session ? 'not-set' : ''}">${stats.last_session ? new Date(stats.last_session).toLocaleDateString() : 'Never'}</span>
                     </div>
                 </div>
+                
+                ${isOwnProfile ? `
+                <div class="profile-section personalize-section">
+                    <div class="section-title">🎨 Personalize</div>
+                    
+                    <div class="customization-row">
+                        <span class="customization-label">Your Catchphrase</span>
+                        <input type="text" class="catchphrase-input" id="catchphrase-input" 
+                               maxlength="50" placeholder="Add your motto or catchphrase..."
+                               value="${escapeHtml(profile.catchphrase || '')}">
+                        <div class="char-count"><span id="catchphrase-count">${(profile.catchphrase || '').length}</span>/50</div>
+                    </div>
+                    
+                    <div class="customization-row">
+                        <span class="customization-label">Profile Background</span>
+                        <div class="background-picker" id="background-picker">
+                            ${renderBackgroundOptions(profile.profile_background)}
+                        </div>
+                    </div>
+                    
+                    <div class="customization-row">
+                        <span class="customization-label">Flair Stickers <span class="sticker-count" id="sticker-count">${selectedStickers.length}/5</span></span>
+                        <div class="sticker-picker" id="sticker-picker">
+                            ${renderStickerOptions()}
+                        </div>
+                    </div>
+                    
+                    <button class="btn-save-contact" onclick="saveCustomization()" style="margin-top: 1rem; width: 100%;">Save Personalization</button>
+                    <div id="customization-status" style="margin-top: 0.5rem;"></div>
+                </div>
+                ` : ''}
             </div>
         `;
         
@@ -862,6 +1115,62 @@ async function saveAvatarChoice() {
     btn.textContent = 'Save Avatar';
 }
 
-document.addEventListener('DOMContentLoaded', loadProfile);
+async function saveCustomization() {
+    const catchphraseInput = document.getElementById('catchphrase-input');
+    const statusDiv = document.getElementById('customization-status');
+    const btn = document.querySelector('.personalize-section .btn-save-contact');
+    
+    const catchphrase = catchphraseInput ? catchphraseInput.value.trim() : '';
+    
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    statusDiv.innerHTML = '';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ 
+                catchphrase: catchphrase || null,
+                profile_background: selectedBackground || 'default',
+                selected_stickers: selectedStickers
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            statusDiv.innerHTML = '<span class="save-success">✓ Personalization saved!</span>';
+            setTimeout(() => { 
+                statusDiv.innerHTML = ''; 
+                loadProfile();
+            }, 1500);
+        } else {
+            statusDiv.innerHTML = `<span class="save-error">✗ ${escapeHtml(data.error)}</span>`;
+        }
+    } catch (error) {
+        statusDiv.innerHTML = '<span class="save-error">✗ Failed to save personalization</span>';
+    }
+    
+    btn.disabled = false;
+    btn.textContent = 'Save Personalization';
+}
+
+function setupCatchphraseCounter() {
+    const input = document.getElementById('catchphrase-input');
+    const counter = document.getElementById('catchphrase-count');
+    if (input && counter) {
+        input.addEventListener('input', () => {
+            counter.textContent = input.value.length;
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadProfile().then(() => {
+        setTimeout(setupCatchphraseCounter, 100);
+    });
+});
 </script>
 {% endblock %}

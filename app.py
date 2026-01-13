@@ -407,6 +407,21 @@ STRIPE_PRICE_IDS = {
 # Bot API Configuration
 BOT_API_BASE_URL = os.getenv('BOT_API_BASE_URL', 'http://localhost:8081')
 
+def _parse_stickers(value):
+    """Parse selected_stickers from database - handles both JSON string and list."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            import json
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else []
+        except (json.JSONDecodeError, TypeError):
+            return []
+    return []
+
 def validate_bot_api_url(url):
     """
     Validate that a URL is safe for server-side requests (SSRF prevention).
@@ -6103,7 +6118,8 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                        ep.email, ep.hire_date, ep.position, ep.department, ep.company_role,
                        ep.first_clock_at, ep.bio, ep.is_active,
                        ep.profile_setup_completed, ep.welcome_dm_sent, ep.first_clock_used,
-                       ep.phone, ep.avatar_choice, ep.profile_background, ep.catchphrase
+                       ep.phone, ep.avatar_choice, ep.profile_background, ep.catchphrase,
+                       ep.selected_stickers
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.user_id = %s
             """, (int(guild_id), int(user_id)))
@@ -6190,6 +6206,7 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 'avatar_choice': profile_row.get('avatar_choice') or 'random',
                 'profile_background': profile_row.get('profile_background') or 'default',
                 'catchphrase': profile_row.get('catchphrase') or '',
+                'selected_stickers': _parse_stickers(profile_row.get('selected_stickers')),
                 'stats': {
                     'total_hours': round(stats_row.get('total_hours') or 0, 1),
                     'total_sessions': stats_row.get('total_sessions') or 0,
@@ -6230,7 +6247,7 @@ def api_update_employee_profile(user_session, guild_id, user_id):
             return jsonify({'success': False, 'error': 'No data provided'}), 400
         
         # Fields that can be updated by employee (free tier can edit email/phone + customization)
-        allowed_fields = ['email', 'phone', 'avatar_choice', 'profile_background', 'catchphrase']
+        allowed_fields = ['email', 'phone', 'avatar_choice', 'profile_background', 'catchphrase', 'selected_stickers']
         if is_admin:
             allowed_fields.extend(['hire_date', 'position', 'department', 'company_role'])
         
@@ -6260,11 +6277,25 @@ def api_update_employee_profile(user_session, guild_id, user_id):
                     if value not in allowed_avatars:
                         return jsonify({'success': False, 'error': 'Invalid avatar choice'}), 400
                 if field == 'profile_background' and value:
-                    if len(value) > 50:
-                        return jsonify({'success': False, 'error': 'Background choice too long (max 50 chars)'}), 400
+                    allowed_backgrounds = ['default', 'sunset', 'ocean', 'forest', 'fire', 'midnight',
+                                           'candy', 'aurora', 'cosmic', 'golden', 'mint', 'cherry']
+                    if value not in allowed_backgrounds:
+                        return jsonify({'success': False, 'error': 'Invalid background choice'}), 400
                 if field == 'catchphrase' and value:
                     if len(value) > 50:
                         return jsonify({'success': False, 'error': 'Catchphrase too long (max 50 characters)'}), 400
+                if field == 'selected_stickers':
+                    # Validate stickers
+                    allowed_stickers = ['star', 'coffee', 'fire', 'heart', 'lightning', 
+                                        'rainbow', 'pizza', 'music', 'diamond', 'crown']
+                    if not isinstance(value, list):
+                        value = []
+                    if len(value) > 5:
+                        return jsonify({'success': False, 'error': 'Maximum 5 stickers allowed'}), 400
+                    value = [s for s in value if s in allowed_stickers]
+                    # Convert to JSON for storage
+                    import json
+                    value = json.dumps(value)
                 updates.append(f"{field} = %s")
                 params.append(value if value else None)
         
