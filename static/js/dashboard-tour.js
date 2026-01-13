@@ -175,13 +175,21 @@ const DashboardTour = {
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
             if (!this.isActive) return;
+            
+            // Handle Escape - close lightbox first, then tour
             if (e.key === 'Escape') {
                 if (this.lightbox.style.display === 'flex') {
                     this.hideLightbox();
                 } else {
                     this.end();
                 }
-            } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+                return;
+            }
+            
+            // Don't allow step navigation while lightbox is open
+            if (this.lightbox.style.display === 'flex') return;
+            
+            if (e.key === 'ArrowRight' || e.key === 'Enter') {
                 this.next();
             } else if (e.key === 'ArrowLeft') {
                 this.prev();
