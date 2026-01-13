@@ -1676,9 +1676,19 @@
                 if (data.success) {
                     renderInfoPanel(data);
                     updateActionButtons(data.is_clocked_in);
+                } else {
+                    console.error('API returned error:', data.error);
+                    const panel = document.getElementById('infoPanel');
+                    if (panel) {
+                        panel.innerHTML = `<div class="info-error">Failed to load info: ${escapeHtml(data.error || 'Unknown error')}</div>`;
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load employee info:', error);
+                const panel = document.getElementById('infoPanel');
+                if (panel) {
+                    panel.innerHTML = `<div class="info-error">Connection error. Please try again.</div>`;
+                }
             }
             showLoading(false);
             showScreen('actions');
@@ -1701,90 +1711,106 @@
         };
 
         function renderInfoPanel(data) {
-            const panel = document.getElementById('infoPanel');
-            currentEmployeeEmail = data.email || null;
-            
-            // Apply customization classes
-            panel.className = 'info-panel';
-            if (data.allow_customization && data.customization) {
-                const cust = data.customization;
-                if (cust.profile_background && cust.profile_background !== 'default') {
-                    panel.classList.add(`bg-${cust.profile_background}`);
+            try {
+                const panel = document.getElementById('infoPanel');
+                if (!panel) {
+                    console.error('Info panel element not found');
+                    return;
                 }
-                if (cust.accent_color) {
-                    panel.classList.add(`accent-${cust.accent_color}`);
+                currentEmployeeEmail = data.email || null;
+                
+                // Apply customization classes
+                panel.className = 'info-panel';
+                if (data.allow_customization && data.customization) {
+                    const cust = data.customization;
+                    if (cust.profile_background && cust.profile_background !== 'default') {
+                        panel.classList.add(`bg-${cust.profile_background}`);
+                    }
+                    if (cust.accent_color) {
+                        panel.classList.add(`accent-${cust.accent_color}`);
+                    }
+                }
+                
+                // Email display: show email with update link, or set email button
+                const emailDisplay = data.email 
+                    ? `<div class="info-email">📧 ${escapeHtml(data.email)} <span class="info-email-link" onclick="openSetEmailModal()">Update</span></div>`
+                    : `<button class="set-email-btn" onclick="openSetEmailModal()">📧 Set Email Address</button>`;
+                
+                // Build catchphrase HTML
+                let catchphraseHtml = '';
+                if (data.allow_customization && data.customization && data.customization.catchphrase) {
+                    catchphraseHtml = `<div class="info-catchphrase">"${escapeHtml(data.customization.catchphrase)}"</div>`;
+                }
+                
+                // Build stickers HTML
+                let stickersHtml = '';
+                if (data.allow_customization && data.customization && data.customization.selected_stickers && data.customization.selected_stickers.length > 0) {
+                    const stickers = data.customization.selected_stickers.map(s => 
+                        `<span class="info-sticker">${stickerEmojis[s] || '🏷️'}</span>`
+                    ).join('');
+                    stickersHtml = `<div class="info-stickers">${stickers}</div>`;
+                }
+                
+                // Build notifications HTML
+                let notificationsHtml = '';
+                const notifications = data.notifications || [];
+                
+                if (notifications.length > 0) {
+                    notificationsHtml = notifications.map(n => `
+                        <div class="notification-item ${n.type}">
+                            <span class="notification-icon">${n.icon}</span>
+                            <span class="notification-text">${escapeHtml(n.text)}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    notificationsHtml = '<div class="no-notifications">No notifications</div>';
+                }
+                
+                // Safely get display name
+                const displayName = currentEmployee ? (currentEmployee.display_name || 'Employee') : 'Employee';
+                const avatarInitial = displayName.charAt(0).toUpperCase();
+                
+                panel.innerHTML = `
+                    <div class="info-main">
+                        <div class="info-user">
+                            <div class="info-avatar">
+                                ${data.avatar_url ? `<img src="${data.avatar_url}" alt="">` : avatarInitial}
+                            </div>
+                            <div>
+                                <div class="info-name">${escapeHtml(displayName)}</div>
+                                <div class="info-role">${escapeHtml(data.position || 'Team Member')}</div>
+                                ${catchphraseHtml}
+                                ${emailDisplay}
+                                ${stickersHtml}
+                            </div>
+                        </div>
+                        <div class="info-stats">
+                            <div class="stat-card">
+                                <div class="stat-value">${formatDuration(data.week_hours || 0)}</div>
+                                <div class="stat-label">This Week</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${formatDuration(data.today_hours || 0)}</div>
+                                <div class="stat-label">Today</div>
+                            </div>
+                        </div>
+                        <div class="last-punch">
+                            <div class="last-punch-label">Last Punch</div>
+                            <div class="last-punch-value">${data.last_punch || 'No recent activity'}</div>
+                        </div>
+                    </div>
+                    <div class="info-notifications">
+                        <div class="info-notifications-title">Notifications</div>
+                        ${notificationsHtml}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error rendering info panel:', error);
+                const panel = document.getElementById('infoPanel');
+                if (panel) {
+                    panel.innerHTML = `<div class="info-error">Unable to load employee info. Please try again.</div>`;
                 }
             }
-            
-            // Email display: show email with update link, or set email button
-            const emailDisplay = data.email 
-                ? `<div class="info-email">📧 ${escapeHtml(data.email)} <span class="info-email-link" onclick="openSetEmailModal()">Update</span></div>`
-                : `<button class="set-email-btn" onclick="openSetEmailModal()">📧 Set Email Address</button>`;
-            
-            // Build catchphrase HTML
-            let catchphraseHtml = '';
-            if (data.allow_customization && data.customization && data.customization.catchphrase) {
-                catchphraseHtml = `<div class="info-catchphrase">"${escapeHtml(data.customization.catchphrase)}"</div>`;
-            }
-            
-            // Build stickers HTML
-            let stickersHtml = '';
-            if (data.allow_customization && data.customization && data.customization.selected_stickers && data.customization.selected_stickers.length > 0) {
-                const stickers = data.customization.selected_stickers.map(s => 
-                    `<span class="info-sticker">${stickerEmojis[s] || '🏷️'}</span>`
-                ).join('');
-                stickersHtml = `<div class="info-stickers">${stickers}</div>`;
-            }
-            
-            // Build notifications HTML
-            let notificationsHtml = '';
-            const notifications = data.notifications || [];
-            
-            if (notifications.length > 0) {
-                notificationsHtml = notifications.map(n => `
-                    <div class="notification-item ${n.type}">
-                        <span class="notification-icon">${n.icon}</span>
-                        <span class="notification-text">${escapeHtml(n.text)}</span>
-                    </div>
-                `).join('');
-            } else {
-                notificationsHtml = '<div class="no-notifications">No notifications</div>';
-            }
-            
-            panel.innerHTML = `
-                <div class="info-main">
-                    <div class="info-user">
-                        <div class="info-avatar">
-                            ${data.avatar_url ? `<img src="${data.avatar_url}" alt="">` : currentEmployee.display_name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <div class="info-name">${escapeHtml(currentEmployee.display_name)}</div>
-                            <div class="info-role">${escapeHtml(data.position || 'Team Member')}</div>
-                            ${catchphraseHtml}
-                            ${emailDisplay}
-                            ${stickersHtml}
-                        </div>
-                    </div>
-                    <div class="info-stats">
-                        <div class="stat-card">
-                            <div class="stat-value">${formatDuration(data.week_hours)}</div>
-                            <div class="stat-label">This Week</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${formatDuration(data.today_hours)}</div>
-                            <div class="stat-label">Today</div>
-                        </div>
-                    </div>
-                    <div class="last-punch">
-                        <div class="last-punch-label">Last Punch</div>
-                        <div class="last-punch-value">${data.last_punch || 'No recent activity'}</div>
-                    </div>
-                </div>
-                <div class="info-notifications">
-                    <div class="info-notifications-title">Notifications</div>
-                    ${notificationsHtml}
-                </div>
-            `;
         }
 
         function updateActionButtons(isClockedIn) {
