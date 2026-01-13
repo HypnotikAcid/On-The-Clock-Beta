@@ -56,6 +56,7 @@ Preferred communication style: Simple, everyday language.
   - **Free Tier**: $0/mo. Includes dashboard login, basic profile management (email/phone), and role management. Time data retention is 24 hours.
   - **Premium Tier**: $8/mo (with $5 first-month trial). Includes full dashboard access, time adjustments, employee management, CSV reports, email notifications, and 30-day retention.
   - **Pro Tier**: $15/mo. Future tier including everything in Premium plus Kiosk mode, Payroll integrations, Advanced CSV, and Shift scheduling.
+  - **Grandfathered Tier**: Legacy servers with `bot_access_paid = TRUE` and no active subscription are granted permanent Premium access.
 - **Trial Tracking System**: Tracks one-time $5 first-month trial per server using the `trial_usage` table. Managed via the owner dashboard.
 - **Concurrent Safety**: Achieved through guild-level locking, PostgreSQL connection pooling with SSL validation, and automatic transaction management.
 - **Ephemeral Interface System**: Resolves interaction timeout issues by providing new interfaces via the `/clock` command.

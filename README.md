@@ -260,10 +260,15 @@ event = json.loads(request.data)  # Unsafe!
   - Ban Management
 - Owner-only dashboard (`/owner`) for bot owner
 
-### Payment System (Stripe)
-- **Dashboard Premium**: $5 one-time per server (includes 7-day data retention)
-- **Pro Retention**: $5/month add-on (extends to 30-day data retention)
-- Webhook handling for `checkout.session.completed` and `customer.subscription.deleted`
+### Subscription Management
+- **Free Tier**: $0/mo. Includes dashboard login, basic profile management (email/phone), and role management. Time data retention is 24 hours.
+- **Premium Tier**: $8/mo (with $5 first-month trial). Includes full dashboard access, time adjustments, employee management, CSV reports, email notifications, and 30-day retention.
+- **Pro Tier**: $15/mo. Future tier including everything in Premium plus Kiosk mode, Payroll integrations, Advanced CSV, and Shift scheduling.
+- **Grandfathered Status**: Legacy users who purchased "Dashboard Premium" ($5 one-time) are automatically grandfathered into the Premium tier for lifetime access.
+
+### Stripe Integration
+- **Stripe Price IDs**: Managed via environment variables for `bot_access` (Legacy), `retention_7day` (Premium), and `retention_30day` (Premium/Pro).
+- **Trial Coupon**: `vzRYNZed` applies $3 off for the first month of Premium/Pro ($5 trial).
 
 ### Email Automation
 - Auto-send reports on clock-out
