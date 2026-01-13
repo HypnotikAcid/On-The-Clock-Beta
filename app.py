@@ -6387,26 +6387,27 @@ def api_update_employee_profile(user_session, guild_id, user_id):
             """, (int(guild_id),))
             tier_row = tier_cursor.fetchone()
             server_tier = tier_row['tier'] if tier_row else 'free'
-            has_pro_customization = server_tier == 'pro'
+            # Customization available for Premium and Pro
+            has_premium_customization = server_tier in ['premium', 'pro']
         
         # Basic fields available to all tiers (text-based info)
         allowed_fields = ['email', 'phone', 'catchphrase']
         
-        # Premium customization fields only for Pro tier
-        pro_only_fields = ['avatar_choice', 'profile_background', 'accent_color', 'selected_stickers']
+        # Premium customization fields only for Premium/Pro tiers
+        premium_fields = ['avatar_choice', 'profile_background', 'accent_color', 'selected_stickers']
         
-        # Check if trying to update Pro-only fields without Pro tier
-        for field in pro_only_fields:
-            if field in data and not has_pro_customization:
+        # Check if trying to update premium fields without proper tier
+        for field in premium_fields:
+            if field in data and not has_premium_customization:
                 return jsonify({
                     'success': False, 
-                    'error': 'Profile customization requires Pro tier. Upgrade to unlock custom avatars, backgrounds, and stickers.',
+                    'error': 'Profile customization requires Premium tier. Upgrade to unlock custom avatars, backgrounds, and stickers.',
                     'upgrade_required': True
                 }), 403
         
-        # Add Pro fields if server has Pro tier
-        if has_pro_customization:
-            allowed_fields.extend(pro_only_fields)
+        # Add premium fields if server has Premium/Pro tier
+        if has_premium_customization:
+            allowed_fields.extend(premium_fields)
         
         if is_admin:
             allowed_fields.extend(['hire_date', 'position', 'department', 'company_role'])

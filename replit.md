@@ -68,7 +68,7 @@ Preferred communication style: Simple, everyday language.
 - **Route-Based Dashboard**: Dedicated routes for server overview, role management, email settings, timezone/schedule, employee status cards, individual employee profiles, clock interface, time adjustments, calendar, bans, and owner dashboard.
 - **Subscription Management**:
     - **Free Tier**: $0/mo, basic profile management, 24-hour data retention.
-    - **Premium Tier**: $8/mo, full dashboard, time adjustments, employee management, CSV reports, email notifications, 30-day retention.
+    - **Premium Tier**: $8/mo, full dashboard, time adjustments, employee management, CSV reports, email notifications, 30-day retention, and Profile Customization (backgrounds, accent colors, stickers).
     - **Pro Tier**: $15/mo, includes Kiosk mode, payroll integrations, advanced CSV, shift scheduling.
     - **Grandfathered Tier**: Legacy servers retain Premium access.
 - **Trial Tracking**: Tracks one-time $5 first-month trial per server.
