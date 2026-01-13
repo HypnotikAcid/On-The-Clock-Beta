@@ -6,6 +6,11 @@
 <div class="content-header">
     <h1 class="content-title">Employee Profile</h1>
     <p class="content-subtitle">{% if is_own_profile %}Your personal profile and stats{% else %}View employee details{% endif %}</p>
+    {% if is_own_profile %}
+    <button onclick="DashboardTour.reset('employee')" class="btn-secondary" style="margin-top: 10px; font-size: 0.8rem;">
+        🔄 Restart My Tour
+    </button>
+    {% endif %}
 </div>
 
 <div id="profile-container">

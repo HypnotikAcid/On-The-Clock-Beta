@@ -6,101 +6,103 @@ const DashboardTour = {
     spotlight: null,
     isActive: false,
     
-    tourSteps: [
+    // Role-specific completion keys
+    keys: {
+        admin: 'otcTour_admin_completed',
+        employee: 'otcTour_employee_completed'
+    },
+
+    // Lightbox for Discord Previews
+    lightbox: null,
+
+    adminSteps: [
+        {
+            target: '.sidebar-user',
+            title: 'Admin Profile',
+            content: 'As an admin, you have full control over your server settings.',
+            position: 'right'
+        },
+        {
+            target: '[data-section="admin-roles"]',
+            title: 'Admin Roles',
+            content: 'Configure which Discord roles have access to this dashboard.',
+            position: 'right'
+        },
+        {
+            target: '[data-section="employee-roles"]',
+            title: 'Employee Roles',
+            content: 'Define which roles are allowed to clock in and out.',
+            position: 'right'
+        },
+        {
+            target: '[data-section="adjustments"]',
+            title: 'Time Adjustments',
+            content: 'Review and approve/deny employee time modification requests.',
+            position: 'right',
+            preview: 'adjustments' // Link to Discord preview
+        },
+        {
+            target: '[data-section="admin-calendar"]',
+            title: 'Admin Calendar',
+            content: 'A master view of all employee shifts and history.',
+            position: 'right'
+        }
+    ],
+
+    employeeSteps: [
         {
             target: '.sidebar-user',
             title: 'Your Profile',
-            content: 'This is you! Your Discord avatar and username appear here. Click logout when you\'re done.',
-            position: 'right',
-            page: 'my-servers'
+            content: 'Customize your personal profile with avatars and themes.',
+            position: 'right'
         },
         {
-            target: '.server-list, .server-grid',
-            title: 'Your Servers',
-            content: 'These are all the Discord servers you have access to with On the Clock. Click any server to manage it.',
-            position: 'top',
-            page: 'my-servers'
+            target: '[data-section="on-the-clock"]',
+            title: 'Clock In/Out',
+            content: 'This is where you manage your active shift.',
+            position: 'right',
+            preview: 'clock'
         },
         {
-            target: '#start-tour-nav',
-            title: 'Need Help Again?',
-            content: 'You can restart this tour anytime by clicking here. Now let\'s explore a server!',
-            position: 'right',
-            page: 'my-servers'
+            target: '[data-section="adjustments"]',
+            title: 'Request Changes',
+            content: 'Submit requests to fix missing or incorrect punches.',
+            position: 'right'
         }
     ],
     
-    serverTourSteps: [
-        {
-            target: '[href*="/employees"]',
-            findByText: 'Employees',
-            title: 'Employee Management',
-            content: 'View and manage all your employees. See who\'s clocked in, edit profiles, and track hours.',
-            position: 'right',
-            page: 'server'
+    previews: {
+        clock: {
+            title: 'Discord /clock Command',
+            img: '/static/previews/discord_clock.webp',
+            desc: 'Employees can also clock in/out directly from Discord using the /clock command.'
         },
-        {
-            target: '[href*="/roles"]',
-            findByText: 'Role',
-            title: 'Role Assignment',
-            content: 'Assign Discord roles that can clock in. Only members with these roles can use the timeclock.',
-            position: 'right',
-            page: 'server'
-        },
-        {
-            target: '[href*="/timezone"]',
-            findByText: 'Timezone',
-            title: 'Timezone & Schedule',
-            content: 'Set your business timezone and work schedule. This affects how hours are calculated.',
-            position: 'right',
-            page: 'server'
-        },
-        {
-            target: '[href*="/settings"]',
-            findByText: 'Settings',
-            title: 'Server Settings',
-            content: 'Configure email notifications, reports, and other server-specific options.',
-            position: 'right',
-            page: 'server'
-        },
-        {
-            target: '[href*="/adjustments"]',
-            findByText: 'Time Adjustment',
-            title: 'Time Adjustments',
-            content: 'Review and approve employee requests to modify their clock times. Keep accurate records!',
-            position: 'right',
-            page: 'server'
-        },
-        {
-            target: '.content-area',
-            title: 'Main Dashboard',
-            content: 'This is your main work area. It shows different content based on which section you\'re viewing.',
-            position: 'top',
-            page: 'server'
+        adjustments: {
+            title: 'Discord Notifications',
+            img: '/static/previews/discord_notif.webp',
+            desc: 'When you approve a request, the employee receives a notification in Discord.'
         }
-    ],
-    
+    },
+
     init() {
         this.createElements();
         this.bindEvents();
         
-        const tourBtn = document.getElementById('start-tour-nav');
-        if (tourBtn) {
-            tourBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.start();
-            });
-        }
-        
-        if (!localStorage.getItem('tourCompleted') && !localStorage.getItem('tourSkipped')) {
-            const isServerPage = window.location.pathname.includes('/server/');
-            if (!isServerPage) {
-                setTimeout(() => this.start(), 1000);
-            }
-        }
+        // Check for role and auto-start
+        this.checkAutoStart();
     },
     
+    checkAutoStart() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewAs = urlParams.get('view_as') || (window.location.pathname.includes('/server/') ? 'admin' : null);
+        
+        if (viewAs && !localStorage.getItem(this.keys[viewAs])) {
+            setTimeout(() => this.start(viewAs), 1500);
+        }
+    },
+
     createElements() {
+        // Overlay, Spotlight, Tooltip logic remains but updated with preview support
         this.overlay = document.createElement('div');
         this.overlay.className = 'tour-overlay';
         this.overlay.innerHTML = '<div class="tour-backdrop"></div>';
@@ -117,18 +119,36 @@ const DashboardTour = {
             </div>
             <h4 class="tour-title"></h4>
             <p class="tour-content"></p>
+            <div class="tour-preview-link" style="display:none; margin: 10px 0; color: #00FFFF; cursor: pointer; font-size: 0.8rem; text-decoration: underline;">
+                See in Discord
+            </div>
             <div class="tour-actions">
-                <button class="tour-btn tour-btn-skip">Skip Tour</button>
+                <button class="tour-btn tour-btn-skip">Skip</button>
                 <div class="tour-nav">
                     <button class="tour-btn tour-btn-prev">Back</button>
                     <button class="tour-btn tour-btn-next">Next</button>
                 </div>
             </div>
         `;
+
+        this.lightbox = document.createElement('div');
+        this.lightbox.className = 'tour-lightbox';
+        this.lightbox.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; align-items:center; justify-content:center; flex-direction:column; padding:20px;';
+        this.lightbox.innerHTML = `
+            <div style="max-width:800px; width:100%; border: 2px solid #00FFFF; box-shadow: 0 0 20px #00FFFF; border-radius:12px; overflow:hidden; background:#0a0f1f;">
+                <div style="padding:15px; border-bottom:1px solid rgba(0,255,255,0.2); display:flex; justify-content:space-between; align-items:center;">
+                    <h3 class="lightbox-title" style="margin:0; color:#00FFFF;"></h3>
+                    <button onclick="DashboardTour.hideLightbox()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+                </div>
+                <img class="lightbox-img" style="width:100%; display:block;" src="">
+                <div class="lightbox-desc" style="padding:15px; color:#8B949E; font-size:0.9rem;"></div>
+            </div>
+        `;
         
         document.body.appendChild(this.overlay);
         document.body.appendChild(this.spotlight);
         document.body.appendChild(this.tooltip);
+        document.body.appendChild(this.lightbox);
     },
     
     bindEvents() {
@@ -136,23 +156,16 @@ const DashboardTour = {
         this.tooltip.querySelector('.tour-btn-skip').addEventListener('click', () => this.skip());
         this.tooltip.querySelector('.tour-btn-prev').addEventListener('click', () => this.prev());
         this.tooltip.querySelector('.tour-btn-next').addEventListener('click', () => this.next());
-        this.overlay.addEventListener('click', (e) => {
-            if (e.target === this.overlay.querySelector('.tour-backdrop')) {
-                this.end();
-            }
-        });
+        this.tooltip.querySelector('.tour-preview-link').addEventListener('click', () => this.showLightbox());
         
-        document.addEventListener('keydown', (e) => {
-            if (!this.isActive) return;
-            if (e.key === 'Escape') this.end();
-            if (e.key === 'ArrowRight') this.next();
-            if (e.key === 'ArrowLeft') this.prev();
+        this.overlay.addEventListener('click', (e) => {
+            if (e.target === this.overlay.querySelector('.tour-backdrop')) this.end();
         });
     },
     
-    start() {
-        const isServerPage = window.location.pathname.includes('/server/');
-        this.steps = isServerPage ? this.serverTourSteps : this.tourSteps;
+    start(role = 'admin') {
+        this.currentRole = role;
+        this.steps = role === 'admin' ? this.adminSteps : this.employeeSteps;
         this.currentStep = 0;
         this.isActive = true;
         this.overlay.classList.add('active');
@@ -161,90 +174,53 @@ const DashboardTour = {
     
     showStep() {
         const step = this.steps[this.currentStep];
-        if (!step) {
-            this.end();
-            return;
-        }
+        if (!step) return this.end();
         
-        let target = null;
-        
-        try {
-            target = document.querySelector(step.target);
-        } catch (e) {
-            target = null;
-        }
-        
-        if (!target && step.findByText) {
-            const navItems = document.querySelectorAll('.nav-item');
-            target = Array.from(navItems).find(el => el.textContent.includes(step.findByText));
-        }
-        
+        const target = document.querySelector(step.target);
         if (!target) {
-            if (this.currentStep < this.steps.length - 1) {
-                this.currentStep++;
-                this.showStep();
-                return;
-            } else {
-                this.end();
-                return;
-            }
+            this.currentStep++;
+            return this.showStep();
         }
-        
+
+        // Positioning logic (similar to old version)
         const rect = target.getBoundingClientRect();
-        const padding = 8;
-        
         this.spotlight.style.display = 'block';
-        this.spotlight.style.top = `${rect.top - padding + window.scrollY}px`;
-        this.spotlight.style.left = `${rect.left - padding}px`;
-        this.spotlight.style.width = `${rect.width + padding * 2}px`;
-        this.spotlight.style.height = `${rect.height + padding * 2}px`;
+        this.spotlight.style.top = `${rect.top - 8 + window.scrollY}px`;
+        this.spotlight.style.left = `${rect.left - 8}px`;
+        this.spotlight.style.width = `${rect.width + 16}px`;
+        this.spotlight.style.height = `${rect.height + 16}px`;
         
-        this.tooltip.querySelector('.tour-step-indicator').textContent = 
-            `Step ${this.currentStep + 1} of ${this.steps.length}`;
         this.tooltip.querySelector('.tour-title').textContent = step.title;
         this.tooltip.querySelector('.tour-content').textContent = step.content;
         
+        const previewLink = this.tooltip.querySelector('.tour-preview-link');
+        if (step.preview) {
+            previewLink.style.display = 'block';
+            this.currentPreview = step.preview;
+        } else {
+            previewLink.style.display = 'none';
+        }
+
         this.tooltip.style.display = 'block';
-        const tooltipRect = this.tooltip.getBoundingClientRect();
-        
-        let top, left;
-        switch (step.position) {
-            case 'right':
-                top = rect.top + (rect.height / 2) - (tooltipRect.height / 2) + window.scrollY;
-                left = rect.right + padding + 16;
-                break;
-            case 'left':
-                top = rect.top + (rect.height / 2) - (tooltipRect.height / 2) + window.scrollY;
-                left = rect.left - tooltipRect.width - padding - 16;
-                break;
-            case 'top':
-                top = rect.top - tooltipRect.height - padding - 16 + window.scrollY;
-                left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-                break;
-            case 'bottom':
-            default:
-                top = rect.bottom + padding + 16 + window.scrollY;
-                left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-        }
-        
-        if (left < 16) left = 16;
-        if (left + tooltipRect.width > window.innerWidth - 16) {
-            left = window.innerWidth - tooltipRect.width - 16;
-        }
-        if (top < 16) top = rect.bottom + padding + 16 + window.scrollY;
-        
-        this.tooltip.style.top = `${top}px`;
-        this.tooltip.style.left = `${left}px`;
-        
-        const prevBtn = this.tooltip.querySelector('.tour-btn-prev');
-        const nextBtn = this.tooltip.querySelector('.tour-btn-next');
-        
-        prevBtn.style.display = this.currentStep === 0 ? 'none' : 'inline-block';
-        nextBtn.textContent = this.currentStep === this.steps.length - 1 ? 'Finish' : 'Next';
+        this.tooltip.style.top = `${rect.bottom + 20 + window.scrollY}px`;
+        this.tooltip.style.left = `${rect.left}px`;
         
         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     },
-    
+
+    showLightbox() {
+        const data = this.previews[this.currentPreview];
+        if (!data) return;
+        this.lightbox.querySelector('.lightbox-title').textContent = data.title;
+        this.lightbox.querySelector('.lightbox-img').src = data.img;
+        this.lightbox.querySelector('.lightbox-desc').textContent = data.desc;
+        this.lightbox.style.display = 'flex';
+    },
+
+    hideLightbox() {
+        this.lightbox.style.display = 'none';
+    },
+
     next() {
         if (this.currentStep < this.steps.length - 1) {
             this.currentStep++;
@@ -253,56 +229,34 @@ const DashboardTour = {
             this.complete();
         }
     },
-    
-    prev() {
-        if (this.currentStep > 0) {
-            this.currentStep--;
-            this.showStep();
-        }
-    },
-    
-    skip() {
-        localStorage.setItem('tourSkipped', 'true');
-        this.end();
-    },
-    
+
     complete() {
-        localStorage.setItem('tourCompleted', 'true');
+        localStorage.setItem(this.keys[this.currentRole], 'true');
         this.end();
-        this.showCompletionMessage();
     },
-    
+
+    skip() {
+        localStorage.setItem(this.keys[this.currentRole], 'true');
+        this.end();
+    },
+
     end() {
         this.isActive = false;
         this.overlay.classList.remove('active');
         this.spotlight.style.display = 'none';
         this.tooltip.style.display = 'none';
     },
-    
-    showCompletionMessage() {
-        const toast = document.createElement('div');
-        toast.className = 'tour-completion-toast';
-        toast.innerHTML = `
-            <span class="tour-completion-icon">🎉</span>
-            <span>Tour complete! You're ready to start managing time.</span>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.classList.add('show'), 100);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 4000);
-    },
-    
-    reset() {
-        localStorage.removeItem('tourCompleted');
-        localStorage.removeItem('tourSkipped');
+
+    reset(role) {
+        if (role) {
+            localStorage.removeItem(this.keys[role]);
+        } else {
+            localStorage.removeItem(this.keys.admin);
+            localStorage.removeItem(this.keys.employee);
+        }
+        location.reload();
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    DashboardTour.init();
-});
-
+document.addEventListener('DOMContentLoaded', () => DashboardTour.init());
 window.DashboardTour = DashboardTour;
