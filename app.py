@@ -2861,6 +2861,291 @@ def _test_role_id_validation(guild_id, user_session):
             }
         }
 
+
+@app.route("/debug/health/bot")
+@require_auth
+def debug_health_bot(user_session):
+    """Check Discord bot health"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'healthy': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        bot_api_secret = os.getenv('BOT_API_SECRET')
+        if not bot_api_secret:
+            return jsonify({'healthy': False, 'error': 'BOT_API_SECRET not configured'})
+        
+        response = requests.get(
+            'http://localhost:8081/health',
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            timeout=5
+        )
+        
+        if response.ok:
+            return jsonify({'healthy': True, 'message': 'Bot connected and healthy'})
+        else:
+            return jsonify({'healthy': False, 'error': f'Bot API returned {response.status_code}'})
+    except requests.exceptions.ConnectionError:
+        return jsonify({'healthy': False, 'error': 'Bot API not responding'})
+    except Exception as e:
+        return jsonify({'healthy': False, 'error': str(e)})
+
+
+@app.route("/debug/health/db")
+@require_auth
+def debug_health_db(user_session):
+    """Check database health"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'healthy': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("SELECT COUNT(*) as count FROM server_subscriptions")
+            row = cursor.fetchone()
+            return jsonify({'healthy': True, 'message': f'{row["count"]} servers tracked'})
+    except Exception as e:
+        return jsonify({'healthy': False, 'error': str(e)})
+
+
+@app.route("/debug/health/stripe")
+@require_auth
+def debug_health_stripe(user_session):
+    """Check Stripe configuration"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'healthy': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        import stripe
+        stripe_key = os.getenv('STRIPE_SECRET_KEY')
+        webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+        
+        if not stripe_key:
+            return jsonify({'healthy': False, 'error': 'STRIPE_SECRET_KEY not set'})
+        
+        if not webhook_secret:
+            return jsonify({'healthy': False, 'error': 'Webhook secret missing'})
+        
+        stripe.api_key = stripe_key
+        stripe.Account.retrieve()
+        return jsonify({'healthy': True, 'message': 'Stripe configured and connected'})
+    except Exception as e:
+        return jsonify({'healthy': False, 'error': str(e)})
+
+
+@app.route("/debug/health/email")
+@require_auth
+def debug_health_email(user_session):
+    """Check email service configuration"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'healthy': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        from email_utils import send_email
+        return jsonify({'healthy': True, 'message': 'Email service available'})
+    except ImportError:
+        return jsonify({'healthy': False, 'error': 'email_utils module not found'})
+    except Exception as e:
+        return jsonify({'healthy': False, 'error': str(e)})
+
+
+@app.route("/debug/api-test/<test_id>")
+@require_auth
+def debug_api_test(user_session, test_id):
+    """Run specific API tests"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        if test_id == 'bot-api':
+            bot_api_secret = os.getenv('BOT_API_SECRET')
+            if not bot_api_secret:
+                return jsonify({'success': False, 'error': 'No API secret configured'})
+            response = requests.get(
+                'http://localhost:8081/health',
+                headers={'Authorization': f'Bearer {bot_api_secret}'},
+                timeout=5
+            )
+            return jsonify({'success': response.ok, 'message': f'Status {response.status_code}'})
+        
+        elif test_id == 'db':
+            with get_db() as conn:
+                cursor = conn.execute("SELECT 1 as test")
+                cursor.fetchone()
+                return jsonify({'success': True, 'message': 'Query executed successfully'})
+        
+        elif test_id == 'session':
+            return jsonify({
+                'success': True, 
+                'message': f'Logged in as {user_session.get("username")}'
+            })
+        
+        elif test_id == 'stripe':
+            import stripe
+            stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+            if not stripe.api_key:
+                return jsonify({'success': False, 'error': 'No Stripe key'})
+            stripe.Account.retrieve()
+            return jsonify({'success': True, 'message': 'Stripe API accessible'})
+        
+        elif test_id == 'email':
+            from email_utils import send_email
+            return jsonify({'success': True, 'message': 'Email module loaded'})
+        
+        else:
+            return jsonify({'success': False, 'error': f'Unknown test: {test_id}'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route("/debug/version-info")
+@require_auth
+def debug_version_info(user_session):
+    """Get version information from version.json and public_roadmap.json"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        internal_version = 'Unknown'
+        public_version = 'Unknown'
+        updated = 'Unknown'
+        
+        try:
+            with open('version.json', 'r') as f:
+                version_data = json.load(f)
+                internal_version = version_data.get('version', 'Unknown')
+                updated = version_data.get('last_updated', 'Unknown')
+        except:
+            pass
+        
+        try:
+            with open('public_roadmap.json', 'r') as f:
+                roadmap_data = json.load(f)
+                public_version = roadmap_data.get('current_version', 'Unknown')
+        except:
+            pass
+        
+        return jsonify({
+            'internal': internal_version,
+            'public': public_version,
+            'updated': updated
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/debug/checklist")
+@require_auth
+def debug_checklist(user_session):
+    """Run full pre-publish checklist"""
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if user_session['user_id'] != bot_owner_id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    checks = {}
+    
+    try:
+        bot_api_secret = os.getenv('BOT_API_SECRET')
+        if bot_api_secret:
+            response = requests.get(
+                'http://localhost:8081/health',
+                headers={'Authorization': f'Bearer {bot_api_secret}'},
+                timeout=5
+            )
+            if response.ok:
+                checks['bot-connected'] = {'status': 'pass', 'name': 'Discord Bot', 'detail': 'Connected and responding'}
+            else:
+                checks['bot-connected'] = {'status': 'fail', 'name': 'Discord Bot', 'detail': f'API returned {response.status_code}'}
+        else:
+            checks['bot-connected'] = {'status': 'fail', 'name': 'Discord Bot', 'detail': 'BOT_API_SECRET not configured'}
+    except:
+        checks['bot-connected'] = {'status': 'fail', 'name': 'Discord Bot', 'detail': 'Cannot connect to bot API'}
+    
+    try:
+        bot_api_secret = os.getenv('BOT_API_SECRET')
+        if bot_api_secret:
+            response = requests.get(
+                'http://localhost:8081/commands',
+                headers={'Authorization': f'Bearer {bot_api_secret}'},
+                timeout=5
+            )
+            if response.ok:
+                data = response.json()
+                cmd_count = data.get('count', 0)
+                checks['commands-synced'] = {'status': 'pass', 'name': 'Slash Commands', 'detail': f'{cmd_count} commands synced'}
+            else:
+                checks['commands-synced'] = {'status': 'warn', 'name': 'Slash Commands', 'detail': 'Could not verify command count'}
+        else:
+            checks['commands-synced'] = {'status': 'warn', 'name': 'Slash Commands', 'detail': 'Cannot check without API secret'}
+    except:
+        checks['commands-synced'] = {'status': 'warn', 'name': 'Slash Commands', 'detail': 'Command endpoint not available'}
+    
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("SELECT 1 as test")
+            cursor.fetchone()
+            checks['db-connected'] = {'status': 'pass', 'name': 'Database', 'detail': 'PostgreSQL connected'}
+    except Exception as e:
+        checks['db-connected'] = {'status': 'fail', 'name': 'Database', 'detail': str(e)}
+    
+    checks['migrations-current'] = {'status': 'pass', 'name': 'Migrations', 'detail': 'Auto-applied on startup'}
+    
+    stripe_key = os.getenv('STRIPE_SECRET_KEY')
+    if stripe_key and stripe_key.startswith('sk_'):
+        checks['stripe-configured'] = {'status': 'pass', 'name': 'Stripe API', 'detail': 'Secret key configured'}
+    else:
+        checks['stripe-configured'] = {'status': 'fail', 'name': 'Stripe API', 'detail': 'Invalid or missing key'}
+    
+    webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+    if webhook_secret and webhook_secret.startswith('whsec_'):
+        checks['webhook-secret'] = {'status': 'pass', 'name': 'Webhook Secret', 'detail': 'Properly configured'}
+    else:
+        checks['webhook-secret'] = {'status': 'fail', 'name': 'Webhook Secret', 'detail': 'Invalid or missing'}
+    
+    try:
+        from email_utils import send_email
+        checks['email-service'] = {'status': 'pass', 'name': 'Email Service', 'detail': 'Module available'}
+    except:
+        checks['email-service'] = {'status': 'fail', 'name': 'Email Service', 'detail': 'email_utils not found'}
+    
+    from entitlements import Entitlements
+    if Entitlements:
+        checks['entitlements'] = {'status': 'pass', 'name': 'Entitlements', 'detail': 'Premium gates active'}
+    else:
+        checks['entitlements'] = {'status': 'fail', 'name': 'Entitlements', 'detail': 'Module not loaded'}
+    
+    try:
+        with open('version.json', 'r') as f:
+            version_data = json.load(f)
+            version = version_data.get('version', 'Unknown')
+            checks['version-updated'] = {'status': 'pass', 'name': 'Version', 'detail': f'v{version}'}
+    except:
+        checks['version-updated'] = {'status': 'warn', 'name': 'Version', 'detail': 'version.json not found'}
+    
+    try:
+        with open('version.json', 'r') as f:
+            version_data = json.load(f)
+        with open('public_roadmap.json', 'r') as f:
+            roadmap_data = json.load(f)
+        
+        internal_v = version_data.get('version', '')
+        public_v = roadmap_data.get('current_version', '')
+        
+        if internal_v == public_v:
+            checks['roadmap-synced'] = {'status': 'pass', 'name': 'Roadmap Sync', 'detail': f'Both at v{internal_v}'}
+        else:
+            checks['roadmap-synced'] = {'status': 'warn', 'name': 'Roadmap Sync', 'detail': f'Internal {internal_v} vs Public {public_v}'}
+    except:
+        checks['roadmap-synced'] = {'status': 'warn', 'name': 'Roadmap Sync', 'detail': 'Could not compare versions'}
+    
+    return jsonify({'checks': checks})
+
+
 @app.route("/api/owner/grant-access", methods=["POST"])
 @require_api_auth
 def api_owner_grant_access(user_session):

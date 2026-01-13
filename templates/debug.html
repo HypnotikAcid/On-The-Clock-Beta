@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Debug Console - On the Clock</title>
+    <title>Testing Control Center - On the Clock</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,7 @@
         }
 
         body {
-            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
             color: #C9D1D9;
             min-height: 100vh;
@@ -20,26 +20,26 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
         .header {
-            background: rgba(10, 15, 31, 0.85);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
+            background: rgba(10, 15, 31, 0.9);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 16px;
+            padding: 25px 30px;
+            margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            backdrop-filter: blur(10px);
         }
 
         .header h1 {
             font-size: 28px;
-            font-weight: bold;
-            background: linear-gradient(135deg, #FF6B6B, #FFE66D);
+            font-weight: 700;
+            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -51,540 +51,555 @@
             margin-top: 5px;
         }
 
+        .header-links {
+            display: flex;
+            gap: 15px;
+        }
+
         .header-links a {
             color: #D4AF37;
             text-decoration: none;
-            margin-left: 20px;
             font-size: 14px;
+            padding: 8px 16px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 8px;
+            transition: all 0.2s;
         }
 
         .header-links a:hover {
-            text-decoration: underline;
-        }
-
-        .section {
-            background: rgba(10, 15, 31, 0.85);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #D4AF37;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .wizard-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .wizard-step {
-            background: rgba(30, 35, 45, 0.6);
-            border: 2px solid rgba(100, 100, 120, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .wizard-step.active {
-            border-color: #D4AF37;
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
-        }
-
-        .wizard-step.completed {
-            border-color: #4CAF50;
-            background: rgba(76, 175, 80, 0.1);
-        }
-
-        .step-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .step-number {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            color: #0A0F1F;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        .step-number.completed {
-            background: linear-gradient(135deg, #4CAF50, #81C784);
-        }
-
-        .step-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #E6E6E6;
-        }
-
-        .step-description {
-            color: #9CA3AF;
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 15px;
-        }
-
-        .help-box {
-            background: rgba(33, 150, 243, 0.1);
-            border: 1px solid rgba(33, 150, 243, 0.3);
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .help-box h4 {
-            color: #2196F3;
-            font-size: 13px;
-            margin-bottom: 8px;
-        }
-
-        .help-box p, .help-box li {
-            color: #9CA3AF;
-            font-size: 13px;
-            line-height: 1.6;
-        }
-
-        .help-box ol, .help-box ul {
-            margin-left: 20px;
-            margin-top: 8px;
-        }
-
-        .help-box code {
-            background: rgba(0,0,0,0.3);
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: #F4E5A1;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-        }
-
-        .input-group label {
-            display: block;
-            color: #E6E6E6;
-            font-size: 13px;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .input-group .label-hint {
-            color: #6B7280;
-            font-weight: normal;
-            font-size: 12px;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px 15px;
-            background: rgba(10, 15, 31, 0.8);
-            border: 1px solid rgba(100, 100, 120, 0.3);
-            border-radius: 8px;
-            color: #E6E6E6;
-            font-family: inherit;
-            font-size: 14px;
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: #D4AF37;
-        }
-
-        .input-group input::placeholder {
-            color: #6B7280;
-        }
-
-        .input-status {
-            margin-top: 8px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .input-status.valid {
-            color: #4CAF50;
-        }
-
-        .input-status.invalid {
-            color: #f44336;
-        }
-
-        .input-status.pending {
-            color: #FF9800;
-        }
-
-        .test-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .test-card {
-            background: rgba(10, 15, 31, 0.6);
-            border: 1px solid rgba(100, 100, 120, 0.3);
-            border-radius: 8px;
-            padding: 15px;
-            transition: all 0.3s ease;
-        }
-
-        .test-card:hover {
+            background: rgba(212, 175, 55, 0.1);
             border-color: rgba(212, 175, 55, 0.5);
         }
 
-        .test-card h4 {
+        .grid-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: rgba(10, 15, 31, 0.85);
+            border: 1px solid rgba(100, 100, 120, 0.25);
+            border-radius: 16px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .card-icon.health { background: linear-gradient(135deg, #4CAF50, #2E7D32); }
+        .card-icon.tier { background: linear-gradient(135deg, #9C27B0, #6A1B9A); }
+        .card-icon.preview { background: linear-gradient(135deg, #2196F3, #1565C0); }
+        .card-icon.api { background: linear-gradient(135deg, #FF9800, #E65100); }
+        .card-icon.checklist { background: linear-gradient(135deg, #D4AF37, #9A7B0A); }
+        .card-icon.version { background: linear-gradient(135deg, #607D8B, #37474F); }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #E6E6E6;
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            color: #8B949E;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .status-item {
+            background: rgba(30, 35, 45, 0.6);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-dot.green { background: #4CAF50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.5); }
+        .status-dot.yellow { background: #FF9800; box-shadow: 0 0 8px rgba(255, 152, 0, 0.5); }
+        .status-dot.red { background: #f44336; box-shadow: 0 0 8px rgba(244, 67, 54, 0.5); }
+        .status-dot.gray { background: #6B7280; }
+        .status-dot.loading { background: #2196F3; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .status-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .status-label {
+            font-size: 13px;
+            color: #E6E6E6;
+            font-weight: 500;
+        }
+
+        .status-value {
+            font-size: 11px;
+            color: #8B949E;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tier-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .tier-btn {
+            padding: 15px;
+            border: 2px solid rgba(100, 100, 120, 0.3);
+            border-radius: 12px;
+            background: rgba(30, 35, 45, 0.6);
             color: #E6E6E6;
             font-size: 14px;
-            margin-bottom: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
             display: flex;
+            flex-direction: column;
             align-items: center;
             gap: 8px;
         }
 
-        .test-card p {
-            color: #8B949E;
+        .tier-btn:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .tier-btn.active {
+            border-color: #D4AF37;
+            background: rgba(212, 175, 55, 0.15);
+        }
+
+        .tier-btn .price {
             font-size: 12px;
-            margin-bottom: 12px;
-            line-height: 1.5;
+            color: #8B949E;
         }
 
-        .expected-result {
-            background: rgba(0,0,0,0.2);
-            border-radius: 4px;
-            padding: 8px 10px;
-            margin-bottom: 12px;
-            font-size: 11px;
+        .tier-btn.free { border-color: rgba(107, 114, 128, 0.5); }
+        .tier-btn.free.active { background: rgba(107, 114, 128, 0.2); border-color: #6B7280; }
+
+        .tier-btn.premium { border-color: rgba(212, 175, 55, 0.5); }
+        .tier-btn.premium.active { background: rgba(212, 175, 55, 0.2); border-color: #D4AF37; }
+
+        .tier-btn.pro { border-color: rgba(156, 39, 176, 0.5); }
+        .tier-btn.pro.active { background: rgba(156, 39, 176, 0.2); border-color: #9C27B0; }
+
+        .tier-btn.grandfathered { border-color: rgba(76, 175, 80, 0.5); }
+        .tier-btn.grandfathered.active { background: rgba(76, 175, 80, 0.2); border-color: #4CAF50; }
+
+        .preview-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
         }
 
-        .expected-result .label {
-            color: #6B7280;
-            text-transform: uppercase;
-            font-size: 10px;
-            margin-bottom: 4px;
+        .preview-item {
+            background: rgba(30, 35, 45, 0.6);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
         }
 
-        .expected-result .value {
-            font-weight: 600;
+        .preview-item:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+            transform: translateY(-2px);
         }
 
-        .expected-result .value.should-pass {
-            color: #4CAF50;
-        }
-
-        .expected-result .value.should-block {
-            color: #9C27B0;
-        }
-
-        .test-btn {
+        .preview-thumb {
             width: 100%;
-            padding: 10px 15px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #6B7280;
+        }
+
+        .preview-label {
+            font-size: 11px;
+            color: #9CA3AF;
+        }
+
+        .api-tests {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .api-test-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(30, 35, 45, 0.6);
+            border-radius: 10px;
+            padding: 12px 15px;
+        }
+
+        .api-test-name {
+            flex: 1;
+            font-size: 13px;
+            color: #E6E6E6;
+        }
+
+        .api-test-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .api-test-status.pass { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .api-test-status.fail { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        .api-test-status.pending { background: rgba(107, 114, 128, 0.2); color: #6B7280; }
+        .api-test-status.running { background: rgba(33, 150, 243, 0.2); color: #2196F3; }
+
+        .api-test-btn {
+            padding: 6px 12px;
             border: none;
             border-radius: 6px;
-            font-family: inherit;
+            background: rgba(212, 175, 55, 0.2);
+            color: #D4AF37;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .api-test-btn:hover {
+            background: rgba(212, 175, 55, 0.3);
+        }
+
+        .checklist-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            background: rgba(30, 35, 45, 0.6);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .checklist-item:hover {
+            background: rgba(30, 35, 45, 0.8);
+        }
+
+        .check-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .check-icon.pass { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .check-icon.fail { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        .check-icon.warn { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
+        .check-icon.pending { background: rgba(107, 114, 128, 0.2); color: #6B7280; }
+
+        .check-text {
+            flex: 1;
             font-size: 13px;
+            color: #E6E6E6;
+        }
+
+        .check-detail {
+            font-size: 11px;
+            color: #8B949E;
+        }
+
+        .version-info {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .version-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(30, 35, 45, 0.6);
+            border-radius: 10px;
+        }
+
+        .version-label {
+            font-size: 13px;
+            color: #9CA3AF;
+        }
+
+        .version-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #D4AF37;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #D4AF37, #9A7B0A);
+            color: #0A0F1F;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
+            margin-top: 15px;
         }
 
-        .test-btn.primary {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
         }
 
-        .test-btn.attack {
-            background: linear-gradient(135deg, #9C27B0, #7B1FA2);
-            color: white;
-        }
-
-        .test-btn.info {
-            background: linear-gradient(135deg, #2196F3, #1976D2);
-            color: white;
-        }
-
-        .test-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-
-        .test-btn:disabled {
+        .btn-primary:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
 
-        .console-section {
-            margin-top: 20px;
-        }
-
-        .console-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .console-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #4CAF50;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .console-actions button {
-            padding: 8px 16px;
-            border: 1px solid rgba(100, 100, 120, 0.3);
-            background: rgba(30, 35, 45, 0.6);
-            color: #C9D1D9;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 12px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-
-        .console-actions button:hover {
-            border-color: rgba(212, 175, 55, 0.5);
+        .full-width {
+            grid-column: 1 / -1;
         }
 
         .console-output {
             background: #0D1117;
             border: 1px solid rgba(100, 100, 120, 0.3);
-            border-radius: 8px;
+            border-radius: 10px;
             padding: 15px;
-            min-height: 300px;
-            max-height: 500px;
+            margin-top: 15px;
+            max-height: 250px;
             overflow-y: auto;
             font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            font-size: 13px;
+            font-size: 12px;
             line-height: 1.6;
         }
 
-        .log-entry {
-            padding: 10px 12px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            border-left: 4px solid;
+        .log-line {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(100, 100, 120, 0.1);
         }
 
-        .log-entry.info {
-            background: rgba(33, 150, 243, 0.1);
-            border-left-color: #2196F3;
-        }
-
-        .log-entry.success {
-            background: rgba(76, 175, 80, 0.1);
-            border-left-color: #4CAF50;
-        }
-
-        .log-entry.warning {
-            background: rgba(255, 152, 0, 0.1);
-            border-left-color: #FF9800;
-        }
-
-        .log-entry.error {
-            background: rgba(244, 67, 54, 0.1);
-            border-left-color: #f44336;
-        }
-
-        .log-entry.blocked {
-            background: rgba(156, 39, 176, 0.15);
-            border-left-color: #9C27B0;
-        }
-
-        .log-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-        }
-
-        .log-timestamp {
-            color: #6B7280;
-            font-size: 11px;
-        }
-
-        .log-type {
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-
-        .log-type.info { background: rgba(33, 150, 243, 0.2); color: #2196F3; }
-        .log-type.success { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
-        .log-type.warning { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
-        .log-type.error { background: rgba(244, 67, 54, 0.2); color: #f44336; }
-        .log-type.blocked { background: rgba(156, 39, 176, 0.2); color: #CE93D8; }
-
-        .log-message {
-            color: #E6E6E6;
-            font-size: 14px;
-        }
-
-        .log-details {
-            margin-top: 10px;
-            padding: 12px;
-            background: rgba(0,0,0,0.4);
-            border-radius: 6px;
-            font-size: 12px;
-            color: #9CA3AF;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        .status-indicator.running { background: #4CAF50; animation: pulse 1.5s infinite; }
-        .status-indicator.idle { background: #6B7280; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .quick-start {
-            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(244, 229, 161, 0.05));
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-        }
-
-        .quick-start h3 {
-            color: #D4AF37;
-            font-size: 16px;
-            margin-bottom: 15px;
-        }
-
-        .quick-start-steps {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .qs-step {
-            flex: 1;
-            min-width: 200px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-            padding: 15px;
-        }
-
-        .qs-step .number {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: #D4AF37;
-            color: #0A0F1F;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .qs-step h4 {
-            color: #E6E6E6;
-            font-size: 13px;
-            margin-bottom: 5px;
-        }
-
-        .qs-step p {
-            color: #8B949E;
-            font-size: 12px;
-            line-height: 1.5;
-        }
-
-        .run-all-btn {
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            color: #0A0F1F;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-
-        .run-all-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
-        }
-
-        .result-summary {
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
-            display: none;
-        }
-
-        .result-summary.visible {
-            display: block;
-        }
-
-        .result-summary h4 {
-            color: #E6E6E6;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .result-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(100, 100, 120, 0.2);
-            font-size: 13px;
-        }
-
-        .result-row:last-child {
+        .log-line:last-child {
             border-bottom: none;
         }
 
-        .result-row .test-name {
+        .log-time {
+            color: #6B7280;
+            margin-right: 10px;
+        }
+
+        .log-pass { color: #4CAF50; }
+        .log-fail { color: #f44336; }
+        .log-info { color: #2196F3; }
+        .log-warn { color: #FF9800; }
+
+        .tier-features {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(30, 35, 45, 0.6);
+            border-radius: 10px;
+        }
+
+        .tier-features h4 {
+            font-size: 13px;
+            color: #D4AF37;
+            margin-bottom: 10px;
+        }
+
+        .tier-features ul {
+            list-style: none;
+            font-size: 12px;
             color: #9CA3AF;
         }
 
-        .result-row .result {
+        .tier-features li {
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tier-features li::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+
+        .tier-features li.locked::before {
+            background: #f44336;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(10, 15, 31, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
             font-weight: 600;
+            color: #E6E6E6;
         }
 
-        .result-row .result.pass {
-            color: #4CAF50;
+        .modal-close {
+            background: none;
+            border: none;
+            color: #8B949E;
+            font-size: 24px;
+            cursor: pointer;
         }
 
-        .result-row .result.fail {
-            color: #f44336;
+        .modal-close:hover {
+            color: #E6E6E6;
+        }
+
+        .screenshot-img {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 100, 120, 0.3);
+        }
+
+        .screenshot-placeholder {
+            width: 100%;
+            height: 400px;
+            background: rgba(30, 35, 45, 0.8);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #6B7280;
+        }
+
+        .screenshot-placeholder span {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(100, 100, 120, 0.3);
+            border-radius: 3px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #81C784);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .stat-box {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            background: rgba(30, 35, 45, 0.6);
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .stat-number.pass { color: #4CAF50; }
+        .stat-number.fail { color: #f44336; }
+        .stat-number.warn { color: #FF9800; }
+
+        .stat-label {
+            font-size: 12px;
+            color: #8B949E;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -592,387 +607,565 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>System Debug Console</h1>
-                <p>Security testing and diagnostic tools</p>
+                <h1>Testing Control Center</h1>
+                <p>Pre-publish verification and system diagnostics</p>
             </div>
             <div class="header-links">
                 <a href="/owner">Owner Dashboard</a>
                 <a href="/dashboard">Dashboard</a>
-                <a href="/auth/logout">Logout</a>
+                <a href="/">Landing Page</a>
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-title">Security Tests (No Setup Required)</div>
-            <p style="color: #8B949E; margin-bottom: 20px; font-size: 13px;">
-                These tests verify that malicious guild IDs are blocked. Click any button - they use test data automatically.
-            </p>
-
-            <div class="test-grid">
-                <div class="test-card">
-                    <h4>Path Traversal Attack</h4>
-                    <p>Simulates an attacker trying to access different API endpoints using "../" in the URL.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-block">BLOCKED - Returns 400 Error</div>
+        <div class="grid-layout">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon health">&#9889;</div>
+                    <div>
+                        <div class="card-title">System Health</div>
+                        <div class="card-subtitle">Real-time service status</div>
                     </div>
-                    <button class="test-btn attack" onclick="runTest('path_traversal')">Run Attack Simulation</button>
                 </div>
-
-                <div class="test-card">
-                    <h4>URL Encoded Traversal</h4>
-                    <p>Tests if URL-encoded "../" (%2F%2E%2E) bypasses the security check.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-block">BLOCKED - Returns 400 Error</div>
+                <div class="status-grid" id="healthGrid">
+                    <div class="status-item">
+                        <div class="status-dot loading" id="botDot"></div>
+                        <div class="status-info">
+                            <div class="status-label">Discord Bot</div>
+                            <div class="status-value" id="botStatus">Checking...</div>
+                        </div>
                     </div>
-                    <button class="test-btn attack" onclick="runTest('encoded_traversal')">Run Attack Simulation</button>
-                </div>
-
-                <div class="test-card">
-                    <h4>Special Characters</h4>
-                    <p>Tests if @, #, ?, & characters can be injected into the guild ID.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-block">BLOCKED - Returns 400 Error</div>
+                    <div class="status-item">
+                        <div class="status-dot loading" id="dbDot"></div>
+                        <div class="status-info">
+                            <div class="status-label">Database</div>
+                            <div class="status-value" id="dbStatus">Checking...</div>
+                        </div>
                     </div>
-                    <button class="test-btn attack" onclick="runTest('special_chars')">Run Attack Simulation</button>
-                </div>
-
-                <div class="test-card">
-                    <h4>Non-Numeric ID</h4>
-                    <p>Tests if alphabetic characters like "abcdefgh" are rejected.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-block">BLOCKED - Returns 400 Error</div>
+                    <div class="status-item">
+                        <div class="status-dot loading" id="stripeDot"></div>
+                        <div class="status-info">
+                            <div class="status-label">Stripe</div>
+                            <div class="status-value" id="stripeStatus">Checking...</div>
+                        </div>
                     </div>
-                    <button class="test-btn attack" onclick="runTest('non_numeric')">Run Attack Simulation</button>
-                </div>
-
-                <div class="test-card">
-                    <h4>Empty Guild ID</h4>
-                    <p>Tests what happens when no guild ID is provided.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-block">BLOCKED - Returns Error</div>
+                    <div class="status-item">
+                        <div class="status-dot loading" id="emailDot"></div>
+                        <div class="status-info">
+                            <div class="status-label">Email Service</div>
+                            <div class="status-value" id="emailStatus">Checking...</div>
+                        </div>
                     </div>
-                    <button class="test-btn attack" onclick="runTest('empty_guild')">Run Attack Simulation</button>
                 </div>
+                <button class="btn-primary" onclick="refreshHealth()">Refresh Health Status</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon tier">&#128081;</div>
+                    <div>
+                        <div class="card-title">Tier Simulator</div>
+                        <div class="card-subtitle">Preview dashboard as different tiers</div>
+                    </div>
+                </div>
+                <div class="tier-buttons">
+                    <button class="tier-btn free" onclick="selectTier('free')">
+                        Free
+                        <span class="price">$0/mo</span>
+                    </button>
+                    <button class="tier-btn premium active" onclick="selectTier('premium')">
+                        Premium
+                        <span class="price">$8/mo</span>
+                    </button>
+                    <button class="tier-btn pro" onclick="selectTier('pro')">
+                        Pro
+                        <span class="price">$15/mo</span>
+                    </button>
+                    <button class="tier-btn grandfathered" onclick="selectTier('grandfathered')">
+                        Grandfathered
+                        <span class="price">Lifetime</span>
+                    </button>
+                </div>
+                <div class="tier-features" id="tierFeatures">
+                    <h4>Premium Features</h4>
+                    <ul>
+                        <li>Dashboard login</li>
+                        <li>Time adjustments</li>
+                        <li>Employee management</li>
+                        <li>CSV reports</li>
+                        <li>Email notifications</li>
+                        <li>30-day retention</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon preview">&#128247;</div>
+                    <div>
+                        <div class="card-title">Dashboard Previews</div>
+                        <div class="card-subtitle">Click to view each section</div>
+                    </div>
+                </div>
+                <div class="preview-gallery">
+                    <div class="preview-item" onclick="showPreview('landing')">
+                        <div class="preview-thumb">&#127968;</div>
+                        <div class="preview-label">Landing Page</div>
+                    </div>
+                    <div class="preview-item" onclick="showPreview('dashboard')">
+                        <div class="preview-thumb">&#128202;</div>
+                        <div class="preview-label">My Servers</div>
+                    </div>
+                    <div class="preview-item" onclick="showPreview('server')">
+                        <div class="preview-thumb">&#128421;</div>
+                        <div class="preview-label">Server Overview</div>
+                    </div>
+                    <div class="preview-item" onclick="showPreview('employees')">
+                        <div class="preview-thumb">&#128101;</div>
+                        <div class="preview-label">Employees</div>
+                    </div>
+                    <div class="preview-item" onclick="showPreview('calendar')">
+                        <div class="preview-thumb">&#128197;</div>
+                        <div class="preview-label">Calendar</div>
+                    </div>
+                    <div class="preview-item" onclick="showPreview('profile')">
+                        <div class="preview-thumb">&#128100;</div>
+                        <div class="preview-label">Profile</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon api">&#128640;</div>
+                    <div>
+                        <div class="card-title">API Health Tests</div>
+                        <div class="card-subtitle">Endpoint verification</div>
+                    </div>
+                </div>
+                <div class="api-tests" id="apiTests">
+                    <div class="api-test-row">
+                        <span class="api-test-name">Bot API Ping</span>
+                        <span class="api-test-status pending" id="test-bot-api">Pending</span>
+                        <button class="api-test-btn" onclick="runApiTest('bot-api')">Test</button>
+                    </div>
+                    <div class="api-test-row">
+                        <span class="api-test-name">Database Query</span>
+                        <span class="api-test-status pending" id="test-db">Pending</span>
+                        <button class="api-test-btn" onclick="runApiTest('db')">Test</button>
+                    </div>
+                    <div class="api-test-row">
+                        <span class="api-test-name">Session Auth</span>
+                        <span class="api-test-status pending" id="test-session">Pending</span>
+                        <button class="api-test-btn" onclick="runApiTest('session')">Test</button>
+                    </div>
+                    <div class="api-test-row">
+                        <span class="api-test-name">Stripe Config</span>
+                        <span class="api-test-status pending" id="test-stripe">Pending</span>
+                        <button class="api-test-btn" onclick="runApiTest('stripe')">Test</button>
+                    </div>
+                    <div class="api-test-row">
+                        <span class="api-test-name">Email Service</span>
+                        <span class="api-test-status pending" id="test-email">Pending</span>
+                        <button class="api-test-btn" onclick="runApiTest('email')">Test</button>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="runAllApiTests()">Run All Tests</button>
+            </div>
+
+            <div class="card full-width">
+                <div class="card-header">
+                    <div class="card-icon checklist">&#9989;</div>
+                    <div>
+                        <div class="card-title">Pre-Publish Checklist</div>
+                        <div class="card-subtitle">Verify everything is ready for deployment</div>
+                    </div>
+                </div>
+                <div class="summary-stats" id="summaryStats">
+                    <div class="stat-box">
+                        <div class="stat-number pass" id="passCount">0</div>
+                        <div class="stat-label">Passed</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number fail" id="failCount">0</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number warn" id="warnCount">0</div>
+                        <div class="stat-label">Warnings</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div class="checklist-items" id="checklistItems" style="margin-top: 20px;">
+                    <div class="checklist-item" data-check="bot-connected">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Discord bot is connected</span>
+                        <span class="check-detail" id="detail-bot-connected">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="commands-synced">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Slash commands synced</span>
+                        <span class="check-detail" id="detail-commands-synced">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="db-connected">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Database connected</span>
+                        <span class="check-detail" id="detail-db-connected">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="migrations-current">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Database migrations applied</span>
+                        <span class="check-detail" id="detail-migrations-current">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="stripe-configured">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Stripe API keys configured</span>
+                        <span class="check-detail" id="detail-stripe-configured">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="webhook-secret">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Stripe webhook secret set</span>
+                        <span class="check-detail" id="detail-webhook-secret">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="email-service">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Email service configured</span>
+                        <span class="check-detail" id="detail-email-service">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="entitlements">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Premium entitlements enforced</span>
+                        <span class="check-detail" id="detail-entitlements">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="version-updated">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Version numbers updated</span>
+                        <span class="check-detail" id="detail-version-updated">Not checked</span>
+                    </div>
+                    <div class="checklist-item" data-check="roadmap-synced">
+                        <div class="check-icon pending">?</div>
+                        <span class="check-text">Public roadmap in sync</span>
+                        <span class="check-detail" id="detail-roadmap-synced">Not checked</span>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="runFullChecklist()">Run Full Pre-Publish Check</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon version">&#128196;</div>
+                    <div>
+                        <div class="card-title">Version Info</div>
+                        <div class="card-subtitle">Current release details</div>
+                    </div>
+                </div>
+                <div class="version-info">
+                    <div class="version-row">
+                        <span class="version-label">Internal Version</span>
+                        <span class="version-value" id="internalVersion">Loading...</span>
+                    </div>
+                    <div class="version-row">
+                        <span class="version-label">Public Version</span>
+                        <span class="version-value" id="publicVersion">Loading...</span>
+                    </div>
+                    <div class="version-row">
+                        <span class="version-label">Last Updated</span>
+                        <span class="version-value" id="lastUpdated">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: linear-gradient(135deg, #f44336, #C62828);">&#128466;</div>
+                    <div>
+                        <div class="card-title">Test Console</div>
+                        <div class="card-subtitle">Live test output</div>
+                    </div>
+                </div>
+                <div class="console-output" id="consoleOutput">
+                    <div class="log-line">
+                        <span class="log-time">--:--:--</span>
+                        <span class="log-info">Testing Control Center initialized</span>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="clearConsole()" style="background: rgba(100, 100, 120, 0.3); color: #9CA3AF;">Clear Console</button>
             </div>
         </div>
+    </div>
 
-        <div class="section">
-            <div class="section-title">System Health Checks</div>
-            <p style="color: #8B949E; margin-bottom: 20px; font-size: 13px;">
-                Verify your backend services are running correctly.
-            </p>
-
-            <div class="test-grid">
-                <div class="test-card">
-                    <h4>Database Connection</h4>
-                    <p>Verifies PostgreSQL database is accessible and queries work.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-pass">SUCCESS - Connected</div>
-                    </div>
-                    <button class="test-btn info" onclick="runTest('db_connection')">Check Database</button>
-                </div>
-
-                <div class="test-card">
-                    <h4>Session Status</h4>
-                    <p>Confirms your login session is valid and shows your account info.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-pass">SUCCESS - Authenticated</div>
-                    </div>
-                    <button class="test-btn info" onclick="runTest('session_check')">Check Session</button>
-                </div>
-
-                <div class="test-card">
-                    <h4>Bot API Connection</h4>
-                    <p>Tests if the Discord bot's internal API is reachable.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-pass">SUCCESS - API Responding</div>
-                    </div>
-                    <button class="test-btn info" onclick="runTest('bot_api_health')">Check Bot API</button>
-                </div>
+    <div class="modal-overlay" id="previewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Preview</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
-        </div>
-
-        <div class="section">
-            <div class="section-title">Optional: Test With Real Guild</div>
-            
-            <div class="help-box">
-                <h4>When Would You Use This?</h4>
-                <p>Only if you want to verify that legitimate requests still work after the security patch. This is optional - the attack tests above are the important ones.</p>
-            </div>
-
-            <div class="input-group">
-                <label>
-                    Guild ID <span class="label-hint">(Copy from your dashboard URL or Discord developer mode)</span>
-                </label>
-                <input type="text" id="testGuildId" placeholder="Example: 1234567890123456789">
-                <div class="input-status" id="guildIdStatus"></div>
-            </div>
-
-            <div class="test-grid">
-                <div class="test-card">
-                    <h4>Valid Guild Test</h4>
-                    <p>Tests that a real guild ID you have access to works correctly with the security patch.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-pass">SUCCESS - If you have access</div>
-                    </div>
-                    <button class="test-btn primary" onclick="runTest('valid_guild')">Test Real Guild</button>
-                </div>
-
-                <div class="test-card">
-                    <h4>Invalid Role ID Test</h4>
-                    <p>Tests that fake role IDs not belonging to the guild are rejected by the role management endpoints.</p>
-                    <div class="expected-result">
-                        <div class="label">Expected Result</div>
-                        <div class="value should-block">BLOCKED - Invalid role rejected</div>
-                    </div>
-                    <button class="test-btn attack" onclick="runTest('invalid_role_id')">Test Role Validation</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="section console-section">
-            <div class="console-header">
-                <div class="console-title">
-                    <span class="status-indicator idle" id="statusIndicator"></span>
-                    Test Output Console
-                </div>
-                <div class="console-actions">
-                    <button onclick="clearConsole()">Clear</button>
-                    <button onclick="exportLogs()">Export</button>
-                </div>
-            </div>
-            <div class="console-output" id="consoleOutput">
-                <div class="log-entry info">
-                    <div class="log-header">
-                        <span class="log-type info">READY</span>
-                    </div>
-                    <div class="log-message">Click any test button above to start. Attack simulations should show "BLOCKED" in purple.</div>
+            <div id="modalBody">
+                <div class="screenshot-placeholder">
+                    <span>&#128247;</span>
+                    <p>Screenshot will appear here</p>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const consoleOutput = document.getElementById('consoleOutput');
-        const statusIndicator = document.getElementById('statusIndicator');
-        const guildIdInput = document.getElementById('testGuildId');
-        const guildIdStatus = document.getElementById('guildIdStatus');
-        let testRunning = false;
-        let testResults = {};
-
-        guildIdInput.addEventListener('input', function() {
-            const value = this.value.trim();
-            if (!value) {
-                guildIdStatus.innerHTML = '';
-                guildIdStatus.className = 'input-status';
-            } else if (/^\d+$/.test(value) && value.length >= 17) {
-                guildIdStatus.innerHTML = '&#10003; Valid format (numeric ID)';
-                guildIdStatus.className = 'input-status valid';
-            } else if (/^\d+$/.test(value)) {
-                guildIdStatus.innerHTML = '&#9888; Looks short - Discord IDs are usually 18-19 digits';
-                guildIdStatus.className = 'input-status pending';
-            } else {
-                guildIdStatus.innerHTML = '&#10007; Must be numbers only';
-                guildIdStatus.className = 'input-status invalid';
+        const tierFeatures = {
+            free: {
+                title: 'Free Features',
+                features: [
+                    { text: 'Dashboard login', unlocked: true },
+                    { text: 'Basic profile (email/phone)', unlocked: true },
+                    { text: 'Role management', unlocked: true },
+                    { text: '24-hour data retention', unlocked: true },
+                    { text: 'Time adjustments', unlocked: false },
+                    { text: 'Employee management', unlocked: false },
+                    { text: 'CSV reports', unlocked: false },
+                    { text: 'Email notifications', unlocked: false }
+                ]
+            },
+            premium: {
+                title: 'Premium Features',
+                features: [
+                    { text: 'Dashboard login', unlocked: true },
+                    { text: 'Time adjustments', unlocked: true },
+                    { text: 'Employee management', unlocked: true },
+                    { text: 'CSV reports', unlocked: true },
+                    { text: 'Email notifications', unlocked: true },
+                    { text: '30-day data retention', unlocked: true },
+                    { text: 'Kiosk mode', unlocked: false },
+                    { text: 'Payroll integrations', unlocked: false }
+                ]
+            },
+            pro: {
+                title: 'Pro Features',
+                features: [
+                    { text: 'Everything in Premium', unlocked: true },
+                    { text: 'Kiosk mode', unlocked: true },
+                    { text: 'Payroll integrations', unlocked: true },
+                    { text: 'Advanced CSV export', unlocked: true },
+                    { text: 'Shift scheduling', unlocked: true },
+                    { text: 'Priority support', unlocked: true }
+                ]
+            },
+            grandfathered: {
+                title: 'Grandfathered (Legacy)',
+                features: [
+                    { text: 'Full Premium access', unlocked: true },
+                    { text: 'Lifetime subscription', unlocked: true },
+                    { text: 'All Premium features', unlocked: true },
+                    { text: '30-day retention', unlocked: true },
+                    { text: 'Original $5 supporter', unlocked: true }
+                ]
             }
-        });
+        };
 
-        function getTimestamp() {
-            return new Date().toLocaleTimeString('en-US', { hour12: false });
-        }
+        let selectedTier = 'premium';
 
-        function log(type, message, details = null) {
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type}`;
+        function selectTier(tier) {
+            selectedTier = tier;
+            document.querySelectorAll('.tier-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tier-btn.${tier}`).classList.add('active');
             
-            const typeLabel = type === 'blocked' ? 'BLOCKED' : type.toUpperCase();
-            
-            let html = `
-                <div class="log-header">
-                    <span class="log-timestamp">[${getTimestamp()}]</span>
-                    <span class="log-type ${type}">${typeLabel}</span>
-                </div>
-                <div class="log-message">${escapeHtml(message)}</div>
+            const features = tierFeatures[tier];
+            const html = `
+                <h4>${features.title}</h4>
+                <ul>
+                    ${features.features.map(f => `<li class="${f.unlocked ? '' : 'locked'}">${f.text}</li>`).join('')}
+                </ul>
             `;
+            document.getElementById('tierFeatures').innerHTML = html;
             
-            if (details) {
-                const detailsStr = typeof details === 'object' ? JSON.stringify(details, null, 2) : details;
-                html += `<div class="log-details">${escapeHtml(detailsStr)}</div>`;
-            }
-            
-            entry.innerHTML = html;
-            consoleOutput.appendChild(entry);
-            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            logMessage('info', `Switched to ${tier} tier view`);
         }
 
-        function escapeHtml(text) {
+        function logMessage(type, message) {
+            const console = document.getElementById('consoleOutput');
+            const time = new Date().toLocaleTimeString();
             const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function setStatus(status) {
-            statusIndicator.className = `status-indicator ${status}`;
+            div.className = 'log-line';
+            div.innerHTML = `<span class="log-time">${time}</span><span class="log-${type}">${message}</span>`;
+            console.appendChild(div);
+            console.scrollTop = console.scrollHeight;
         }
 
         function clearConsole() {
-            consoleOutput.innerHTML = `
-                <div class="log-entry info">
-                    <div class="log-header">
-                        <span class="log-timestamp">[${getTimestamp()}]</span>
-                        <span class="log-type info">INFO</span>
-                    </div>
-                    <div class="log-message">Console cleared. Ready for new tests.</div>
-                </div>
-            `;
+            document.getElementById('consoleOutput').innerHTML = '';
+            logMessage('info', 'Console cleared');
         }
 
-        function exportLogs() {
-            const logs = consoleOutput.innerText;
-            const blob = new Blob([logs], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `security-test-logs-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-            log('info', 'Logs exported to file');
-        }
-
-        async function runTest(testType) {
-            if (testRunning) {
-                log('warning', 'Please wait for the current test to finish.');
-                return;
-            }
-
-            testRunning = true;
-            setStatus('running');
-
-            const guildId = document.getElementById('testGuildId').value.trim();
-            const roleId = '';
-
-            const testNames = {
-                'path_traversal': 'Path Traversal Attack',
-                'encoded_traversal': 'URL Encoded Traversal',
-                'special_chars': 'Special Characters',
-                'non_numeric': 'Non-Numeric ID',
-                'empty_guild': 'Empty Guild ID',
-                'valid_guild': 'Valid Guild Test',
-                'bot_api_health': 'Bot API Health',
-                'db_connection': 'Database Connection',
-                'session_check': 'Session Check',
-                'invalid_role_id': 'Invalid Role ID Test'
-            };
-
-            log('info', `Running test: ${testNames[testType] || testType}...`);
-
-            try {
-                const response = await fetch('/debug/run-test', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        test_type: testType,
-                        guild_id: guildId,
-                        role_id: roleId
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.blocked || data.expected_failure) {
-                    log('blocked', data.message, data.details);
-                    testResults[testType] = { passed: true, message: 'Correctly blocked' };
-                } else if (data.success) {
-                    log('success', data.message, data.details);
-                    testResults[testType] = { passed: true, message: 'Success' };
-                } else {
-                    log('error', data.message, data.details);
-                    testResults[testType] = { passed: false, message: data.message };
-                }
-
-            } catch (error) {
-                log('error', `Test failed: ${error.message}`);
-                testResults[testType] = { passed: false, message: error.message };
-            }
-
-            testRunning = false;
-            setStatus('idle');
-        }
-
-        async function runAllSecurityTests() {
-            const securityTests = [
-                'path_traversal',
-                'encoded_traversal', 
-                'special_chars',
-                'non_numeric',
-                'empty_guild'
+        async function refreshHealth() {
+            logMessage('info', 'Refreshing system health...');
+            
+            const checks = [
+                { id: 'bot', dot: 'botDot', status: 'botStatus', endpoint: '/debug/health/bot' },
+                { id: 'db', dot: 'dbDot', status: 'dbStatus', endpoint: '/debug/health/db' },
+                { id: 'stripe', dot: 'stripeDot', status: 'stripeStatus', endpoint: '/debug/health/stripe' },
+                { id: 'email', dot: 'emailDot', status: 'emailStatus', endpoint: '/debug/health/email' }
             ];
 
-            const testNames = {
-                'path_traversal': 'Path Traversal',
-                'encoded_traversal': 'Encoded Traversal',
-                'special_chars': 'Special Characters',
-                'non_numeric': 'Non-Numeric ID',
-                'empty_guild': 'Empty Guild ID'
-            };
-
-            log('info', '=== Starting All Security Tests ===');
-            testResults = {};
-
-            for (const test of securityTests) {
-                await runTest(test);
-                await new Promise(resolve => setTimeout(resolve, 500));
+            for (const check of checks) {
+                document.getElementById(check.dot).className = 'status-dot loading';
+                document.getElementById(check.status).textContent = 'Checking...';
             }
 
-            log('info', '=== All Security Tests Complete ===');
-
-            const summary = document.getElementById('resultSummary');
-            const rows = document.getElementById('resultRows');
-            rows.innerHTML = '';
-
-            let allPassed = true;
-            for (const [test, result] of Object.entries(testResults)) {
-                if (!result.passed) allPassed = false;
-                
-                const row = document.createElement('div');
-                row.className = 'result-row';
-                row.innerHTML = `
-                    <span class="test-name">${testNames[test] || test}</span>
-                    <span class="result ${result.passed ? 'pass' : 'fail'}">${result.passed ? 'PASS' : 'FAIL'}</span>
-                `;
-                rows.appendChild(row);
-            }
-
-            const finalRow = document.createElement('div');
-            finalRow.className = 'result-row';
-            finalRow.style.marginTop = '10px';
-            finalRow.style.paddingTop = '10px';
-            finalRow.style.borderTop = '2px solid rgba(100, 100, 120, 0.3)';
-            finalRow.innerHTML = `
-                <span class="test-name" style="font-weight: bold;">Overall Result</span>
-                <span class="result ${allPassed ? 'pass' : 'fail'}" style="font-size: 15px;">${allPassed ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}</span>
-            `;
-            rows.appendChild(finalRow);
-
-            summary.classList.add('visible');
-
-            if (allPassed) {
-                log('success', 'All security tests passed! The SSRF vulnerability has been successfully patched.');
-            } else {
-                log('error', 'Some tests failed. Please review the results above.');
+            for (const check of checks) {
+                try {
+                    const resp = await fetch(check.endpoint);
+                    const data = await resp.json();
+                    
+                    if (data.healthy) {
+                        document.getElementById(check.dot).className = 'status-dot green';
+                        document.getElementById(check.status).textContent = data.message || 'Connected';
+                        logMessage('pass', `${check.id.toUpperCase()}: ${data.message || 'Healthy'}`);
+                    } else {
+                        document.getElementById(check.dot).className = 'status-dot red';
+                        document.getElementById(check.status).textContent = data.error || 'Error';
+                        logMessage('fail', `${check.id.toUpperCase()}: ${data.error || 'Failed'}`);
+                    }
+                } catch (e) {
+                    document.getElementById(check.dot).className = 'status-dot red';
+                    document.getElementById(check.status).textContent = 'Connection failed';
+                    logMessage('fail', `${check.id.toUpperCase()}: Connection failed`);
+                }
             }
         }
+
+        async function runApiTest(testId) {
+            const statusEl = document.getElementById(`test-${testId}`);
+            statusEl.className = 'api-test-status running';
+            statusEl.textContent = 'Running...';
+            
+            try {
+                const resp = await fetch(`/debug/api-test/${testId}`);
+                const data = await resp.json();
+                
+                if (data.success) {
+                    statusEl.className = 'api-test-status pass';
+                    statusEl.textContent = 'Pass';
+                    logMessage('pass', `API Test [${testId}]: Passed - ${data.message || ''}`);
+                } else {
+                    statusEl.className = 'api-test-status fail';
+                    statusEl.textContent = 'Fail';
+                    logMessage('fail', `API Test [${testId}]: Failed - ${data.error || ''}`);
+                }
+            } catch (e) {
+                statusEl.className = 'api-test-status fail';
+                statusEl.textContent = 'Error';
+                logMessage('fail', `API Test [${testId}]: Exception - ${e.message}`);
+            }
+        }
+
+        async function runAllApiTests() {
+            const tests = ['bot-api', 'db', 'session', 'stripe', 'email'];
+            logMessage('info', 'Running all API tests...');
+            for (const test of tests) {
+                await runApiTest(test);
+            }
+            logMessage('info', 'All API tests completed');
+        }
+
+        async function runFullChecklist() {
+            logMessage('info', 'Starting full pre-publish check...');
+            
+            try {
+                const resp = await fetch('/debug/checklist');
+                const data = await resp.json();
+                
+                let passed = 0, failed = 0, warnings = 0;
+                
+                for (const [checkId, result] of Object.entries(data.checks)) {
+                    const item = document.querySelector(`[data-check="${checkId}"]`);
+                    if (!item) continue;
+                    
+                    const icon = item.querySelector('.check-icon');
+                    const detail = document.getElementById(`detail-${checkId}`);
+                    
+                    if (result.status === 'pass') {
+                        icon.className = 'check-icon pass';
+                        icon.textContent = '✓';
+                        passed++;
+                        logMessage('pass', `${result.name}: ${result.detail}`);
+                    } else if (result.status === 'warn') {
+                        icon.className = 'check-icon warn';
+                        icon.textContent = '!';
+                        warnings++;
+                        logMessage('warn', `${result.name}: ${result.detail}`);
+                    } else {
+                        icon.className = 'check-icon fail';
+                        icon.textContent = '✗';
+                        failed++;
+                        logMessage('fail', `${result.name}: ${result.detail}`);
+                    }
+                    
+                    if (detail) detail.textContent = result.detail;
+                }
+                
+                document.getElementById('passCount').textContent = passed;
+                document.getElementById('failCount').textContent = failed;
+                document.getElementById('warnCount').textContent = warnings;
+                
+                const total = passed + failed + warnings;
+                const percent = total > 0 ? (passed / total) * 100 : 0;
+                document.getElementById('progressFill').style.width = `${percent}%`;
+                
+                logMessage('info', `Checklist complete: ${passed} passed, ${failed} failed, ${warnings} warnings`);
+            } catch (e) {
+                logMessage('fail', `Checklist error: ${e.message}`);
+            }
+        }
+
+        function showPreview(section) {
+            document.getElementById('previewModal').classList.add('active');
+            document.getElementById('modalTitle').textContent = `Preview: ${section.charAt(0).toUpperCase() + section.slice(1)}`;
+            
+            const body = document.getElementById('modalBody');
+            body.innerHTML = `
+                <div class="screenshot-placeholder">
+                    <span>&#128247;</span>
+                    <p>Screenshot of ${section} section</p>
+                    <p style="font-size: 12px; margin-top: 10px; color: #6B7280;">
+                        To add screenshots, save images to<br>
+                        <code>static/previews/${section}.png</code>
+                    </p>
+                </div>
+            `;
+            
+            const img = new Image();
+            img.onload = function() {
+                body.innerHTML = `<img src="/static/previews/${section}.png" class="screenshot-img" alt="${section} preview">`;
+            };
+            img.src = `/static/previews/${section}.png`;
+        }
+
+        function closeModal() {
+            document.getElementById('previewModal').classList.remove('active');
+        }
+
+        async function loadVersionInfo() {
+            try {
+                const resp = await fetch('/debug/version-info');
+                const data = await resp.json();
+                
+                document.getElementById('internalVersion').textContent = data.internal || 'Unknown';
+                document.getElementById('publicVersion').textContent = data.public || 'Unknown';
+                document.getElementById('lastUpdated').textContent = data.updated || 'Unknown';
+            } catch (e) {
+                document.getElementById('internalVersion').textContent = 'Error loading';
+                document.getElementById('publicVersion').textContent = 'Error loading';
+                document.getElementById('lastUpdated').textContent = 'Error loading';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadVersionInfo();
+            refreshHealth();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
     </script>
 </body>
 </html>
