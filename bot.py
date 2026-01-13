@@ -310,13 +310,14 @@ def generate_dashboard_deeplink(guild_id: int, user_id: int, page: str, secret: 
     return f"{base_url}/deeplink/{page}?guild={guild_id}&user={user_id}&t={timestamp}&sig={signature}"
 
 
-def create_secure_checkout_session(guild_id: int, product_type: str, guild_name: str = "") -> str:
+def create_secure_checkout_session(guild_id: int, product_type: str, guild_name: str = "", apply_trial_coupon: bool = False) -> str:
     """Create a secure Stripe checkout session with proper validation
     
     Args:
         guild_id: Discord guild/server ID
         product_type: One of 'bot_access', 'retention_7day', 'retention_30day'
         guild_name: Optional guild name for confirmation messages
+        apply_trial_coupon: If True, applies the first-month $5 trial coupon (vzRYNZed)
     
     Returns:
         Checkout session URL
@@ -352,18 +353,26 @@ def create_secure_checkout_session(guild_id: int, product_type: str, guild_name:
         if guild_name:
             metadata['guild_name'] = guild_name
         
-        checkout_session = stripe.checkout.Session.create(
-            line_items=[{
+        # Build checkout session params
+        session_params = {
+            'line_items': [{
                 'price': STRIPE_PRICE_IDS[product_type],
                 'quantity': 1,
             }],
-            mode=mode,
-            success_url=f'https://{domain}/success?session_id={{CHECKOUT_SESSION_ID}}',
-            cancel_url=f'https://{domain}/cancel',
-            metadata=metadata,
-            automatic_tax={'enabled': True},
-            billing_address_collection='required',
-        )
+            'mode': mode,
+            'success_url': f'https://{domain}/success?session_id={{CHECKOUT_SESSION_ID}}',
+            'cancel_url': f'https://{domain}/cancel',
+            'metadata': metadata,
+            'automatic_tax': {'enabled': True},
+            'billing_address_collection': 'required',
+        }
+        
+        # Apply trial coupon for first-time Premium subscribers
+        if apply_trial_coupon and mode == 'subscription':
+            session_params['discounts'] = [{'coupon': 'vzRYNZed'}]
+            metadata['trial_applied'] = 'true'
+        
+        checkout_session = stripe.checkout.Session.create(**session_params)
         
         return checkout_session.url or ""
         

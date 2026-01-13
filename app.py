@@ -1422,6 +1422,20 @@ def handle_checkout_completed(session):
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
             
             app.logger.info(f"[OK] 30-day retention granted for server {guild_id} (bot_access_paid=TRUE)")
+        
+        # Record trial usage if trial coupon was applied
+        trial_applied = session.get('metadata', {}).get('trial_applied')
+        if trial_applied == 'true' and product_type in ['retention_7day', 'retention_30day']:
+            try:
+                with get_db() as conn:
+                    conn.execute("""
+                        INSERT INTO trial_usage (guild_id, granted_by, grant_type)
+                        VALUES (%s, %s, 'checkout')
+                        ON CONFLICT (guild_id) DO NOTHING
+                    """, (guild_id, customer_id or 'stripe'))
+                app.logger.info(f"[OK] Trial usage recorded for server {guild_id} via checkout")
+            except Exception as trial_error:
+                app.logger.warning(f"Could not record trial usage: {trial_error}")
             
     except Exception as e:
         app.logger.error(f"[ERROR] Error processing checkout session: {e}")
@@ -6486,11 +6500,27 @@ def purchase_checkout(user_session):
             app.logger.error(f"Bot not present in guild {guild_id}")
             return "<h1>Error</h1><p>Bot must be added to the server before purchasing.</p><a href='/purchase/select_server'>Go Back</a>", 400
         
+        # Check trial eligibility for Premium subscriptions
+        apply_trial = False
+        if product_type in ['retention_7day', 'retention_30day']:
+            try:
+                with get_db() as conn:
+                    cursor = conn.execute(
+                        "SELECT id FROM trial_usage WHERE guild_id = %s",
+                        (int(guild_id),)
+                    )
+                    if not cursor.fetchone():
+                        apply_trial = True
+                        app.logger.info(f"Guild {guild_id} eligible for first-month trial")
+            except Exception as e:
+                app.logger.warning(f"Could not check trial eligibility: {e}")
+        
         # Create checkout session
         checkout_url = create_secure_checkout_session(
             guild_id=int(guild_id),
             product_type=product_type,
-            guild_name=authorized_guild.get('name', '')
+            guild_name=authorized_guild.get('name', ''),
+            apply_trial_coupon=apply_trial
         )
         
         # Clear purchase intent after successful checkout creation

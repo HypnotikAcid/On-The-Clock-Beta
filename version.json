@@ -1,17 +1,17 @@
 {
-  "version": "1.5.7",
+  "version": "1.5.8",
   "last_updated": "2026-01-13",
   "recent_updates": [
+    "Integrated trial coupon (vzRYNZed) into Stripe checkout flow",
+    "Added trial eligibility check at checkout (one trial per server)",
+    "Trial usage automatically recorded in database after successful checkout",
     "Added phone number field to employee profile (contact section)",
-    "Added trial_usage database table for tracking $5 first-month trials",
-    "Added Trial Management panel to owner dashboard (grant/check/reset trials)",
-    "Fixed landing page pricing accuracy (Kiosk is Pro-only, 30-day max retention)",
-    "Created Stripe coupon vzRYNZed for $3 off first month trial"
+    "Added trial_usage database table for tracking $5 first-month trials"
   ],
   "roadmap": [
-    "Update checkout code to apply trial coupon (vzRYNZed)",
     "Custom avatar field for employee profiles",
     "Google AdSense integration for free tier ads",
-    "Mobile-responsive kiosk UI improvements"
+    "Mobile-responsive kiosk UI improvements",
+    "Payroll export integrations"
   ]
 }
