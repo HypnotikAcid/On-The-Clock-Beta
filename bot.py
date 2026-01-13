@@ -48,6 +48,10 @@ db_pool = None
 # --- Bot Owner Configuration ---
 BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "107103438139056128"))  # Discord user ID for super admin access
 
+# --- Demo Server Configuration ---
+DEMO_SERVER_ID = 1419894879894507661  # "On The Clock" demo server
+DEMO_EMPLOYEE_ROLE_ID = 1460483767050178631  # "Test Employee" role for auto-assignment
+
 # --- Discord Application Configuration ---
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")  # Discord application client ID
 
@@ -4820,6 +4824,11 @@ async def on_member_update(before, after):
                 str(after.avatar.url) if after.avatar else str(after.default_avatar.url)
             )
             
+            # Skip demo server - it has its own on_member_join welcome handler
+            if guild_id == DEMO_SERVER_ID:
+                print(f"Skipping standard welcome DM for demo server member: {after}")
+                return
+            
             # Check if welcome DM was already sent (for existing profiles)
             should_send_dm = is_new_employee
             if not is_new_employee:
@@ -6929,9 +6938,6 @@ async def on_guild_join(guild):
     except Exception as e:
         print(f"❌ Error adding guild to bot_guilds table: {e}")
 
-
-DEMO_SERVER_ID = 1419894879894507661
-DEMO_EMPLOYEE_ROLE_ID = 1460483767050178631
 
 @bot.event
 async def on_member_join(member):
