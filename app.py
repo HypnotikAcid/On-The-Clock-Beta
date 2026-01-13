@@ -8987,13 +8987,21 @@ def api_kiosk_employee_info(guild_id, user_id):
         from datetime import timedelta
         
         with get_db() as conn:
-            # Get employee profile
+            # Get employee profile including customization
             cursor = conn.execute("""
-                SELECT display_name, first_name, last_name, avatar_url, position, department, email, timesheet_email
+                SELECT display_name, first_name, last_name, avatar_url, position, department, 
+                       email, timesheet_email, accent_color, profile_background, catchphrase, selected_stickers
                 FROM employee_profiles
                 WHERE guild_id = %s AND user_id = %s
             """, (str(guild_id), str(user_id)))
             profile = cursor.fetchone()
+            
+            # Check if kiosk customization is allowed for this guild
+            cursor = conn.execute("""
+                SELECT allow_kiosk_customization FROM guild_settings WHERE guild_id = %s
+            """, (str(guild_id),))
+            guild_settings = cursor.fetchone()
+            allow_customization = guild_settings.get('allow_kiosk_customization', False) if guild_settings else False
             
             # Prefer timesheet_email over regular email
             employee_email = None
@@ -9017,7 +9025,7 @@ def api_kiosk_employee_info(guild_id, user_id):
                 AND DATE(clock_in_time) = %s AND clock_out_time IS NOT NULL
             """, (str(guild_id), str(user_id), today))
             today_result = cursor.fetchone()
-            today_minutes = (today_result['total'] or 0) / 60
+            today_minutes = float(today_result['total'] or 0) / 60
             
             # Add current session time if clocked in
             if active_session:
@@ -9037,7 +9045,7 @@ def api_kiosk_employee_info(guild_id, user_id):
                 AND DATE(clock_in_time) >= %s AND clock_out_time IS NOT NULL
             """, (str(guild_id), str(user_id), week_start))
             week_result = cursor.fetchone()
-            week_minutes = (week_result['total'] or 0) / 60 + (today_minutes if active_session else 0)
+            week_minutes = float(week_result['total'] or 0) / 60 + (today_minutes if active_session else 0)
             
             # Get last punch
             cursor = conn.execute("""
@@ -9123,19 +9131,31 @@ def api_kiosk_employee_info(guild_id, user_id):
         # Determine if there are important alerts (missing punches, pending requests, or missing email)
         has_alerts = len(missing_punches) > 0 or len(pending_requests) > 0 or not employee_email
         
+        # Build customization data (only if allowed by guild)
+        customization = {}
+        if allow_customization and profile:
+            customization = {
+                'accent_color': profile.get('accent_color') or 'cyan',
+                'profile_background': profile.get('profile_background') or 'default',
+                'catchphrase': profile.get('catchphrase') or '',
+                'selected_stickers': _parse_stickers(profile.get('selected_stickers'))
+            }
+        
         return jsonify({
             'success': True,
             'avatar_url': profile['avatar_url'] if profile else None,
             'position': profile['position'] if profile else None,
             'email': employee_email,
             'is_clocked_in': active_session is not None,
-            'today_hours': round(today_minutes),
-            'week_hours': round(week_minutes),
+            'today_hours': float(today_minutes),
+            'week_hours': float(week_minutes),
             'last_punch': last_punch,
             'notifications': notifications,
             'has_alerts': has_alerts,
             'pending_requests_count': len(pending_requests),
-            'missing_punches_count': len(missing_punches)
+            'missing_punches_count': len(missing_punches),
+            'allow_customization': allow_customization,
+            'customization': customization
         })
     except Exception as e:
         app.logger.error(f"Error fetching kiosk employee info: {e}")

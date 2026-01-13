@@ -928,6 +928,66 @@
             text-align: center;
         }
 
+        /* Profile Customization Backgrounds */
+        .info-panel.bg-sunset {
+            background: linear-gradient(135deg, rgba(255, 100, 50, 0.15) 0%, rgba(255, 50, 100, 0.15) 50%, rgba(150, 50, 255, 0.15) 100%);
+        }
+        .info-panel.bg-ocean {
+            background: linear-gradient(135deg, rgba(0, 100, 200, 0.15) 0%, rgba(0, 200, 200, 0.15) 50%, rgba(0, 150, 255, 0.15) 100%);
+        }
+        .info-panel.bg-forest {
+            background: linear-gradient(135deg, rgba(34, 139, 34, 0.15) 0%, rgba(50, 205, 50, 0.15) 50%, rgba(0, 100, 0, 0.15) 100%);
+        }
+        .info-panel.bg-midnight {
+            background: linear-gradient(135deg, rgba(25, 25, 112, 0.15) 0%, rgba(75, 0, 130, 0.15) 50%, rgba(0, 0, 50, 0.15) 100%);
+        }
+        .info-panel.bg-neon {
+            background: linear-gradient(135deg, rgba(255, 0, 255, 0.1) 0%, rgba(0, 255, 255, 0.1) 50%, rgba(255, 255, 0, 0.1) 100%);
+        }
+        .info-panel.bg-aurora {
+            background: linear-gradient(135deg, rgba(0, 255, 100, 0.1) 0%, rgba(0, 200, 255, 0.1) 50%, rgba(100, 0, 255, 0.1) 100%);
+        }
+
+        /* Accent Color Glow Effects */
+        .info-panel.accent-cyan .info-avatar { box-shadow: 0 0 30px rgba(0, 255, 255, 0.4); }
+        .info-panel.accent-magenta .info-avatar { box-shadow: 0 0 30px rgba(255, 0, 255, 0.4); }
+        .info-panel.accent-gold .info-avatar { box-shadow: 0 0 30px rgba(212, 175, 55, 0.4); }
+        .info-panel.accent-green .info-avatar { box-shadow: 0 0 30px rgba(16, 185, 129, 0.4); }
+        .info-panel.accent-blue .info-avatar { box-shadow: 0 0 30px rgba(59, 130, 246, 0.4); }
+        .info-panel.accent-red .info-avatar { box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
+        .info-panel.accent-purple .info-avatar { box-shadow: 0 0 30px rgba(139, 92, 246, 0.4); }
+        .info-panel.accent-teal .info-avatar { box-shadow: 0 0 30px rgba(20, 184, 166, 0.4); }
+
+        /* Accent color stat values */
+        .info-panel.accent-cyan .stat-value { color: #00FFFF; }
+        .info-panel.accent-magenta .stat-value { color: #FF00FF; }
+        .info-panel.accent-gold .stat-value { color: #D4AF37; }
+        .info-panel.accent-green .stat-value { color: #10B981; }
+        .info-panel.accent-blue .stat-value { color: #3B82F6; }
+        .info-panel.accent-red .stat-value { color: #EF4444; }
+        .info-panel.accent-purple .stat-value { color: #8B5CF6; }
+        .info-panel.accent-teal .stat-value { color: #14B8A6; }
+
+        /* Catchphrase styling */
+        .info-catchphrase {
+            font-style: italic;
+            color: #8B949E;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        /* Sticker container */
+        .info-stickers {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .info-sticker {
+            font-size: 24px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
         .info-user {
             display: flex;
             align-items: center;
@@ -1611,14 +1671,55 @@
 
         let currentEmployeeEmail = null;
 
+        // Sticker emoji map
+        const stickerEmojis = {
+            'star': '⭐',
+            'coffee': '☕',
+            'fire': '🔥',
+            'heart': '❤️',
+            'lightning': '⚡',
+            'rocket': '🚀',
+            'trophy': '🏆',
+            'crown': '👑',
+            'music': '🎵',
+            'sparkles': '✨'
+        };
+
         function renderInfoPanel(data) {
             const panel = document.getElementById('infoPanel');
             currentEmployeeEmail = data.email || null;
+            
+            // Apply customization classes
+            panel.className = 'info-panel';
+            if (data.allow_customization && data.customization) {
+                const cust = data.customization;
+                if (cust.profile_background && cust.profile_background !== 'default') {
+                    panel.classList.add(`bg-${cust.profile_background}`);
+                }
+                if (cust.accent_color) {
+                    panel.classList.add(`accent-${cust.accent_color}`);
+                }
+            }
             
             // Email display: show email with update link, or set email button
             const emailDisplay = data.email 
                 ? `<div class="info-email">📧 ${escapeHtml(data.email)} <span class="info-email-link" onclick="openSetEmailModal()">Update</span></div>`
                 : `<button class="set-email-btn" onclick="openSetEmailModal()">📧 Set Email Address</button>`;
+            
+            // Build catchphrase HTML
+            let catchphraseHtml = '';
+            if (data.allow_customization && data.customization && data.customization.catchphrase) {
+                catchphraseHtml = `<div class="info-catchphrase">"${escapeHtml(data.customization.catchphrase)}"</div>`;
+            }
+            
+            // Build stickers HTML
+            let stickersHtml = '';
+            if (data.allow_customization && data.customization && data.customization.selected_stickers && data.customization.selected_stickers.length > 0) {
+                const stickers = data.customization.selected_stickers.map(s => 
+                    `<span class="info-sticker">${stickerEmojis[s] || '🏷️'}</span>`
+                ).join('');
+                stickersHtml = `<div class="info-stickers">${stickers}</div>`;
+            }
             
             // Build notifications HTML
             let notificationsHtml = '';
@@ -1644,7 +1745,9 @@
                         <div>
                             <div class="info-name">${escapeHtml(currentEmployee.display_name)}</div>
                             <div class="info-role">${escapeHtml(data.position || 'Team Member')}</div>
+                            ${catchphraseHtml}
                             ${emailDisplay}
+                            ${stickersHtml}
                         </div>
                     </div>
                     <div class="info-stats">
@@ -1705,23 +1808,31 @@
                 showLoading(false);
                 
                 if (data.success) {
-                    // Update current employee state immediately
-                    if (currentEmployee) {
-                        currentEmployee.is_clocked_in = (action === 'in');
-                    }
-                    
-                    // Update UI buttons immediately
-                    updateActionButtons(action === 'in');
-                    
-                    // Refresh info panel for latest stats (always do this)
+                    // Refetch state from server to get authoritative clock status
                     try {
                         const infoResponse = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
                         const infoData = await infoResponse.json();
                         if (infoData.success) {
+                            // Update state from server (authoritative source)
+                            if (currentEmployee) {
+                                currentEmployee.is_clocked_in = infoData.is_clocked_in;
+                            }
                             renderInfoPanel(infoData);
+                            updateActionButtons(infoData.is_clocked_in);
+                        } else {
+                            // Fallback to expected state if refetch fails
+                            if (currentEmployee) {
+                                currentEmployee.is_clocked_in = (action === 'in');
+                            }
+                            updateActionButtons(action === 'in');
                         }
                     } catch (infoErr) {
                         console.error('Failed to refresh info panel:', infoErr);
+                        // Fallback to expected state if refetch fails
+                        if (currentEmployee) {
+                            currentEmployee.is_clocked_in = (action === 'in');
+                        }
+                        updateActionButtons(action === 'in');
                     }
                     
                     if (action === 'in') {
