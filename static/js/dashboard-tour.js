@@ -6,6 +6,8 @@ const DashboardTour = {
     spotlight: null,
     isActive: false,
     currentRole: null,
+    guildId: null,
+    userId: null,
     
     keys: {
         admin: 'otcTour_admin_completed',
@@ -13,62 +15,83 @@ const DashboardTour = {
     },
     
     stateKey: 'otcTour_state',
-
     lightbox: null,
 
     adminSteps: [
         {
-            target: '.sidebar-user',
-            title: 'Admin Profile',
-            content: 'As an admin, you have full control over your server settings.',
-            position: 'top'
+            page: '',
+            target: '.tiles-grid',
+            title: 'Welcome to Your Dashboard',
+            content: 'This is your server command center. Here you can see your subscription status, active employees, and quick access to all settings.',
+            position: 'bottom'
         },
         {
-            target: '[data-section="admin-roles"]',
+            page: '',
+            target: '#quick-stats-tile',
+            title: 'Quick Stats',
+            content: 'Monitor your team at a glance - see how many employees are active and currently clocked in.',
+            position: 'bottom'
+        },
+        {
+            page: 'admin-roles',
+            target: '.tiles-grid',
             title: 'Admin Roles',
-            content: 'Configure which Discord roles have access to this dashboard.',
-            position: 'right'
+            content: 'Configure which Discord roles can access this dashboard and manage settings. Only members with these roles can view reports and modify server configuration.',
+            position: 'bottom'
         },
         {
-            target: '[data-section="employee-roles"]',
+            page: 'employee-roles',
+            target: '.tiles-grid',
             title: 'Employee Roles',
-            content: 'Define which roles are allowed to clock in and out.',
-            position: 'right'
+            content: 'Define which Discord roles are allowed to clock in and out. Members with these roles will appear in your employee list.',
+            position: 'bottom'
         },
         {
-            target: '[data-section="adjustments"]',
+            page: 'employees',
+            target: '.content-header',
+            title: 'Employee Management',
+            content: 'View all employees, their current status, and total hours. Click on any employee to see their detailed profile and time history.',
+            position: 'bottom'
+        },
+        {
+            page: 'adjustments',
+            target: '.tabs',
             title: 'Time Adjustments',
-            content: 'Review and approve/deny employee time modification requests.',
-            position: 'right',
+            content: 'Review and approve/deny employee time correction requests. Switch between Pending, History, and Calendar views.',
+            position: 'bottom',
             preview: 'adjustments'
         },
         {
-            target: '[data-section="admin-calendar"]',
+            page: 'calendar',
+            target: '.content-header',
             title: 'Admin Calendar',
-            content: 'A master view of all employee shifts and history.',
-            position: 'right'
+            content: 'A master view of all employee shifts. Click any day to see who worked and for how long. Perfect for payroll and scheduling.',
+            position: 'bottom'
         }
     ],
 
     employeeSteps: [
         {
-            target: '.sidebar-user',
-            title: 'Your Profile',
-            content: 'Customize your personal profile with avatars and themes.',
-            position: 'top'
-        },
-        {
-            target: '[data-section="on-the-clock"]',
+            page: 'clock',
+            target: '.content-header',
             title: 'Clock In/Out',
-            content: 'This is where you manage your active shift.',
-            position: 'right',
+            content: 'This is where you manage your shift. Clock in when you start work, and clock out when you finish.',
+            position: 'bottom',
             preview: 'clock'
         },
         {
-            target: '[data-section="adjustments"]',
-            title: 'Request Changes',
-            content: 'Submit requests to fix missing or incorrect punches.',
-            position: 'right'
+            page: 'adjustments',
+            target: '.content-header',
+            title: 'Request Time Changes',
+            content: 'Forgot to clock in or out? Submit a request here and your admin will review it.',
+            position: 'bottom'
+        },
+        {
+            page: 'profile',
+            target: '.content-header',
+            title: 'Your Profile',
+            content: 'View your work history, total hours, and customize your profile with themes and colors.',
+            position: 'bottom'
         }
     ],
     
@@ -76,7 +99,7 @@ const DashboardTour = {
         clock: {
             title: 'Discord /clock Command',
             img: '/static/previews/discord_clock.png',
-            desc: 'Employees can also clock in/out directly from Discord using the /clock command.'
+            desc: 'You can also clock in/out directly from Discord using the /clock command.'
         },
         adjustments: {
             title: 'Discord Notifications',
@@ -86,9 +109,38 @@ const DashboardTour = {
     },
 
     init() {
+        this.extractGuildId();
         this.createElements();
         this.bindEvents();
         this.checkResume();
+    },
+    
+    extractGuildId() {
+        this.guildId = document.body.dataset.guildId || null;
+        if (!this.guildId) {
+            const match = window.location.pathname.match(/\/dashboard\/server\/(\d+)/);
+            if (match) {
+                this.guildId = match[1];
+            }
+        }
+        this.userId = document.body.dataset.userId || null;
+    },
+    
+    getPageUrl(page) {
+        if (!this.guildId) return null;
+        if (!page) return `/dashboard/server/${this.guildId}`;
+        if (page === 'profile') {
+            if (this.userId) return `/dashboard/server/${this.guildId}/profile/${this.userId}`;
+            return null;
+        }
+        return `/dashboard/server/${this.guildId}/${page}`;
+    },
+    
+    isOnCorrectPage(page) {
+        const expectedPath = this.getPageUrl(page);
+        if (!expectedPath) return false;
+        return window.location.pathname === expectedPath || 
+               window.location.pathname === expectedPath + '/';
     },
     
     checkResume() {
@@ -96,7 +148,7 @@ const DashboardTour = {
         if (saved) {
             try {
                 const state = JSON.parse(saved);
-                if (state.role && state.step >= 0) {
+                if (state.role && state.step >= 0 && state.guildId === this.guildId) {
                     setTimeout(() => {
                         this.currentRole = state.role;
                         this.steps = state.role === 'admin' ? this.adminSteps : this.employeeSteps;
@@ -104,7 +156,7 @@ const DashboardTour = {
                         this.isActive = true;
                         this.overlay.classList.add('active');
                         this.showStep();
-                    }, 500);
+                    }, 800);
                     return;
                 }
             } catch (e) {}
@@ -113,10 +165,11 @@ const DashboardTour = {
     },
     
     saveState() {
-        if (this.isActive && this.currentRole) {
+        if (this.isActive && this.currentRole && this.guildId) {
             sessionStorage.setItem(this.stateKey, JSON.stringify({
                 role: this.currentRole,
-                step: this.currentStep
+                step: this.currentStep,
+                guildId: this.guildId
             }));
         }
     },
@@ -126,9 +179,11 @@ const DashboardTour = {
     },
     
     checkAutoStart() {
+        if (!this.guildId) return;
+        
         const urlParams = new URLSearchParams(window.location.search);
         const viewAs = urlParams.get('view_as');
-        const detectedRole = viewAs || (window.location.pathname.includes('/server/') ? 'admin' : (window.location.pathname.includes('/profile') ? 'employee' : null));
+        const detectedRole = viewAs || (window.location.pathname.includes('/server/') ? 'admin' : null);
         
         if (detectedRole && !localStorage.getItem(this.keys[detectedRole])) {
             if (localStorage.getItem('tourCompleted')) {
@@ -158,8 +213,8 @@ const DashboardTour = {
             </div>
             <h4 class="tour-title"></h4>
             <p class="tour-content"></p>
-            <div class="tour-preview-link" style="display:none; margin: 10px 0; color: #00FFFF; cursor: pointer; font-size: 0.8rem; text-decoration: underline;">
-                See in Discord
+            <div class="tour-preview-link" style="display:none; margin: 10px 0; color: #00FFFF; cursor: pointer; font-size: 0.85rem; text-decoration: underline;">
+                See how it looks in Discord
             </div>
             <div class="tour-actions">
                 <button class="tour-btn tour-btn-skip">Skip Tour</button>
@@ -240,11 +295,13 @@ const DashboardTour = {
                 this.prev();
             }
         });
-        
-        window.addEventListener('beforeunload', () => this.saveState());
     },
     
     start(role = 'admin') {
+        if (!this.guildId) {
+            console.warn('Tour: No guild ID found');
+            return;
+        }
         this.currentRole = role;
         this.steps = role === 'admin' ? this.adminSteps : this.employeeSteps;
         this.currentStep = 0;
@@ -258,67 +315,96 @@ const DashboardTour = {
         const step = this.steps[this.currentStep];
         if (!step) return this.complete();
         
-        const target = document.querySelector(step.target);
-        if (!target) {
-            this.currentStep++;
-            this.saveState();
-            return this.showStep();
+        if (!this.isOnCorrectPage(step.page)) {
+            const targetUrl = this.getPageUrl(step.page);
+            if (targetUrl) {
+                this.saveState();
+                window.location.href = targetUrl;
+                return;
+            } else {
+                this.currentStep++;
+                this.saveState();
+                return this.showStep();
+            }
+        }
+        
+        this.waitForElement(step.target, (target) => {
+            if (!target) {
+                this.currentStep++;
+                this.saveState();
+                return this.showStep();
+            }
+            
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            setTimeout(() => {
+                this.positionElements(target, step);
+            }, 300);
+        });
+    },
+    
+    waitForElement(selector, callback, attempts = 0) {
+        const target = document.querySelector(selector);
+        if (target) {
+            callback(target);
+        } else if (attempts < 20) {
+            setTimeout(() => this.waitForElement(selector, callback, attempts + 1), 100);
+        } else {
+            callback(null);
+        }
+    },
+    
+    positionElements(target, step) {
+        const rect = target.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        
+        this.spotlight.style.display = 'block';
+        this.spotlight.style.position = 'fixed';
+        this.spotlight.style.top = `${rect.top - 10}px`;
+        this.spotlight.style.left = `${rect.left - 10}px`;
+        this.spotlight.style.width = `${rect.width + 20}px`;
+        this.spotlight.style.height = `${rect.height + 20}px`;
+        
+        this.tooltip.querySelector('.tour-step-indicator').textContent = `Step ${this.currentStep + 1} of ${this.steps.length}`;
+        this.tooltip.querySelector('.tour-title').textContent = step.title;
+        this.tooltip.querySelector('.tour-content').textContent = step.content;
+        
+        const prevBtn = this.tooltip.querySelector('.tour-btn-prev');
+        prevBtn.style.display = this.currentStep === 0 ? 'none' : 'inline-block';
+        
+        const nextBtn = this.tooltip.querySelector('.tour-btn-next');
+        nextBtn.textContent = this.currentStep === this.steps.length - 1 ? 'Finish' : 'Next';
+        
+        const previewLink = this.tooltip.querySelector('.tour-preview-link');
+        if (step.preview) {
+            previewLink.style.display = 'block';
+            this.currentPreview = step.preview;
+        } else {
+            previewLink.style.display = 'none';
         }
 
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-        setTimeout(() => {
-            const rect = target.getBoundingClientRect();
-            const viewportHeight = window.innerHeight;
-            
-            this.spotlight.style.display = 'block';
-            this.spotlight.style.position = 'fixed';
-            this.spotlight.style.top = `${rect.top - 8}px`;
-            this.spotlight.style.left = `${rect.left - 8}px`;
-            this.spotlight.style.width = `${rect.width + 16}px`;
-            this.spotlight.style.height = `${rect.height + 16}px`;
-            
-            this.tooltip.querySelector('.tour-step-indicator').textContent = `Step ${this.currentStep + 1} of ${this.steps.length}`;
-            this.tooltip.querySelector('.tour-title').textContent = step.title;
-            this.tooltip.querySelector('.tour-content').textContent = step.content;
-            
-            const prevBtn = this.tooltip.querySelector('.tour-btn-prev');
-            prevBtn.style.display = this.currentStep === 0 ? 'none' : 'inline-block';
-            
-            const nextBtn = this.tooltip.querySelector('.tour-btn-next');
-            nextBtn.textContent = this.currentStep === this.steps.length - 1 ? 'Finish' : 'Next';
-            
-            const previewLink = this.tooltip.querySelector('.tour-preview-link');
-            if (step.preview) {
-                previewLink.style.display = 'block';
-                this.currentPreview = step.preview;
-            } else {
-                previewLink.style.display = 'none';
-            }
-
-            this.tooltip.style.display = 'block';
-            this.tooltip.style.position = 'fixed';
-            
-            const tooltipHeight = this.tooltip.offsetHeight || 200;
-            const spaceBelow = viewportHeight - rect.bottom;
-            const spaceAbove = rect.top;
-            
-            if (step.position === 'top' || spaceBelow < tooltipHeight + 30) {
-                this.tooltip.style.top = `${rect.top - tooltipHeight - 20}px`;
-            } else {
-                this.tooltip.style.top = `${rect.bottom + 20}px`;
-            }
-            
-            let leftPos = rect.left;
-            const tooltipWidth = this.tooltip.offsetWidth || 320;
-            if (leftPos + tooltipWidth > window.innerWidth - 20) {
-                leftPos = window.innerWidth - tooltipWidth - 20;
-            }
-            if (leftPos < 20) leftPos = 20;
-            this.tooltip.style.left = `${leftPos}px`;
-            
-            this.saveState();
-        }, 300);
+        this.tooltip.style.display = 'block';
+        this.tooltip.style.position = 'fixed';
+        
+        const tooltipHeight = this.tooltip.offsetHeight || 200;
+        const tooltipWidth = this.tooltip.offsetWidth || 320;
+        const spaceBelow = viewportHeight - rect.bottom;
+        
+        if (step.position === 'top' || spaceBelow < tooltipHeight + 40) {
+            this.tooltip.style.top = `${Math.max(10, rect.top - tooltipHeight - 20)}px`;
+        } else {
+            this.tooltip.style.top = `${rect.bottom + 20}px`;
+        }
+        
+        let leftPos = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+        if (leftPos + tooltipWidth > viewportWidth - 20) {
+            leftPos = viewportWidth - tooltipWidth - 20;
+        }
+        if (leftPos < 20) leftPos = 20;
+        this.tooltip.style.left = `${leftPos}px`;
+        
+        this.saveState();
     },
 
     showLightbox() {
@@ -379,7 +465,12 @@ const DashboardTour = {
             localStorage.removeItem(this.keys.admin);
             localStorage.removeItem(this.keys.employee);
         }
-        location.reload();
+        
+        if (this.guildId) {
+            window.location.href = `/dashboard/server/${this.guildId}`;
+        } else {
+            location.reload();
+        }
     }
 };
 

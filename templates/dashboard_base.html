@@ -9,7 +9,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body>
+<body data-user-id="{{ user.user_id if user else '' }}" data-guild-id="{{ server.id if server else '' }}">
     <div id="matrix-toggle" onclick="toggleMatrix()" style="position: fixed; top: 1rem; right: 1rem; z-index: 1001; cursor: pointer; background: rgba(10, 15, 31, 0.7); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 255, 255, 0.3); font-size: 0.75rem; color: rgba(0, 255, 255, 0.8); display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; user-select: none;">
         <span id="matrix-toggle-text">Exit The Matrix</span>
         <div style="width: 30px; height: 16px; background: rgba(0, 255, 255, 0.1); border-radius: 10px; position: relative; border: 1px solid rgba(0, 255, 255, 0.3);">
