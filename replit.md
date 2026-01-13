@@ -39,6 +39,9 @@ Preferred communication style: Simple, everyday language.
 - **Shift scheduling integration**: Ability for admins to set expected shifts and track attendance against them.
 - **Payroll export features**: Native integrations with common payroll providers.
 - **Multi-language support**: Localizing the dashboard and bot for global teams.
+- **Clock-themed Visual Identity**: Custom landing page backgrounds featuring floating clock faces, watch gears, hourglasses, and punch cards. Includes a smooth scrolling background effect replacing the current matrix text.
+- **Onboarding Tour System**: Interactive dashboard guide with spotlight effects, comic-style speech bubbles, and auto-start for new users.
+- **Demo Experience Enhancements**: Admin override system for the demo server (`DEMO_SERVER_ID`) to showcase full Pro features to prospective users.
 
 ## Design Decisions
 - **UI/UX**: Features a static landing page and a route-based dashboard architecture secured by Discord OAuth. The dashboard offers role-differentiated views for Admins (full access) and Employees (limited view of personal data).
