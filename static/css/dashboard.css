@@ -189,8 +189,6 @@
             box-shadow: 0 0 15px var(--theme-accent) !important;
         }
 
-        .layout-container {
-
         /* Left Sidebar */
         .sidebar {
             width: 250px;
