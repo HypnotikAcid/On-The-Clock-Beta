@@ -2840,8 +2840,11 @@ def db():
         # Always return connection to pool
         db_pool.putconn(conn)
 
-def run_migrations():
-    """PostgreSQL migrations - schema already exists, just verify connection"""
+    # Run migrations on startup
+    print("🔄 Running database migrations...")
+    from migrations import run_migrations as actual_run_migrations
+    actual_run_migrations()
+    
     try:
         with db() as conn:
             conn.execute("SELECT 1")
@@ -7732,7 +7735,7 @@ async def owner_broadcast_command(interaction: discord.Interaction, title: str, 
         await interaction.followup.send(embed=embed, ephemeral=True)
         
     except Exception as e:
-        logger.error(f"Broadcast command error: {e}")
+        print(f"Broadcast command error: {e}")
         await interaction.followup.send(f"❌ Broadcast failed: {str(e)}", ephemeral=True)
 
 @tree.command(name="owner_grant", description="[OWNER] Grant subscription tier to current server")
@@ -8034,7 +8037,7 @@ async def context_view_hours(interaction: discord.Interaction, user: discord.Mem
     await interaction.response.defer(ephemeral=True)
     
     # Check if invoker is admin
-    if not interaction.user.guild_permissions.administrator:
+    if interaction.user and isinstance(interaction.user, discord.Member) and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send("❌ Only admins can use this.", ephemeral=True)
         return
     
@@ -8065,7 +8068,7 @@ async def context_force_clockout(interaction: discord.Interaction, user: discord
     await interaction.response.defer(ephemeral=True)
     
     # Check if invoker is admin
-    if not interaction.user.guild_permissions.administrator:
+    if interaction.user and isinstance(interaction.user, discord.Member) and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send("❌ Only admins can use this.", ephemeral=True)
         return
     
@@ -8091,19 +8094,21 @@ async def context_ban_user(interaction: discord.Interaction, user: discord.Membe
     await interaction.response.defer(ephemeral=True)
     
     # Check if invoker is admin
-    if not interaction.user.guild_permissions.administrator:
+    if interaction.user and isinstance(interaction.user, discord.Member) and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send("❌ Only admins can use this.", ephemeral=True)
         return
     
     # Check if user is already banned
-    if is_user_banned(interaction.guild_id, user.id):
+    if interaction.guild_id and is_user_banned(interaction.guild_id, user.id):
         await interaction.followup.send(f"ℹ️ {user.display_name} is already banned from the timeclock.", ephemeral=True)
         return
     
     # Ban user for 24 hours using existing function
-    ban_user_24h(interaction.guild_id, user.id, "Banned via admin context menu")
-    
-    await interaction.followup.send(f"🚫 {user.display_name} has been banned from the timeclock for 24 hours.", ephemeral=True)
+    if interaction.guild_id:
+        ban_user_24h(interaction.guild_id, user.id, "Banned via admin context menu")
+        await interaction.followup.send(f"🚫 {user.display_name} has been banned from the timeclock for 24 hours.", ephemeral=True)
+    else:
+        await interaction.followup.send("❌ Error: Guild ID not found.", ephemeral=True)
 
 
 @tree.context_menu(name="View Profile")
@@ -8120,6 +8125,7 @@ async def context_view_profile(interaction: discord.Interaction, user: discord.M
         return
     
     # Check if user has an employee profile
+    from app import get_db
     with get_db() as conn:
         cursor = conn.execute("""
             SELECT user_id FROM employee_profiles
@@ -8139,7 +8145,8 @@ async def context_view_profile(interaction: discord.Interaction, user: discord.M
         description=f"[Click here to view {'your' if is_self else 'their'} profile]({profile_url})",
         color=discord.Color.blue()
     )
-    embed.set_thumbnail(url=user.display_avatar.url)
+    if user.display_avatar:
+        embed.set_thumbnail(url=user.display_avatar.url)
     
     await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -8149,14 +8156,14 @@ async def context_send_shift_report(interaction: discord.Interaction, user: disc
     """Right-click context menu to email employee's shift report to configured recipients"""
     await interaction.response.defer(ephemeral=True)
     
-    # Check if invoker is admin
-    if not interaction.user.guild_permissions.administrator:
+    if interaction.user and isinstance(interaction.user, discord.Member) and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send("❌ Only admins can send shift reports.", ephemeral=True)
         return
     
     guild_id = interaction.guild_id
     
     # Get verified email recipients
+    from app import get_db
     with get_db() as conn:
         cursor = conn.execute("""
             SELECT email FROM email_recipients
@@ -8188,10 +8195,12 @@ async def context_send_shift_report(interaction: discord.Interaction, user: disc
         await interaction.followup.send(f"ℹ️ {user.display_name} has no sessions this week.", ephemeral=True)
         return
     
-    # Build report content
-    total_hours = sum(s['hours'] or 0 for s in sessions)
-    
-    report_lines = [f"Shift Report for {user.display_name}", f"Server: {interaction.guild.name}", f"Week of {datetime.now().strftime('%B %d, %Y')}", "", "Sessions:"]
+    if interaction.guild:
+        server_name = interaction.guild.name
+    else:
+        server_name = "Unknown Server"
+        
+    report_lines = [f"Shift Report for {user.display_name}", f"Server: {server_name}", f"Week of {datetime.now().strftime('%B %d, %Y')}", "", "Sessions:"]
     
     for s in sessions:
         clock_in = s['clock_in_time'].strftime('%a %m/%d %I:%M %p') if s['clock_in_time'] else 'N/A'
@@ -8202,14 +8211,14 @@ async def context_send_shift_report(interaction: discord.Interaction, user: disc
     report_lines.append(f"\nTotal Hours: {total_hours:.2f}")
     report_text = "\n".join(report_lines)
     
-    # Queue emails using email outbox pattern
     try:
         from email_utils import queue_email
         for email in recipients:
             queue_email(
-                to_email=email,
+                email_type="shift_report",
+                recipients=[email],
                 subject=f"Shift Report: {user.display_name} - {interaction.guild.name}",
-                body=report_text,
+                content=report_text,
                 guild_id=str(guild_id)
             )
         
