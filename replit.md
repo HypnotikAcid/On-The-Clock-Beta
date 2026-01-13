@@ -12,6 +12,10 @@ Preferred communication style: Simple, everyday language.
 - **Mobile First**: Interactive components like the roadmap accordion must be explicitly tested for auto-collapse behavior on mobile viewports.
 - **Matrix Animation Guards**: Canvas/ctx must have null checks before any operations. Use `matrixRunning` flag to prevent duplicate animation loops. Check `localStorage` hidden state before starting animation on page load.
 - **Dashboard Matrix**: Uses `window.startDashboardMatrix()` exposed by `dashboard-matrix.js` so `dashboard-common.js` toggle can restart animation when re-enabled.
+- **Flask Route Uniqueness**: Never define the same route decorator twice in `app.py`. Flask raises `AssertionError` on startup if endpoint names collide. Always grep for existing route definitions before adding new ones.
+- **Database Initialization Guards**: Use process-level flags (e.g., `_db_pool_initialized`, `_migrations_run`) to ensure database pool creation and migrations only execute once per process, not on every connection request.
+- **Orphaned Code Detection**: Code blocks placed after a function's `finally:` clause but not inside any function definition will execute at module import time, causing repeated side effects. Always verify indentation after editing context managers.
+- **Fast Mode Review**: Quick edits can introduce duplicate definitions or orphaned code blocks. Always run the server and check logs after fast-mode changes before considering work complete.
 
 # System Architecture
 ## Bot Framework
