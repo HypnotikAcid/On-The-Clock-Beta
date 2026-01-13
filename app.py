@@ -1583,7 +1583,7 @@ def handle_deeplink(page):
 def index():
     """Landing page with bot info, features, and upgrade links."""
     try:
-        with open('version.json', 'r') as f:
+        with open('public_roadmap.json', 'r') as f:
             version_info = json.load(f)
     except Exception:
         version_info = {
