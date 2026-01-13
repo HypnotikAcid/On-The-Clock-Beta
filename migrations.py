@@ -432,7 +432,11 @@ def run_migrations():
                     ON email_outbox(guild_id)
                 """)
                 
-                # 20. Create trial_usage table for tracking one-time $5 first-month trials
+                # 20. Add phone column to employee_profiles
+                print("   Checking for phone column in employee_profiles")
+                cur.execute("ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS phone VARCHAR(50)")
+                
+                # 21. Create trial_usage table for tracking one-time $5 first-month trials
                 print("   Checking table: trial_usage")
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS trial_usage (

@@ -49,7 +49,7 @@ Preferred communication style: Simple, everyday language.
   - `/dashboard/server/<id>/bans` - Ban management (admin-only)
   - `/dashboard/server/<id>/beta` - Beta settings
   - `/owner` - Owner dashboard
-- **Employee Profile Page**: Individual profile pages for each employee showing hire date, tenure, total/weekly hours, average stats, achievements. Employees can set their email address. Admins can view all employee profiles.
+- **Employee Profile Page**: Individual profile pages for each employee showing hire date, tenure, total/weekly hours, average stats, achievements. Employees can set their email and phone number (free tier access). Admins can view all employee profiles. **Future**: Custom avatar upload (planned - database columns exist: avatar_choice, custom_avatar_url).
 - **Template Inheritance**: All dashboard pages extend `dashboard_base.html` for consistent sidebar, header, and security checks.
 - **Shared Utilities**: Common JavaScript functions in `dashboard-common.js` (escapeHtml, fetchWithTimeout, notifications, formatting).
 - **Subscription Management**: A simplified three-tier pricing model includes:

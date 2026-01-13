@@ -1,16 +1,16 @@
 {
-  "version": "1.5.6",
+  "version": "1.5.7",
   "last_updated": "2026-01-13",
   "recent_updates": [
+    "Added phone number field to employee profile (contact section)",
     "Added trial_usage database table for tracking $5 first-month trials",
     "Added Trial Management panel to owner dashboard (grant/check/reset trials)",
-    "Added trial API endpoints (/api/owner/trial/grant, status, reset)",
     "Fixed landing page pricing accuracy (Kiosk is Pro-only, 30-day max retention)",
     "Created Stripe coupon vzRYNZed for $3 off first month trial"
   ],
   "roadmap": [
     "Update checkout code to apply trial coupon (vzRYNZed)",
-    "Phone number field for employee profiles",
+    "Custom avatar field for employee profiles",
     "Google AdSense integration for free tier ads",
     "Mobile-responsive kiosk UI improvements"
   ]

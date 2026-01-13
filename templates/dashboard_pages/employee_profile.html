@@ -180,13 +180,13 @@
     font-style: italic;
 }
 
-.email-edit-form {
+.contact-edit-form {
     display: flex;
     gap: 0.5rem;
     align-items: center;
 }
 
-.email-edit-form input {
+.contact-edit-form input {
     flex: 1;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-color, #30363d);
@@ -196,12 +196,12 @@
     font-size: 0.9rem;
 }
 
-.email-edit-form input:focus {
+.contact-edit-form input:focus {
     outline: none;
     border-color: #58a6ff;
 }
 
-.btn-save-email {
+.btn-save-contact {
     padding: 0.5rem 1rem;
     background: #238636;
     color: white;
@@ -212,11 +212,11 @@
     transition: background 0.2s;
 }
 
-.btn-save-email:hover {
+.btn-save-contact:hover {
     background: #2ea043;
 }
 
-.btn-save-email:disabled {
+.btn-save-contact:disabled {
     background: #484f58;
     cursor: not-allowed;
 }
@@ -382,19 +382,29 @@ async function loadProfile() {
                     ${isOwnProfile ? `
                         <div class="info-row" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
                             <span class="info-label">Email Address</span>
-                            <div class="email-edit-form">
+                            <div class="contact-edit-form">
                                 <input type="email" id="email-input" value="${escapeHtml(profile.email || '')}" placeholder="Enter your email">
-                                <button class="btn-save-email" onclick="saveEmail()">Save</button>
                             </div>
-                            <div id="email-status"></div>
                         </div>
+                        <div class="info-row" style="flex-direction: column; align-items: stretch; gap: 0.5rem; margin-top: 0.5rem;">
+                            <span class="info-label">Phone Number</span>
+                            <div class="contact-edit-form">
+                                <input type="tel" id="phone-input" value="${escapeHtml(profile.phone || '')}" placeholder="Enter your phone">
+                            </div>
+                        </div>
+                        <button class="btn-save-contact" onclick="saveContact()" style="margin-top: 1rem; width: 100%;">Save Contact Info</button>
+                        <div id="contact-status" style="margin-top: 0.5rem;"></div>
                         <p style="color: #8b949e; font-size: 0.85rem; margin-top: 0.5rem;">
-                            Your email is used for receiving shift reports and notifications.
+                            Used for receiving shift reports and notifications.
                         </p>
                     ` : `
                         <div class="info-row">
                             <span class="info-label">Email</span>
                             <span class="info-value ${!profile.email ? 'not-set' : ''}">${profile.email ? escapeHtml(profile.email) : 'Not set'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Phone</span>
+                            <span class="info-value ${!profile.phone ? 'not-set' : ''}">${profile.phone ? escapeHtml(profile.phone) : 'Not set'}</span>
                         </div>
                     `}
                 </div>
@@ -423,12 +433,14 @@ async function loadProfile() {
     }
 }
 
-async function saveEmail() {
+async function saveContact() {
     const emailInput = document.getElementById('email-input');
-    const statusDiv = document.getElementById('email-status');
-    const btn = document.querySelector('.btn-save-email');
+    const phoneInput = document.getElementById('phone-input');
+    const statusDiv = document.getElementById('contact-status');
+    const btn = document.querySelector('.btn-save-contact');
     
-    const email = emailInput.value.trim();
+    const email = emailInput ? emailInput.value.trim() : null;
+    const phone = phoneInput ? phoneInput.value.trim() : null;
     
     btn.disabled = true;
     btn.textContent = 'Saving...';
@@ -439,23 +451,26 @@ async function saveEmail() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ email: email || null })
+            body: JSON.stringify({ 
+                email: email || null,
+                phone: phone || null
+            })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            statusDiv.innerHTML = '<span class="save-success">✓ Email saved successfully</span>';
+            statusDiv.innerHTML = '<span class="save-success">✓ Contact info saved successfully</span>';
             setTimeout(() => { statusDiv.innerHTML = ''; }, 3000);
         } else {
             statusDiv.innerHTML = `<span class="save-error">✗ ${escapeHtml(data.error)}</span>`;
         }
     } catch (error) {
-        statusDiv.innerHTML = '<span class="save-error">✗ Failed to save email</span>';
+        statusDiv.innerHTML = '<span class="save-error">✗ Failed to save contact info</span>';
     }
     
     btn.disabled = false;
-    btn.textContent = 'Save';
+    btn.textContent = 'Save Contact Info';
 }
 
 document.addEventListener('DOMContentLoaded', loadProfile);

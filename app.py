@@ -5738,6 +5738,7 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 'full_name': profile_row['full_name'] or '',
                 'avatar_url': profile_row['avatar_url'],
                 'email': profile_row['email'] if is_own_profile or is_admin else None,
+                'phone': profile_row.get('phone') if is_own_profile or is_admin else None,
                 'hire_date': profile_row['hire_date'].isoformat() if profile_row.get('hire_date') else None,
                 'position': profile_row['position'] or '',
                 'department': profile_row['department'] or '',
@@ -5785,8 +5786,8 @@ def api_update_employee_profile(user_session, guild_id, user_id):
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
         
-        # Fields that can be updated by employee
-        allowed_fields = ['email']
+        # Fields that can be updated by employee (free tier can edit email/phone)
+        allowed_fields = ['email', 'phone']
         if is_admin:
             allowed_fields.extend(['hire_date', 'position', 'department', 'company_role'])
         
@@ -5801,6 +5802,12 @@ def api_update_employee_profile(user_session, guild_id, user_id):
                     import re
                     if not re.match(r'^[^@]+@[^@]+\.[^@]+$', value):
                         return jsonify({'success': False, 'error': 'Invalid email format'}), 400
+                if field == 'phone' and value:
+                    # Basic phone validation (allow digits, spaces, dashes, parentheses, plus)
+                    import re
+                    cleaned = re.sub(r'[^\d]', '', value)
+                    if len(cleaned) < 7 or len(cleaned) > 15:
+                        return jsonify({'success': False, 'error': 'Invalid phone number'}), 400
                 updates.append(f"{field} = %s")
                 params.append(value if value else None)
         
