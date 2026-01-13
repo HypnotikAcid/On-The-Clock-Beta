@@ -1,5 +1,17 @@
 # Overview
-"On the Clock 2.0" is a professional Discord timeclock bot for businesses, offering streamlined time tracking, subscription management, robust error handling, and enterprise-grade reliability. It features a two-tier subscription model, Stripe integration, role-based access control, and an informative landing page. The project aims to provide an easy-to-use and reliable time tracking solution within Discord.
+**Time Warden** is the umbrella brand for Discord productivity tools. The flagship product is **"On the Clock"** - a professional Discord timeclock bot for businesses, offering streamlined time tracking, subscription management, robust error handling, and enterprise-grade reliability. It features a three-tier subscription model, Stripe integration, role-based access control, and an informative landing page. The project aims to provide an easy-to-use and reliable time tracking solution within Discord.
+
+# Rebrand Notes (January 2026)
+- **Brand Name**: Time Warden (umbrella brand for future Discord tools)
+- **Product Name**: On the Clock (timeclock bot - can keep this name under Time Warden)
+- **Domain**: time-warden.com (purchased, needs DNS setup)
+- **Replit Subdomain**: Keep as `on-the-clock.replit.app` (no code changes needed for OAuth/Stripe)
+- **Rebrand Strategy**: 
+  - Visual-only changes to landing page, dashboard, bot messages
+  - Update bot-sent dashboard URLs to time-warden.com AFTER domain is connected
+  - Bot Discord username can remain "On the Clock" as a product under Time Warden
+  - Future expansion: Multiple bots under Time Warden brand possible
+- **Trademark Avoidance**: Rebranding due to potential conflict with ontheclock.com (18K+ customers)
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
