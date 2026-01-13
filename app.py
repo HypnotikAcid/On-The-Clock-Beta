@@ -9075,10 +9075,10 @@ def api_kiosk_employee_info(guild_id, user_id):
             
             # Get recently resolved requests (last 7 days)
             cursor = conn.execute("""
-                SELECT id, request_type, status, resolved_at FROM time_adjustment_requests
+                SELECT id, request_type, status, reviewed_at FROM time_adjustment_requests
                 WHERE guild_id = %s AND user_id = %s AND status IN ('approved', 'denied')
-                AND resolved_at > NOW() - INTERVAL '7 days'
-                ORDER BY resolved_at DESC LIMIT 5
+                AND reviewed_at > NOW() - INTERVAL '7 days'
+                ORDER BY reviewed_at DESC LIMIT 5
             """, (str(guild_id), str(user_id)))
             resolved_requests = cursor.fetchall()
             
