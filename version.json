@@ -1,0 +1,16 @@
+{
+  "version": "1.6.0",
+  "last_updated": "2026-01-13",
+  "recent_updates": [
+    "Security: Performed comprehensive project cleanup and screenshot removal",
+    "Security: Audited route decorators for Premium/Pro subscription enforcement",
+    "Owner dashboard redesigned with Premium/Pro tier terminology",
+    "Added grandfathered badge for legacy $5 lifetime users",
+    "Grandfathered servers protected from accidental revocation"
+  ],
+  "roadmap": [
+    "Phase 2: Add subscription enforcement to all paid routes",
+    "Phase 3: Dashboard UI Tier Badge Updates",
+    "Custom avatar field for employee profiles"
+  ]
+}
