@@ -16,6 +16,15 @@
             <div id="matrix-toggle-knob" style="width: 10px; height: 10px; background: #00FFFF; border-radius: 50%; position: absolute; top: 2px; right: 3px; transition: all 0.3s ease; box-shadow: 0 0 8px #00FFFF;"></div>
         </div>
     </div>
+    {% if is_demo_server and server %}
+    <div id="demo-view-toggle" style="position: fixed; top: 3rem; right: 1rem; z-index: 1001; background: rgba(10, 15, 31, 0.9); padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(212, 175, 55, 0.5); font-size: 0.75rem; color: rgba(212, 175, 55, 0.9);">
+        <div style="font-weight: 600; margin-bottom: 6px; text-align: center;">Demo Mode</div>
+        <div style="display: flex; gap: 6px;">
+            <a href="/dashboard/server/{{ server.id }}?view_as=admin" style="padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: 0.7rem; {% if not view_as_employee %}background: rgba(212, 175, 55, 0.3); color: #D4AF37; border: 1px solid #D4AF37;{% else %}background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1);{% endif %}">Admin View</a>
+            <a href="/dashboard/server/{{ server.id }}?view_as=employee" style="padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: 0.7rem; {% if view_as_employee %}background: rgba(0, 255, 255, 0.3); color: #00FFFF; border: 1px solid #00FFFF;{% else %}background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1);{% endif %}">Employee View</a>
+        </div>
+    </div>
+    {% endif %}
     <div id="matrix-container" aria-hidden="true">
         <canvas id="matrix-canvas"></canvas>
         <div class="clock-fade-mask"></div>
