@@ -11,6 +11,29 @@
 <div id="profile-container">
     <div class="loading-placeholder">Loading profile...</div>
 </div>
+
+<div id="avatar-modal" class="avatar-modal" style="display: none;">
+    <div class="avatar-modal-content">
+        <div class="avatar-modal-header">
+            <h2>Choose Your Avatar</h2>
+            <button class="avatar-modal-close" onclick="closeAvatarModal()">&times;</button>
+        </div>
+        <div class="avatar-categories">
+            <button class="category-btn active" data-category="all">All</button>
+            <button class="category-btn" data-category="steampunk">Steampunk</button>
+            <button class="category-btn" data-category="gothic">Gothic</button>
+            <button class="category-btn" data-category="neon">Neon</button>
+            <button class="category-btn" data-category="minimalist">Minimalist</button>
+            <button class="category-btn" data-category="vintage">Vintage</button>
+            <button class="category-btn" data-category="nature">Nature</button>
+        </div>
+        <div class="avatar-grid" id="avatar-grid"></div>
+        <div class="avatar-modal-footer">
+            <button class="btn-cancel" onclick="closeAvatarModal()">Cancel</button>
+            <button class="btn-save-avatar" onclick="saveAvatarChoice()">Save Avatar</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block page_scripts %}
@@ -276,12 +299,280 @@
         grid-template-columns: 1fr;
     }
 }
+
+.profile-avatar.clickable {
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.profile-avatar.clickable:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+}
+
+.profile-avatar.clickable::after {
+    content: 'Change';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    font-size: 0.7rem;
+    padding: 4px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.profile-avatar.clickable:hover::after {
+    opacity: 1;
+}
+
+.profile-catchphrase {
+    color: #8b949e;
+    font-style: italic;
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+}
+
+.avatar-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.avatar-modal-content {
+    background: var(--card-bg, #161b22);
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 16px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.avatar-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-color, #30363d);
+}
+
+.avatar-modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #fff;
+}
+
+.avatar-modal-close {
+    background: none;
+    border: none;
+    color: #8b949e;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+}
+
+.avatar-modal-close:hover {
+    color: #fff;
+}
+
+.avatar-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color, #30363d);
+}
+
+.category-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 20px;
+    background: transparent;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.category-btn:hover {
+    border-color: #58a6ff;
+    color: #58a6ff;
+}
+
+.category-btn.active {
+    background: #58a6ff;
+    border-color: #58a6ff;
+    color: #fff;
+}
+
+.avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 1rem;
+    padding: 1.5rem;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.avatar-option {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+    background: var(--input-bg, #0d1117);
+}
+
+.avatar-option:hover {
+    transform: scale(1.1);
+    border-color: #58a6ff;
+}
+
+.avatar-option.selected {
+    border-color: #238636;
+    box-shadow: 0 0 15px rgba(35, 134, 54, 0.5);
+}
+
+.avatar-option img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-modal-footer {
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid var(--border-color, #30363d);
+    justify-content: flex-end;
+}
+
+.btn-cancel {
+    padding: 0.75rem 1.5rem;
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 8px;
+    background: transparent;
+    color: #8b949e;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-cancel:hover {
+    border-color: #8b949e;
+    color: #fff;
+}
+
+.btn-save-avatar {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    background: #238636;
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.btn-save-avatar:hover {
+    background: #2ea043;
+}
+
+.btn-save-avatar:disabled {
+    background: #484f58;
+    cursor: not-allowed;
+}
+
+.customization-section {
+    background: var(--card-bg, #161b22);
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.customization-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.customization-row:last-child {
+    margin-bottom: 0;
+}
+
+.customization-label {
+    color: #8b949e;
+    font-size: 0.9rem;
+}
+
+.catchphrase-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: 8px;
+    background: var(--input-bg, #0d1117);
+    color: #fff;
+    font-size: 0.95rem;
+}
+
+.catchphrase-input:focus {
+    outline: none;
+    border-color: #58a6ff;
+}
+
+.char-count {
+    color: #6e7681;
+    font-size: 0.75rem;
+    text-align: right;
+}
 </style>
 
 <script>
 const guildId = '{{ server.id }}';
 const profileUserId = '{{ profile_user_id }}';
 const isOwnProfile = {{ 'true' if is_own_profile else 'false' }};
+
+const AVATAR_OPTIONS = [
+    { id: 'steampunk_brass', name: 'Steampunk Brass', category: 'steampunk', url: '/static/avatars/steampunk_brass_clock_avatar.png' },
+    { id: 'steampunk_silver', name: 'Steampunk Silver', category: 'steampunk', url: '/static/avatars/steampunk_silver_clock_avatar.png' },
+    { id: 'steampunk_rose', name: 'Steampunk Rose Gold', category: 'steampunk', url: '/static/avatars/steampunk_rose_gold_avatar.png' },
+    { id: 'gothic_purple', name: 'Gothic Purple', category: 'gothic', url: '/static/avatars/gothic_purple_clock_avatar.png' },
+    { id: 'gothic_red', name: 'Gothic Red', category: 'gothic', url: '/static/avatars/gothic_red_clock_avatar.png' },
+    { id: 'gothic_teal', name: 'Gothic Teal', category: 'gothic', url: '/static/avatars/gothic_teal_clock_avatar.png' },
+    { id: 'neon_cyan', name: 'Neon Cyan', category: 'neon', url: '/static/avatars/neon_cyan_clock_avatar.png' },
+    { id: 'neon_pink', name: 'Neon Pink', category: 'neon', url: '/static/avatars/neon_pink_clock_avatar.png' },
+    { id: 'neon_green', name: 'Neon Green', category: 'neon', url: '/static/avatars/neon_green_clock_avatar.png' },
+    { id: 'minimalist_white', name: 'Minimalist White', category: 'minimalist', url: '/static/avatars/minimalist_white_clock_avatar.png' },
+    { id: 'minimalist_black', name: 'Minimalist Black', category: 'minimalist', url: '/static/avatars/minimalist_black_clock_avatar.png' },
+    { id: 'minimalist_blue', name: 'Minimalist Blue', category: 'minimalist', url: '/static/avatars/minimalist_blue_clock_avatar.png' },
+    { id: 'vintage_cream', name: 'Vintage Cream', category: 'vintage', url: '/static/avatars/vintage_cream_clock_avatar.png' },
+    { id: 'vintage_green', name: 'Vintage Green', category: 'vintage', url: '/static/avatars/vintage_green_clock_avatar.png' },
+    { id: 'vintage_burgundy', name: 'Vintage Burgundy', category: 'vintage', url: '/static/avatars/vintage_burgundy_clock_avatar.png' },
+    { id: 'nature_green', name: 'Nature Sundial', category: 'nature', url: '/static/avatars/nature_sundial_green_avatar.png' },
+    { id: 'nature_pink', name: 'Crystal Garden', category: 'nature', url: '/static/avatars/nature_crystal_pink_avatar.png' },
+    { id: 'nature_blue', name: 'Ocean Coral', category: 'nature', url: '/static/avatars/nature_ocean_blue_avatar.png' }
+];
+
+let currentProfile = null;
+let selectedAvatarId = null;
 
 function escapeHtml(text) {
     if (!text) return '';
@@ -296,6 +587,14 @@ function formatHours(hours) {
     const m = Math.round((hours - h) * 60);
     if (m === 0) return `${h}h`;
     return `${h}h ${m}m`;
+}
+
+function getAvatarUrl(avatarChoice, discordAvatarUrl) {
+    if (!avatarChoice || avatarChoice === 'random' || avatarChoice === 'discord') {
+        return discordAvatarUrl;
+    }
+    const avatar = AVATAR_OPTIONS.find(a => a.id === avatarChoice);
+    return avatar ? avatar.url : discordAvatarUrl;
 }
 
 async function loadProfile() {
@@ -313,19 +612,24 @@ async function loadProfile() {
         }
         
         const profile = data.profile;
+        currentProfile = profile;
         const stats = profile.stats;
+        
+        const avatarUrl = getAvatarUrl(profile.avatar_choice, profile.avatar_url);
+        const hasCustomAvatar = profile.avatar_choice && profile.avatar_choice !== 'random' && profile.avatar_choice !== 'discord';
         
         container.innerHTML = `
             <div class="profile-header">
-                <div class="profile-avatar">
-                    ${profile.avatar_url 
-                        ? `<img src="${escapeHtml(profile.avatar_url)}" alt="Avatar">`
+                <div class="profile-avatar ${isOwnProfile ? 'clickable' : ''}" ${isOwnProfile ? 'onclick="openAvatarModal()"' : ''} title="${isOwnProfile ? 'Click to change avatar' : ''}">
+                    ${avatarUrl 
+                        ? `<img src="${escapeHtml(avatarUrl)}" alt="Avatar">`
                         : escapeHtml(profile.display_name.charAt(0).toUpperCase())
                     }
                 </div>
                 <div class="profile-info">
                     <div class="profile-name">${escapeHtml(profile.display_name)}</div>
                     <div class="profile-role">${escapeHtml(profile.position || profile.company_role || 'Team Member')}</div>
+                    ${profile.catchphrase ? `<div class="profile-catchphrase">"${escapeHtml(profile.catchphrase)}"</div>` : ''}
                     <span class="profile-status ${profile.is_clocked_in ? 'clocked-in' : 'clocked-out'}">
                         ${profile.is_clocked_in ? '🟢 Clocked In' : '⚪ Clocked Out'}
                     </span>
@@ -471,6 +775,92 @@ async function saveContact() {
     
     btn.disabled = false;
     btn.textContent = 'Save Contact Info';
+}
+
+function openAvatarModal() {
+    if (!isOwnProfile) return;
+    
+    selectedAvatarId = currentProfile?.avatar_choice || null;
+    const modal = document.getElementById('avatar-modal');
+    modal.style.display = 'flex';
+    
+    renderAvatarGrid('all');
+    
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            renderAvatarGrid(e.target.dataset.category);
+        });
+    });
+}
+
+function closeAvatarModal() {
+    document.getElementById('avatar-modal').style.display = 'none';
+}
+
+function renderAvatarGrid(category) {
+    const grid = document.getElementById('avatar-grid');
+    const filtered = category === 'all' ? AVATAR_OPTIONS : AVATAR_OPTIONS.filter(a => a.category === category);
+    
+    let html = `
+        <div class="avatar-option ${!selectedAvatarId || selectedAvatarId === 'discord' ? 'selected' : ''}" 
+             onclick="selectAvatar('discord')" title="Use Discord Avatar">
+            ${currentProfile?.avatar_url 
+                ? `<img src="${escapeHtml(currentProfile.avatar_url)}" alt="Discord">`
+                : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:1.5rem;color:#8b949e;">D</div>`
+            }
+        </div>
+    `;
+    
+    filtered.forEach(avatar => {
+        html += `
+            <div class="avatar-option ${selectedAvatarId === avatar.id ? 'selected' : ''}" 
+                 onclick="selectAvatar('${avatar.id}')" title="${escapeHtml(avatar.name)}">
+                <img src="${avatar.url}" alt="${escapeHtml(avatar.name)}">
+            </div>
+        `;
+    });
+    
+    grid.innerHTML = html;
+}
+
+function selectAvatar(avatarId) {
+    selectedAvatarId = avatarId;
+    document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+}
+
+async function saveAvatarChoice() {
+    const btn = document.querySelector('.btn-save-avatar');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ 
+                avatar_choice: selectedAvatarId || 'discord'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            closeAvatarModal();
+            loadProfile();
+        } else {
+            alert('Failed to save avatar: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error saving avatar:', error);
+        alert('Failed to save avatar');
+    }
+    
+    btn.disabled = false;
+    btn.textContent = 'Save Avatar';
 }
 
 document.addEventListener('DOMContentLoaded', loadProfile);

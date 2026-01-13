@@ -468,6 +468,16 @@ def run_migrations():
                     CREATE INDEX IF NOT EXISTS idx_trial_usage_guild
                     ON trial_usage(guild_id)
                 """)
+                
+                # 22. Add profile customization columns to employee_profiles
+                print("   Adding profile customization columns")
+                profile_customization_columns = [
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS profile_background VARCHAR(50) DEFAULT 'default'",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS catchphrase VARCHAR(50)",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS selected_stickers TEXT"
+                ]
+                for query in profile_customization_columns:
+                    cur.execute(query)
 
         print("✅ Database schema is up to date")
         return True

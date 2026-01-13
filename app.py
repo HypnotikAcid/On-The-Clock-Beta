@@ -6102,7 +6102,8 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 SELECT ep.user_id, ep.full_name, ep.display_name, ep.avatar_url,
                        ep.email, ep.hire_date, ep.position, ep.department, ep.company_role,
                        ep.first_clock_at, ep.bio, ep.is_active,
-                       ep.profile_setup_completed, ep.welcome_dm_sent, ep.first_clock_used
+                       ep.profile_setup_completed, ep.welcome_dm_sent, ep.first_clock_used,
+                       ep.phone, ep.avatar_choice, ep.profile_background, ep.catchphrase
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.user_id = %s
             """, (int(guild_id), int(user_id)))
@@ -6186,6 +6187,9 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 'is_active': profile_row['is_active'],
                 'is_clocked_in': is_clocked_in,
                 'tenure_text': tenure_text,
+                'avatar_choice': profile_row.get('avatar_choice') or 'random',
+                'profile_background': profile_row.get('profile_background') or 'default',
+                'catchphrase': profile_row.get('catchphrase') or '',
                 'stats': {
                     'total_hours': round(stats_row.get('total_hours') or 0, 1),
                     'total_sessions': stats_row.get('total_sessions') or 0,
@@ -6225,8 +6229,8 @@ def api_update_employee_profile(user_session, guild_id, user_id):
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
         
-        # Fields that can be updated by employee (free tier can edit email/phone)
-        allowed_fields = ['email', 'phone']
+        # Fields that can be updated by employee (free tier can edit email/phone + customization)
+        allowed_fields = ['email', 'phone', 'avatar_choice', 'profile_background', 'catchphrase']
         if is_admin:
             allowed_fields.extend(['hire_date', 'position', 'department', 'company_role'])
         
@@ -6247,6 +6251,21 @@ def api_update_employee_profile(user_session, guild_id, user_id):
                     cleaned = re.sub(r'[^\d]', '', value)
                     if len(cleaned) < 7 or len(cleaned) > 15:
                         return jsonify({'success': False, 'error': 'Invalid phone number'}), 400
+                if field == 'avatar_choice' and value:
+                    # Validate avatar choice against allowed list
+                    allowed_avatars = ['discord', 'random', 'steampunk_brass', 'steampunk_silver', 'steampunk_rose',
+                                       'gothic_purple', 'gothic_red', 'gothic_teal', 'neon_cyan', 'neon_pink', 
+                                       'neon_green', 'minimalist_white', 'minimalist_black', 'minimalist_blue',
+                                       'vintage_cream', 'vintage_green', 'vintage_burgundy', 'nature_green', 
+                                       'nature_pink', 'nature_blue']
+                    if value not in allowed_avatars:
+                        return jsonify({'success': False, 'error': 'Invalid avatar choice'}), 400
+                if field == 'profile_background' and value:
+                    if len(value) > 50:
+                        return jsonify({'success': False, 'error': 'Background choice too long (max 50 chars)'}), 400
+                if field == 'catchphrase' and value:
+                    if len(value) > 50:
+                        return jsonify({'success': False, 'error': 'Catchphrase too long (max 50 characters)'}), 400
                 updates.append(f"{field} = %s")
                 params.append(value if value else None)
         
