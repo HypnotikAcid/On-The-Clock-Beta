@@ -34,6 +34,8 @@ Preferred communication style: Simple, everyday language.
     - Accents: Gold (#D4AF37)
     - Secondary: Neon Red (#FF4757)
 - **Matrix Toggle**: A persistent "Enter/Exit The Matrix" toggle in the top-right corner allows users to enable/disable the background effects project-wide.
+- **Buy Me a Coffee Button**: Fixed position button in top-right corner below matrix toggle (landing: top 3.5rem, dashboard: top 3.5rem). On demo servers, demo mode panel repositioned to top 6rem to avoid overlap.
+- **Top-Right Fixed Elements Stacking**: Matrix toggle (1rem) → Coffee button (3.5rem) → Demo panel (6rem, demo servers only).
 ... (rest of existing content)
 - **Onboarding System**: Interactive dashboard guide (spotlight effects, speech bubbles) and automated welcome DMs for new employees, with first-time `/clock` guides.
 - **Route-Based Dashboard**: Dedicated routes for server overview, role management, email settings, timezone/schedule, employee status cards, individual employee profiles, clock interface, time adjustments, calendar, bans, and owner dashboard.
