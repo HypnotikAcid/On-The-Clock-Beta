@@ -8877,7 +8877,7 @@ def api_kiosk_employees(guild_id):
                     GROUP BY user_id
                 )
                 SELECT ep.user_id, ep.display_name, ep.first_name, ep.last_name, ep.avatar_url,
-                       ep.position, ep.department, ep.email, ep.timesheet_email, ep.accent_color,
+                       ep.position, ep.department, ep.email, ep.timesheet_email, ep.accent_color, ep.profile_background,
                        EXISTS(SELECT 1 FROM employee_pins WHERE guild_id = %s AND user_id = ep.user_id) as has_pin,
                        EXISTS(SELECT 1 FROM timeclock_sessions WHERE guild_id = %s AND user_id::text = ep.user_id::text AND clock_out_time IS NULL) as is_clocked_in,
                        COALESCE(pc.count, 0) as pending_requests,
@@ -8909,7 +8909,8 @@ def api_kiosk_employees(guild_id):
                 'has_alerts': has_alerts,
                 'pending_requests': pending_requests,
                 'missing_punches': missing_punches,
-                'accent_color': emp.get('accent_color') or 'cyan'
+                'accent_color': emp.get('accent_color') or 'cyan',
+                'profile_background': emp.get('profile_background') or 'default'
             })
         
         return jsonify({
@@ -8996,12 +8997,13 @@ def api_kiosk_employee_info(guild_id, user_id):
             """, (str(guild_id), str(user_id)))
             profile = cursor.fetchone()
             
-            # Check if kiosk customization is allowed for this guild
+            # Check if kiosk customization is allowed for this guild (use COALESCE for safety)
             cursor = conn.execute("""
-                SELECT allow_kiosk_customization FROM guild_settings WHERE guild_id = %s
+                SELECT COALESCE(allow_kiosk_customization, false) as allow_kiosk_customization 
+                FROM guild_settings WHERE guild_id = %s
             """, (str(guild_id),))
             guild_settings = cursor.fetchone()
-            allow_customization = guild_settings.get('allow_kiosk_customization', False) if guild_settings else False
+            allow_customization = guild_settings['allow_kiosk_customization'] if guild_settings else False
             
             # Prefer timesheet_email over regular email
             employee_email = None
