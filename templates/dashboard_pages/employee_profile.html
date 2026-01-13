@@ -824,7 +824,7 @@ let selectedAvatarId = null;
 let selectedBackground = 'default';
 let selectedAccentColor = 'cyan';
 let selectedStickers = [];
-let hasProCustomization = false;
+let hasPremiumCustomization = false;
 
 const ACCENT_COLOR_OPTIONS = [
     { id: 'cyan', name: 'Neon Cyan', color: '#00FFFF' },
@@ -972,7 +972,7 @@ async function loadProfile() {
         const profile = data.profile;
         currentProfile = profile;
         const stats = profile.stats;
-        hasProCustomization = data.has_pro_customization || false;
+        hasPremiumCustomization = data.has_premium_customization || false;
         
         const avatarUrl = getAvatarUrl(profile.avatar_choice, profile.avatar_url);
         const hasCustomAvatar = profile.avatar_choice && profile.avatar_choice !== 'random' && profile.avatar_choice !== 'discord';
@@ -983,7 +983,7 @@ async function loadProfile() {
         
         container.innerHTML = `
             <div class="profile-header ${bgClass}">
-                <div class="profile-avatar ${isOwnProfile && hasProCustomization ? 'clickable' : ''}" ${isOwnProfile && hasProCustomization ? 'onclick="openAvatarModal()"' : ''} title="${isOwnProfile && hasProCustomization ? 'Click to change avatar' : (isOwnProfile ? 'Upgrade to Pro to customize avatar' : '')}">
+                <div class="profile-avatar ${isOwnProfile && hasPremiumCustomization ? 'clickable' : ''}" ${isOwnProfile && hasPremiumCustomization ? 'onclick="openAvatarModal()"' : ''} title="${isOwnProfile && hasPremiumCustomization ? 'Click to change avatar' : (isOwnProfile ? 'Upgrade to Premium to customize avatar' : '')}">
                     ${avatarUrl 
                         ? `<img src="${escapeHtml(avatarUrl)}" alt="Avatar">`
                         : escapeHtml(profile.display_name.charAt(0).toUpperCase())
@@ -1105,7 +1105,7 @@ async function loadProfile() {
                         <div class="char-count"><span id="catchphrase-count">${(profile.catchphrase || '').length}</span>/50</div>
                     </div>
                     
-                    ${hasProCustomization ? `
+                    ${hasPremiumCustomization ? `
                     <div class="customization-row">
                         <span class="customization-label">Profile Background</span>
                         <div class="background-picker" id="background-picker">
@@ -1202,7 +1202,7 @@ async function saveContact() {
 }
 
 function openAvatarModal() {
-    if (!isOwnProfile || !hasProCustomization) return;
+    if (!isOwnProfile || !hasPremiumCustomization) return;
     
     selectedAvatarId = currentProfile?.avatar_choice || null;
     const modal = document.getElementById('avatar-modal');
@@ -1301,7 +1301,7 @@ async function saveCustomization() {
     try {
         const payload = { catchphrase: catchphrase || null };
         
-        if (hasProCustomization) {
+        if (hasPremiumCustomization) {
             payload.profile_background = selectedBackground || 'default';
             payload.accent_color = selectedAccentColor || 'cyan';
             payload.selected_stickers = selectedStickers;
@@ -1330,7 +1330,7 @@ async function saveCustomization() {
     }
     
     btn.disabled = false;
-    btn.textContent = hasProCustomization ? 'Save Personalization' : 'Save Catchphrase';
+    btn.textContent = hasPremiumCustomization ? 'Save Personalization' : 'Save Catchphrase';
 }
 
 function setupCatchphraseCounter() {

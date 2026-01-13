@@ -6303,17 +6303,23 @@ def api_get_employee_profile(user_session, guild_id, user_id):
             clock_row = clock_cursor.fetchone()
             is_clocked_in = clock_row is not None
             
-            # Check server subscription tier for premium customization access
+            # Check server subscription tier for premium customization access using Entitlements
             tier_cursor = conn.execute("""
-                SELECT COALESCE(tier, 'free') as tier, 
-                       COALESCE(retention_tier, 'free') as retention_tier,
-                       COALESCE(bot_access_paid, FALSE) as bot_access_paid,
+                SELECT bot_access_paid, COALESCE(retention_tier, 'none') as retention_tier,
                        COALESCE(grandfathered, FALSE) as grandfathered
                 FROM server_subscriptions WHERE guild_id = %s
             """, (int(guild_id),))
             tier_row = tier_cursor.fetchone()
-            server_tier = tier_row['tier'] if tier_row else 'free'
-            has_pro_customization = server_tier == 'pro'
+            if tier_row:
+                guild_tier = Entitlements.get_guild_tier(
+                    bool(tier_row['bot_access_paid']),
+                    tier_row['retention_tier'],
+                    bool(tier_row['grandfathered'])
+                )
+            else:
+                guild_tier = UserTier.FREE
+            # Customization available for Premium, Pro, and Grandfathered tiers
+            has_premium_customization = guild_tier in [UserTier.PREMIUM, UserTier.PRO, UserTier.GRANDFATHERED]
             
             profile_data = {
                 'user_id': str(profile_row['user_id']),
@@ -6351,8 +6357,8 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 'success': True, 
                 'profile': profile_data, 
                 'is_own_profile': is_own_profile,
-                'has_pro_customization': has_pro_customization,
-                'server_tier': server_tier
+                'has_premium_customization': has_premium_customization,
+                'guild_tier': guild_tier.value if guild_tier else 'free'
             })
     except Exception as e:
         app.logger.error(f"Error fetching employee profile: {str(e)}")
@@ -6380,15 +6386,24 @@ def api_update_employee_profile(user_session, guild_id, user_id):
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
         
-        # Check server subscription tier for premium customization access
+        # Check server subscription tier for premium customization access using Entitlements
         with get_db() as conn:
             tier_cursor = conn.execute("""
-                SELECT COALESCE(tier, 'free') as tier FROM server_subscriptions WHERE guild_id = %s
+                SELECT bot_access_paid, COALESCE(retention_tier, 'none') as retention_tier, 
+                       COALESCE(grandfathered, FALSE) as grandfathered
+                FROM server_subscriptions WHERE guild_id = %s
             """, (int(guild_id),))
             tier_row = tier_cursor.fetchone()
-            server_tier = tier_row['tier'] if tier_row else 'free'
-            # Customization available for Premium and Pro
-            has_premium_customization = server_tier in ['premium', 'pro']
+            if tier_row:
+                guild_tier = Entitlements.get_guild_tier(
+                    bool(tier_row['bot_access_paid']),
+                    tier_row['retention_tier'],
+                    bool(tier_row['grandfathered'])
+                )
+            else:
+                guild_tier = UserTier.FREE
+            # Customization available for Premium, Pro, and Grandfathered tiers
+            has_premium_customization = guild_tier in [UserTier.PREMIUM, UserTier.PRO, UserTier.GRANDFATHERED]
         
         # Basic fields available to all tiers (text-based info)
         allowed_fields = ['email', 'phone', 'catchphrase']
