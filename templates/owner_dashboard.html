@@ -1105,6 +1105,26 @@
                     </div>
                 </div>
                 
+                <!-- Demo Tools Panel -->
+                <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">🎭</span>
+                        <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Demo Server Tools</h3>
+                    </div>
+                    <p style="color: #8B949E; font-size: 12px; margin-bottom: 16px; line-height: 1.5;">
+                        Populate the demo server with sample employees and time records for customer previews.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="tool-btn" onclick="seedDemoData()" id="seedDemoBtn" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #00FFFF, #0891b2);">
+                            Seed Demo Data
+                        </button>
+                        <a href="/dashboard/server/1419894879894507661" class="tool-btn" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #6366f1, #4f46e5); text-decoration: none; text-align: center; display: block;">
+                            View Demo Dashboard
+                        </a>
+                    </div>
+                    <div id="seedDemoResult" style="margin-top: 10px;"></div>
+                </div>
+                
             </div>
             
             <div id="quickGrantResult" class="tool-result" style="margin-top: 15px;"></div>
@@ -1953,6 +1973,51 @@
                 resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
                 resultDiv.style.color = '#FF6B6B';
                 resultDiv.textContent = 'Failed to reset trial.';
+            }
+        }
+
+        async function seedDemoData() {
+            const btn = document.getElementById('seedDemoBtn');
+            const resultDiv = document.getElementById('seedDemoResult');
+            
+            btn.disabled = true;
+            btn.textContent = 'Seeding...';
+            resultDiv.style.display = 'block';
+            resultDiv.style.padding = '10px';
+            resultDiv.style.borderRadius = '8px';
+            resultDiv.style.background = 'rgba(0, 255, 255, 0.1)';
+            resultDiv.style.border = '1px solid rgba(0, 255, 255, 0.3)';
+            resultDiv.style.color = '#00FFFF';
+            resultDiv.textContent = 'Populating demo server with sample data...';
+            
+            try {
+                const response = await fetch('/debug/seed-demo-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
+                    resultDiv.textContent = `Done! Created ${data.details.employees} employees, ${data.details.sessions} time records, ${data.details.adjustment_requests} adjustment requests.`;
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Seed demo error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to seed demo data.';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Seed Demo Data';
             }
         }
 
