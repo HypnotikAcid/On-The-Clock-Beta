@@ -3,6 +3,7 @@
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
+**Standardized Workflow**: Always start requests with: *"Read replit.md first, then plan this request. Split tasks by mode (Quick Edit vs Build) before starting:"*
 
 # Lessons Learned
 - **Workflow Rule**: ALWAYS read `replit.md` before making any code alterations or additions to ensure precise alignment with project vision and past learnings.
@@ -22,7 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **Demo Server View Toggle**: Demo server (ID: 1419894879894507661) allows visitors to toggle between Admin and Employee views via query parameter (`?view_as=admin` or `?view_as=employee`) stored in session for persistence across navigation.
 - **Demo Data Seeding**: Owner-only endpoint `/debug/seed-demo-data` (POST) seeds sample employees, timeclock sessions, and adjustment requests for the demo server. All IDs must use integer types to match BIGINT database columns.
 - **Demo Auto-Reset**: APScheduler job resets demo server data daily at midnight UTC. `last_demo_reset` timestamp stored in `guild_settings` and displayed in demo mode toggle panel.
-- **Guided Tour System**: `dashboard-tour.js` provides spotlight/tooltip onboarding walkthrough. Uses localStorage to track completion status. Auto-starts for new users, manual trigger via "Take the Tour" sidebar button.
+- **Guided Tour System**: `dashboard-tour.js` provides spotlight/tooltip onboarding walkthrough. Uses localStorage to track completion status. Auto-starts for new users, manual trigger via "Take the Tour" sidebar button. Role-specific tours track completion via `otcTour_admin_completed` and `otcTour_employee_completed` keys.
 
 # System Architecture
 ## Bot Framework
@@ -37,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Buy Me a Coffee Button**: Fixed position button in top-right corner below matrix toggle (landing: top 3.5rem, dashboard: top 3.5rem). On demo servers, demo mode panel repositioned to top 6rem to avoid overlap.
 - **Top-Right Fixed Elements Stacking**: Matrix toggle (1rem) → Coffee button (3.5rem) → Demo panel (6rem, demo servers only).
 ... (rest of existing content)
-- **Onboarding System**: Interactive dashboard guide (spotlight effects, speech bubbles) and automated welcome DMs for new employees, with first-time `/clock` guides.
+- **Onboarding System**: Interactive dashboard guide (spotlight effects, speech bubbles) and automated welcome DMs for new employees, with first-time `/clock` guides. Includes Discord preview lightbox for cross-platform context.
 - **Route-Based Dashboard**: Dedicated routes for server overview, role management, email settings, timezone/schedule, employee status cards, individual employee profiles, clock interface, time adjustments, calendar, bans, and owner dashboard.
 - **Subscription Management**:
     - **Free Tier**: $0/mo, basic profile management, 24-hour data retention.

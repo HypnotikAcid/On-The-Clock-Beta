@@ -74,12 +74,12 @@ const DashboardTour = {
     previews: {
         clock: {
             title: 'Discord /clock Command',
-            img: '/static/previews/discord_clock.webp',
+            img: '/static/previews/discord_clock.png',
             desc: 'Employees can also clock in/out directly from Discord using the /clock command.'
         },
         adjustments: {
             title: 'Discord Notifications',
-            img: '/static/previews/discord_notif.webp',
+            img: '/static/previews/discord_notif.png',
             desc: 'When you approve a request, the employee receives a notification in Discord.'
         }
     },
@@ -94,10 +94,20 @@ const DashboardTour = {
     
     checkAutoStart() {
         const urlParams = new URLSearchParams(window.location.search);
-        const viewAs = urlParams.get('view_as') || (window.location.pathname.includes('/server/') ? 'admin' : null);
+        const viewAs = urlParams.get('view_as');
         
-        if (viewAs && !localStorage.getItem(this.keys[viewAs])) {
-            setTimeout(() => this.start(viewAs), 1500);
+        // Auto-detect role if not explicitly set in URL
+        const detectedRole = viewAs || (window.location.pathname.includes('/server/') ? 'admin' : (window.location.pathname.includes('/profile') ? 'employee' : null));
+        
+        if (detectedRole && !localStorage.getItem(this.keys[detectedRole])) {
+            // Check if we already migrated from old single key
+            if (localStorage.getItem('tourCompleted')) {
+                localStorage.setItem(this.keys.admin, 'true');
+                localStorage.setItem(this.keys.employee, 'true');
+                localStorage.removeItem('tourCompleted');
+                return;
+            }
+            setTimeout(() => this.start(detectedRole), 1500);
         }
     },
 
