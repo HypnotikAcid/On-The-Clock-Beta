@@ -150,6 +150,28 @@
             z-index: 10;
         }
 
+        /* Mobile responsiveness for clock */
+        @media (max-width: 600px) {
+            .clock-container {
+                --clock-size: 280px;
+            }
+            .clock-fade-mask {
+                width: 400px;
+                height: 400px;
+            }
+        }
+
+        /* Respect reduced motion preferences */
+        @media (prefers-reduced-motion: reduce) {
+            #matrix-canvas,
+            .clock-background {
+                display: none !important;
+            }
+            #matrix-toggle {
+                display: none !important;
+            }
+        }
+
         /* Main Layout Container */
         .layout-container {
             position: relative;

@@ -1,13 +1,12 @@
 function toggleMatrix() {
-    const container = document.getElementById('matrix-container');
     const text = document.getElementById('matrix-toggle-text');
     const knob = document.getElementById('matrix-toggle-knob');
+    const container = document.getElementById('matrix-container');
     const isHidden = localStorage.getItem('matrixHidden') === 'true';
     
     if (isHidden) {
-        // Turn ON
-        if (container) container.style.opacity = '1';
-        if (container) container.style.pointerEvents = 'auto';
+        // Turn ON - show matrix
+        if (container) container.style.display = 'block';
         if (text) text.innerText = 'Exit The Matrix';
         if (knob) {
             knob.style.right = '3px';
@@ -15,10 +14,13 @@ function toggleMatrix() {
             knob.style.boxShadow = '0 0 8px #00FFFF';
         }
         localStorage.setItem('matrixHidden', 'false');
+        // Start matrix animation if not already running
+        if (typeof window.startDashboardMatrix === 'function') {
+            window.startDashboardMatrix();
+        }
     } else {
-        // Turn OFF
-        if (container) container.style.opacity = '0';
-        if (container) container.style.pointerEvents = 'none';
+        // Turn OFF - hide matrix
+        if (container) container.style.display = 'none';
         if (text) text.innerText = 'Enter The Matrix';
         if (knob) {
             knob.style.left = '3px';
@@ -27,33 +29,23 @@ function toggleMatrix() {
         }
         localStorage.setItem('matrixHidden', 'true');
     }
-    
-    const canvas = document.getElementById('matrix-canvas');
-    const mask = document.querySelector('.clock-fade-mask');
-    const clock = document.querySelector('.clock-background');
-    
-    [canvas, mask, clock].forEach(el => {
-        if (el) el.style.display = isHidden ? 'block' : 'none';
-    });
 }
 
-// Initialize state
+// Initialize state on page load
 document.addEventListener('DOMContentLoaded', () => {
     const isHidden = localStorage.getItem('matrixHidden') === 'true';
     const text = document.getElementById('matrix-toggle-text');
     const knob = document.getElementById('matrix-toggle-knob');
-    const canvas = document.getElementById('matrix-canvas');
-    const mask = document.querySelector('.clock-fade-mask');
-    const clock = document.querySelector('.clock-background');
+    const container = document.getElementById('matrix-container');
     
     if (isHidden) {
+        if (container) container.style.display = 'none';
         if (text) text.innerText = 'Enter The Matrix';
         if (knob) {
             knob.style.left = '3px';
             knob.style.right = 'auto';
             knob.style.boxShadow = 'none';
         }
-        [canvas, mask, clock].forEach(el => { if (el) el.style.display = 'none'; });
     }
 });
 

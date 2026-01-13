@@ -10,6 +10,8 @@ Preferred communication style: Simple, everyday language.
 - **Component Persistence**: Theme toggles or visual preferences must persist using `localStorage` to ensure a fluent experience across landing and dashboard pages.
 - **Accessibility**: Decorative visual elements like the background clock and matrix rain should always include `aria-hidden="true"`.
 - **Mobile First**: Interactive components like the roadmap accordion must be explicitly tested for auto-collapse behavior on mobile viewports.
+- **Matrix Animation Guards**: Canvas/ctx must have null checks before any operations. Use `matrixRunning` flag to prevent duplicate animation loops. Check `localStorage` hidden state before starting animation on page load.
+- **Dashboard Matrix**: Uses `window.startDashboardMatrix()` exposed by `dashboard-matrix.js` so `dashboard-common.js` toggle can restart animation when re-enabled.
 
 # System Architecture
 ## Bot Framework

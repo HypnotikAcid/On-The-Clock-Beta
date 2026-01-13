@@ -1,5 +1,5 @@
         const canvas = document.getElementById('matrix-canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas ? canvas.getContext('2d') : null;
         const hourHand = document.getElementById('hourHand');
         const minuteHand = document.getElementById('minuteHand');
         const secondHand = document.getElementById('secondHand');
@@ -7,6 +7,7 @@
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>?';
         const fontSize = 14;
         let columns, drops;
+        let matrixRunning = false;
 
         function updateClock() {
             if (!hourHand || !minuteHand || !secondHand) return;
@@ -30,6 +31,7 @@
         }
 
         function initMatrix() {
+            if (!canvas || !ctx) return;
             const dpr = window.devicePixelRatio || 1;
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
@@ -46,6 +48,7 @@
         }
 
         function drawMatrix() {
+            if (!canvas || !ctx) return;
             ctx.fillStyle = 'rgba(10, 15, 31, 0.05)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -81,17 +84,29 @@
             requestAnimationFrame(drawMatrix);
         }
 
-        initMatrix();
-        requestAnimationFrame(drawMatrix);
+        function startMatrix() {
+            if (!canvas || !ctx || matrixRunning) return;
+            matrixRunning = true;
+            initMatrix();
+            requestAnimationFrame(drawMatrix);
+        }
+
+        // Expose startMatrix globally for toggle
+        window.startDashboardMatrix = startMatrix;
+
+        // Only start matrix if not hidden and not reduced motion
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const isHiddenOnLoad = localStorage.getItem('matrixHidden') === 'true';
+            if (!isHiddenOnLoad) {
+                startMatrix();
+            }
+        }
 
         let resizeTimeout;
         window.addEventListener('resize', () => {
+            if (!matrixRunning) return;
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
                 initMatrix();
             }, 250);
         });
-
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            canvas.style.display = 'none';
-        }
