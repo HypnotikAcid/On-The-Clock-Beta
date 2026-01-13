@@ -11,6 +11,7 @@ Preferred communication style: Simple, everyday language.
 # Lessons Learned & Best Practices
 | Mistake | Fix | Rule Going Forward |
 |---------|-----|-------------------|
+| Stripe coupon ID `p8APvRGF` deprecated | Replaced with `vzRYNZed` for $3 off trial | Always use verified Stripe coupon IDs from dashboard |
 | Bot API auth used wrong header (`X-Bot-API-Secret`) | Changed to `Authorization: Bearer` format | Always use standard Bearer token format for internal APIs |
 | Absolute positioned buttons overlapped on mobile | Use flex layout with proper spacing | Avoid absolute positioning for interactive elements |
 | Per-row SQL subqueries slow with many employees | Refactored to CTE (Common Table Expression) | Use CTEs or JOINs for aggregate counts, never per-row subqueries |
@@ -51,7 +52,11 @@ Preferred communication style: Simple, everyday language.
 - **Employee Profile Page**: Individual profile pages for each employee showing hire date, tenure, total/weekly hours, average stats, achievements. Employees can set their email address. Admins can view all employee profiles.
 - **Template Inheritance**: All dashboard pages extend `dashboard_base.html` for consistent sidebar, header, and security checks.
 - **Shared Utilities**: Common JavaScript functions in `dashboard-common.js` (escapeHtml, fetchWithTimeout, notifications, formatting).
-- **Subscription Management**: A simplified two-tier pricing model includes a Free Tier, Dashboard Premium, and an optional Pro Retention add-on.
+- **Subscription Management**: A simplified three-tier pricing model includes:
+  - **Free Tier**: $0/mo. Includes dashboard login, basic profile management (email/phone), and role management. Time data retention is 24 hours.
+  - **Premium Tier**: $8/mo (with $5 first-month trial). Includes full dashboard access, time adjustments, employee management, CSV reports, email notifications, and 30-day retention.
+  - **Pro Tier**: $15/mo. Future tier including everything in Premium plus Kiosk mode, Payroll integrations, Advanced CSV, and Shift scheduling.
+- **Trial Tracking System**: Tracks one-time $5 first-month trial per server using the `trial_usage` table. Managed via the owner dashboard.
 - **Concurrent Safety**: Achieved through guild-level locking, PostgreSQL connection pooling with SSL validation, and automatic transaction management.
 - **Ephemeral Interface System**: Resolves interaction timeout issues by providing new interfaces via the `/clock` command.
 - **Bot as Boss Architecture**: All role management changes are routed through the bot's HTTP API, establishing the bot as the single source of truth for Discord roles.
