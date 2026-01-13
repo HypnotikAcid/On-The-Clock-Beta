@@ -16,6 +16,9 @@ Preferred communication style: Simple, everyday language.
 - **Database Initialization Guards**: Use process-level flags (e.g., `_db_pool_initialized`, `_migrations_run`) to ensure database pool creation and migrations only execute once per process, not on every connection request.
 - **Orphaned Code Detection**: Code blocks placed after a function's `finally:` clause but not inside any function definition will execute at module import time, causing repeated side effects. Always verify indentation after editing context managers.
 - **Fast Mode Review**: Quick edits can introduce duplicate definitions or orphaned code blocks. Always run the server and check logs after fast-mode changes before considering work complete.
+- **Orphaned Code Caution**: Before removing "orphaned" code blocks that seem to have wrong indentation, verify if they were intentionally placed to execute at module import time (e.g., for startup verification).
+- **Dashboard Component Guarding**: Use specific page identifiers (like `active_page` in Jinja2 or `data-page` in HTML) to ensure components like the Admin Calendar or specific JS initializations only load on their intended routes.
+- **Admin Calendar Leak Prevention**: The Admin Calendar must be explicitly guarded with `{% if active_page == 'calendar' %}` in templates to prevent it from appearing on the server selection or other overview pages.
 
 # System Architecture
 ## Bot Framework
