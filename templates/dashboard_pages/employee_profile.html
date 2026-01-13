@@ -677,6 +677,74 @@
 .personalize-section {
     grid-column: 1 / -1;
 }
+
+.pro-locked-section {
+    position: relative;
+}
+
+.pro-locked-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    border-radius: 8px;
+    z-index: 5;
+    backdrop-filter: blur(2px);
+}
+
+.pro-locked-icon {
+    font-size: 2rem;
+}
+
+.pro-locked-text {
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-align: center;
+}
+
+.pro-upgrade-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.pro-upgrade-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.pro-teaser-wrapper {
+    position: relative;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.pro-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
 </style>
 
 <script>
@@ -709,6 +777,7 @@ let currentProfile = null;
 let selectedAvatarId = null;
 let selectedBackground = 'default';
 let selectedStickers = [];
+let hasProCustomization = false;
 
 const STICKER_OPTIONS = [
     { id: 'star', name: 'Gold Star', url: '/static/stickers/gold_star_sticker.png' },
@@ -831,6 +900,7 @@ async function loadProfile() {
         const profile = data.profile;
         currentProfile = profile;
         const stats = profile.stats;
+        hasProCustomization = data.has_pro_customization || false;
         
         const avatarUrl = getAvatarUrl(profile.avatar_choice, profile.avatar_url);
         const hasCustomAvatar = profile.avatar_choice && profile.avatar_choice !== 'random' && profile.avatar_choice !== 'discord';
@@ -840,7 +910,7 @@ async function loadProfile() {
         
         container.innerHTML = `
             <div class="profile-header ${bgClass}">
-                <div class="profile-avatar ${isOwnProfile ? 'clickable' : ''}" ${isOwnProfile ? 'onclick="openAvatarModal()"' : ''} title="${isOwnProfile ? 'Click to change avatar' : ''}">
+                <div class="profile-avatar ${isOwnProfile && hasProCustomization ? 'clickable' : ''}" ${isOwnProfile && hasProCustomization ? 'onclick="openAvatarModal()"' : ''} title="${isOwnProfile && hasProCustomization ? 'Click to change avatar' : (isOwnProfile ? 'Upgrade to Pro to customize avatar' : '')}">
                     ${avatarUrl 
                         ? `<img src="${escapeHtml(avatarUrl)}" alt="Avatar">`
                         : escapeHtml(profile.display_name.charAt(0).toUpperCase())
@@ -962,6 +1032,7 @@ async function loadProfile() {
                         <div class="char-count"><span id="catchphrase-count">${(profile.catchphrase || '').length}</span>/50</div>
                     </div>
                     
+                    ${hasProCustomization ? `
                     <div class="customization-row">
                         <span class="customization-label">Profile Background</span>
                         <div class="background-picker" id="background-picker">
@@ -977,6 +1048,27 @@ async function loadProfile() {
                     </div>
                     
                     <button class="btn-save-contact" onclick="saveCustomization()" style="margin-top: 1rem; width: 100%;">Save Personalization</button>
+                    ` : `
+                    <div class="customization-row pro-locked-section" style="min-height: 180px;">
+                        <div class="pro-teaser-wrapper">
+                            <span class="customization-label">Profile Background</span>
+                            <div class="background-picker">
+                                ${renderBackgroundOptions('default')}
+                            </div>
+                            <span class="customization-label" style="margin-top: 1rem;">Flair Stickers</span>
+                            <div class="sticker-picker">
+                                ${renderStickerOptions()}
+                            </div>
+                        </div>
+                        <div class="pro-locked-overlay">
+                            <div class="pro-locked-icon">🔒</div>
+                            <div class="pro-locked-text">Unlock Custom Avatars, Backgrounds & Stickers</div>
+                            <a href="/dashboard/server/${guildId}/purchase?plan=pro" class="pro-upgrade-btn">Upgrade to Pro - $15/mo</a>
+                        </div>
+                    </div>
+                    
+                    <button class="btn-save-contact" onclick="saveCustomization()" style="margin-top: 1rem; width: 100%;">Save Catchphrase</button>
+                    `}
                     <div id="customization-status" style="margin-top: 0.5rem;"></div>
                 </div>
                 ` : ''}
@@ -1030,7 +1122,7 @@ async function saveContact() {
 }
 
 function openAvatarModal() {
-    if (!isOwnProfile) return;
+    if (!isOwnProfile || !hasProCustomization) return;
     
     selectedAvatarId = currentProfile?.avatar_choice || null;
     const modal = document.getElementById('avatar-modal');
@@ -1127,15 +1219,18 @@ async function saveCustomization() {
     statusDiv.innerHTML = '';
     
     try {
+        const payload = { catchphrase: catchphrase || null };
+        
+        if (hasProCustomization) {
+            payload.profile_background = selectedBackground || 'default';
+            payload.selected_stickers = selectedStickers;
+        }
+        
         const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ 
-                catchphrase: catchphrase || null,
-                profile_background: selectedBackground || 'default',
-                selected_stickers: selectedStickers
-            })
+            body: JSON.stringify(payload)
         });
         
         const data = await response.json();
@@ -1154,7 +1249,7 @@ async function saveCustomization() {
     }
     
     btn.disabled = false;
-    btn.textContent = 'Save Personalization';
+    btn.textContent = hasProCustomization ? 'Save Personalization' : 'Save Catchphrase';
 }
 
 function setupCatchphraseCounter() {
