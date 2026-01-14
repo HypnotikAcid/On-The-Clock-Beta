@@ -1,120 +1,30 @@
 # Overview
-**Time Warden** is the umbrella brand for Discord productivity tools. The flagship product is **"On the Clock"** - a professional Discord timeclock bot for businesses, offering streamlined time tracking, subscription management, robust error handling, and enterprise-grade reliability. It features a three-tier subscription model, Stripe integration, role-based access control, and an informative landing page. The project aims to provide an easy-to-use and reliable time tracking solution within Discord.
+**Time Warden** is the professional Discord timeclock ecosystem, featuring the flagship **"On the Clock"** bot and dashboard.
 
-# Rebrand Notes (January 2026)
-- **Brand Name**: Time Warden (umbrella brand for future Discord tools)
-- **Product Name**: On the Clock (timeclock bot - can keep this name under Time Warden)
-- **Domain**: time-warden.com (purchased, needs DNS setup)
-- **Replit Subdomain**: Keep as `on-the-clock.replit.app` (no code changes needed for OAuth/Stripe)
-- **Rebrand Strategy**: 
-  - Visual-only changes to landing page, dashboard, bot messages
-  - Update bot-sent dashboard URLs to time-warden.com AFTER domain is connected
-  - Bot Discord username can remain "On the Clock" as a product under Time Warden
-  - Future expansion: Multiple bots under Time Warden brand possible
-- **Trademark Avoidance**: Rebranding due to potential conflict with ontheclock.com (18K+ customers)
-
-# User Preferences
-Preferred communication style: Simple, everyday language.
-
-## Two-Phase Workflow
+# Two-Phase Workflow (CRITICAL)
 **Trigger Prompt** (use in Plan Mode):
 > "Read replit.md first, then plan this request. Split tasks by Quick Edit vs Build. STOP after planning."
 
-**Phase Execution:**
-1. **Plan Mode** → Agent creates task list split by mode → Agent STOPS and waits
-2. **User switches to Quick Edit** → Agent says "Starting Quick Edit tasks only" → Executes ONLY Quick Edit tasks → Agent STOPS and says "Quick Edit phase complete. Switch to Build Mode when ready."
-3. **User switches to Build Mode** → Agent says "Starting Build tasks" → Executes Build tasks
+1. **Plan Mode**: Create task list (Quick Edit vs Build) -> **STOP & WAIT**.
+2. **Quick Edit Mode**: Execute targeted tasks -> **STOP & WAIT**.
+3. **Build Mode**: Execute complex tasks -> **FINISH**.
 
-**Critical Rules:**
-- Agent must explicitly announce which phase it's executing
-- Agent must STOP between phases and wait for mode switch
-- If user says "go ahead" in Plan Mode, agent asks: "Which phase? Quick Edit first, or Build?"
+# Documentation Index
+| Topic | File | Usage |
+|-------|------|-------|
+| **Feature Plans** | `docs/plans/*.md` | Read when starting specific feature work. |
+| **Lessons Learned** | `docs/lessons-learned.md` | Read before making ANY code changes. |
+| **Architecture** | `docs/architecture.md` | System design and database logic. |
+| **Rebrand** | `docs/rebrand-notes.md` | Branding and domain strategy. |
 
-# Lessons Learned
-- **Workflow Rule**: ALWAYS read `replit.md` before making any code alterations or additions to ensure precise alignment with project vision and past learnings.
-- **Visual Identity**: The "Neon Cyber" theme with animated pure CSS clock and cyan matrix rain is the primary visual identity.
-- **Component Persistence**: Theme toggles or visual preferences must persist using `localStorage` to ensure a fluent experience across landing and dashboard pages.
-- **Accessibility**: Decorative visual elements like the background clock and matrix rain should always include `aria-hidden="true"`.
-- **Mobile First**: Interactive components like the roadmap accordion must be explicitly tested for auto-collapse behavior on mobile viewports.
-- **Matrix Animation Guards**: Canvas/ctx must have null checks before any operations. Use `matrixRunning` flag to prevent duplicate animation loops. Check `localStorage` hidden state before starting animation on page load.
-- **Dashboard Matrix**: Uses `window.startDashboardMatrix()` exposed by `dashboard-matrix.js` so `dashboard-common.js` toggle can restart animation when re-enabled.
-- **Flask Route Uniqueness**: Never define the same route decorator twice in `app.py`. Flask raises `AssertionError` on startup if endpoint names collide. Always grep for existing route definitions before adding new ones.
-- **Database Initialization Guards**: Use process-level flags (e.g., `_db_pool_initialized`, `_migrations_run`) to ensure database pool creation and migrations only execute once per process, not on every connection request.
-- **Orphaned Code Detection**: Code blocks placed after a function's `finally:` clause but not inside any function definition will execute at module import time, causing repeated side effects. Always verify indentation after editing context managers.
-- **Fast Mode Review**: Quick edits can introduce duplicate definitions or orphaned code blocks. Always run the server and check logs after fast-mode changes before considering work complete.
-- **Orphaned Code Caution**: Before removing "orphaned" code blocks that seem to have wrong indentation, verify if they were intentionally placed to execute at module import time (e.g., for startup verification).
-- **Dashboard Component Guarding**: Use specific page identifiers (like `active_page` in Jinja2 or `data-page` in HTML) to ensure components like the Admin Calendar or specific JS initializations only load on their intended routes.
-- **Admin Calendar Leak Prevention**: The Admin Calendar must be explicitly guarded with `{% if active_page == 'calendar' %}` in templates to prevent it from appearing on the server selection or other overview pages.
-- **Demo Server View Toggle**: Demo server (ID: 1419894879894507661) allows visitors to toggle between Admin and Employee views via query parameter (`?view_as=admin` or `?view_as=employee`) stored in session for persistence across navigation.
-- **Demo Data Seeding**: Owner-only endpoint `/debug/seed-demo-data` (POST) seeds sample employees, timeclock sessions, and adjustment requests for the demo server. All IDs must use integer types to match BIGINT database columns.
-- **Demo Auto-Reset**: APScheduler job resets demo server data daily at midnight UTC. `last_demo_reset` timestamp stored in `guild_settings` and displayed in demo mode toggle panel.
-- **TODO**: Create a demo kiosk for the On the Clock demo server (ID: 1419894879894507661) to allow visitors to preview kiosk functionality.
-- **TODO**: Discord Nitro-style customization system - employees can unlock borders, frames, badges, and other visual flair for their kiosk buttons and profile cards.
-- **Tier Terminology**: Always use `Entitlements.get_guild_tier()` for tier checks. Never check raw `tier` column values directly - use UserTier enum comparisons (UserTier.PREMIUM, UserTier.PRO, UserTier.GRANDFATHERED).
-- **Guided Tour System**: `dashboard-tour.js` provides spotlight/tooltip onboarding walkthrough. Uses localStorage to track completion status. Auto-starts for new users, manual trigger via "Take the Tour" sidebar button. Role-specific tours track completion via `otcTour_admin_completed` and `otcTour_employee_completed` keys.
-- **Mode Discipline**: When using the trigger prompt ("Read replit.md first, then plan this request. Split tasks by mode..."), the agent MUST create a task list split by mode (Quick Edit vs Build), then STOP and WAIT for mode confirmation before executing. Quick Edit tasks execute only in Quick Edit mode; Build tasks wait for Build mode. Never execute all tasks in a single mode.
+# Quick Reference
+- **Demo Server ID**: `1419894879894507661` (Auto-resets daily).
+- **Primary Color**: Cyan (#00FFFF) | **Theme**: Neon Cyber.
+- **Retentions**: Free (24h), Premium (30d), Pro (30d+Kiosk).
+- **Core Files**: `app.py` (Web), `bot.py` (Discord), `entitlements.py` (Tiers).
 
-# System Architecture
-## Bot Framework
-... (existing content)
-- **Visual Identity**: Full-screen "Neon Cyber" theme centered around an animated, transparent CSS clock overlay (500px, 80% opacity) with cyan matrix rain background effects.
-- **Theme Palette**:
-    - Primary: Cyan (#00FFFF)
-    - Background: Deep Dark Blue (#0a0f1f)
-    - Accents: Gold (#D4AF37)
-    - Secondary: Neon Red (#FF4757)
-- **Matrix Toggle**: A persistent "Enter/Exit The Matrix" toggle in the top-right corner allows users to enable/disable the background effects project-wide.
-- **Buy Me a Coffee Button**: Fixed position button in top-right corner below matrix toggle (landing: top 3.5rem, dashboard: top 3.5rem). On demo servers, demo mode panel repositioned to top 6rem to avoid overlap.
-- **Top-Right Fixed Elements Stacking**: Matrix toggle (1rem) → Coffee button (3.5rem) → Demo panel (6rem, demo servers only).
-... (rest of existing content)
-- **Onboarding System**: Interactive dashboard guide (spotlight effects, speech bubbles) and automated welcome DMs for new employees, with first-time `/clock` guides. Includes Discord preview lightbox for cross-platform context.
-- **Route-Based Dashboard**: Dedicated routes for server overview, role management, email settings, timezone/schedule, employee status cards, individual employee profiles, clock interface, time adjustments, calendar, bans, and owner dashboard.
-- **Subscription Management**:
-    - **Free Tier**: $0/mo, basic profile management, 24-hour data retention.
-    - **Premium Tier**: $8/mo, full dashboard, time adjustments, employee management, CSV reports, email notifications, 30-day retention, and Profile Customization (backgrounds, accent colors, stickers).
-    - **Pro Tier**: $15/mo, includes Kiosk mode, payroll integrations, advanced CSV, shift scheduling.
-    - **Grandfathered Tier**: Legacy servers retain Premium access.
-- **Trial Tracking**: Tracks one-time $5 first-month trial per server.
-- **Concurrent Safety**: Guild-level locking, PostgreSQL connection pooling, SSL validation, and automatic transaction management.
-- **Ephemeral Interface System**: Resolves interaction timeout issues via `/clock` command.
-- **Bot as Boss Architecture**: All role management changes routed through the bot's HTTP API.
-- **Email Automation**: APScheduler handles automated email tasks (e.g., clock-out reminders, reports) using an Email Outbox Pattern with `email_outbox` table for queuing and retries.
-- **Owner Dashboard**: Web-based dashboard (`/owner` route) for monitoring servers, subscriptions, and broadcasting announcements.
-- **Bot Access Notification**: Rich embed sent to server upon access grant with setup instructions and dashboard link.
-- **Bulletproof Button Persistence**: Unified `/clock` command interface with stable custom IDs and `timeout=None` for button reliability.
-- **Signed Deep-Link System**: Secure Discord-to-Dashboard navigation using signed URLs.
-- **Context Menu Commands**: Right-click user actions for admins (view hours, profile, force clock-out, ban).
-- **Employee Onboarding Button**: Premium-only button to send onboarding DMs.
-- **Pre-Deletion Warning System**: Hourly DMs to free-tier admins before data deletion.
-- **Database Migrations**: Automatic schema migrations on startup.
-- **Employee Status Cards**: Dashboard displays active employees with current hours and manual clock-out buttons for admins.
-- **Time Adjustment Requests**: Employees submit requests via dashboard, kiosk, or bot; admins approve/deny via dashboard calendar. Kiosk users can edit today's sessions and add missing entries with reasons.
-- **Kiosk Notification System**: Employee cards and info panel show alerts for missing email, pending adjustments, or missing punches.
-- **Broadcast Channel Configuration**: Admins configure bot announcement channel via dashboard.
-    - **Profile & Kiosk Customization**: Employees can personalize their profiles with background themes, accent colors (Premium tier), catchphrases, and flair stickers. These customizations sync to their kiosk buttons if the server-level `allow_kiosk_customization` setting is enabled.
-    - **Alerts & Reminders**: Always alert the user to updates when changing prices or adding significant features, and prompt for a manual republish.
-- **Theme Presets**: Multiple Neon Cyber themed backgrounds (sunset, ocean, forest, etc.) and 8 accent colors (cyan, magenta, gold, green, blue, red, purple, teal) available for profiles. Accent colors create glowing button borders on kiosk.
-- **Admin Control**: Admins can toggle `allow_kiosk_customization` on/off via Beta Settings to maintain a uniform look or allow personalized kiosk buttons.
-
-## Security Configuration
-- **Code Analysis**: Semgrep for static analysis and secret management.
-- **Stripe Security**: Webhook signature verification, secure API key management.
-- **Data Privacy**: Automated data purging based on subscription tier.
-- **Input Validation**: Robust validation for roles and timezones.
-- **Authorization Checks**: Verification of bot presence and user admin access.
-- **Rate Limiting & Spam Detection**: In-memory tracking with temporary bans.
-- **SSRF Protection**: Strict validation for `guild_id` in Bot API requests.
-- **XSS Prevention**: `escapeHtml()` and `addEventListener` for user data in dashboard.
-- **SQL Injection Prevention**: Parameterized statements for all database queries.
-- **Environment Variables**: Sensitive configurations managed via environment variables.
-
-# External Dependencies
-- **discord.py**: Discord API interaction.
-- **tzdata**: Timezone data handling.
-- **psycopg2-binary**: PostgreSQL database adapter.
-- **aiohttp**: Bot's internal HTTP API server.
-- **APScheduler**: Asynchronous job scheduling.
-- **Discord API**: Real-time communication.
-- **Discord OAuth 2.0**: User authentication and dashboard features.
-- **Stripe**: Subscription and payment processing, webhook handling.
-- **PostgreSQL**: Production database with persistent connection pooling, SSL, `RealDictCursor`, and parameterized statements. Utilizes a unified `timeclock_sessions` table for all components.
+# Building Instructions
+- Use `Entitlements.get_guild_tier()` for all gating.
+- Allow all hosts (`allowedHosts: true`) in dev configs.
+- Bind frontend to `0.0.0.0:5000`.
+- Always verify `replit.md` before and after work.
