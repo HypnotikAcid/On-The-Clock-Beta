@@ -123,3 +123,70 @@ Employees without Discord accounts who only use the kiosk.
 ## Status
 **Planning Phase** - Not yet in development.
 Demo kiosk remains hidden until build begins.
+
+---
+
+## Cross-Connections to Other Plans
+
+### CSV Report Overhaul
+- Kiosk self-service reports use the same `report_generator.py` module.
+- Kiosk-only employees must appear in all reports with proper identification.
+
+### Nitro Customization / Gamification
+- Flair system (stickers, badges) applies to both kiosk buttons and profiles.
+- Badges earned via time tracking milestones display on kiosk.
+
+### Pricing Strategy
+- Kiosk mode is a **Pro tier** feature ($15/mo).
+- Kiosk-only employees may require additional pricing consideration.
+
+---
+
+## Research Findings (January 2026)
+
+### Competitor Kiosk Analysis
+| Competitor | Key Features | Pricing |
+|------------|--------------|---------|
+| Connecteam | PIN + photo, geofencing, offline mode | $35/mo (30 users) |
+| Buddy Punch | PIN/QR/photo, IP lock, manual PIN | $3.49/user |
+| OpenTimeClock | 100% free, web-based, WiFi restrictions | Free |
+| Clockify | PIN kiosk, manual timesheet edit | Free + $4.99/user |
+| QuickBooks Time | Photo capture, browser-based | With payroll |
+
+### Kiosk-Only Employee Implementation (from research)
+**Best practices from competitors:**
+- **No email required**: Admins manually create employee profiles.
+- **System-generated IDs**: Use prefix like `KIOSK-001`, `KIOSK-002`.
+- **Soft delete**: Deactivate (don't delete) to preserve time records.
+- **PIN assignment**: Admin sets initial PIN; employee can change via kiosk.
+
+### Database Schema Considerations
+```
+kiosk_employees:
+  - id: SERIAL PRIMARY KEY
+  - guild_id: BIGINT (links to server)
+  - kiosk_id: VARCHAR (e.g., "KIOSK-001")
+  - display_name: VARCHAR
+  - pin_hash: VARCHAR
+  - email: VARCHAR (optional)
+  - is_active: BOOLEAN (default TRUE)
+  - created_at: TIMESTAMP
+  - deactivated_at: TIMESTAMP (null if active)
+```
+
+### Potential Future Enhancements
+- [ ] **Photo capture on punch** - Prevent buddy punching
+- [ ] **QR code clock-in** - Alternative to PIN
+- [ ] **Facial recognition** - Premium biometric option
+- [ ] **Shift scheduling display** - Show upcoming shifts on kiosk
+- [ ] **Break reminders** - Notify employees of required breaks
+- [ ] **Manager dashboard on kiosk** - Admin-only view for quick oversight
+
+### Risks & Mitigations
+| Risk | Mitigation |
+|------|------------|
+| Buddy punching | Photo capture, IP/geofence restrictions |
+| PIN guessing | 5-attempt lockout with timer |
+| Forgotten PINs | Email recovery, admin reset |
+| Offline scenarios | Local storage + sync on reconnect |
+| Large employee lists | Search/filter on main screen |
