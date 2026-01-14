@@ -1,9 +1,10 @@
 # Lessons Learned & Coding Patterns
 
 ## Workflow & Discipline
-- **Two-Phase Workflow**: Always Read -> Plan -> Wait for Mode Switch.
-- **Mode Discipline**: Never execute build tasks in Quick Edit mode without approval.
-- **Workflow Rule**: ALWAYS read `replit.md` before starting work.
+- **Mandatory Pre-Check**: ALWAYS read `docs/lessons-learned.md` before editing or adding ANY code.
+- **Plan Mode Workflow**: Split all tasks into **Fast** (lightweight) vs **Autonomous** (complex).
+- **Execution Order**: Fast tasks first → STOP → Autonomous tasks after user confirms.
+- **Post-Work**: Update this file if new lessons are learned.
 
 ## Development & Security
 - **Flask Route Uniqueness**: Never define the same route decorator twice.

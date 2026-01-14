@@ -3,11 +3,23 @@
 
 # Two-Phase Workflow (CRITICAL)
 **Trigger Prompt** (use in Plan Mode):
-> "Read replit.md first, then plan this request. Split tasks by Quick Edit vs Build. STOP after planning."
+> "Read replit.md first, then plan this request. Split tasks by Fast vs Autonomous. STOP after planning."
 
-1. **Plan Mode**: Create task list (Quick Edit vs Build) -> **STOP & WAIT**.
-2. **Quick Edit Mode**: Execute targeted tasks -> **STOP & WAIT**.
-3. **Build Mode**: Execute complex tasks -> **FINISH**.
+## Modes
+- **Plan Mode**: Discussion and task planning only. No code changes.
+- **Build Mode**: Contains two agent tool settings:
+  - **Fast**: Lightweight changes, quickly (simple edits, file moves, small fixes).
+  - **Autonomous**: Complex features, multi-file changes, deep logic.
+
+## Execution Flow
+1. **Plan Mode** → Read `replit.md` → Read `docs/lessons-learned.md` → Create task list split by Fast vs Autonomous → **STOP & WAIT**.
+2. **Build Mode (Fast)** → Execute ONLY Fast tasks → **STOP & SAY**: "Fast tasks complete. Switch to Autonomous when ready."
+3. **Build Mode (Autonomous)** → Execute complex tasks → **FINISH**.
+
+## Rules
+- ALWAYS check `docs/lessons-learned.md` before editing/adding ANY code.
+- NEVER mix Fast and Autonomous tasks in one phase.
+- Update `docs/lessons-learned.md` after discovering new patterns or fixing bugs.
 
 # Documentation Index
 | Topic | File | Usage |
