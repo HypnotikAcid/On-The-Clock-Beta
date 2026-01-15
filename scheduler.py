@@ -176,7 +176,7 @@ async def send_daily_report_for_guild(guild_id: int):
             cursor.execute("""
                 SELECT ts.user_id, ts.clock_in_time as clock_in, ts.clock_out_time as clock_out,
                        EXTRACT(EPOCH FROM (ts.clock_out_time - ts.clock_in_time))::integer as duration_seconds,
-                       COALESCE(ep.display_name, ep.full_name, 'Unknown') as display_name
+                       COALESCE(ep.display_name, ep.full_name) as display_name
                 FROM timeclock_sessions ts
                 LEFT JOIN employee_profiles ep ON ts.guild_id::text = ep.guild_id AND ts.user_id = ep.user_id
                 WHERE ts.guild_id = %s 
@@ -195,7 +195,17 @@ async def send_daily_report_for_guild(guild_id: int):
             csv_lines = ["User ID,Display Name,Clock In,Clock Out,Duration (hours)"]
             for row in sessions:
                 user_id = row['user_id']
-                display_name = row['display_name'] or 'Unknown'
+                display_name = row['display_name']
+                
+                if not display_name and discord_bot:
+                    try:
+                        discord_user = await discord_bot.fetch_user(int(user_id))
+                        display_name = discord_user.display_name or discord_user.name
+                    except Exception:
+                        display_name = f"User {user_id}"
+                elif not display_name:
+                    display_name = f"User {user_id}"
+                
                 display_name = display_name.replace(',', ' ')
                 clock_in = row['clock_in']
                 clock_out = row['clock_out']

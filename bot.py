@@ -4155,7 +4155,8 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
                 
                 # Create CSV for single clock-out entry
                 duration_hours = round(elapsed / 3600, 2)
-                safe_user_name = user_name.replace(',', ' ') if user_name else 'Unknown'
+                fallback_name = interaction.user.display_name or interaction.user.name
+                safe_user_name = (user_name or fallback_name).replace(',', ' ')
                 csv_content = f"User ID,Display Name,Clock In,Clock Out,Duration (hours)\n{interaction.user.id},{safe_user_name},{start_dt.isoformat()},{end_dt.isoformat()},{duration_hours}"
                 
                 # Only get verified email addresses
