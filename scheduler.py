@@ -174,14 +174,16 @@ async def send_daily_report_for_guild(guild_id: int):
             end_utc = end_of_day.astimezone(timezone.utc).isoformat()
             
             cursor.execute("""
-                SELECT user_id, clock_in_time as clock_in, clock_out_time as clock_out,
-                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))::integer as duration_seconds
-                FROM timeclock_sessions
-                WHERE guild_id = %s 
-                AND clock_out_time IS NOT NULL
-                AND clock_in_time >= %s
-                AND clock_out_time <= %s
-                ORDER BY user_id, clock_in_time
+                SELECT ts.user_id, ts.clock_in_time as clock_in, ts.clock_out_time as clock_out,
+                       EXTRACT(EPOCH FROM (ts.clock_out_time - ts.clock_in_time))::integer as duration_seconds,
+                       COALESCE(ep.display_name, ep.full_name, 'Unknown') as display_name
+                FROM timeclock_sessions ts
+                LEFT JOIN employee_profiles ep ON ts.guild_id::text = ep.guild_id AND ts.user_id = ep.user_id
+                WHERE ts.guild_id = %s 
+                AND ts.clock_out_time IS NOT NULL
+                AND ts.clock_in_time >= %s
+                AND ts.clock_out_time <= %s
+                ORDER BY ts.user_id, ts.clock_in_time
             """, (guild_id, start_utc, end_utc))
             
             sessions = cursor.fetchall()
@@ -190,14 +192,16 @@ async def send_daily_report_for_guild(guild_id: int):
                 logger.info(f"No sessions to report for guild {guild_id} today")
                 return
             
-            csv_lines = ["User ID,Clock In,Clock Out,Duration (hours)"]
+            csv_lines = ["User ID,Display Name,Clock In,Clock Out,Duration (hours)"]
             for row in sessions:
                 user_id = row['user_id']
+                display_name = row['display_name'] or 'Unknown'
+                display_name = display_name.replace(',', ' ')
                 clock_in = row['clock_in']
                 clock_out = row['clock_out']
                 duration_seconds = row['duration_seconds']
                 duration_hours = round(duration_seconds / 3600, 2)
-                csv_lines.append(f"{user_id},{clock_in},{clock_out},{duration_hours}")
+                csv_lines.append(f"{user_id},{display_name},{clock_in},{clock_out},{duration_hours}")
             
             csv_content = "\n".join(csv_lines)
             
