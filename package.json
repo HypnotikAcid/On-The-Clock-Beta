@@ -1,0 +1,18 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "A professional Discord timeclock bot designed for businesses, featuring subscription management, Stripe payment integration, role-based access control, and a web-based admin dashboard.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "^2.1.12"
+  }
+}

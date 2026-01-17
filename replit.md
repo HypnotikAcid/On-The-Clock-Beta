@@ -28,6 +28,8 @@
 | **Lessons Learned** | `docs/lessons-learned.md` | Read before making ANY code changes. |
 | **Architecture** | `docs/architecture.md` | System design and database logic. |
 | **Rebrand** | `docs/rebrand-notes.md` | Branding and domain strategy. |
+| **Current Task** | `CURRENT_TASK.md` | Cross-agent session continuity. |
+| **Active Plan** | `docs/plan.md` | Feature planning handoffs. |
 
 # Quick Reference
 - **Demo Server ID**: `1419894879894507661` (Auto-resets daily).
@@ -40,3 +42,31 @@
 - Allow all hosts (`allowedHosts: true`) in dev configs.
 - Bind frontend to `0.0.0.0:5000`.
 - Always verify `replit.md` before and after work.
+
+# CLI Agent Instructions
+This project supports multiple AI coding agents. All agents should:
+
+1. **Read first**: `replit.md` → `docs/lessons-learned.md` → `CURRENT_TASK.md`
+2. **Update during work**: Keep `CURRENT_TASK.md` current with progress
+3. **Commit frequently**: CLI agents don't auto-commit like Replit Agent
+4. **Security review**: Always manually review auth/permissions code (AI often has bypass bugs)
+5. **Handoff properly**: Fill in "Next Steps" in `CURRENT_TASK.md` before stopping
+
+## Key File Locations
+| Pattern | Location | Example |
+|---------|----------|---------|
+| Flask routes | `app.py:362+` | `@app.route("/")` |
+| Discord commands | `bot.py:4800+` | Slash command definitions |
+| Tier gating | `entitlements.py` | `get_guild_tier()` |
+| Email utilities | `email_utils.py` | Report delivery |
+| Scheduler jobs | `scheduler.py` | Daily reports, cleanup |
+
+## Commands
+- **Run dev**: `python start.py` (starts Flask + Discord bot)
+- **Health check**: `curl http://localhost:5000/health`
+- **Workflow restart**: Use Replit's workflow panel
+
+## Don't Do
+- Never hardcode API keys (use secrets)
+- Never skip the lessons-learned pre-check
+- Never work on overlapping files with another agent simultaneously

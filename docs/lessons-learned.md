@@ -12,6 +12,7 @@
 - **SQL Injection**: Always use parameterized statements.
 - **XSS Prevention**: Use `escapeHtml()` for user data.
 - **SSRF Protection**: Strict validation for `guild_id` in Bot API requests.
+- **AI Auth Bugs**: AI-generated authentication code often has bypass vulnerabilities - ALWAYS manually review auth logic.
 
 ## UI/UX & Identity
 - **Visual Identity**: "Neon Cyber" theme with animated CSS clock and cyan matrix rain.
@@ -25,3 +26,17 @@
 - **Admin Calendar**: Guard with `{% if active_page == 'calendar' %}`.
 - **Demo Server**: ID `1419894879894507661` auto-resets daily at midnight UTC.
 - **Kiosk Customization**: Icons/colors only show when clocked in.
+
+## Multi-Agent Coordination
+- **Session Continuity**: Update `CURRENT_TASK.md` during complex work for handoff between agents.
+- **Git Discipline**: CLI agents (Claude Code, Gemini) don't auto-commit - commit frequently.
+- **File Isolation**: Don't have multiple agents edit the same files simultaneously.
+- **Briefing Request**: When switching agents, ask "Give me a briefing on CURRENT_TASK.md".
+- **Context Files**: All agents should read `replit.md` first, then this file.
+- **Progressive Disclosure**: Don't overload context - point to specific docs when needed.
+- **Date Awareness**: AI may think it's 2024 - verify current date if time-sensitive.
+
+## CSV Report Usernames
+- **Three-tier fallback**: employee_profiles.display_name → employee_profiles.full_name → Discord API fetch → "User [ID]"
+- **Sanitize commas**: Replace commas in names with spaces for CSV safety.
+- **LEFT JOIN**: Always use LEFT JOIN with employee_profiles to handle missing profiles.

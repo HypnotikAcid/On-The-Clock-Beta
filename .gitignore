@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual Enviroments
+# Virtual Environments
 venv/
 env/
 .venv/
@@ -22,6 +22,35 @@ Thumbs.db
 # Database
 *.sqlite3
 *.db
+*.db-wal
+*.db-shm
 
 # Logs
 *.log
+
+# CLI Agent Caches
+.claude/
+.gemini/
+.cursor/
+.aider*
+.mcp.json
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Replit Internals (don't push to GitHub)
+.cache/
+.local/
+.config/
+.upm/
+.pythonlibs/
+.replit
+replit.nix
+
+# Session/Task Files (optional - uncomment if you want private)
+# CURRENT_TASK.md
+
+# Old snapshots
+PROJECT_SNAPSHOT_LITE.md
+collect_project_snapshot_lite.sh
