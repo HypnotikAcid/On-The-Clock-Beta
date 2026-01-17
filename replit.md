@@ -46,11 +46,13 @@
 # CLI Agent Instructions
 This project supports multiple AI coding agents. All agents should:
 
-1. **Read first**: `replit.md` → `docs/lessons-learned.md` → `CURRENT_TASK.md`
-2. **Update during work**: Keep `CURRENT_TASK.md` current with progress
-3. **Commit frequently**: CLI agents don't auto-commit like Replit Agent
-4. **Security review**: Always manually review auth/permissions code (AI often has bypass bugs)
-5. **Handoff properly**: Fill in "Next Steps" in `CURRENT_TASK.md` before stopping
+1. **Check Locks**: Read `WORKING_FILES.md` before editing ANY file.
+2. **Read Context**: `replit.md` → `docs/lessons-learned.md` → `CURRENT_TASK.md`.
+3. **Agent Routing**: See `AGENTS.md` for role-based task delegation.
+4. **Update during work**: Keep `CURRENT_TASK.md` current with progress.
+5. **Commit frequently**: CLI agents don't auto-commit like Replit Agent.
+6. **Security review**: Always manually review auth/permissions code.
+7. **Handoff properly**: Fill in "Next Steps" in `CURRENT_TASK.md` and release locks in `WORKING_FILES.md`.
 
 ## Key File Locations
 | Pattern | Location | Example |
