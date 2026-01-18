@@ -11,6 +11,7 @@ import pytz
 from contextlib import contextmanager
 
 from email_utils import send_timeclock_report_email, process_outbox_emails
+from entitlements import Entitlements, UserTier
 
 # PostgreSQL connection pool
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -57,31 +58,28 @@ def db():
         cursor.close()
         db_pool.putconn(conn)
 
-def get_retention_tier(guild_id: int) -> str:
-    """Get the retention tier for a guild.
-    
-    Checks both bot_access_paid and retention_tier columns:
-    - If bot_access_paid is true, at minimum they have 7-day retention
-    - retention_tier column specifies '7day', '30day', or 'none'
+def get_guild_tier_for_scheduler(guild_id: int) -> UserTier:
+    """
+    Get guild tier using Entitlements.get_guild_tier().
+    This is the standardized way to check tier per CLAUDE.md rules.
+    Returns: UserTier enum (FREE, GRANDFATHERED, PREMIUM, PRO)
     """
     with db() as cursor:
         cursor.execute(
-            "SELECT bot_access_paid, retention_tier FROM server_subscriptions WHERE guild_id = %s",
+            """SELECT bot_access_paid, retention_tier,
+                      COALESCE(grandfathered, FALSE) as grandfathered
+               FROM server_subscriptions WHERE guild_id = %s""",
             (guild_id,)
         )
         row = cursor.fetchone()
         if not row:
-            return 'free'
-        
-        bot_access = row.get('bot_access_paid', False)
-        retention = row.get('retention_tier', 'none')
-        
-        if retention == '30day':
-            return 'pro'
-        elif bot_access or retention == '7day':
-            return 'basic'
-        else:
-            return 'free'
+            return UserTier.FREE
+
+        bot_access_paid = bool(row.get('bot_access_paid', False))
+        retention_tier = row.get('retention_tier') or 'none'
+        grandfathered = bool(row.get('grandfathered', False))
+
+        return Entitlements.get_guild_tier(bot_access_paid, retention_tier, grandfathered)
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +121,9 @@ async def send_work_day_end_reports():
                 logger.debug(f"   Guild {guild_id}: skipped (auto_send_on_clockout disabled)")
                 skipped_count += 1
                 continue
-            
-            retention_tier = get_retention_tier(guild_id)
-            if retention_tier == 'free':
+
+            tier = get_guild_tier_for_scheduler(guild_id)
+            if tier == UserTier.FREE:
                 logger.debug(f"   Guild {guild_id}: skipped (free tier - no reports)")
                 skipped_count += 1
                 continue
@@ -269,14 +267,9 @@ async def send_deletion_warnings():
                 if hours_since_warning < 20:
                     skipped_count += 1
                     continue
-            
-            retention_tier = get_retention_tier(guild_id)
-            
-            days_to_keep = {
-                'free': 1,
-                'basic': 7,
-                'pro': 30
-            }.get(retention_tier, 1)
+
+            tier = get_guild_tier_for_scheduler(guild_id)
+            days_to_keep = Entitlements.get_retention_days(tier)
             
             cutoff_time = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
             warning_time = cutoff_time + timedelta(hours=1)
