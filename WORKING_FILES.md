@@ -7,15 +7,16 @@
 
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
-- `NONE`
+- `templates/` - Gemini - 2026-01-18 - UI/Frontend Audit
 
 ---
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `bot.py` - 2026-01-18 - Claude Code (dead code removal)
+- `docs/audit-report.md` - 2026-01-18 - Claude Code (updated with resolutions)
 - `scheduler.py` - 2026-01-18 - Claude Code
 - `bot.py` - 2026-01-18 - Claude Code
-- `docs/audit-report.md` - 2026-01-18 - Claude Code
 
 ---
 
