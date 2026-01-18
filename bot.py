@@ -34,6 +34,8 @@ from email_utils import send_timeclock_report_email, queue_shift_report_email, p
 # Import migrations
 from migrations import run_migrations
 from scheduler import start_scheduler, stop_scheduler
+# Import entitlements for tier checking
+from entitlements import Entitlements, UserTier
 
 # --- Config / Secrets ---
 TOKEN = os.getenv("DISCORD_TOKEN")            # required
@@ -1969,10 +1971,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # Get current guild settings
             settings = {
                 "timezone": get_guild_setting(guild_id, "timezone") or "UTC",
-                "name_display_mode": get_guild_setting(guild_id, "name_display_mode") or "username", 
+                "name_display_mode": get_guild_setting(guild_id, "name_display_mode") or "username",
                 "recipient_user_id": get_guild_setting(guild_id, "recipient_user_id"),
                 "main_admin_role_id": get_guild_setting(guild_id, "main_admin_role_id"),
-                "subscription_tier": get_server_tier(guild_id),
+                "subscription_tier": get_guild_tier_string(guild_id),
                 "admin_roles": get_admin_roles(guild_id),
                 "employee_roles": get_employee_roles(guild_id)
             }
@@ -2441,7 +2443,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             "owner": user_guild.get('owner', False),
                             "permissions": user_guild.get('permissions', '0'),
                             "member_count": bot_guild.member_count,
-                            "tier": get_server_tier(guild_id)
+                            "tier": get_guild_tier_string(guild_id)
                         })
         
         self.send_json_response(user_data)
@@ -2518,9 +2520,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             if not bot_guild:
                 self.send_json_response({"error": "Guild not found"}, 404)
                 return
-                
+
             # Get server data
-            tier = get_server_tier(guild_id)
+            tier = get_guild_tier_string(guild_id)
             retention_days = get_retention_days(guild_id)
             
             # Count currently clocked in users
@@ -2931,24 +2933,30 @@ def init_db():
     print("✅ Using existing PostgreSQL schema (tables already created during migration)")
     pass
 
-def get_server_tier(guild_id: int) -> str:
-    """Get subscription tier for a server (free/basic/pro)"""
+def get_guild_tier_string(guild_id: int) -> str:
+    """
+    Get guild tier as a string using Entitlements.get_guild_tier().
+    This is the standardized way to check tier per CLAUDE.md rules.
+    Returns: "free", "grandfathered", "premium", or "pro"
+    """
     with db() as conn:
         cursor = conn.execute(
-            "SELECT tier, status FROM server_subscriptions WHERE guild_id = %s",
+            """SELECT bot_access_paid, retention_tier, tier,
+                      COALESCE(grandfathered, FALSE) as grandfathered
+               FROM server_subscriptions WHERE guild_id = %s""",
             (guild_id,)
         )
         result = cursor.fetchone()
         if not result:
-            return "free"
-        
-        tier = result['tier']
-        status = result['status']
-        # If subscription is canceled, treat as free tier
-        if status == "canceled":
-            return "free"
-        
-        return tier
+            # No subscription record = free tier
+            return UserTier.FREE.value
+
+        bot_access_paid = bool(result.get('bot_access_paid', False))
+        retention_tier = result.get('retention_tier') or 'none'
+        grandfathered = bool(result.get('grandfathered', False))
+
+        tier_enum = Entitlements.get_guild_tier(bot_access_paid, retention_tier, grandfathered)
+        return tier_enum.value
 
 def set_server_tier(guild_id: int, tier: str, subscription_id: Optional[str] = None, customer_id: Optional[str] = None):
     """Set subscription tier for a server"""
@@ -3487,7 +3495,7 @@ def set_retention_tier(guild_id: int, tier: str):
 def check_tier_access(guild_id: int, required_tier: str) -> bool:
     """Check if server has access to features requiring a specific tier"""
     tier_hierarchy = {'free': 0, 'basic': 1, 'pro': 2}
-    current_tier = get_server_tier(guild_id)
+    current_tier = get_guild_tier_string(guild_id)
     return tier_hierarchy.get(current_tier, 0) >= tier_hierarchy.get(required_tier, 0)
 
 def is_server_admin(user: discord.Member) -> bool:
@@ -4995,9 +5003,9 @@ class TimeClockView(discord.ui.View):
         if not is_allowed:
             await handle_rate_limit_response(interaction, action)
             return
-        
+
         # Check clock access permissions
-        server_tier = get_server_tier(guild_id)
+        server_tier = get_guild_tier_string(guild_id)
         # Type guard: ensure we have a Member for guild-specific functions
         if not isinstance(interaction.user, discord.Member):
             await interaction.followup.send(
@@ -5213,9 +5221,9 @@ class TimeClockView(discord.ui.View):
             if not is_allowed:
                 await handle_rate_limit_response(interaction, action)
                 return
-            
+
             # Check clock access permissions
-            server_tier = get_server_tier(guild_id)
+            server_tier = get_guild_tier_string(guild_id)
             # Type guard: ensure we have a Member for guild-specific functions
             if not isinstance(interaction.user, discord.Member):
                 await interaction.followup.send(
@@ -5348,9 +5356,9 @@ class TimeClockView(discord.ui.View):
             if not is_allowed:
                 await handle_rate_limit_response(interaction, action)
                 return
-            
+
             # Check clock access permissions
-            server_tier = get_server_tier(guild_id)
+            server_tier = get_guild_tier_string(guild_id)
             # Type guard: ensure we have a Member for guild-specific functions
             if not isinstance(interaction.user, discord.Member):
                 await interaction.followup.send(
@@ -5465,9 +5473,9 @@ class TimeClockView(discord.ui.View):
                         ephemeral=True
                     )
                 return
-            
+
             # Check clock access permissions
-            server_tier = get_server_tier(interaction.guild.id)
+            server_tier = get_guild_tier_string(interaction.guild.id)
             # Type guard: ensure we have a Member for guild-specific functions
             if not isinstance(interaction.user, discord.Member):
                 await send_reply(interaction,
@@ -5484,9 +5492,9 @@ class TimeClockView(discord.ui.View):
                     ephemeral=True
                 )
                 return
-            
+
             # Get current server tier for comprehensive help display
-            server_tier = get_server_tier(interaction.guild.id)
+            server_tier = get_guild_tier_string(interaction.guild.id)
             tier_color = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
             
             embed = discord.Embed(
@@ -5637,13 +5645,13 @@ class TimeClockView(discord.ui.View):
                     "• Ask your server administrator to grant you admin role access\n"
                     "• They can use: `/add_admin_role @yourrole` to give your role admin access\n"
                     "• Or ask them to add you to an existing admin role\n\n"
-                    "💡 Contact your server admin for help with role management.", 
+                    "💡 Contact your server admin for help with role management.",
                     ephemeral=True
                 )
                 return
-            
+
             guild_id = interaction.guild.id
-            server_tier = get_server_tier(guild_id)
+            server_tier = get_guild_tier_string(guild_id)
             
             # Free tier: Admin only + fake data 
             if server_tier == "free":
@@ -5824,8 +5832,8 @@ class TimeClockView(discord.ui.View):
                     ephemeral=True
                 )
             return
-        
-        server_tier = get_server_tier(guild_id)
+
+        server_tier = get_guild_tier_string(guild_id)
         has_bot_access = check_bot_access(guild_id)
         
         # Show appropriate message based on current status
@@ -6159,9 +6167,9 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
     if not is_allowed:
         await handle_rate_limit_response(interaction, action)
         return
-    
+
     # Check permissions
-    server_tier = get_server_tier(guild_id)
+    server_tier = get_guild_tier_string(guild_id)
     if not isinstance(interaction.user, discord.Member):
         await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
         return
@@ -6244,9 +6252,9 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
     if not is_allowed:
         await handle_rate_limit_response(interaction, action)
         return
-    
+
     # Check permissions
-    server_tier = get_server_tier(guild_id)
+    server_tier = get_guild_tier_string(guild_id)
     if not isinstance(interaction.user, discord.Member):
         await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
         return
@@ -7208,9 +7216,9 @@ async def clock_command(interaction: discord.Interaction):
     if guild_id is None:
         await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
         return
-    
+
     # Check permissions
-    server_tier = get_server_tier(guild_id)
+    server_tier = get_guild_tier_string(guild_id)
     if not isinstance(interaction.user, discord.Member):
         await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
         return
@@ -7802,8 +7810,8 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
             )
         else:
             # Check current tier
-            current_tier = get_server_tier(guild_id)
-            
+            current_tier = get_guild_tier_string(guild_id)
+
             # Grant the new tier (no Stripe subscription - manual owner grant)
             set_server_tier(guild_id, tier, subscription_id=f"owner_grant_{int(time.time())}", customer_id="owner_manual")
             
@@ -7900,8 +7908,8 @@ async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: 
             )
         else:
             # Check current tier
-            current_tier = get_server_tier(guild_id)
-            
+            current_tier = get_guild_tier_string(guild_id)
+
             # Grant the tier
             set_server_tier(guild_id, tier, subscription_id=f"owner_remote_{int(time.time())}", customer_id="owner_remote")
             
