@@ -13,7 +13,7 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
-- `NONE`
+- `docs/audit-report.md` - 2026-01-18 - Claude Code
 
 ---
 
