@@ -4,6 +4,11 @@
 from enum import Enum
 from typing import Optional, Dict, Any
 
+# Retention period constants (in days)
+RETENTION_FREE_DAYS = 1      # 24 hours - strictly enforced
+RETENTION_PREMIUM_DAYS = 30  # Premium and Grandfathered tiers
+RETENTION_PRO_DAYS = 30      # Pro tier (future-proof if tiers diverge)
+
 class UserTier(Enum):
     FREE = "free"
     GRANDFATHERED = "grandfathered"  # Legacy $5 lifetime users - equivalent to Premium
@@ -32,12 +37,12 @@ class Entitlements:
     def get_retention_days(tier: UserTier) -> int:
         """Get retention days for a tier"""
         if tier == UserTier.PRO:
-            return 30
+            return RETENTION_PRO_DAYS
         elif tier == UserTier.PREMIUM:
-            return 30
+            return RETENTION_PREMIUM_DAYS
         elif tier == UserTier.GRANDFATHERED:
-            return 30  # Grandfathered users keep Premium retention
-        return 1  # Free tier = 24 hours (strictly enforced)
+            return RETENTION_PREMIUM_DAYS  # Grandfathered users keep Premium retention
+        return RETENTION_FREE_DAYS  # Free tier = 24 hours (strictly enforced)
     
     @staticmethod
     def can_access_feature(tier: UserTier, role: UserRole, feature: str) -> bool:

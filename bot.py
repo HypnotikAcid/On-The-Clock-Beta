@@ -1022,8 +1022,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                             }),
                             bot_instance.loop
                         )
-                    
-                    # TODO: Consider refunding the payment automatically here
+
                     return
                 
                 print(f"   ✓ Bot access verified")

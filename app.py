@@ -1096,11 +1096,7 @@ def user_has_admin_access(user_id, guild_id, user_guild):
     # The guilds endpoint only gives us basic guild info and permissions
     # For now, we'll trust Discord permissions (owner/administrator)
     # Custom admin roles would require additional Discord API calls per guild
-    
-    # TODO: If needed, implement Discord API call to get member roles:
-    # GET /guilds/{guild_id}/members/{user_id} with bot token
-    # Then check against admin_roles and guild_settings.main_admin_role_id
-    
+
     return False
 
 def filter_user_guilds(user_session):
