@@ -225,16 +225,6 @@ def get_guild_lock(guild_id: int) -> asyncio.Lock:
         guild_setup_locks[guild_id] = asyncio.Lock()
     return guild_setup_locks[guild_id]
 
-# --- Owner-Only Access Decorator ---
-def owner_only(func):
-    """Decorator to restrict commands to bot owner only"""
-    async def wrapper(interaction: discord.Interaction, *args, **kwargs):
-        if interaction.user.id != BOT_OWNER_ID:
-            # Silently ignore - command won't even be visible to non-owners
-            return
-        return await func(interaction, *args, **kwargs)
-    return wrapper
-
 # --- Proper Interaction Response Helper ---
 async def robust_defer(interaction: discord.Interaction, ephemeral: bool = True) -> bool:
     """
@@ -2845,88 +2835,6 @@ def db():
     finally:
         # Always return connection to pool
         db_pool.putconn(conn)
-
-
-def run_migrations_old_sqlite():
-    """OLD SQLite migrations - no longer used"""
-    import time
-    import random
-    
-    max_retries = 5
-    for attempt in range(max_retries):
-        try:
-            with db() as conn:
-                # Begin exclusive transaction
-                cursor = conn.cursor()
-                cursor.execute("BEGIN")
-                
-                # Check if customer_id column exists
-                cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'server_subscriptions'")
-                columns = {row['column_name'] for row in cursor.fetchall()}
-                
-                if 'customer_id' not in columns:
-                    print("🔧 Adding missing customer_id column to server_subscriptions table...")
-                    conn.execute("ALTER TABLE server_subscriptions ADD COLUMN customer_id TEXT")
-                    print("✅ Migration completed: customer_id column added")
-                else:
-                    print("✅ Migration check: customer_id column already exists")
-                
-                # Check if bot_access_paid column exists
-                cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'server_subscriptions'")
-                columns = {row['column_name'] for row in cursor.fetchall()}
-                
-                if 'bot_access_paid' not in columns:
-                    print("🔧 Adding bot_access_paid column to server_subscriptions table...")
-                    conn.execute("ALTER TABLE server_subscriptions ADD COLUMN bot_access_paid BOOLEAN DEFAULT FALSE")
-                    # Migrate existing data: Set bot_access_paid=TRUE for tier='basic' or tier='pro'
-                    conn.execute("""
-                        UPDATE server_subscriptions 
-                        SET bot_access_paid = TRUE 
-                        WHERE tier IN ('basic', 'pro')
-                    """)
-                    print("✅ Migration completed: bot_access_paid column added and data migrated")
-                else:
-                    print("✅ Migration check: bot_access_paid column already exists")
-                
-                # Check if retention_tier column exists
-                cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'server_subscriptions'")
-                columns = {row['column_name'] for row in cursor.fetchall()}
-                
-                if 'retention_tier' not in columns:
-                    print("🔧 Adding retention_tier column to server_subscriptions table...")
-                    conn.execute("ALTER TABLE server_subscriptions ADD COLUMN retention_tier TEXT DEFAULT 'none'")
-                    # Migrate existing data based on tier
-                    conn.execute("""
-                        UPDATE server_subscriptions 
-                        SET retention_tier = '7day' 
-                        WHERE tier = 'basic'
-                    """)
-                    conn.execute("""
-                        UPDATE server_subscriptions 
-                        SET retention_tier = '30day' 
-                        WHERE tier = 'pro'
-                    """)
-                    print("✅ Migration completed: retention_tier column added and data migrated")
-                else:
-                    print("✅ Migration check: retention_tier column already exists")
-                
-                conn.commit()
-                return True
-                
-        except psycopg2.OperationalError as e:
-            if "locked" in str(e).lower() and attempt < max_retries - 1:
-                wait_time = (2 ** attempt) + random.uniform(0, 1)
-                print(f"⏳ Database locked on migration attempt {attempt + 1}, retrying in {wait_time:.1f}s...")
-                time.sleep(wait_time)
-                continue
-            else:
-                print(f"❌ Migration failed after {attempt + 1} attempts: {e}")
-                raise
-        except Exception as e:
-            print(f"❌ Migration error: {e}")
-            raise
-    
-    return False
 
 def init_db():
     """PostgreSQL schema already exists - no initialization needed"""
