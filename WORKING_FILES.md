@@ -13,6 +13,8 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `scheduler.py` - 2026-01-18 - Claude Code
+- `bot.py` - 2026-01-18 - Claude Code
 - `docs/audit-report.md` - 2026-01-18 - Claude Code
 
 ---
