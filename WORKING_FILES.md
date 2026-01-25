@@ -7,12 +7,13 @@
 
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
-- `templates/` - Gemini - 2026-01-18 - UI/Frontend Audit
+- `templates/` - Gemini - 2026-01-25 - Phase 2 improvements (setup wizard, UI streamlining, purchase flow)
 
 ---
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `templates/` - 2026-01-25 - Gemini (kiosk UI fixes)
 - `app.py` - 2026-01-25 - Claude Code (kiosk security & performance fixes)
 - `email_utils.py` - 2026-01-25 - Claude Code (kiosk security & performance fixes)
 - `bot.py` - 2026-01-18 - Claude Code (dead code removal)
