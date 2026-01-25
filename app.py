@@ -1932,6 +1932,32 @@ def check_premium_api_access(guild_id, feature_name='advanced_settings'):
         return jsonify({'success': False, 'error': 'Premium feature - please upgrade', 'premium_required': True}), 403
 
 
+@app.route("/setup-wizard")
+@require_auth
+def setup_wizard(user_session):
+    """Guided setup wizard for first-time server admins"""
+    guild_id = request.args.get('guild_id')
+
+    # Validate guild_id parameter
+    if not guild_id or not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+
+    # Verify user has admin access to this guild
+    context, error = get_server_page_context(user_session, guild_id, 'setup-wizard')
+    if error:
+        return error
+
+    # Only admins can access setup wizard
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+
+    # Render setup wizard with guild context
+    return render_template('setup_wizard.html',
+                          guild_id=guild_id,
+                          guild_name=context.get('guild_name', 'Unknown Server'),
+                          user_session=user_session)
+
+
 @app.route("/dashboard/server/<guild_id>")
 @require_auth
 def dashboard_server_overview(user_session, guild_id):
