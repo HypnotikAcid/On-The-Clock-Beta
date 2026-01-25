@@ -12,7 +12,14 @@ All tasks are **frontend-only** (templates/, CSS, JavaScript). No `app.py` or `b
 
 ---
 
-## Task 1: Guided Setup Wizard (3-5 days)
+## Task 1: Guided Setup Wizard (3-5 days) ✅ COMPLETE
+
+### Status
+✅ **COMPLETED** - Commit `3cef46c`
+- Created setup_wizard.html and 5 step templates
+- Implemented JavaScript for multi-step navigation
+- Integrated trigger logic into dashboard_base.html
+- Mobile responsive with Neon Cyber styling
 
 ### Goal
 Create a step-by-step onboarding wizard for first-time server admins.
@@ -83,7 +90,12 @@ window.onload = function() {
 
 ---
 
-## Task 2: UI Streamlining (1 week)
+## Task 2: UI Streamlining (1 week) 🚧 IN PROGRESS
+
+### Status
+🚧 **IN PROGRESS** - Starting now
+- Previous attempt reverted due to power loss
+- Restarting with Task 2A
 
 ### Goal
 Declutter the main dashboard by grouping settings and improving layout.

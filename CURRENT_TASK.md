@@ -2,7 +2,24 @@
 
 **Date**: 2026-01-25
 **Agent**: Gemini (UI/Frontend Specialist)
-**Task**: ✅ COMPLETED - Kiosk Frontend UI/UX Fixes
+**Task**: 🚧 IN PROGRESS - Phase 2 Task 2: UI Streamlining
+
+---
+
+## 🎯 NEXT ACTION FOR GEMINI
+
+**Start with Task 2A: Create "Advanced Settings" Section**
+
+**File to edit**: `templates/server_dashboard.html`
+
+**What to do**:
+1. Find the scattered settings sections (role management, email settings, kiosk settings, retention)
+2. Group them into a collapsible `<details>` section with class `advanced-settings`
+3. Add proper styling to match the Neon Cyber theme
+4. Test in browser to ensure it works
+5. Commit with message: "Group dashboard settings into Advanced Settings section"
+
+**Reference**: See `GEMINI_PHASE2_PLAN.md` Task 2A for full details and code examples
 
 ---
 
