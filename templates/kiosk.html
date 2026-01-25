@@ -140,6 +140,26 @@
             color: #C9D1D9;
         }
 
+        .employee-catchphrase {
+            font-size: 12px;
+            font-style: italic;
+            color: #8B949E;
+            min-height: 16px;
+            text-align: center;
+        }
+
+        .employee-stickers {
+            display: flex;
+            gap: 5px;
+            min-height: 20px;
+            margin-top: 5px;
+        }
+
+        .employee-sticker {
+            font-size: 18px;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+        }
+
         .employee-status {
             font-size: 12px;
             padding: 4px 12px;
@@ -158,25 +178,19 @@
         }
 
         /* Accent color customization for employee buttons - ONLY when clocked in */
-        .employee-btn.clocked-in.accent-cyan { border-color: rgba(0, 255, 255, 0.5); box-shadow: 0 0 15px rgba(0, 255, 255, 0.3); }
-        .employee-btn.clocked-in.accent-magenta { border-color: rgba(255, 0, 255, 0.5); box-shadow: 0 0 15px rgba(255, 0, 255, 0.3); }
-        .employee-btn.clocked-in.accent-gold { border-color: rgba(212, 175, 55, 0.5); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); }
-        .employee-btn.clocked-in.accent-green { border-color: rgba(0, 255, 65, 0.5); box-shadow: 0 0 15px rgba(0, 255, 65, 0.3); }
-        .employee-btn.clocked-in.accent-blue { border-color: rgba(0, 119, 255, 0.5); box-shadow: 0 0 15px rgba(0, 119, 255, 0.3); }
-        .employee-btn.clocked-in.accent-red { border-color: rgba(255, 68, 68, 0.5); box-shadow: 0 0 15px rgba(255, 68, 68, 0.3); }
-        .employee-btn.clocked-in.accent-purple { border-color: rgba(157, 0, 255, 0.5); box-shadow: 0 0 15px rgba(157, 0, 255, 0.3); }
-        .employee-btn.clocked-in.accent-teal { border-color: rgba(0, 245, 255, 0.5); box-shadow: 0 0 15px rgba(0, 245, 255, 0.3); }
-        .employee-btn.clocked-in.accent-orange { border-color: rgba(255, 165, 0, 0.5); box-shadow: 0 0 15px rgba(255, 165, 0, 0.3); }
-        
-        .employee-btn.clocked-in.accent-cyan:hover { border-color: rgba(0, 255, 255, 0.8); box-shadow: 0 0 25px rgba(0, 255, 255, 0.5); }
-        .employee-btn.clocked-in.accent-magenta:hover { border-color: rgba(255, 0, 255, 0.8); box-shadow: 0 0 25px rgba(255, 0, 255, 0.5); }
-        .employee-btn.clocked-in.accent-gold:hover { border-color: rgba(212, 175, 55, 0.8); box-shadow: 0 0 25px rgba(212, 175, 55, 0.5); }
-        .employee-btn.clocked-in.accent-green:hover { border-color: rgba(0, 255, 65, 0.8); box-shadow: 0 0 25px rgba(0, 255, 65, 0.5); }
-        .employee-btn.clocked-in.accent-blue:hover { border-color: rgba(0, 119, 255, 0.8); box-shadow: 0 0 25px rgba(0, 119, 255, 0.5); }
-        .employee-btn.clocked-in.accent-red:hover { border-color: rgba(255, 68, 68, 0.8); box-shadow: 0 0 25px rgba(255, 68, 68, 0.5); }
-        .employee-btn.clocked-in.accent-purple:hover { border-color: rgba(157, 0, 255, 0.8); box-shadow: 0 0 25px rgba(157, 0, 255, 0.5); }
-        .employee-btn.clocked-in.accent-teal:hover { border-color: rgba(0, 245, 255, 0.8); box-shadow: 0 0 25px rgba(0, 245, 255, 0.5); }
-        .employee-btn.clocked-in.accent-orange:hover { border-color: rgba(255, 165, 0, 0.8); box-shadow: 0 0 25px rgba(255, 165, 0, 0.5); }
+        .employee-btn.clocked-in[data-accent="cyan"] { border: 2px solid cyan !important; box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); }
+        .employee-btn.clocked-in[data-accent="magenta"] { border: 2px solid magenta !important; box-shadow: 0 0 20px rgba(255, 0, 255, 0.4); }
+        .employee-btn.clocked-in[data-accent="gold"] { border: 2px solid #D4AF37 !important; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
+        .employee-btn.clocked-in[data-accent="lime"] { border: 2px solid #00FF00 !important; box-shadow: 0 0 20px rgba(0, 255, 0, 0.4); }
+        .employee-btn.clocked-in[data-accent="purple"] { border: 2px solid #800080 !important; box-shadow: 0 0 20px rgba(128, 0, 128, 0.4); }
+        .employee-btn.clocked-in[data-accent="orange"] { border: 2px solid #FFA500 !important; box-shadow: 0 0 20px rgba(255, 165, 0, 0.4); }
+        .employee-btn.clocked-in[data-accent="pink"] { border: 2px solid #FFC0CB !important; box-shadow: 0 0 20px rgba(255, 192, 203, 0.4); }
+
+        .employee-btn.clocked-in[data-accent]:hover {
+            transform: scale(1.03);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3); /* Generic bright glow on hover */
+        }
+
 
         /* Background customization for employee buttons - ONLY when clocked in */
         .employee-btn.clocked-in.bg-sunset { background: linear-gradient(135deg, rgba(255, 100, 50, 0.25) 0%, rgba(255, 50, 100, 0.25) 50%, rgba(150, 50, 255, 0.25) 100%); }
@@ -258,6 +272,12 @@
             background: rgba(212, 175, 55, 0.2);
             border-color: rgba(212, 175, 55, 0.6);
             transform: scale(1.05);
+        }
+
+        .numpad-btn--active {
+            transform: scale(0.95);
+            background: rgba(212, 175, 55, 0.3);
+            border-color: rgba(212, 175, 55, 0.8);
         }
 
         .numpad-btn.special {
@@ -353,18 +373,17 @@
             background: rgba(139, 148, 158, 0.5);
         }
 
-        /* Email Alert Badge */
         .employee-btn {
             position: relative;
         }
 
-        .email-alert-badge {
+        .alert-badge {
             position: absolute;
             top: 10px;
             right: 10px;
             width: 24px;
             height: 24px;
-            background: #EF4444;
+            background: #F59E0B; /* Yellow for general alerts */
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -373,6 +392,10 @@
             font-weight: bold;
             color: white;
             animation: pulseBadge 1.5s ease-in-out infinite;
+        }
+
+        .alert-badge.pin-lockout {
+            background: #EF4444; /* Red for PIN lockout */
         }
 
         @keyframes pulseBadge {
@@ -1162,6 +1185,10 @@
             animation: spin 1s linear infinite;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -1226,11 +1253,19 @@
             .employee-name {
                 font-size: 14px;
             }
+
+            .numpad {
+                gap: 1.2rem;
+                grid-template-columns: repeat(3, 1fr);
+                justify-content: center;
+                max-width: 320px;
+                margin: 0 auto;
+            }
             
             .numpad-btn {
-                width: 70px;
-                height: 70px;
-                font-size: 24px;
+                width: 75px;
+                height: 75px;
+                font-size: 2rem;
             }
         }
     </style>
@@ -1269,19 +1304,19 @@
                 <div class="pin-dot" id="dot4"></div>
             </div>
             <div class="pin-error" id="pinError"></div>
-            <div class="numpad">
-                <button class="numpad-btn" onclick="enterDigit('1')">1</button>
-                <button class="numpad-btn" onclick="enterDigit('2')">2</button>
-                <button class="numpad-btn" onclick="enterDigit('3')">3</button>
-                <button class="numpad-btn" onclick="enterDigit('4')">4</button>
-                <button class="numpad-btn" onclick="enterDigit('5')">5</button>
-                <button class="numpad-btn" onclick="enterDigit('6')">6</button>
-                <button class="numpad-btn" onclick="enterDigit('7')">7</button>
-                <button class="numpad-btn" onclick="enterDigit('8')">8</button>
-                <button class="numpad-btn" onclick="enterDigit('9')">9</button>
-                <button class="numpad-btn special" onclick="clearPin()">Clear</button>
-                <button class="numpad-btn" onclick="enterDigit('0')">0</button>
-                <button class="numpad-btn special delete" onclick="deleteDigit()">⌫</button>
+            <div class="numpad" id="numpad">
+                <button class="numpad-btn" data-value="1">1</button>
+                <button class="numpad-btn" data-value="2">2</button>
+                <button class="numpad-btn" data-value="3">3</button>
+                <button class="numpad-btn" data-value="4">4</button>
+                <button class="numpad-btn" data-value="5">5</button>
+                <button class="numpad-btn" data-value="6">6</button>
+                <button class="numpad-btn" data-value="7">7</button>
+                <button class="numpad-btn" data-value="8">8</button>
+                <button class="numpad-btn" data-value="9">9</button>
+                <button class="numpad-btn special" data-value="clear">Clear</button>
+                <button class="numpad-btn" data-value="0">0</button>
+                <button class="numpad-btn special delete" data-value="delete">⌫</button>
             </div>
             <button class="forgot-pin-btn" onclick="showForgotPinModal()">Forgot PIN?</button>
         </div>
@@ -1529,23 +1564,30 @@
         function renderEmployees(employees) {
             const grid = document.getElementById('employeeGrid');
             grid.innerHTML = employees.map(emp => {
-                // Apply customization classes ONLY when clocked in AND customization enabled
-                let customClasses = '';
+                let accentAttribute = '';
+                let backgroundClass = '';
                 if (allowKioskCustomization && emp.is_clocked_in) {
-                    customClasses = `accent-${emp.accent_color || 'cyan'}`;
+                    accentAttribute = `data-accent="${emp.accent_color || 'cyan'}"`;
                     if (emp.profile_background && emp.profile_background !== 'default') {
-                        customClasses += ` bg-${emp.profile_background}`;
+                        backgroundClass = `bg-${emp.profile_background}`;
                     }
                 }
+                
+                const stickersHtml = (emp.selected_stickers || []).map(s => 
+                    `<span class="employee-sticker">${stickerEmojis[s] || '🏷️'}</span>`
+                ).join('');
+
                 return `
-                <button class="employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''} ${customClasses}" onclick="selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-                    ${emp.has_alerts ? '<div class="email-alert-badge">!</div>' : ''}
+                <button class="employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''} ${backgroundClass}" ${accentAttribute} onclick="selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+                    ${emp.has_alerts ? '<div class="alert-badge pin-lockout">!</div>' : ''}
                     <div class="employee-avatar">
                         ${emp.avatar_url ? `<img src="${emp.avatar_url}" alt="${emp.display_name}">` : emp.display_name.charAt(0).toUpperCase()}
                     </div>
                     <div class="employee-name">${escapeHtml(emp.display_name)}</div>
+                    <div class="employee-catchphrase">${emp.catchphrase ? `"${escapeHtml(emp.catchphrase)}"` : ''}</div>
+                    <div class="employee-stickers">${stickersHtml}</div>
                     <div class="employee-status ${emp.is_clocked_in ? 'in' : 'out'}">
-                        ${emp.is_clocked_in ? 'Clocked In' : 'Clocked Out'}
+                        ${emp.is_clocked_in ? '✅ Clocked In' : '❌ Clocked Out'}
                     </div>
                 </button>
             `;
@@ -1572,10 +1614,37 @@
             showScreen('pin');
         }
 
-        function showScreen(screen) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screen + 'Screen').classList.add('active');
-        }
+        let numpadDebounce = false;
+        const numpad = document.getElementById('numpad');
+
+        numpad.addEventListener('click', (e) => {
+            if (numpadDebounce) return;
+            const target = e.target.closest('.numpad-btn');
+            if (!target) return;
+
+            const value = target.dataset.value;
+            if (!value) return;
+
+            // Visual feedback
+            target.classList.add('numpad-btn--active');
+            setTimeout(() => {
+                target.classList.remove('numpad-btn--active');
+            }, 150);
+
+            // Debounce
+            numpadDebounce = true;
+            setTimeout(() => {
+                numpadDebounce = false;
+            }, 200); // 200ms debounce period
+
+            if (value === 'clear') {
+                clearPin();
+            } else if (value === 'delete') {
+                deleteDigit();
+            } else {
+                enterDigit(value);
+            }
+        });
 
         function enterDigit(digit) {
             if (pinBuffer.length < 4) {
@@ -1835,17 +1904,11 @@
             const inBtn = document.getElementById('clockInBtn');
             const outBtn = document.getElementById('clockOutBtn');
             
-            if (isClockedIn) {
-                inBtn.style.display = 'none';
-                outBtn.style.display = 'block';
-                inBtn.disabled = true;
-                outBtn.disabled = false;
-            } else {
-                inBtn.style.display = 'block';
-                outBtn.style.display = 'none';
-                inBtn.disabled = false;
-                outBtn.disabled = true;
-            }
+            inBtn.classList.toggle('hidden', isClockedIn);
+            outBtn.classList.toggle('hidden', !isClockedIn);
+            
+            inBtn.disabled = isClockedIn;
+            outBtn.disabled = !isClockedIn;
         }
 
         let lastClockOutSessionId = null;
@@ -1867,19 +1930,20 @@
                 showLoading(false);
                 
                 if (data.success) {
-                    // Refetch state from server to get authoritative clock status
+                    // Immediately refetch the employee list in the background to update the grid
+                    loadEmployees();
+
+                    // Refetch state from server to get authoritative clock status for the action screen
                     try {
                         const infoResponse = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
                         const infoData = await infoResponse.json();
                         if (infoData.success) {
-                            // Update state from server (authoritative source)
                             if (currentEmployee) {
                                 currentEmployee.is_clocked_in = infoData.is_clocked_in;
                             }
                             renderInfoPanel(infoData);
                             updateActionButtons(infoData.is_clocked_in);
                         } else {
-                            // Fallback to expected state if refetch fails
                             if (currentEmployee) {
                                 currentEmployee.is_clocked_in = (action === 'in');
                             }
@@ -1887,7 +1951,6 @@
                         }
                     } catch (infoErr) {
                         console.error('Failed to refresh info panel:', infoErr);
-                        // Fallback to expected state if refetch fails
                         if (currentEmployee) {
                             currentEmployee.is_clocked_in = (action === 'in');
                         }
@@ -1896,12 +1959,8 @@
                     
                     if (action === 'in') {
                         showMessage('success', 'Clocked In Successfully!');
-                        // Auto-logout after 3 seconds for clock-in
-                        setTimeout(() => {
-                            logout();
-                        }, 3000);
+                        setTimeout(logout, 3000);
                     } else {
-                        // For clock-out, save session ID and show email modal
                         lastClockOutSessionId = data.session_id || null;
                         showEmailReceiptModal();
                     }
