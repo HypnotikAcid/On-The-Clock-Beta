@@ -8890,6 +8890,7 @@ def api_kiosk_employees(guild_id):
                 )
                 SELECT ep.user_id, ep.display_name, ep.first_name, ep.last_name, ep.avatar_url,
                        ep.position, ep.department, ep.email, ep.timesheet_email, ep.accent_color, ep.profile_background,
+                       ep.catchphrase, ep.selected_stickers,
                        EXISTS(SELECT 1 FROM employee_pins WHERE guild_id = %s AND user_id = ep.user_id) as has_pin,
                        EXISTS(SELECT 1 FROM timeclock_sessions WHERE guild_id = %s AND user_id::text = ep.user_id::text AND clock_out_time IS NULL) as is_clocked_in,
                        COALESCE(pc.count, 0) as pending_requests,
@@ -8922,7 +8923,9 @@ def api_kiosk_employees(guild_id):
                 'pending_requests': pending_requests,
                 'missing_punches': missing_punches,
                 'accent_color': emp.get('accent_color') or 'cyan',
-                'profile_background': emp.get('profile_background') or 'default'
+                'profile_background': emp.get('profile_background') or 'default',
+                'catchphrase': emp.get('catchphrase') or '',
+                'selected_stickers': _parse_stickers(emp.get('selected_stickers'))
             })
         
         return jsonify({
@@ -8942,9 +8945,18 @@ def api_kiosk_create_pin(guild_id):
         data = request.get_json()
         user_id = data.get('user_id')
         pin = data.get('pin')
-        
+
         if not user_id or not pin or len(pin) != 4 or not pin.isdigit():
             return jsonify({'success': False, 'error': 'Invalid PIN format'}), 400
+
+        # Demo server protection - fake success, no DB write
+        if str(guild_id) == DEMO_SERVER_ID:
+            app.logger.info(f"Demo server: Blocking PIN creation for guild {guild_id}")
+            return jsonify({
+                'success': True,
+                'message': 'PIN created successfully',
+                'demo_note': 'In live server: PIN would be saved to database'
+            }), 200
         
         # Hash the PIN
         pin_hash = hashlib.sha256(f"{guild_id}:{user_id}:{pin}".encode()).hexdigest()
@@ -9257,7 +9269,15 @@ def api_kiosk_forgot_pin(guild_id):
         
         # Log the forgot PIN request
         app.logger.info(f"FORGOT PIN REQUEST: User {display_name} (ID: {user_id}) in guild {guild_id} requested PIN reset")
-        
+
+        # Demo server protection - no emails in demo mode
+        if str(guild_id) == DEMO_SERVER_ID:
+            app.logger.info(f"Demo server: Blocking forgot PIN email for guild {guild_id}")
+            return jsonify({
+                'success': True,
+                'message': 'PIN reset request sent to admins'
+            }), 200
+
         # Try to send notification email to verified report recipients
         try:
             with get_db() as conn:
@@ -9309,9 +9329,21 @@ def api_kiosk_clock(guild_id):
         data = request.get_json()
         user_id = data.get('user_id')
         action = data.get('action')  # 'in' or 'out'
-        
+
         if not user_id or action not in ['in', 'out']:
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
+
+        # Demo server protection - fake success, no DB write
+        if str(guild_id) == DEMO_SERVER_ID:
+            from datetime import timezone
+            app.logger.info(f"Demo server: Blocking clock {action} for guild {guild_id}")
+            return jsonify({
+                'success': True,
+                'message': f'Clocked {action} successfully',
+                'demo_note': f'In live server: Employee would be clocked {action} with timestamp saved to database',
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'action': action
+            }), 200
         
         now = datetime.now()
         
@@ -9370,14 +9402,24 @@ def api_kiosk_employee_email(guild_id, user_id):
         try:
             data = request.get_json()
             email = data.get('email', '').strip()
-            
+
             if not email:
                 return jsonify({'success': False, 'error': 'Email is required'}), 400
-            
+
             # Basic email validation
             import re
             if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
                 return jsonify({'success': False, 'error': 'Invalid email format'}), 400
+
+            # Demo server protection - fake success, no DB write
+            if str(guild_id) == DEMO_SERVER_ID:
+                app.logger.info(f"Demo server: Blocking email update for guild {guild_id}")
+                return jsonify({
+                    'success': True,
+                    'message': 'Email address updated successfully',
+                    'demo_note': f'In live server: Email {email} would be saved to employee profile',
+                    'email': email
+                }), 200
             
             with get_db() as conn:
                 # Update both email and timesheet_email for consistency
@@ -9430,7 +9472,15 @@ def api_kiosk_send_shift_email(guild_id):
         
         if not user_id or not email:
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
-        
+
+        # Demo server protection - no emails in demo mode
+        if str(guild_id) == DEMO_SERVER_ID:
+            app.logger.info(f"Demo server: Blocking shift email for guild {guild_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Shift summary email sent successfully'
+            }), 200
+
         with get_db() as conn:
             # Get guild info
             cursor = conn.execute("""
@@ -9576,9 +9626,28 @@ This is an automated message from Time Warden.
             )
             app.logger.info(f"Shift summary email sent to {email} for user {user_id}")
             return jsonify({'success': True})
+        except ValueError as val_err:
+            # Missing auth token or invalid email
+            app.logger.error(f"Email validation error: {val_err}")
+            return jsonify({
+                'success': False,
+                'error': 'Email service not configured. Please contact support.',
+                'code': 'EMAIL_CONFIG_ERROR'
+            }), 500
+        except asyncio.TimeoutError:
+            app.logger.error("Email send timeout")
+            return jsonify({
+                'success': False,
+                'error': 'Email service timeout. Please try again.',
+                'code': 'EMAIL_TIMEOUT'
+            }), 500
         except Exception as email_err:
             app.logger.error(f"Failed to send shift email: {email_err}")
-            return jsonify({'success': False, 'error': 'Failed to send email'}), 500
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send email. Please check email address.',
+                'code': 'EMAIL_SEND_FAILED'
+            }), 500
         finally:
             loop.close()
             
@@ -9736,17 +9805,27 @@ def api_kiosk_submit_adjustment(guild_id):
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
-        
+
         user_id = data.get('user_id')
         reason = data.get('reason', '').strip()
         changes = data.get('changes', [])
-        
+
         if not user_id:
             return jsonify({'success': False, 'error': 'User ID is required'}), 400
         if not reason:
             return jsonify({'success': False, 'error': 'Please provide a reason for the adjustment'}), 400
         if not changes or len(changes) == 0:
             return jsonify({'success': False, 'error': 'No changes provided'}), 400
+
+        # Demo server protection - fake success, no DB write
+        if str(guild_id) == DEMO_SERVER_ID:
+            app.logger.info(f"Demo server: Blocking adjustment submission for guild {guild_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Time adjustment request submitted',
+                'demo_note': 'In live server: Request would be submitted to admin for approval',
+                'request_id': 'DEMO-001'
+            }), 200
         
         user_id = int(user_id)
         guild_id_int = int(guild_id)

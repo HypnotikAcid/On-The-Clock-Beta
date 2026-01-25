@@ -162,8 +162,11 @@ class ReplitMailSender:
             "Content-Type": "application/json",
             "X_REPLIT_TOKEN": self.auth_token
         }
-        
-        async with aiohttp.ClientSession() as session:
+
+        # Set 10 second timeout to prevent indefinite hangs
+        timeout = aiohttp.ClientTimeout(total=10)
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
                 async with session.post(
                     self.api_endpoint,

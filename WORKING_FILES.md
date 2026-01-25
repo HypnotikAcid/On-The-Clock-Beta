@@ -8,6 +8,8 @@
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
 - `templates/` - Gemini - 2026-01-18 - UI/Frontend Audit
+- `app.py` - Claude Code - 2026-01-25 - Kiosk security & performance fixes
+- `email_utils.py` - Claude Code - 2026-01-25 - Kiosk security & performance fixes
 
 ---
 
