@@ -8,17 +8,15 @@
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
 - `templates/` - Gemini - 2026-01-18 - UI/Frontend Audit
-- `app.py` - Claude Code - 2026-01-25 - Kiosk security & performance fixes
-- `email_utils.py` - Claude Code - 2026-01-25 - Kiosk security & performance fixes
 
 ---
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `app.py` - 2026-01-25 - Claude Code (kiosk security & performance fixes)
+- `email_utils.py` - 2026-01-25 - Claude Code (kiosk security & performance fixes)
 - `bot.py` - 2026-01-18 - Claude Code (dead code removal)
 - `docs/audit-report.md` - 2026-01-18 - Claude Code (updated with resolutions)
-- `scheduler.py` - 2026-01-18 - Claude Code
-- `bot.py` - 2026-01-18 - Claude Code
 
 ---
 
