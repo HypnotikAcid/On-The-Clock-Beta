@@ -1958,6 +1958,26 @@ def setup_wizard(user_session):
                           user_session=user_session)
 
 
+@app.route("/templates/setup_wizard_steps/<step_file>")
+@require_auth
+def setup_wizard_step(user_session, step_file):
+    """Serve setup wizard step HTML files for AJAX loading"""
+    # Validate step file name (only allow step1.html through step5.html)
+    if not step_file.startswith('step') or not step_file.endswith('.html'):
+        return "Invalid step file", 404
+
+    # Extract step number and validate range
+    try:
+        step_num = int(step_file.replace('step', '').replace('.html', ''))
+        if step_num < 1 or step_num > 5:
+            return "Invalid step number", 404
+    except ValueError:
+        return "Invalid step file", 404
+
+    # Render the step template
+    return render_template(f'setup_wizard_steps/{step_file}')
+
+
 @app.route("/dashboard/server/<guild_id>")
 @require_auth
 def dashboard_server_overview(user_session, guild_id):
