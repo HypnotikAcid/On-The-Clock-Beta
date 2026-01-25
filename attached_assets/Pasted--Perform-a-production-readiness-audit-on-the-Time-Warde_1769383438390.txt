@@ -1,0 +1,84 @@
+ Perform a production readiness audit on the Time Warden  
+  codebase. Focus on the recent Phase 2 changes (commits   
+  3cef46c through 510c173) but also check overall project  
+  health.                                                  
+                                                           
+  ## Review Areas:                                         
+                                                           
+  ### 1. Security                                          
+  - Check for XSS vulnerabilities in new templates         
+  (dashboard.html, landing.html, dashboard_purchase.html,  
+  setup_wizard.html)                                       
+  - Verify CSRF protection on all forms                    
+  - Check for SQL injection risks in any new queries       
+  - Review authentication/authorization on new routes      
+  - Check if demo server ID (1419894879894507661) is       
+  properly isolated from real data                         
+  - Verify no secrets/tokens are exposed in templates or   
+  client-side code                                         
+                                                           
+  ### 2. Frontend Issues                                   
+  - Check for JavaScript errors in setup_wizard.html       
+  - Verify all CSS is properly scoped (no conflicts)       
+  - Check if localStorage usage in setup wizard is secure  
+  - Verify all links and buttons have proper targets       
+  - Check for broken image/asset references                
+  - Verify mobile media queries work correctly             
+                                                           
+  ### 3. Performance                                       
+  - Check for N+1 query issues in dashboard routes         
+  - Verify no blocking operations in Flask routes          
+  - Check if new templates have proper caching headers     
+  - Look for memory leaks in JavaScript                    
+  - Verify email queue isn't being overwhelmed             
+                                                           
+  ### 4. Error Handling                                    
+  - Check if setup wizard handles API failures gracefully  
+  - Verify purchase flow has proper error messages         
+  - Check if advanced settings collapse/expand handles     
+  errors                                                   
+  - Verify demo button handles invalid guild_id            
+                                                           
+  ### 5. Data Integrity                                    
+  - Verify the new employee_archive.original_profile_data  
+  column migration is safe                                 
+  - Check if setup wizard can corrupt server settings      
+  - Verify purchase flow doesn't allow duplicate payments  
+                                                           
+  ### 6. Breaking Changes                                  
+  - Check if removing 2,425 lines from bot.py broke any    
+  functionality                                            
+  - Verify setup wizard doesn't conflict with existing     
+  onboarding                                               
+  - Check if new Advanced Settings breaks existing admin   
+  workflows                                                
+  - Verify purchase page changes don't break Stripe        
+  integration                                              
+                                                           
+  ### 7. Production Deployment                             
+  - Check if there are any database migrations that need to
+   run                                                     
+  - Verify environment variables are properly configured   
+  - Check if new routes need rate limiting                 
+  - Verify health check endpoints still work               
+                                                           
+  ## Specific Files to Review:                             
+  - bot.py (2,425 lines removed)                           
+  - templates/setup_wizard.html and                        
+  setup_wizard_steps/*.html                                
+  - templates/dashboard.html (Advanced Settings changes)   
+  - templates/landing.html (demo button)                   
+  - templates/dashboard_purchase.html (comparison layout)  
+  - static/css/dashboard.css (new styles)                  
+  - migrations.py (employee_archive column)                
+                                                           
+  ## Output Format:                                        
+  For each issue found, provide:                           
+  1. Severity: CRITICAL / HIGH / MEDIUM / LOW              
+  2. File and line number                                  
+  3. Description of the issue                              
+  4. Recommended fix                                       
+  5. Risk if not fixed                                     
+                                                           
+  If everything looks good, confirm production readiness   
+  and list any recommended monitoring/testing.
