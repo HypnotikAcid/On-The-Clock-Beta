@@ -1751,7 +1751,11 @@ def dashboard(user_session):
         all_guilds = get_all_user_guilds(user_session)
         admin_guilds = all_guilds['admin_guilds']
         employee_guilds = all_guilds['employee_guilds']
-        
+
+        # Check if user is bot owner
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        is_bot_owner = str(user_session.get('id')) == str(bot_owner_id)
+
         # Create a modified user session with both admin and employee guilds
         dashboard_data = {
             **user_session,
@@ -1759,7 +1763,8 @@ def dashboard(user_session):
             'admin_guilds': admin_guilds,
             'employee_guilds': employee_guilds,
             'total_guilds': len(user_session.get('guilds', [])),
-            'filtered_count': len(admin_guilds) + len(employee_guilds)
+            'filtered_count': len(admin_guilds) + len(employee_guilds),
+            'is_bot_owner': is_bot_owner
         }
         
         app.logger.info(f"Showing {len(admin_guilds)} admin guilds and {len(employee_guilds)} employee-only guilds")

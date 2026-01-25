@@ -151,6 +151,33 @@
                 </div>
                 {% else %}
                 <div class="tiles-grid">
+                    <!-- Bot Owner Quick Access (Owner Only) -->
+                    {% if user.is_bot_owner %}
+                    <div class="tile" id="owner-quick-access-tile" style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 134, 11, 0.1)); border: 1px solid rgba(212, 175, 55, 0.3);">
+                        <h2><span class="tile-icon">👑</span>Owner Quick Access</h2>
+                        <p style="color: #D4AF37; font-size: 13px; margin-bottom: 15px;">
+                            Quick kiosk access for troubleshooting
+                        </p>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 5px;">Enter Guild ID:</label>
+                            <input type="text" id="owner-guild-id-input" placeholder="123456789012345678" style="width: 100%; padding: 10px; background: rgba(30, 35, 45, 0.8); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px; color: #C9D1D9; font-family: 'Courier New', monospace;">
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button onclick="goToOwnerKiosk()" style="flex: 1; padding: 10px 15px; background: linear-gradient(135deg, #00FFFF, #0099FF); color: #0a0e1a; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
+                                🖥️ Go to Kiosk
+                            </button>
+                            <button onclick="goToOwnerDashboard()" style="flex: 1; padding: 10px 15px; background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 153, 255, 0.2)); color: #00FFFF; border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
+                                ⚙️ Go to Dashboard
+                            </button>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: rgba(0, 255, 255, 0.05); border-left: 3px solid #00FFFF; border-radius: 4px;">
+                            <p style="font-size: 11px; color: #8B949E; margin: 0;">
+                                💡 <strong>Tip:</strong> This bypasses normal permission checks. Use for support/troubleshooting only.
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Managed Servers Tile (Admin) -->
                     <div class="tile" id="managed-servers-tile">
                         <h2><span class="tile-icon">🏢</span>Managed Servers ({{ user.admin_guilds|length }})</h2>
@@ -1576,6 +1603,43 @@
                 }, 100);
             });
         })();
+
+        // Owner Quick Access Functions
+        function goToOwnerKiosk() {
+            const guildId = document.getElementById('owner-guild-id-input').value.trim();
+            if (!guildId) {
+                alert('Please enter a Guild ID');
+                return;
+            }
+            if (!/^\d{17,20}$/.test(guildId)) {
+                alert('Invalid Guild ID format. Must be 17-20 digits.');
+                return;
+            }
+            window.location.href = `/kiosk/${guildId}`;
+        }
+
+        function goToOwnerDashboard() {
+            const guildId = document.getElementById('owner-guild-id-input').value.trim();
+            if (!guildId) {
+                alert('Please enter a Guild ID');
+                return;
+            }
+            if (!/^\d{17,20}$/.test(guildId)) {
+                alert('Invalid Guild ID format. Must be 17-20 digits.');
+                return;
+            }
+            window.location.href = `/dashboard/server/${guildId}`;
+        }
+
+        // Allow Enter key to submit
+        const ownerInput = document.getElementById('owner-guild-id-input');
+        if (ownerInput) {
+            ownerInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    goToOwnerKiosk();
+                }
+            });
+        }
     </script>
 </body>
 
