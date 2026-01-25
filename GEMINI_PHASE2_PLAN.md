@@ -90,12 +90,13 @@ window.onload = function() {
 
 ---
 
-## Task 2: UI Streamlining (1 week) 🚧 IN PROGRESS
+## Task 2: UI Streamlining (1 week) ✅ COMPLETE
 
 ### Status
-🚧 **IN PROGRESS** - Starting now
-- Previous attempt reverted due to power loss
-- Restarting with Task 2A
+✅ **COMPLETED** - Commits `6324de5`, `65ce3ee`
+- Task 2A: Advanced Settings section created
+- Task 2B: Demo button added to landing page
+- Task 2C: Dashboard layout improved
 
 ### Goal
 Declutter the main dashboard by grouping settings and improving layout.
@@ -200,7 +201,13 @@ Declutter the main dashboard by grouping settings and improving layout.
 
 ---
 
-## Task 3: Purchase Flow Streamlining (2-3 days)
+## Task 3: Purchase Flow Streamlining (2-3 days) ✅ COMPLETE
+
+### Status
+✅ **COMPLETED** - Commit `8a91e69`
+- Overhauled purchase page with Free vs Pro comparison
+- Added loading states to upgrade button
+- Improved pricing card design
 
 ### Goal
 Make the upgrade process smoother - **NO BACKEND CHANGES NEEDED**.
@@ -259,7 +266,13 @@ function handleUpgrade() {
 
 ---
 
-## Task 4: Mobile Responsiveness (Throughout)
+## Task 4: Mobile Responsiveness (Throughout) ✅ COMPLETE
+
+### Status
+✅ **COMPLETED** - Commit `8241130`
+- Added mobile media queries
+- Ensured responsive layouts for all new sections
+- Tested breakpoints for mobile/tablet
 
 ### Goal
 Ensure all improvements work on mobile/tablet.
