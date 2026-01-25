@@ -11,7 +11,7 @@ import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from logging.handlers import RotatingFileHandler
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Any
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from contextlib import contextmanager
@@ -61,7 +61,7 @@ def _setup_email_file_logger():
 
 email_file_logger = _setup_email_file_logger()
 
-def log_email_to_file(event_type: str, recipients: list, subject: str, context: dict = None, success: bool = True, error: str = None):
+def log_email_to_file(event_type: str, recipients: list, subject: str, context: dict | None = None, success: bool = True, error: str | None = None):
     """Write email event to persistent log file"""
     log_entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -137,11 +137,11 @@ class ReplitMailSender:
             raise ValueError("Either text or html body is required")
         
         # Prepare payload
-        payload = {
+        payload: dict[str, Any] = {
             "to": to,
             "subject": subject
         }
-        
+
         if text:
             payload["text"] = text
         if html:

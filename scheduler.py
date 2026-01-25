@@ -22,11 +22,11 @@ discord_bot = None
 
 # Track guilds that have been warned in the current 24h cycle to prevent spam
 # Format: {guild_id: last_warning_timestamp}
-predeletion_warning_tracker = {}
+predeletion_warning_tracker: dict[int, float] = {}
 
 # Track guilds that have received email warnings to prevent hourly spam
 # Format: {guild_id: last_email_warning_timestamp}
-email_warning_tracker = {}
+email_warning_tracker: dict[int, float] = {}
 
 def init_db_pool():
     """Initialize PostgreSQL connection pool"""

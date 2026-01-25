@@ -385,7 +385,7 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Fix for Replit reverse proxy - ensures correct scheme/host detection and client IP
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)  # type: ignore[method-assign]
 
 # Database Configuration - PostgreSQL (shared with bot.py)
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -3178,10 +3178,10 @@ def debug_checklist(user_session):
     except:
         checks['email-service'] = {'status': 'fail', 'name': 'Email Service', 'detail': 'email_utils not found'}
     
-    from entitlements import Entitlements
-    if Entitlements:
+    try:
+        from entitlements import Entitlements
         checks['entitlements'] = {'status': 'pass', 'name': 'Entitlements', 'detail': 'Premium gates active'}
-    else:
+    except:
         checks['entitlements'] = {'status': 'fail', 'name': 'Entitlements', 'detail': 'Module not loaded'}
     
     try:
@@ -9177,9 +9177,9 @@ def api_kiosk_employee_info(guild_id, user_id):
 
 # Rate limiting cache for forgot-PIN requests
 # Format: {key: last_request_time} where key can be guild:user, guild, or ip
-_forgot_pin_rate_limit = {}
-_forgot_pin_guild_limit = {}  # Per-guild limit (max 10 requests per 10 minutes per guild)
-_forgot_pin_ip_limit = {}  # Per-IP limit (max 5 requests per 10 minutes per IP)
+_forgot_pin_rate_limit: dict[str, float] = {}
+_forgot_pin_guild_limit: dict[str, float] = {}  # Per-guild limit (max 10 requests per 10 minutes per guild)
+_forgot_pin_ip_limit: dict[str, float] = {}  # Per-IP limit (max 5 requests per 10 minutes per IP)
 
 def _clean_old_rate_limits():
     """Clean up expired rate limit entries to prevent memory bloat"""

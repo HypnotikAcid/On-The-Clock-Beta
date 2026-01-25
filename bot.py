@@ -59,7 +59,8 @@ DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")  # Dis
 
 # --- Discord Data Caching ---
 # Simple in-memory cache for Discord API data to reduce rate limiting
-DISCORD_CACHE = {
+from typing import Any
+DISCORD_CACHE: dict[str, dict[Any, Any]] = {
     "guild_roles": {},    # guild_id -> {timestamp, data}
     "guild_members": {},  # guild_id -> {timestamp, data}
 }
@@ -203,7 +204,7 @@ def get_discord_guild_member(access_token: str, guild_id: int) -> Optional[Dict]
 # Track user interactions to prevent spam/abuse
 RATE_LIMIT_WINDOW = 30  # 30 seconds
 RATE_LIMIT_MAX_REQUESTS = 5  # Max 5 requests per window per button
-user_interaction_timestamps = {}  # {(guild_id, user_id, button_name): [timestamp1, timestamp2, ...]}
+user_interaction_timestamps: dict[tuple[int, int, str], list[float]] = {}  # {(guild_id, user_id, button_name): [timestamp1, timestamp2, ...]}
 
 # --- Stripe Configuration ---
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -291,7 +292,7 @@ def get_domain() -> str:
         return domains.split(',')[0] if domains else 'localhost:5000'
 
 
-def generate_dashboard_deeplink(guild_id: int, user_id: int, page: str, secret: str = None) -> str:
+def generate_dashboard_deeplink(guild_id: int, user_id: int, page: str, secret: str | None = None) -> str:
     """Generate a signed deep-link URL for dashboard navigation"""
     if secret is None:
         secret = os.getenv('SESSION_SECRET', 'fallback-secret')
@@ -368,7 +369,7 @@ def create_secure_checkout_session(guild_id: int, product_type: str, guild_name:
             session_params['discounts'] = [{'coupon': 'vzRYNZed'}]
             metadata['trial_applied'] = 'true'
         
-        checkout_session = stripe.checkout.Session.create(**session_params)
+        checkout_session = stripe.checkout.Session.create(**session_params)  # type: ignore[arg-type]
         
         return checkout_session.url or ""
         
@@ -1437,7 +1438,45 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
-        
+
+    def get_session_id(self) -> str | None:
+        """Extract session ID from Cookie header"""
+        cookie_header = self.headers.get('Cookie')
+        if not cookie_header:
+            return None
+
+        # Parse cookies to find session ID
+        for cookie in cookie_header.split(';'):
+            cookie = cookie.strip()
+            if cookie.startswith('session_id='):
+                return cookie.split('=', 1)[1]
+        return None
+
+    def user_has_dashboard_admin_access(self, user_id: str, guild_id: int, user_guild: dict) -> bool:
+        """Check if user has admin access to a guild dashboard"""
+        # Check Discord owner permission
+        if user_guild.get('owner', False):
+            return True
+
+        # Check Discord administrator permission (0x8 = ADMINISTRATOR)
+        permissions = int(user_guild.get('permissions', '0'))
+        if permissions & 0x8:  # Administrator permission
+            return True
+
+        return False
+
+    def is_dashboard_admin(self, session: dict, guild_id: int) -> bool:
+        """Check if session user is admin for the given guild"""
+        user_id = session.get('user_id')
+        if not user_id:
+            return False
+
+        # Find the guild in user's guild list
+        for guild in session.get('guilds', []):
+            if guild.get('id') == str(guild_id):
+                return self.user_has_dashboard_admin_access(user_id, guild_id, guild)
+
+        return False
 
     def handle_api_settings_update(self):
         """Handle POST /api/guild/{id}/settings - Update general guild settings"""
@@ -1756,8 +1795,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             if not access_token:
                 self.send_json_response({"error": "Access token not found"}, 401)
                 return
-                
-            member_data = get_discord_guild_member(access_token, guild_id_str)
+
+            member_data = get_discord_guild_member(access_token, guild_id)
             if not member_data:
                 self.send_json_response({"error": "Unable to fetch guild member data"}, 500)
                 return
@@ -3117,11 +3156,12 @@ async def handle_rate_limit_response(interaction: discord.Interaction, action: s
                 "This server has excessive spam activity. The bot is leaving this server.",
                 ephemeral=True
             )
-            try:
-                await interaction.guild.leave()
-                print(f"🚨 Bot left guild {interaction.guild.id} due to abuse (5+ bans in 1 hour)")
-            except Exception as e:
-                print(f"❌ Failed to leave guild {interaction.guild.id}: {e}")
+            if interaction.guild:
+                try:
+                    await interaction.guild.leave()
+                    print(f"🚨 Bot left guild {interaction.guild.id} due to abuse (5+ bans in 1 hour)")
+                except Exception as e:
+                    print(f"❌ Failed to leave guild {interaction.guild.id}: {e}")
             return True
         else:  # banned
             await interaction.followup.send(
@@ -3246,14 +3286,15 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         logger.info(f"📍 [NOTIFY] Guild owner ID: {owner_id}")
         
         # Try to get the owner member object (may not be cached after restart)
-        owner = guild.get_member(owner_id)
-        
+        owner: discord.Member | discord.User | None = guild.get_member(owner_id)
+
         if not owner:
             logger.warning(f"⚠️ [NOTIFY] Owner member not in cache, attempting to fetch...")
             try:
                 # Fetch the user object (not a full member, but has basic info)
                 owner = await bot.fetch_user(owner_id)
-                logger.info(f"✅ [NOTIFY] Fetched owner user object: {owner.name} (ID: {owner.id})")
+                if owner:
+                    logger.info(f"✅ [NOTIFY] Fetched owner user object: {owner.name} (ID: {owner.id})")
             except Exception as e:
                 logger.warning(f"⚠️ [NOTIFY] Could not fetch owner user {owner_id}: {e}")
                 logger.info(f"📤 [NOTIFY] Will send notification without owner mention")
@@ -3555,7 +3596,7 @@ def get_active_employees_with_stats(guild_id: int, timezone_name: str = "America
     try:
         tz = ZoneInfo(timezone_name)
     except Exception:
-        tz = timezone.utc
+        tz = ZoneInfo('UTC')
 
     now_utc = datetime.now(timezone.utc)
     now_local = now_utc.astimezone(tz)
@@ -4285,11 +4326,11 @@ def user_has_clock_access(user: discord.Member, server_tier: str):
 def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "America/New_York"):
     """Get current session, daily, and weekly hours for a user."""
     from zoneinfo import ZoneInfo
-    
+
     try:
         guild_tz = ZoneInfo(guild_tz_name)
     except Exception:
-        guild_tz = timezone.utc
+        guild_tz = ZoneInfo('UTC')
     
     now = datetime.now(timezone.utc)
     
@@ -4491,7 +4532,7 @@ def fmt(dt: datetime, tz_name: Optional[str]) -> str:
         from zoneinfo import ZoneInfo
         tz = ZoneInfo(tz_name) if tz_name else ZoneInfo("America/New_York")
     except Exception:
-        tz = timezone.utc
+        tz = ZoneInfo('UTC')
     return dt.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
 
 def human_duration(seconds: int) -> str:
@@ -4563,7 +4604,7 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 # --- Employee Management Helpers ---
-def ensure_employee_profile(guild_id: int, user_id: int, username: str, display_name: str, avatar_url: str) -> bool:
+def ensure_employee_profile(guild_id: int, user_id: int, username: str, display_name: str, avatar_url: str | None) -> bool:
     """
     Ensure an employee profile exists. If not, create a default one.
     Returns True if a new profile was created, False if it already existed.
@@ -4666,17 +4707,17 @@ def reactivate_employee(guild_id: int, user_id: int):
         print(f"♻️ Reactivated employee {user_id} in guild {guild_id}")
 
 # Debounce cache for presence updates
-presence_update_cache = {}
+presence_update_cache: dict[tuple[int, int], float] = {}
 
 def update_employee_presence(guild_id: int, user_id: int, status: str):
     """Update employee's last seen status with debounce."""
-    key = f"{guild_id}:{user_id}"
+    key = (guild_id, user_id)
     now = time.time()
-    
+
     # Debounce: Only update every 5 minutes per user
     if key in presence_update_cache and now - presence_update_cache[key] < 300:
         return
-        
+
     presence_update_cache[key] = now
     
     try:
@@ -4721,7 +4762,7 @@ async def setup_hook():
     
     print("✅ Persistent view setup complete - ephemeral interface mode")
 
-bot.setup_hook = setup_hook
+bot.setup_hook = setup_hook  # type: ignore[method-assign]
 
 @bot.event
 async def on_member_remove(member):
@@ -4964,7 +5005,7 @@ class TimeClockView(discord.ui.View):
                     tz_name = "America/New_York (EST)"
                 except ImportError:
                     # ZoneInfo not available, use UTC
-                    guild_tz = timezone.utc
+                    guild_tz = ZoneInfo('UTC')
                     tz_name = "UTC"
             
             embed = discord.Embed(
@@ -5596,7 +5637,7 @@ class TimeClockView(discord.ui.View):
             try:
                 guild_tz = ZoneInfo(guild_tz_name or DEFAULT_TZ)
             except Exception:
-                guild_tz = timezone.utc
+                guild_tz = ZoneInfo('UTC')
                 guild_tz_name = "UTC"
             
             # Calculate date range based on tier limits
@@ -5620,7 +5661,7 @@ class TimeClockView(discord.ui.View):
                 return
             
             # Group sessions by user
-            user_sessions = {}
+            user_sessions: dict[int, list[tuple]] = {}
             for session_row in sessions_data:
                 user_id = session_row['user_id']
                 clock_in_iso = session_row['clock_in']
@@ -5980,7 +6021,7 @@ def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
         emoji="⏰",
         row=0
     )
-    clock_in_btn.callback = handle_tc_clock_in
+    clock_in_btn.callback = handle_tc_clock_in  # type: ignore[method-assign]
     view.add_item(clock_in_btn)
     
     clock_out_btn = discord.ui.Button(
@@ -5990,7 +6031,7 @@ def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
         emoji="🏁",
         row=0
     )
-    clock_out_btn.callback = handle_tc_clock_out
+    clock_out_btn.callback = handle_tc_clock_out  # type: ignore[method-assign]
     view.add_item(clock_out_btn)
     
     # Feature buttons - always present (Row 1)
@@ -6001,7 +6042,7 @@ def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
         emoji="📝",
         row=1
     )
-    adjustments_btn.callback = handle_tc_adjustments
+    adjustments_btn.callback = handle_tc_adjustments  # type: ignore[method-assign]
     view.add_item(adjustments_btn)
     
     my_hours_btn = discord.ui.Button(
@@ -6011,7 +6052,7 @@ def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
         emoji="📊",
         row=1
     )
-    my_hours_btn.callback = handle_tc_my_hours
+    my_hours_btn.callback = handle_tc_my_hours  # type: ignore[method-assign]
     view.add_item(my_hours_btn)
     
     support_btn = discord.ui.Button(
@@ -6021,7 +6062,7 @@ def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
         emoji="🆘",
         row=1
     )
-    support_btn.callback = handle_tc_support
+    support_btn.callback = handle_tc_support  # type: ignore[method-assign]
     view.add_item(support_btn)
     
     # Conditional upgrade button (Row 2) - based on subscription tier
@@ -6700,7 +6741,7 @@ def create_setup_embed() -> discord.Embed:
     
     return embed
 
-def create_employee_welcome_embed(guild_name: str, dashboard_url: str = None) -> discord.Embed:
+def create_employee_welcome_embed(guild_name: str, dashboard_url: str | None = None) -> discord.Embed:
     """Create a welcome embed for new employees when they're assigned an employee role."""
     embed = discord.Embed(
         title="Welcome to the Team!",
