@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Purchase Required - Time Warden</title>
+    <title>Upgrade to Pro - Time Warden</title>
     <style>
         * {
             margin: 0;
@@ -23,164 +23,231 @@
         }
 
         .container {
-            max-width: 650px;
-            background: rgba(22, 27, 34, 0.9);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 16px;
-            padding: 3rem;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header {
             text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-bottom: 2.5rem;
         }
 
-        .icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 2rem;
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00FFFF, #0099FF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
         }
 
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            color: #D4AF37;
-        }
-
-        p {
+        .header p {
             font-size: 1.1rem;
-            line-height: 1.6;
-            margin-bottom: 2rem;
             color: #8B949E;
         }
 
-        .features {
-            text-align: left;
-            background: rgba(13, 17, 23, 0.5);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
+        .pricing-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
         }
 
-        .feature {
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            color: #C9D1D9;
-        }
-
-        .feature-icon {
-            color: #D4AF37;
-            font-size: 1.2rem;
-        }
-
-        .pricing {
-            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(244, 229, 161, 0.05));
-            border: 2px solid #D4AF37;
+        .pricing-card {
+            background: rgba(30, 35, 45, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .pricing-card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #C9D1D9;
         }
 
         .price {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #D4AF37;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
         }
 
-        .price-detail {
+        .price-period {
+            font-size: 0.9rem;
             color: #8B949E;
-            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
         }
 
-        .button-group {
+        .features {
+            list-style: none;
+            margin-bottom: 2rem;
+            flex-grow: 1;
+        }
+
+        .features li {
             display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            color: #8B949E;
         }
 
-        .btn {
-            padding: 0.875rem 2rem;
+        .features li.included {
+            color: #C9D1D9;
+        }
+
+        .features .icon {
+            font-size: 1.2rem;
+        }
+
+        .free-tier {
+            color: #8B949E;
+        }
+
+        .free-tier .price {
+            color: #C9D1D9;
+        }
+
+        .pro-tier {
+            border-color: #00FFFF;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+        }
+
+        .pro-tier .price {
+            color: #00FFFF;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #00FFFF, #0099FF);
+            color: #0A0F1F;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            align-self: center;
+        }
+
+        .upgrade-btn {
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #00FFFF, #0099FF);
+            color: #0A0F1F;
+            padding: 1rem;
             border-radius: 8px;
             text-decoration: none;
-            font-weight: 600;
-            font-size: 1rem;
+            text-align: center;
+            font-weight: 700;
             transition: all 0.3s ease;
-            display: inline-block;
+            border: none;
+            cursor: pointer;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #D4AF37, #F4E5A1);
-            color: #0D1117;
-        }
-
-        .btn-primary:hover {
+        .upgrade-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(212, 175, 55, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 255, 255, 0.3);
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(10, 15, 31, 0.5);
+            border-radius: 50%;
+            border-top-color: #0A0F1F;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        .btn-secondary {
-            background: rgba(48, 54, 61, 0.7);
-            color: #C9D1D9;
-            border: 1px solid rgba(212, 175, 55, 0.2);
+        .back-link {
+            text-align: center;
+            margin-top: 2rem;
         }
 
-        .btn-secondary:hover {
-            background: rgba(58, 64, 71, 0.9);
-            border-color: rgba(212, 175, 55, 0.4);
+        .back-link a {
+            color: #8B949E;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
+        }
+
+        .back-link a:hover {
+            color: #00FFFF;
+        }
+
+        @media (max-width: 768px) {
+            .pricing-comparison {
+                grid-template-columns: 1fr;
+            }
+            .pro-tier {
+                order: -1;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="icon">🔒</div>
-        <h1>Full Access Required</h1>
-        <p>This server has the bot installed, but you need to purchase full bot access to use the dashboard and all features.</p>
-        
-        <div class="features">
-            <div class="feature">
-                <span class="feature-icon">✓</span>
-                <span>Unlimited employee management</span>
+        <div class="header">
+            <h1>Unlock Your Team's Potential</h1>
+            <p>Choose the plan that's right for your server.</p>
+        </div>
+
+        <div class="pricing-comparison">
+            <div class="pricing-card free-tier">
+                <h3>Free</h3>
+                <p class="price">$0</p>
+                <p class="price-period">per month</p>
+                <ul class="features">
+                    <li class="included"><span class="icon">✅</span> Basic clock in/out</li>
+                    <li class="included"><span class="icon">✅</span> 24-hour retention</li>
+                    <li><span class="icon">❌</span> Kiosk mode</li>
+                    <li><span class="icon">❌</span> Extended retention</li>
+                    <li><span class="icon">❌</span> Priority support</li>
+                </ul>
+                <button class="upgrade-btn" disabled style="background: #333; cursor: not-allowed; color: #777;">Current Plan</button>
             </div>
-            <div class="feature">
-                <span class="feature-icon">✓</span>
-                <span>Time tracking with /clock command</span>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">✓</span>
-                <span>CSV report generation</span>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">✓</span>
-                <span>Role-based access control</span>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">✓</span>
-                <span>Dashboard configuration</span>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">✓</span>
-                <span>Email automation (optional upgrades)</span>
+
+            <div class="pricing-card pro-tier featured">
+                <div class="badge">RECOMMENDED</div>
+                <h3>Pro</h3>
+                <p class="price">$15</p>
+                <p class="price-period">per month</p>
+                <ul class="features">
+                    <li class="included"><span class="icon">✅</span> Everything in Free</li>
+                    <li class="included"><span class="icon">✅</span> 30-day retention</li>
+                    <li class="included"><span class="icon">✅</span> Kiosk mode</li>
+                    <li class="included"><span class="icon">✅</span> Priority support</li>
+                    <li class="included"><span class="icon">✅</span> Ad-free experience</li>
+                </ul>
+                <a href="/purchase/select_server" class="upgrade-btn" onclick="handleUpgrade(this)">
+                    Upgrade Now
+                </a>
             </div>
         </div>
 
-        <div class="pricing">
-            <div class="price">$5</div>
-            <div class="price-detail">One-time payment • Lifetime access</div>
-        </div>
-
-        <div class="button-group">
-            <a href="/purchase/select_server" class="btn btn-primary">
-                Purchase Bot Access
-            </a>
-            <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+        <div class="back-link">
+            <a href="/dashboard">← Back to Dashboard</a>
         </div>
     </div>
+    <script>
+        function handleUpgrade(btn) {
+            btn.innerHTML = '<span class="spinner"></span> Redirecting to checkout...';
+            btn.style.pointerEvents = 'none';
+        }
+    </script>
 </body>
 </html>
