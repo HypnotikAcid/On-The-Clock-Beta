@@ -43,6 +43,7 @@ Before editing ANY file:
 - Manually review any auth logic you write (AI auth bugs are common)
 - Update `CURRENT_TASK.md` during complex work for handoff
 - Commit frequently with `git add . && git commit -m "message"`
+- **Parallel Workflow**: If Gemini can work safely in parallel (UI/templates only, no backend conflicts), ALWAYS provide a handoff prompt for Gemini FIRST so user can start it immediately while you work on backend tasks
 
 ---
 
