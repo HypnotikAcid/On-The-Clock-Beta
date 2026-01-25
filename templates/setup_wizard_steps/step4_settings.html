@@ -1,0 +1,20 @@
+<div class="step-content">
+    <h2>⚙️ Basic Settings</h2>
+    <p>Configure some basic preferences for your time clock.</p>
+    <div class="form-group">
+        <label for="clockFormatSelect" class="form-label" aria-label="Select the preferred clock display format">
+            Clock Format:
+        </label>
+        <select id="clockFormatSelect" class="form-control">
+            <option value="12hour">12-Hour (e.g., 03:30 PM)</option>
+            <option value="24hour">24-Hour (e.g., 15:30)</option>
+        </select>
+    </div>
+    <div class="form-group checkbox-group">
+        <input type="checkbox" id="notificationsToggle" class="form-checkbox">
+        <label for="notificationsToggle" class="form-label" aria-label="Toggle daily notification reminders for employees">
+            Enable Daily Notifications
+        </label>
+        <p class="help-text">Send employees a reminder if they haven't clocked out by the end of their shift.</p>
+    </div>
+</div>

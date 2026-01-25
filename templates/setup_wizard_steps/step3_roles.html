@@ -1,0 +1,26 @@
+<div class="step-content">
+    <h2>👥 Set Up Admin & Employee Roles</h2>
+    <p>Designate Discord roles that can manage Time Warden (Admins) and roles for regular employees.</p>
+    <div class="form-group">
+        <label for="adminRoleSelect" class="form-label" aria-label="Select Discord roles for Time Warden administrators">
+            Admin Roles:
+        </label>
+        <select id="adminRoleSelect" class="form-control" multiple>
+            <!-- Options will be loaded via JS or Flask context -->
+            <option value="1">Administrator</option>
+            <option value="2">Manager</option>
+        </select>
+        <p class="help-text">Members with these roles can configure Time Warden.</p>
+    </div>
+    <div class="form-group">
+        <label for="employeeRoleSelect" class="form-label" aria-label="Select Discord roles for employees who will clock in and out">
+            Employee Roles:
+        </label>
+        <select id="employeeRoleSelect" class="form-control" multiple>
+            <!-- Options will be loaded via JS or Flask context -->
+            <option value="3">Staff</option>
+            <option value="4">Member</option>
+        </select>
+        <p class="help-text">Only members with these roles can clock in/out.</p>
+    </div>
+</div>

@@ -1,0 +1,20 @@
+<div class="step-content">
+    <h2>🌍 Set Your Server's Timezone</h2>
+    <p>Accurate time tracking starts with the correct timezone.</p>
+    <div class="form-group">
+        <label for="timezoneSelect" class="form-label" aria-label="Select your server's timezone">
+            Timezone:
+        </label>
+        <select id="timezoneSelect" class="form-control">
+            <!-- Options will be loaded via JS or Flask context -->
+            <option value="" disabled selected>Select a timezone</option>
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">America/New_York (EST)</option>
+            <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+            <option value="Europe/London">Europe/London (GMT)</option>
+            <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+            <!-- More options would be dynamically loaded -->
+        </select>
+    </div>
+    <p class="help-text">This will ensure all clock in/out times are recorded correctly.</p>
+</div>
