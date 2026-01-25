@@ -1146,6 +1146,14 @@
                 grid-template-columns: 1fr;
             }
 
+            .advanced-settings {
+                padding: 10px;
+            }
+
+            .advanced-settings .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
             .action-buttons-container {
                 flex-direction: column;
                 align-items: stretch;
