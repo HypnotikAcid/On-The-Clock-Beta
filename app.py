@@ -59,6 +59,19 @@ __version__ = get_current_version()
 # Demo server configuration - grant admin access to all demo server visitors
 DEMO_SERVER_ID = '1419894879894507661'
 
+def is_demo_server(guild_id) -> bool:
+    """
+    Check if guild is the demo server.
+    Handles both int and string guild IDs for type safety.
+
+    Args:
+        guild_id: Guild ID as int or string
+
+    Returns:
+        True if this is the demo server (1419894879894507661)
+    """
+    return str(guild_id) == DEMO_SERVER_ID
+
 CHANGELOG = [
     {
         "version": "1.5.0",
@@ -784,7 +797,7 @@ def check_user_admin_realtime(user_id, guild_id):
     Performs fresh lookup via bot's Discord cache on every call (no caching).
     """
     # Demo server override: Grant admin access to all users for demo exploration
-    if str(guild_id) == DEMO_SERVER_ID:
+    if is_demo_server(guild_id):
         return {'is_member': True, 'is_admin': True, 'reason': 'demo_server'}
     
     try:
@@ -1055,7 +1068,7 @@ def require_kiosk_access(f):
             }), 400
 
         # Demo server override - allow free exploration
-        if str(guild_id) == DEMO_SERVER_ID:
+        if is_demo_server(guild_id):
             app.logger.debug(f"Demo server kiosk access granted for guild {guild_id}")
             return f(*args, **kwargs)
 
@@ -1768,12 +1781,13 @@ def get_server_page_context(user_session, guild_id, active_page):
     guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
     if not guild:
         return None, redirect('/dashboard')
-    
-    is_demo_server = str(guild_id) == DEMO_SERVER_ID
+
+
+    is_demo_server_flag = is_demo_server(guild_id)
     view_as_employee = False
     last_demo_reset = None
-    
-    if is_demo_server:
+
+    if is_demo_server_flag:
         view_as_employee = request.args.get('view_as') == 'employee' or session.get('demo_view_as_employee', False)
         if request.args.get('view_as') == 'employee':
             session['demo_view_as_employee'] = True
@@ -1826,7 +1840,7 @@ def get_server_page_context(user_session, guild_id, active_page):
             }
         
         # Get demo reset info if this is the demo server
-        if is_demo_server:
+        if is_demo_server_flag:
             cursor = conn.execute("""
                 SELECT last_demo_reset FROM guild_settings WHERE guild_id = %s
             """, (int(guild_id),))
@@ -1847,7 +1861,7 @@ def get_server_page_context(user_session, guild_id, active_page):
         'pending_adjustments': pending_adjustments,
         'show_tz_reminder': show_tz_reminder,
         'server_settings': server_settings,
-        'is_demo_server': is_demo_server,
+        'is_demo_server': is_demo_server_flag,
         'view_as_employee': view_as_employee,
         'last_demo_reset': last_demo_reset
     }
@@ -4398,7 +4412,7 @@ def verify_guild_access(user_session, guild_id, allow_employee=False):
     all_guilds = user_session.get('guilds', [])
     
     # Demo server override: Grant admin access to all users for demo exploration
-    if str(guild_id) == DEMO_SERVER_ID:
+    if is_demo_server(guild_id):
         with get_db() as conn:
             cursor = conn.execute(
                 "SELECT guild_name FROM bot_guilds WHERE guild_id = %s",
@@ -8968,7 +8982,7 @@ def api_kiosk_create_pin(guild_id):
             return jsonify({'success': False, 'error': 'Invalid PIN format'}), 400
 
         # Demo server protection - fake success, no DB write
-        if str(guild_id) == DEMO_SERVER_ID:
+        if is_demo_server(guild_id):
             app.logger.info(f"Demo server: Blocking PIN creation for guild {guild_id}")
             return jsonify({
                 'success': True,
@@ -9292,7 +9306,7 @@ def api_kiosk_forgot_pin(guild_id):
         app.logger.info(f"FORGOT PIN REQUEST: User {display_name} (ID: {user_id}) in guild {guild_id} requested PIN reset")
 
         # Demo server protection - no emails in demo mode
-        if str(guild_id) == DEMO_SERVER_ID:
+        if is_demo_server(guild_id):
             app.logger.info(f"Demo server: Blocking forgot PIN email for guild {guild_id}")
             return jsonify({
                 'success': True,
@@ -9356,7 +9370,7 @@ def api_kiosk_clock(guild_id):
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
 
         # Demo server protection - fake success, no DB write
-        if str(guild_id) == DEMO_SERVER_ID:
+        if is_demo_server(guild_id):
             from datetime import timezone
             app.logger.info(f"Demo server: Blocking clock {action} for guild {guild_id}")
             return jsonify({
@@ -9435,7 +9449,7 @@ def api_kiosk_employee_email(guild_id, user_id):
                 return jsonify({'success': False, 'error': 'Invalid email format'}), 400
 
             # Demo server protection - fake success, no DB write
-            if str(guild_id) == DEMO_SERVER_ID:
+            if is_demo_server(guild_id):
                 app.logger.info(f"Demo server: Blocking email update for guild {guild_id}")
                 return jsonify({
                     'success': True,
@@ -9498,7 +9512,7 @@ def api_kiosk_send_shift_email(guild_id):
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
 
         # Demo server protection - no emails in demo mode
-        if str(guild_id) == DEMO_SERVER_ID:
+        if is_demo_server(guild_id):
             app.logger.info(f"Demo server: Blocking shift email for guild {guild_id}")
             return jsonify({
                 'success': True,
@@ -9844,7 +9858,7 @@ def api_kiosk_submit_adjustment(guild_id):
             return jsonify({'success': False, 'error': 'No changes provided'}), 400
 
         # Demo server protection - fake success, no DB write
-        if str(guild_id) == DEMO_SERVER_ID:
+        if is_demo_server(guild_id):
             app.logger.info(f"Demo server: Blocking adjustment submission for guild {guild_id}")
             return jsonify({
                 'success': True,
