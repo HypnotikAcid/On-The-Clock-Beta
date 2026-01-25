@@ -1037,6 +1037,76 @@ def user_has_admin_access(user_id, guild_id, user_guild):
 
     return False
 
+def require_kiosk_access(f):
+    """
+    Decorator for kiosk routes.
+    - Demo server (1419894879894507661): Always allow (for public preview)
+    - Production servers: Require Pro tier
+    """
+    from functools import wraps
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        guild_id = kwargs.get('guild_id')
+        if not guild_id:
+            return jsonify({
+                'success': False,
+                'error': 'Missing guild_id'
+            }), 400
+
+        # Demo server override - allow free exploration
+        if str(guild_id) == DEMO_SERVER_ID:
+            app.logger.debug(f"Demo server kiosk access granted for guild {guild_id}")
+            return f(*args, **kwargs)
+
+        # For production servers, check Pro tier
+        try:
+            with get_db() as conn:
+                cursor = conn.execute("""
+                    SELECT bot_access_paid, retention_tier, grandfathered
+                    FROM server_subscriptions
+                    WHERE guild_id = %s
+                """, (int(guild_id),))
+                result = cursor.fetchone()
+
+                if not result:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Server not found. Please invite the bot first.',
+                        'code': 'NO_SUBSCRIPTION'
+                    }), 404
+
+                # Get tier using entitlements
+                from entitlements import Entitlements, UserTier
+                tier = Entitlements.get_guild_tier(
+                    bot_access_paid=result['bot_access_paid'],
+                    retention_tier=result['retention_tier'],
+                    grandfathered=result.get('grandfathered', False)
+                )
+
+                # Check if tier allows kiosk (Pro tier required)
+                if tier != UserTier.PRO:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Kiosk mode requires Pro tier subscription',
+                        'code': 'PRO_REQUIRED',
+                        'current_tier': tier.value,
+                        'required_tier': 'pro',
+                        'upgrade_url': f'https://ontheclock.app/dashboard/purchase?guild_id={guild_id}'
+                    }), 403
+
+                # Pro tier confirmed - proceed
+                return f(*args, **kwargs)
+
+        except Exception as e:
+            app.logger.error(f"Error checking kiosk access for guild {guild_id}: {e}")
+            return jsonify({
+                'success': False,
+                'error': 'Unable to verify kiosk access'
+            }), 500
+
+    return decorated_function
+
 def filter_user_guilds(user_session):
     """
     Filter user's guilds to show only those where:
@@ -8797,11 +8867,13 @@ def api_get_employee_recent_adjustments(user_session, guild_id, user_id):
 # ============================================
 
 @app.route("/kiosk/<guild_id>")
+@require_kiosk_access
 def kiosk_page(guild_id):
     """Render the kiosk control center for a specific guild"""
     return render_template("kiosk.html", guild_id=guild_id)
 
 @app.route("/api/kiosk/<guild_id>/employees")
+@require_kiosk_access
 def api_kiosk_employees(guild_id):
     """Get all employees for the kiosk display optimized with CTE"""
     try:
@@ -8883,6 +8955,7 @@ def api_kiosk_employees(guild_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/kiosk/<guild_id>/pin/create", methods=["POST"])
+@require_kiosk_access
 def api_kiosk_create_pin(guild_id):
     """Create a PIN for an employee"""
     try:
@@ -8921,6 +8994,7 @@ def api_kiosk_create_pin(guild_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/kiosk/<guild_id>/pin/verify", methods=["POST"])
+@require_kiosk_access
 def api_kiosk_verify_pin(guild_id):
     """Verify an employee's PIN"""
     try:
@@ -8951,6 +9025,7 @@ def api_kiosk_verify_pin(guild_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/kiosk/<guild_id>/employee/<user_id>/info")
+@require_kiosk_access
 def api_kiosk_employee_info(guild_id, user_id):
     """Get employee info for the kiosk action screen"""
     try:
@@ -9148,6 +9223,7 @@ def _clean_old_rate_limits():
             del cache[k]
 
 @app.route("/api/kiosk/<guild_id>/forgot-pin", methods=["POST"])
+@require_kiosk_access
 def api_kiosk_forgot_pin(guild_id):
     """Handle forgot PIN request - logs the request and can notify admin
     
@@ -9268,6 +9344,7 @@ Please assist this employee in resetting their kiosk PIN.
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/kiosk/<guild_id>/clock", methods=["POST"])
+@require_kiosk_access
 def api_kiosk_clock(guild_id):
     """Handle clock in/out from kiosk - uses timeclock_sessions for dashboard sync"""
     try:
@@ -9340,6 +9417,7 @@ def api_kiosk_clock(guild_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/kiosk/<guild_id>/employee/<user_id>/email", methods=["GET", "POST"])
+@require_kiosk_access
 def api_kiosk_employee_email(guild_id, user_id):
     """Get or save email for kiosk employee"""
     if request.method == "POST":
@@ -9400,6 +9478,7 @@ def api_kiosk_employee_email(guild_id, user_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/kiosk/<guild_id>/send-shift-email", methods=["POST"])
+@require_kiosk_access
 def api_kiosk_send_shift_email(guild_id):
     """Send shift summary email to employee after clock-out"""
     try:
@@ -9653,6 +9732,7 @@ def api_set_kiosk_mode(user_session, guild_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/api/kiosk/<guild_id>/employee/<user_id>/today-sessions")
+@require_kiosk_access
 def api_kiosk_today_sessions(guild_id, user_id):
     """Get today's sessions for a kiosk employee - used for time adjustment modal"""
     try:
@@ -9741,6 +9821,7 @@ def api_kiosk_today_sessions(guild_id, user_id):
 
 
 @app.route("/api/kiosk/<guild_id>/adjustment", methods=["POST"])
+@require_kiosk_access
 def api_kiosk_submit_adjustment(guild_id):
     """
     Submit a time adjustment request from the kiosk.
