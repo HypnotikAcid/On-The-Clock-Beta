@@ -494,6 +494,10 @@ def run_migrations():
                 print("   Checking for last_demo_reset column in guild_settings")
                 cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS last_demo_reset TIMESTAMPTZ")
 
+                # 24. Add original_profile_data column to employee_archive for complete profile restoration
+                print("   Checking for original_profile_data column in employee_archive")
+                cur.execute("ALTER TABLE employee_archive ADD COLUMN IF NOT EXISTS original_profile_data JSONB")
+
         _migrations_run = True
         print("✅ Database schema is up to date")
         return True
