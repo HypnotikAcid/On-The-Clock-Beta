@@ -418,6 +418,88 @@ On the Clock Discord Bot
     )
 
 
+def queue_adjustment_notification_email(
+    guild_id: int,
+    request_id: int,
+    user_id: int,
+    request_type: str,
+    reason: str
+) -> int:
+    """
+    Queue adjustment notification email for reliable delivery.
+    This replaces the blocking send_adjustment_notification_email function.
+
+    Args:
+        guild_id: The Discord guild ID
+        request_id: The time adjustment request ID
+        user_id: The user who submitted the request
+        request_type: Type of adjustment (modify_clockin, modify_clockout, etc.)
+        reason: Reason provided by the user
+
+    Returns:
+        The email_outbox entry ID
+    """
+    from contextlib import closing
+
+    # Fetch guild name and verified recipients
+    with _get_db() as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(
+                """SELECT email_address FROM report_recipients
+                   WHERE guild_id = %s AND recipient_type = 'email'
+                   AND verification_status = 'verified'""",
+                (guild_id,)
+            )
+            recipients = [row['email_address'] for row in cursor.fetchall()]
+
+            if not recipients:
+                logger.info(f"No verified recipients for guild {guild_id}, skipping email queue")
+                return 0
+
+            cursor.execute(
+                "SELECT name FROM guild_settings WHERE guild_id = %s",
+                (guild_id,)
+            )
+            guild_row = cursor.fetchone()
+            guild_name = guild_row['name'] if guild_row else f"Server {guild_id}"
+
+    # Format request type for display
+    request_type_labels = {
+        'modify_clockin': 'Modify Clock-In Time',
+        'modify_clockout': 'Modify Clock-Out Time',
+        'add_session': 'Add Missing Session',
+        'delete_session': 'Delete Session'
+    }
+    request_label = request_type_labels.get(request_type, request_type)
+
+    # Build email content
+    subject = f"Time Adjustment Request - {guild_name}"
+    text_content = f"""A new time adjustment request has been submitted.
+
+Server: {guild_name}
+Request Type: {request_label}
+User ID: {user_id}
+
+Please review this request in the dashboard.
+
+- Time Warden Bot"""
+
+    # Queue the email using existing outbox system
+    return queue_email(
+        email_type="adjustment_notification",
+        recipients=recipients,
+        subject=subject,
+        text_content=text_content,
+        context={
+            "guild_name": guild_name,
+            "request_type": request_type,
+            "request_id": request_id,
+            "user_id": user_id
+        },
+        guild_id=guild_id
+    )
+
+
 async def process_outbox_emails(batch_size: int = 10) -> Dict:
     """
     Process pending emails from the outbox with retry logic.

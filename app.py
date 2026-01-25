@@ -206,68 +206,6 @@ def flask_set_retention_tier(guild_id: int, tier: str, source: str = 'stripe'):
                 grant_source = COALESCE(server_subscriptions.grant_source, %s)
         """, (guild_id, tier, source if tier != 'none' else None, tier, source if tier != 'none' else None))
 
-def send_adjustment_notification_email(guild_id: int, request_id: int, user_id: int, request_type: str, reason: str):
-    """Send email notification to verified recipients when an adjustment request is submitted."""
-    import threading
-    
-    def _send_email_async():
-        try:
-            with get_db() as conn:
-                recipients_cursor = conn.execute(
-                    """SELECT email_address FROM report_recipients 
-                       WHERE guild_id = %s AND recipient_type = 'email' 
-                       AND verification_status = 'verified'""",
-                    (guild_id,)
-                )
-                recipients = [row['email_address'] for row in recipients_cursor.fetchall()]
-                
-                if not recipients:
-                    return
-                
-                guild_cursor = conn.execute(
-                    "SELECT name FROM guild_settings WHERE guild_id = %s",
-                    (guild_id,)
-                )
-                guild_row = guild_cursor.fetchone()
-                guild_name = guild_row['name'] if guild_row else f"Server {guild_id}"
-            
-            request_type_labels = {
-                'modify_clockin': 'Modify Clock-In Time',
-                'modify_clockout': 'Modify Clock-Out Time',
-                'add_session': 'Add Missing Session',
-                'delete_session': 'Delete Session'
-            }
-            request_label = request_type_labels.get(request_type, request_type)
-            
-            subject = f"Time Adjustment Request - {guild_name}"
-            text_content = f"""A new time adjustment request has been submitted.
-
-Server: {guild_name}
-Request Type: {request_label}
-
-Please review this request in the dashboard.
-
-- Time Warden Bot"""
-            
-            import asyncio
-            from email_utils import send_email
-            
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                result = loop.run_until_complete(send_email(to=recipients, subject=subject, text=text_content))
-                if result.get('success'):
-                    app.logger.info(f"[OK] Adjustment notification email sent to {len(recipients)} recipient(s) for guild {guild_id}")
-                else:
-                    app.logger.warning(f"Failed to send adjustment notification email: {result.get('error')}")
-            finally:
-                loop.close()
-        except Exception as e:
-            app.logger.error(f"Error sending adjustment notification email: {e}")
-    
-    thread = threading.Thread(target=_send_email_async, daemon=True)
-    thread.start()
-
 # Lazy access to Discord bot instance - use get_bot() for property access
 def get_bot():
     """Lazy access to Discord bot instance."""
@@ -7479,8 +7417,15 @@ def api_create_adjustment(user_session, guild_id):
                     bot.loop
                 )
             
-            # Send email notification to verified recipients
-            send_adjustment_notification_email(int(guild_id), request_id, int(user_session['user_id']), request_type, reason)
+            # Queue email notification to verified recipients (non-blocking)
+            from email_utils import queue_adjustment_notification_email
+            queue_adjustment_notification_email(
+                int(guild_id),
+                request_id,
+                int(user_session['user_id']),
+                request_type,
+                reason
+            )
             
             return jsonify({'success': True, 'request_id': request_id})
         else:
