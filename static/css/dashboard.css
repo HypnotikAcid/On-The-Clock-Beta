@@ -4532,26 +4532,132 @@
     box-shadow: 0 4px 20px rgba(16, 185, 129, 0.2);
 }
 
+
+
 .tour-completion-toast.show {
+
     transform: translateY(0);
+
     opacity: 1;
+
 }
+
+
 
 .tour-completion-icon {
+
     font-size: 24px;
+
 }
 
+
+
 @media (max-width: 768px) {
+
     .tour-tooltip {
+
         max-width: calc(100vw - 32px);
+
         min-width: auto;
+
         left: 16px !important;
+
         right: 16px;
+
     }
+
     
+
     .tour-completion-toast {
+
         left: 16px;
+
         right: 16px;
+
         bottom: 16px;
+
     }
+
+}
+
+
+
+/* Advanced Settings Section */
+
+.advanced-settings {
+
+    margin-top: 30px;
+
+    background: rgba(10, 15, 31, 0.7);
+
+    border: 1px solid rgba(212, 175, 55, 0.2);
+
+    border-radius: 10px;
+
+    transition: all 0.3s ease;
+
+}
+
+
+
+.advanced-settings[open] {
+
+    border-color: rgba(212, 175, 55, 0.4);
+
+}
+
+
+
+.advanced-settings summary {
+
+    padding: 20px;
+
+    font-size: 18px;
+
+    font-weight: 600;
+
+    color: #D4AF37;
+
+    cursor: pointer;
+
+    outline: none;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    transition: background 0.2s ease;
+
+}
+
+
+
+.advanced-settings summary:hover {
+
+    background: rgba(30, 35, 45, 0.5);
+
+}
+
+
+
+.advanced-settings[open] summary {
+
+    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+
+}
+
+
+
+.advanced-settings .settings-grid {
+
+    padding: 20px;
+
+    display: grid;
+
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+
+    gap: 20px;
+
 }
