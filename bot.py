@@ -51,6 +51,7 @@ BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "1361859331351511083"))  # Discord 
 # --- Demo Server Configuration ---
 DEMO_SERVER_ID = 1419894879894507661  # "On The Clock" demo server
 DEMO_EMPLOYEE_ROLE_ID = 1460483767050178631  # "Test Employee" role for auto-assignment
+DEMO_ADMIN_ROLE_ID = 1465149753510596628  # "Demo Admin" role for simulating admin access
 
 # --- Discord Application Configuration ---
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")  # Discord application client ID
@@ -2335,7 +2336,11 @@ async def setup_hook():
     # Uses stable "tc:" prefixed custom_ids for maximum reliability
     bot.add_view(TimeclockHubView())
     print("✅ TimeclockHubView registered with bulletproof persistence")
-    
+
+    # Register DemoRoleSwitcherView for demo server role switching
+    bot.add_view(DemoRoleSwitcherView())
+    print("✅ DemoRoleSwitcherView registered for demo server")
+
     print("✅ Persistent view setup complete - ephemeral interface mode")
 
 bot.setup_hook = setup_hook  # type: ignore[method-assign]
@@ -3570,6 +3575,109 @@ class TimeclockHubView(discord.ui.View):
     async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Show upgrade options"""
         await handle_tc_upgrade(interaction)
+
+
+# =============================================================================
+# Demo Role Switcher View
+# =============================================================================
+
+class DemoRoleSwitcherView(discord.ui.View):
+    """
+    Persistent view for demo server role switching.
+    Allows users to toggle between Admin and Employee personas for testing.
+    """
+    def __init__(self):
+        super().__init__(timeout=None)  # REQUIRED for persistence
+
+    @discord.ui.button(
+        label="Become Admin",
+        style=discord.ButtonStyle.danger,  # Red
+        emoji="👑",
+        custom_id="demo:become_admin",
+        row=0
+    )
+    async def become_admin_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Switch user to Admin role"""
+        await robust_defer(interaction, ephemeral=True)
+
+        try:
+            # Get both roles
+            admin_role = interaction.guild.get_role(DEMO_ADMIN_ROLE_ID)
+            employee_role = interaction.guild.get_role(DEMO_EMPLOYEE_ROLE_ID)
+
+            if not admin_role:
+                await send_reply(interaction, "❌ Demo Admin role not found. Please contact support.", ephemeral=True)
+                return
+
+            # Add admin role
+            await interaction.user.add_roles(admin_role, reason="Demo: User chose Admin persona")
+
+            # Remove employee role if they have it
+            if employee_role and employee_role in interaction.user.roles:
+                await interaction.user.remove_roles(employee_role, reason="Demo: Switched from Employee to Admin")
+
+            await send_reply(
+                interaction,
+                "✅ You are now simulating an **Admin**.\n\n"
+                "🎯 What you can do:\n"
+                "• View the full admin dashboard\n"
+                "• Approve timesheets and view reports\n"
+                "• Configure server settings\n"
+                "• Manage employee roles\n\n"
+                "💡 Login to the dashboard to explore admin features!",
+                ephemeral=True
+            )
+
+        except discord.Forbidden:
+            await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
+        except Exception as e:
+            print(f"❌ Error in become_admin: {e}")
+            await send_reply(interaction, "❌ An error occurred. Please try again.", ephemeral=True)
+
+    @discord.ui.button(
+        label="Become Employee",
+        style=discord.ButtonStyle.primary,  # Blue
+        emoji="👷",
+        custom_id="demo:become_employee",
+        row=0
+    )
+    async def become_employee_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Switch user to Employee role"""
+        await robust_defer(interaction, ephemeral=True)
+
+        try:
+            # Get both roles
+            admin_role = interaction.guild.get_role(DEMO_ADMIN_ROLE_ID)
+            employee_role = interaction.guild.get_role(DEMO_EMPLOYEE_ROLE_ID)
+
+            if not employee_role:
+                await send_reply(interaction, "❌ Demo Employee role not found. Please contact support.", ephemeral=True)
+                return
+
+            # Add employee role
+            await interaction.user.add_roles(employee_role, reason="Demo: User chose Employee persona")
+
+            # Remove admin role if they have it
+            if admin_role and admin_role in interaction.user.roles:
+                await interaction.user.remove_roles(admin_role, reason="Demo: Switched from Admin to Employee")
+
+            await send_reply(
+                interaction,
+                "✅ You are now simulating an **Employee**.\n\n"
+                "🎯 What you can do:\n"
+                "• Clock in and out from the dashboard\n"
+                "• View your own timesheet history\n"
+                "• Request time adjustments\n"
+                "• Experience the employee kiosk\n\n"
+                "💡 Login to the dashboard or use `/clock` to get started!",
+                ephemeral=True
+            )
+
+        except discord.Forbidden:
+            await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
+        except Exception as e:
+            print(f"❌ Error in become_employee: {e}")
+            await send_reply(interaction, "❌ An error occurred. Please try again.", ephemeral=True)
 
 
 def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
@@ -5224,6 +5332,81 @@ async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) ->
 # =============================================================================
 # OWNER-ONLY SUPER ADMIN COMMANDS (Only visible to bot owner)
 # =============================================================================
+
+@tree.command(name="setup_demo_roles", description="[ADMIN] Post the demo role switcher message")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def setup_demo_roles_command(interaction: discord.Interaction):
+    """
+    Posts a persistent message with buttons for users to switch between Admin and Employee roles.
+    Only works on the demo server. Admins use this to set up the role switcher.
+    """
+    # Verify this is the demo server
+    if interaction.guild_id != DEMO_SERVER_ID:
+        await send_reply(
+            interaction,
+            "❌ This command only works on the demo server.",
+            ephemeral=True
+        )
+        return
+
+    await robust_defer(interaction, ephemeral=True)
+
+    try:
+        # Create the embed
+        embed = discord.Embed(
+            title="🎭 Choose Your Role",
+            description=(
+                "Welcome to the Time Warden demo! Choose how you'd like to experience our timeclock system.\n\n"
+                "You can switch between roles at any time by clicking the buttons below."
+            ),
+            color=0x00FFFF  # Cyan
+        )
+
+        embed.add_field(
+            name="👑 Admin Mode",
+            value=(
+                "Experience the Dashboard as a **Manager**.\n"
+                "• Approve timesheets and view reports\n"
+                "• Configure settings and manage roles\n"
+                "• Access all administrative features"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="👷 Employee Mode",
+            value=(
+                "Experience the Dashboard as **Staff**.\n"
+                "• Clock in/out from Discord or Dashboard\n"
+                "• View your own timesheet history\n"
+                "• Request time adjustments"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="💡 Both roles are safe for testing - choose what you want to explore!")
+
+        # Create the view with buttons
+        view = DemoRoleSwitcherView()
+
+        # Send the message
+        await interaction.channel.send(embed=embed, view=view)
+
+        await send_reply(
+            interaction,
+            "✅ Demo role switcher posted! Users can now choose their role.",
+            ephemeral=True
+        )
+
+    except Exception as e:
+        print(f"❌ Error in setup_demo_roles: {e}")
+        await send_reply(
+            interaction,
+            "❌ Failed to post role switcher. Please try again.",
+            ephemeral=True
+        )
+
 
 @tree.command(name="owner_broadcast", description="[OWNER] Send announcement to all servers")
 @app_commands.describe(
