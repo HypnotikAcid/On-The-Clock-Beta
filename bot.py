@@ -3581,10 +3581,14 @@ class TimeclockHubView(discord.ui.View):
 # Demo Role Switcher View
 # =============================================================================
 
+# Track timeclock messages per user for cleanup when switching roles
+_demo_user_timeclocks: dict[int, int] = {}  # {user_id: message_id}
+
 class DemoRoleSwitcherView(discord.ui.View):
     """
     Persistent view for demo server role switching.
     Allows users to toggle between Admin and Employee personas for testing.
+    After role assignment, automatically sends timeclock hub for seamless onboarding.
     """
     def __init__(self):
         super().__init__(timeout=None)  # REQUIRED for persistence
@@ -3614,19 +3618,49 @@ class DemoRoleSwitcherView(discord.ui.View):
 
             # Remove employee role if they have it
             if employee_role and employee_role in interaction.user.roles:
-                await interaction.user.remove_roles(employee_role, reason="Demo: Switched from Employee to Admin")
+                await interaction.user.remove_roles(employee_role, reason="Demo: Switched from Admin to Employee")
 
+            # Delete previous timeclock message if it exists
+            if interaction.user.id in _demo_user_timeclocks:
+                try:
+                    old_message_id = _demo_user_timeclocks[interaction.user.id]
+                    # Try to fetch and delete the old message
+                    channel = interaction.channel
+                    if channel:
+                        old_message = await channel.fetch_message(old_message_id)
+                        await old_message.delete()
+                        print(f"🧹 Deleted old timeclock message {old_message_id} for user {interaction.user.id}")
+                except Exception as e:
+                    print(f"⚠️ Could not delete old timeclock message: {e}")
+                del _demo_user_timeclocks[interaction.user.id]
+
+            # Send confirmation with dashboard link
+            dashboard_url = "https://time-warden.com"
             await send_reply(
                 interaction,
-                "✅ You are now simulating an **Admin**.\n\n"
-                "🎯 What you can do:\n"
-                "• View the full admin dashboard\n"
-                "• Approve timesheets and view reports\n"
-                "• Configure server settings\n"
-                "• Manage employee roles\n\n"
-                "💡 Login to the dashboard to explore admin features!",
+                f"✅ **You are now an Admin!**\n\n"
+                f"🖥️ **[Open Dashboard]({dashboard_url})** - Manage employees, view reports, configure settings\n\n"
+                f"Below is your personal timeclock hub with all features. Use it anytime!",
                 ephemeral=True
             )
+
+            # Send timeclock hub as follow-up ephemeral message
+            view = build_timeclock_hub_view(interaction.guild_id)
+            embed = discord.Embed(
+                title="⏰ Your Timeclock Hub",
+                description=(
+                    "As an **Admin**, you can:\n"
+                    "• Clock in/out to test the employee experience\n"
+                    "• View your hours and adjustments\n"
+                    "• Access the full admin dashboard\n\n"
+                    "Use the buttons below to interact with the timeclock system."
+                ),
+                color=0xFF0000  # Red for admin
+            )
+
+            timeclock_msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            _demo_user_timeclocks[interaction.user.id] = timeclock_msg.id
+            print(f"📌 Stored new timeclock message {timeclock_msg.id} for admin user {interaction.user.id}")
 
         except discord.Forbidden:
             await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
@@ -3661,17 +3695,50 @@ class DemoRoleSwitcherView(discord.ui.View):
             if admin_role and admin_role in interaction.user.roles:
                 await interaction.user.remove_roles(admin_role, reason="Demo: Switched from Admin to Employee")
 
+            # Delete previous timeclock message if it exists
+            if interaction.user.id in _demo_user_timeclocks:
+                try:
+                    old_message_id = _demo_user_timeclocks[interaction.user.id]
+                    # Try to fetch and delete the old message
+                    channel = interaction.channel
+                    if channel:
+                        old_message = await channel.fetch_message(old_message_id)
+                        await old_message.delete()
+                        print(f"🧹 Deleted old timeclock message {old_message_id} for user {interaction.user.id}")
+                except Exception as e:
+                    print(f"⚠️ Could not delete old timeclock message: {e}")
+                del _demo_user_timeclocks[interaction.user.id]
+
+            # Send confirmation with dashboard and kiosk links
+            dashboard_url = "https://time-warden.com"
+            kiosk_url = f"https://time-warden.com/kiosk/{DEMO_SERVER_ID}"
             await send_reply(
                 interaction,
-                "✅ You are now simulating an **Employee**.\n\n"
-                "🎯 What you can do:\n"
-                "• Clock in and out from the dashboard\n"
-                "• View your own timesheet history\n"
-                "• Request time adjustments\n"
-                "• Experience the employee kiosk\n\n"
-                "💡 Login to the dashboard or use `/clock` to get started!",
+                f"✅ **You are now an Employee!**\n\n"
+                f"🖥️ **[Open Dashboard]({dashboard_url})** - Clock in/out, view your hours\n"
+                f"📱 **[Try Kiosk Mode]({kiosk_url})** - PIN-based clock system\n\n"
+                f"Below is your personal timeclock hub. Use it anytime!",
                 ephemeral=True
             )
+
+            # Send timeclock hub as follow-up ephemeral message
+            view = build_timeclock_hub_view(interaction.guild_id)
+            embed = discord.Embed(
+                title="⏰ Your Timeclock Hub",
+                description=(
+                    "As an **Employee**, you can:\n"
+                    "• Clock in/out using the buttons below\n"
+                    "• View your hours and request adjustments\n"
+                    "• Access your personal dashboard\n"
+                    "• Try the Kiosk mode (tablet-friendly interface)\n\n"
+                    "Use the buttons below to interact with the timeclock system."
+                ),
+                color=0x0099FF  # Blue for employee
+            )
+
+            timeclock_msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            _demo_user_timeclocks[interaction.user.id] = timeclock_msg.id
+            print(f"📌 Stored new timeclock message {timeclock_msg.id} for employee user {interaction.user.id}")
 
         except discord.Forbidden:
             await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
