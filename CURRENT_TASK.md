@@ -23,19 +23,21 @@
 
 ---
 
-### Issue 2: Theme Display Inconsistency (P2)
+### Issue 2: Theme Display Not Showing (RESOLVED - Was Actually Issue 1)
 
-**Problem**: Employee customization themes (background, accent color, stickers) only displayed when employee was clocked in on the Kiosk, but always displayed on the Dashboard profile page. Inconsistent UX.
+**Initial Misdiagnosis**: Thought theme clock-in requirement was the problem
+**Actual Problem**: User couldn't clock in to trigger themes because showScreen() was missing
 
-**Root Cause**: Line 1597 had conditional: `if (allowKioskCustomization && emp.is_clocked_in)`
-
-**Fix**: Changed line 1597 from `if (allowKioskCustomization && emp.is_clocked_in)` to `if (allowKioskCustomization)` in `templates/kiosk.html`.
+**Resolution**:
+- Kept original clock-in requirement: `if (allowKioskCustomization && emp.is_clocked_in)`
+- This was intentional design - themes only show when employee is actively clocked in
+- Real issue was fixed by adding showScreen() function (Issue 1)
+- Now users can clock in successfully and themes display as designed
 
 **Impact**:
-- Employee customization now displays consistently
-- Themes show for all employees regardless of clock status
-- Better UX - personal branding visible at all times
-- Guild setting `allow_kiosk_customization` still controls visibility
+- Themes display correctly when employee clocks in (via working navigation)
+- Clock-in status visual indicator maintained as designed
+- Clean, minimal appearance for clocked-out employees
 
 ---
 
@@ -87,18 +89,17 @@
 
 Fixed three critical bugs and two enhancements for the Kiosk page and demo server onboarding:
 
-1. **Missing navigation function** - Added `showScreen()` to enable screen transitions
-2. **Inconsistent theme display** - Removed clock-in requirement from theme conditional
-3. **Command sync issue** - Added dual sync for demo server
-4. **Auto-role assignment** - Removed to enable user choice
-5. **Welcome message** - Added clear onboarding steps
+1. **Missing navigation function** - Added `showScreen()` to enable screen transitions (this fixed the theme issue too!)
+2. **Command sync issue** - Added dual sync for demo server
+3. **Auto-role assignment** - Removed to enable user choice
+4. **Welcome message** - Added clear onboarding steps
 
 ## Files Modified
 
 | File | Changes | Purpose |
 |------|---------|---------|
 | `templates/kiosk.html:1544` | Added `showScreen()` function | Enable screen navigation |
-| `templates/kiosk.html:1597` | Removed `&& emp.is_clocked_in` | Theme display consistency |
+| `templates/kiosk.html:1597` | Kept `&& emp.is_clocked_in` | Intentional design per user |
 | `bot.py:4235-4283` | Added dual command sync | Sync to both guilds |
 | `bot.py:4640-4650` | Commented auto-assignment | Enable role selection |
 | `bot.py:4662-4680` | Updated welcome message | Clear onboarding workflow |
@@ -110,6 +111,7 @@ Fixed three critical bugs and two enhancements for the Kiosk page and demo serve
 
 1. `82e215d` - Fix Kiosk page: Add missing showScreen() & fix theme display
 2. `f01ff54` - Enable /setup_demo_roles command on demo server
+3. `5d6b713` - Revert: Restore clock-in requirement for theme display on kiosk
 
 ---
 
