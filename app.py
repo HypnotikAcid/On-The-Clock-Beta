@@ -1754,7 +1754,7 @@ def dashboard(user_session):
 
         # Check if user is bot owner
         bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
-        is_bot_owner = str(user_session.get('id')) == str(bot_owner_id)
+        is_bot_owner = str(user_session.get('user_id')) == str(bot_owner_id)
 
         # Create a modified user session with both admin and employee guilds
         dashboard_data = {
