@@ -13,8 +13,8 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `templates/kiosk.html` - 2026-01-26 - Claude Code (Revert theme clock-in requirement)
 - `bot.py` - 2026-01-26 - Claude Code (Dual command sync + remove auto-role assignment)
-- `templates/kiosk.html` - 2026-01-26 - Claude Code (Fix missing showScreen() & theme display consistency)
 - `app.py` - 2026-01-26 - Claude Code (Fix My Info API unit mismatch: seconds→minutes)
 - `templates/` - 2026-01-25 - Gemini (Phase 2 complete: UI streamlining, purchase flow, mobile polish)
 - `email_utils.py` - 2026-01-25 - Claude Code (kiosk security & performance fixes)

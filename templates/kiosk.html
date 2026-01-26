@@ -1594,7 +1594,7 @@
             grid.innerHTML = employees.map(emp => {
                 let accentAttribute = '';
                 let backgroundClass = '';
-                if (allowKioskCustomization) {
+                if (allowKioskCustomization && emp.is_clocked_in) {
                     accentAttribute = `data-accent="${emp.accent_color || 'cyan'}"`;
                     if (emp.profile_background && emp.profile_background !== 'default') {
                         backgroundClass = `bg-${emp.profile_background}`;
