@@ -59,6 +59,10 @@ __version__ = get_current_version()
 # Demo server configuration - grant admin access to all demo server visitors
 DEMO_SERVER_ID = '1419894879894507661'
 
+# Demo server allowed role IDs (security: prevent public users from assigning dangerous roles)
+DEMO_ALLOWED_ADMIN_ROLES = {'1465149753510596628'}  # Demo Admin role
+DEMO_ALLOWED_EMPLOYEE_ROLES = {'1465150374968033340'}  # Demo Employee role
+
 def is_demo_server(guild_id) -> bool:
     """
     Check if guild is the demo server.
@@ -5072,27 +5076,36 @@ def api_add_admin_role(user_session, guild_id):
         if not bot_api_secret:
             app.logger.error("BOT_API_SECRET not configured")
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
-        
+
         # Validate guild_id format to prevent SSRF
         if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
-        
+
         # Verify user has access
         guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
-        
+
         # Get role_id from request
         data = request.get_json()
         if not data or 'role_id' not in data:
             return jsonify({'success': False, 'error': 'Missing role_id'}), 400
-        
+
         role_id = str(data['role_id'])
-        
+
+        # DEMO SERVER SECURITY: Restrict to safe role subset
+        if is_demo_server(guild_id):
+            if role_id not in DEMO_ALLOWED_ADMIN_ROLES:
+                app.logger.warning(f"Demo server security: Blocked attempt to add non-whitelisted admin role {role_id}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Demo Mode: You can only map the designated Demo Admin role for security.'
+                }), 403
+
         # Validate role belongs to guild
         if not validate_role_in_guild(guild_id, role_id):
             return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
-        
+
         # Forward request to bot API (Bot as Boss)
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/add"
@@ -5131,27 +5144,36 @@ def api_remove_admin_role(user_session, guild_id):
         if not bot_api_secret:
             app.logger.error("BOT_API_SECRET not configured")
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
-        
+
         # Validate guild_id format to prevent SSRF
         if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
-        
+
         # Verify user has access
         guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
-        
+
         # Get role_id from request
         data = request.get_json()
         if not data or 'role_id' not in data:
             return jsonify({'success': False, 'error': 'Missing role_id'}), 400
-        
+
         role_id = str(data['role_id'])
-        
+
+        # DEMO SERVER SECURITY: Restrict to safe role subset
+        if is_demo_server(guild_id):
+            if role_id not in DEMO_ALLOWED_ADMIN_ROLES:
+                app.logger.warning(f"Demo server security: Blocked attempt to remove non-whitelisted admin role {role_id}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Demo Mode: You can only manage the designated Demo Admin role for security.'
+                }), 403
+
         # Validate role belongs to guild
         if not validate_role_in_guild(guild_id, role_id):
             return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
-        
+
         # Forward request to bot API (Bot as Boss)
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/admin-roles/remove"
@@ -5190,27 +5212,36 @@ def api_add_employee_role(user_session, guild_id):
         if not bot_api_secret:
             app.logger.error("BOT_API_SECRET not configured")
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
-        
+
         # Validate guild_id format to prevent SSRF
         if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
-        
+
         # Verify user has access
         guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
-        
+
         # Get role_id from request
         data = request.get_json()
         if not data or 'role_id' not in data:
             return jsonify({'success': False, 'error': 'Missing role_id'}), 400
-        
+
         role_id = str(data['role_id'])
-        
+
+        # DEMO SERVER SECURITY: Restrict to safe role subset
+        if is_demo_server(guild_id):
+            if role_id not in DEMO_ALLOWED_EMPLOYEE_ROLES:
+                app.logger.warning(f"Demo server security: Blocked attempt to add non-whitelisted employee role {role_id}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Demo Mode: You can only map the designated Demo Employee role for security.'
+                }), 403
+
         # Validate role belongs to guild
         if not validate_role_in_guild(guild_id, role_id):
             return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
-        
+
         # Forward request to bot API (Bot as Boss)
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/employee-roles/add"
@@ -5253,27 +5284,36 @@ def api_remove_employee_role(user_session, guild_id):
         if not bot_api_secret:
             app.logger.error("BOT_API_SECRET not configured")
             return jsonify({'success': False, 'error': 'Server configuration error - BOT_API_SECRET missing'}), 500
-        
+
         # Validate guild_id format to prevent SSRF
         if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
-        
+
         # Verify user has access
         guild, _ = verify_guild_access(user_session, guild_id)
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
-        
+
         # Get role_id from request
         data = request.get_json()
         if not data or 'role_id' not in data:
             return jsonify({'success': False, 'error': 'Missing role_id'}), 400
-        
+
         role_id = str(data['role_id'])
-        
+
+        # DEMO SERVER SECURITY: Restrict to safe role subset
+        if is_demo_server(guild_id):
+            if role_id not in DEMO_ALLOWED_EMPLOYEE_ROLES:
+                app.logger.warning(f"Demo server security: Blocked attempt to remove non-whitelisted employee role {role_id}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Demo Mode: You can only manage the designated Demo Employee role for security.'
+                }), 403
+
         # Validate role belongs to guild
         if not validate_role_in_guild(guild_id, role_id):
             return jsonify({'success': False, 'error': 'Invalid role for this server'}), 400
-        
+
         # Forward request to bot API (Bot as Boss)
         # Using constant base URL with validated guild_id (digits only, max 20 chars)
         bot_api_url = f"{BOT_API_BASE_URL}/api/guild/{guild_id}/employee-roles/remove"
