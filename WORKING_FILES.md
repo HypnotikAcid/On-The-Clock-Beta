@@ -13,8 +13,8 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `app.py` - 2026-01-26 - Claude Code (Fix My Info API unit mismatch: seconds→minutes)
 - `templates/` - 2026-01-25 - Gemini (Phase 2 complete: UI streamlining, purchase flow, mobile polish)
-- `app.py` - 2026-01-25 - Claude Code (kiosk security & performance fixes)
 - `email_utils.py` - 2026-01-25 - Claude Code (kiosk security & performance fixes)
 - `bot.py` - 2026-01-18 - Claude Code (dead code removal)
 - `docs/audit-report.md` - 2026-01-18 - Claude Code (updated with resolutions)

@@ -6740,31 +6740,31 @@ def api_get_employee_status(user_session, guild_id, user_id):
             is_clocked_in = current_session is not None
             current_session_start = current_session['clock_in_time'].isoformat() if current_session else None
             
-            # Get hours today (calculate duration from timestamps)
+            # Get hours today (calculate duration from timestamps, convert to minutes)
             cursor = conn.execute("""
-                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) as total
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) / 60), 0) as total
                 FROM timeclock_sessions
-                WHERE guild_id = %s AND user_id = %s 
+                WHERE guild_id = %s AND user_id = %s
                 AND DATE(clock_in_time) = CURRENT_DATE
                 AND clock_out_time IS NOT NULL
             """, (str(guild_id), str(user_id)))
             hours_today = cursor.fetchone()['total'] or 0
-            
-            # Get hours this week
+
+            # Get hours this week (convert to minutes)
             cursor = conn.execute("""
-                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) as total
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) / 60), 0) as total
                 FROM timeclock_sessions
-                WHERE guild_id = %s AND user_id = %s 
+                WHERE guild_id = %s AND user_id = %s
                 AND clock_in_time >= DATE_TRUNC('week', CURRENT_DATE)
                 AND clock_out_time IS NOT NULL
             """, (str(guild_id), str(user_id)))
             hours_week = cursor.fetchone()['total'] or 0
-            
-            # Get hours this month
+
+            # Get hours this month (convert to minutes)
             cursor = conn.execute("""
-                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time))), 0) as total
+                SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) / 60), 0) as total
                 FROM timeclock_sessions
-                WHERE guild_id = %s AND user_id = %s 
+                WHERE guild_id = %s AND user_id = %s
                 AND clock_in_time >= DATE_TRUNC('month', CURRENT_DATE)
                 AND clock_out_time IS NOT NULL
             """, (str(guild_id), str(user_id)))
