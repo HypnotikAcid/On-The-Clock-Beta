@@ -3584,6 +3584,9 @@ class TimeclockHubView(discord.ui.View):
 # Track timeclock messages per user for cleanup when switching roles
 _demo_user_timeclocks: dict[int, int] = {}  # {user_id: message_id}
 
+# Track recent /setup_demo_roles calls to prevent duplicate execution
+_setup_demo_roles_recent_calls: dict[tuple[int, int], float] = {}  # {(guild_id, user_id): timestamp}
+
 class DemoRoleSwitcherView(discord.ui.View):
     """
     Persistent view for demo server role switching.
@@ -3640,11 +3643,11 @@ class DemoRoleSwitcherView(discord.ui.View):
                 interaction,
                 f"✅ **You are now an Admin!**\n\n"
                 f"🖥️ **[Open Dashboard]({dashboard_url})** - Manage employees, view reports, configure settings\n\n"
-                f"Below is your personal timeclock hub with all features. Use it anytime!",
+                f"📬 Your personal timeclock hub has been posted below in the channel!",
                 ephemeral=True
             )
 
-            # Send timeclock hub as follow-up ephemeral message
+            # Send timeclock hub as visible channel message (not ephemeral)
             view = build_timeclock_hub_view(interaction.guild_id)
             embed = discord.Embed(
                 title="⏰ Your Timeclock Hub",
@@ -3658,9 +3661,9 @@ class DemoRoleSwitcherView(discord.ui.View):
                 color=0xFF0000  # Red for admin
             )
 
-            timeclock_msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            timeclock_msg = await interaction.channel.send(content=f"{interaction.user.mention}", embed=embed, view=view)
             _demo_user_timeclocks[interaction.user.id] = timeclock_msg.id
-            print(f"📌 Stored new timeclock message {timeclock_msg.id} for admin user {interaction.user.id}")
+            print(f"📌 Sent timeclock hub to channel as message {timeclock_msg.id} for admin user {interaction.user.id}")
 
         except discord.Forbidden:
             await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
@@ -3717,11 +3720,11 @@ class DemoRoleSwitcherView(discord.ui.View):
                 f"✅ **You are now an Employee!**\n\n"
                 f"🖥️ **[Open Dashboard]({dashboard_url})** - Clock in/out, view your hours\n"
                 f"📱 **[Try Kiosk Mode]({kiosk_url})** - PIN-based clock system\n\n"
-                f"Below is your personal timeclock hub. Use it anytime!",
+                f"📬 Your personal timeclock hub has been posted below in the channel!",
                 ephemeral=True
             )
 
-            # Send timeclock hub as follow-up ephemeral message
+            # Send timeclock hub as visible channel message (not ephemeral)
             view = build_timeclock_hub_view(interaction.guild_id)
             embed = discord.Embed(
                 title="⏰ Your Timeclock Hub",
@@ -3736,9 +3739,9 @@ class DemoRoleSwitcherView(discord.ui.View):
                 color=0x0099FF  # Blue for employee
             )
 
-            timeclock_msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            timeclock_msg = await interaction.channel.send(content=f"{interaction.user.mention}", embed=embed, view=view)
             _demo_user_timeclocks[interaction.user.id] = timeclock_msg.id
-            print(f"📌 Stored new timeclock message {timeclock_msg.id} for employee user {interaction.user.id}")
+            print(f"📌 Sent timeclock hub to channel as message {timeclock_msg.id} for employee user {interaction.user.id}")
 
         except discord.Forbidden:
             await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
@@ -5429,6 +5432,25 @@ async def setup_demo_roles_command(interaction: discord.Interaction):
         return
 
     await robust_defer(interaction, ephemeral=True)
+
+    # Deduplication check - prevent duplicate execution within 2-second window
+    call_key = (interaction.guild_id, interaction.user.id)
+    current_time = time.time()
+
+    if call_key in _setup_demo_roles_recent_calls:
+        last_call = _setup_demo_roles_recent_calls[call_key]
+        if current_time - last_call < 2.0:
+            print(f"🎭 [SETUP_DEMO_ROLES] {execution_id} - Duplicate call detected (last call {current_time - last_call:.2f}s ago) - ignoring")
+            await send_reply(interaction, "⏳ Please wait - already processing your request.", ephemeral=True)
+            return
+
+    # Record this call
+    _setup_demo_roles_recent_calls[call_key] = current_time
+
+    # Clean up old entries (older than 10 seconds)
+    for k, v in list(_setup_demo_roles_recent_calls.items()):
+        if current_time - v >= 10.0:
+            del _setup_demo_roles_recent_calls[k]
 
     try:
         # Create the embed
