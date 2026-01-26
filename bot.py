@@ -46,7 +46,7 @@ DEFAULT_TZ = "America/New_York"
 db_pool = None
 
 # --- Bot Owner Configuration ---
-BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "1361859331351511083"))  # Discord user ID for super admin access
+BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "107103438139056128"))  # Discord user ID for super admin access
 
 # --- Demo Server Configuration ---
 DEMO_SERVER_ID = 1419894879894507661  # "On The Clock" demo server

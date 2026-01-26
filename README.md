@@ -303,7 +303,7 @@ event = json.loads(request.data)  # Unsafe!
 
 ## Bot Owner Information
 
-**Bot Owner Discord ID**: `1361859331351511083`
+**Bot Owner Discord ID**: `107103438139056128`
 
 Owner-only commands:
 - `/owner_grant` - Grant subscription tier to current server

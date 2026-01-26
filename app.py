@@ -1757,7 +1757,7 @@ def dashboard(user_session):
         employee_guilds = all_guilds['employee_guilds']
 
         # Check if user is bot owner
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         is_bot_owner = str(user_session.get('user_id')) == str(bot_owner_id)
 
         # Create a modified user session with both admin and employee guilds
@@ -2275,7 +2275,7 @@ def fetch_guild_name_from_discord(guild_id, db_conn=None):
 def owner_dashboard(user_session):
     """Owner-only dashboard showing all servers, subscriptions, webhook events, and active sessions"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         # Security check: Only allow bot owner
         if user_session['user_id'] != bot_owner_id:
@@ -2520,7 +2520,7 @@ def owner_dashboard(user_session):
 def owner_dashboard_paid(user_session):
     """Owner-only dashboard showing only paid servers"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             app.logger.warning(f"Unauthorized owner dashboard access attempt by user {user_session['user_id']}")
@@ -2603,7 +2603,7 @@ def owner_dashboard_paid(user_session):
 def owner_dashboard_unpaid(user_session):
     """Owner-only dashboard showing only unpaid servers (bot installed but not paid)"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             app.logger.warning(f"Unauthorized owner dashboard access attempt by user {user_session['user_id']}")
@@ -2686,7 +2686,7 @@ def owner_dashboard_unpaid(user_session):
 def api_owner_manual_grant(user_session):
     """Owner-only API endpoint to manually grant access with specific source attribution"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
             
@@ -2726,7 +2726,7 @@ def api_owner_manual_grant(user_session):
 def debug_console(user_session):
     """Owner-only debug console for security testing"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             app.logger.warning(f"Unauthorized debug console access attempt by user {user_session['user_id']}")
@@ -2744,7 +2744,7 @@ def debug_console(user_session):
 def debug_run_test(user_session):
     """Owner-only API endpoint to run security tests"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -3008,7 +3008,7 @@ def _test_role_id_validation(guild_id, user_session):
 @require_auth
 def debug_health_bot(user_session):
     """Check Discord bot health"""
-    bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
     if user_session['user_id'] != bot_owner_id:
         return jsonify({'healthy': False, 'error': 'Unauthorized'}), 403
     
@@ -3037,7 +3037,7 @@ def debug_health_bot(user_session):
 @require_auth
 def debug_health_db(user_session):
     """Check database health"""
-    bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
     if user_session['user_id'] != bot_owner_id:
         return jsonify({'healthy': False, 'error': 'Unauthorized'}), 403
     
@@ -3054,7 +3054,7 @@ def debug_health_db(user_session):
 @require_auth
 def debug_health_stripe(user_session):
     """Check Stripe configuration"""
-    bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
     if user_session['user_id'] != bot_owner_id:
         return jsonify({'healthy': False, 'error': 'Unauthorized'}), 403
     
@@ -3080,7 +3080,7 @@ def debug_health_stripe(user_session):
 @require_auth
 def debug_health_email(user_session):
     """Check email service configuration"""
-    bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
     if user_session['user_id'] != bot_owner_id:
         return jsonify({'healthy': False, 'error': 'Unauthorized'}), 403
     
@@ -3097,7 +3097,7 @@ def debug_health_email(user_session):
 @require_auth
 def debug_api_test(user_session, test_id):
     """Run specific API tests"""
-    bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
     if user_session['user_id'] != bot_owner_id:
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
@@ -3148,7 +3148,7 @@ def debug_api_test(user_session, test_id):
 @require_auth
 def debug_version_info(user_session):
     """Get version information from version.json and public_roadmap.json"""
-    bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
     if user_session['user_id'] != bot_owner_id:
         return jsonify({'error': 'Unauthorized'}), 403
     
@@ -3185,7 +3185,7 @@ def debug_version_info(user_session):
 @require_auth
 def debug_checklist(user_session):
     """Run full pre-publish checklist"""
-    bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
     if user_session['user_id'] != bot_owner_id:
         return jsonify({'error': 'Unauthorized'}), 403
     
@@ -3384,7 +3384,7 @@ def seed_demo_data_internal():
 @require_auth
 def debug_seed_demo_data(user_session):
     """Owner-only endpoint to manually seed demo data."""
-    bot_owner_id = str(os.getenv("BOT_OWNER_ID", "1361859331351511083"))
+    bot_owner_id = str(os.getenv("BOT_OWNER_ID", "107103438139056128"))
     if str(user_session['user_id']) != bot_owner_id:
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
@@ -3400,7 +3400,7 @@ def debug_seed_demo_data(user_session):
 def api_owner_grant_access(user_session):
     """Owner-only API endpoint to manually grant bot access or retention tiers to servers"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         # Security check: Only allow bot owner
         if user_session['user_id'] != bot_owner_id:
@@ -3541,7 +3541,7 @@ def api_owner_grant_access(user_session):
 def api_owner_server_index(user_session):
     """Owner-only API endpoint to get lightweight server list for dropdown selection"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -3607,7 +3607,7 @@ def api_owner_server_index(user_session):
 def api_owner_revoke_access(user_session):
     """Owner-only API endpoint to manually revoke bot access or retention tiers from servers"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         # Security check: Only allow bot owner
         if user_session['user_id'] != bot_owner_id:
@@ -3720,7 +3720,7 @@ def api_owner_revoke_access(user_session):
 def api_owner_trial_grant(user_session):
     """Owner-only API to manually grant trial usage to a server"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
@@ -3766,7 +3766,7 @@ def api_owner_trial_grant(user_session):
 def api_owner_trial_status(user_session, guild_id):
     """Owner-only API to check trial status for a server"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
@@ -3804,7 +3804,7 @@ def api_owner_trial_status(user_session, guild_id):
 def api_owner_trial_reset(user_session):
     """Owner-only API to reset trial usage for a server (allow re-use)"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized - Owner access required'}), 403
@@ -3844,7 +3844,7 @@ def api_owner_trial_reset(user_session):
 def api_owner_broadcast(user_session):
     """Owner-only API endpoint to broadcast messages to all servers"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         # Security check: Only allow bot owner
         if user_session['user_id'] != bot_owner_id:
@@ -3977,7 +3977,7 @@ def api_owner_broadcast(user_session):
 def api_owner_email_logs(user_session):
     """Owner-only API endpoint to view persistent email logs"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -4024,7 +4024,7 @@ def api_owner_email_logs(user_session):
 def api_owner_trigger_deletion_check(user_session):
     """Owner-only API endpoint to manually trigger deletion warning check"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -4071,7 +4071,7 @@ def api_owner_trigger_deletion_check(user_session):
 def api_owner_bulk_upgrade_paid(user_session):
     """Owner-only API endpoint to upgrade all paid servers to 7-day retention"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -4137,7 +4137,7 @@ def api_owner_bulk_upgrade_paid(user_session):
 def api_owner_purge_email_recipient(user_session):
     """Owner-only API endpoint to remove a specific email recipient from any guild"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -4204,7 +4204,7 @@ def api_owner_purge_email_recipient(user_session):
 def api_owner_list_all_email_recipients(user_session):
     """Owner-only API endpoint to list ALL email recipients across ALL guilds"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -4251,7 +4251,7 @@ def api_owner_list_all_email_recipients(user_session):
 def api_owner_audit_email_settings(user_session):
     """Owner-only API endpoint to audit and fix guilds with email settings enabled but no recipients"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -4308,7 +4308,7 @@ def api_owner_audit_email_settings(user_session):
 def api_owner_employee_list(user_session, guild_id):
     """Owner-only API endpoint to get employee list for a server"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -4368,7 +4368,7 @@ def api_owner_employee_list(user_session, guild_id):
 def api_owner_time_report(user_session, guild_id):
     """Owner-only API endpoint to download time report CSV for a server"""
     try:
-        bot_owner_id = os.getenv("BOT_OWNER_ID", "1361859331351511083")
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
         
         if user_session['user_id'] != bot_owner_id:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
