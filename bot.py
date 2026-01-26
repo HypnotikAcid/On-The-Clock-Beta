@@ -4246,15 +4246,6 @@ async def on_ready():
                 sync_location = f"guild {GUILD_ID}"
                 print(f"✅ Synced {synced_count} commands to guild {GUILD_ID}")
 
-                # Also sync to demo server so /setup_demo_roles appears there
-                try:
-                    demo_guild_obj = discord.Object(id=DEMO_SERVER_ID)
-                    demo_synced = await tree.sync(guild=demo_guild_obj)
-                    print(f"✅ Synced {len(demo_synced)} commands to demo server {DEMO_SERVER_ID}")
-                    sync_location += f" + demo server {DEMO_SERVER_ID}"
-                except Exception as demo_error:
-                    print(f"⚠️ Demo server sync failed (non-critical): {demo_error}")
-
                 # If guild sync fails, try global
                 if synced_count == 0:
                     print("🔄 Guild sync returned 0 commands, trying global sync...")
