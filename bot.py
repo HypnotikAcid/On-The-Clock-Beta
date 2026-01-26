@@ -4235,17 +4235,26 @@ async def on_ready():
     # Try syncing commands with better error handling
     synced_count = 0
     sync_location = "nowhere"
-    
+
     try:
         if GUILD_ID:
-            # Try guild-specific sync first
+            # Try guild-specific sync first (main production server)
             try:
                 guild_obj = discord.Object(id=int(GUILD_ID))
                 synced = await tree.sync(guild=guild_obj)
                 synced_count = len(synced)
                 sync_location = f"guild {GUILD_ID}"
                 print(f"✅ Synced {synced_count} commands to guild {GUILD_ID}")
-                
+
+                # Also sync to demo server so /setup_demo_roles appears there
+                try:
+                    demo_guild_obj = discord.Object(id=DEMO_SERVER_ID)
+                    demo_synced = await tree.sync(guild=demo_guild_obj)
+                    print(f"✅ Synced {len(demo_synced)} commands to demo server {DEMO_SERVER_ID}")
+                    sync_location += f" + demo server {DEMO_SERVER_ID}"
+                except Exception as demo_error:
+                    print(f"⚠️ Demo server sync failed (non-critical): {demo_error}")
+
                 # If guild sync fails, try global
                 if synced_count == 0:
                     print("🔄 Guild sync returned 0 commands, trying global sync...")
@@ -4253,7 +4262,7 @@ async def on_ready():
                     synced_count = len(synced)
                     sync_location = "globally (after guild failed)"
                     print(f"✅ Global sync: {synced_count} commands")
-                    
+
             except Exception as guild_error:
                 print(f"❌ Guild sync failed: {guild_error}")
                 print("🔄 Trying global sync as fallback...")
@@ -4268,11 +4277,11 @@ async def on_ready():
             synced_count = len(synced)
             sync_location = "globally"
             print(f"✅ Synced {synced_count} global commands")
-            
+
     except Exception as e:
         print(f"❌ All command sync attempts failed: {e}")
         synced_count = 0
-    
+
     print(f"🎯 Final result: {synced_count} commands synced {sync_location}")
     if bot.user:
         print(f"🤖 Logged in as {bot.user} ({bot.user.id})")
@@ -4627,16 +4636,18 @@ async def on_member_join(member):
         return
     
     print(f"👋 New member joined demo server: {member.display_name}")
-    
-    try:
-        role = member.guild.get_role(DEMO_EMPLOYEE_ROLE_ID)
-        if role:
-            await member.add_roles(role, reason="Auto-assigned for demo access")
-            print(f"✅ Assigned Test Employee role to {member.display_name}")
-    except discord.Forbidden:
-        print(f"❌ Could not assign role to {member.display_name} - missing permissions")
-    except Exception as e:
-        print(f"❌ Error assigning role: {e}")
+
+    # Role selection removed - users now choose their role via /setup_demo_roles buttons
+    # See DemoRoleSwitcherView for the interactive role selection system
+    # try:
+    #     role = member.guild.get_role(DEMO_EMPLOYEE_ROLE_ID)
+    #     if role:
+    #         await member.add_roles(role, reason="Auto-assigned for demo access")
+    #         print(f"✅ Assigned Test Employee role to {member.display_name}")
+    # except discord.Forbidden:
+    #     print(f"❌ Could not assign role to {member.display_name} - missing permissions")
+    # except Exception as e:
+    #     print(f"❌ Error assigning role: {e}")
     
     try:
         # Use production URL for OAuth compatibility
@@ -4644,16 +4655,21 @@ async def on_member_join(member):
         
         embed = discord.Embed(
             title="🎮 Welcome to the Time Warden Demo Server!",
-            description="Thanks for checking out our Discord timeclock bot! You now have demo access to explore **all features** with live test data.",
+            description="Thanks for checking out our Discord timeclock bot! This demo lets you explore **all features** with live test data.",
             color=0x00FFFF  # Cyan to match branding
         )
         embed.add_field(
-            name="🖥️ Try the Web Dashboard",
+            name="🎭 STEP 1: Choose Your Demo Persona",
+            value="Look for the **'Choose Your Demo Persona'** message in the server:\n• 👷 **Become Employee** - Test clock in/out features\n• 👑 **Become Admin** - Manage employees and settings",
+            inline=False
+        )
+        embed.add_field(
+            name="🖥️ STEP 2: Try the Web Dashboard",
             value=f"[Login to Dashboard]({dashboard_url}/auth/login)\n\nExplore the full admin dashboard with sample employee data, reports, and settings.",
             inline=False
         )
         embed.add_field(
-            name="📱 Try the Kiosk Mode",
+            name="📱 STEP 3: Try the Kiosk Mode",
             value=f"[Open Demo Kiosk]({dashboard_url}/kiosk/{DEMO_SERVER_ID})\n\nTest our tablet-friendly kiosk interface with PIN-based clock in/out.",
             inline=False
         )
