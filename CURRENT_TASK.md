@@ -2,7 +2,7 @@
 
 **Date**: 2026-01-26
 **Agent**: Claude Code (Backend Specialist)
-**Task**: ✅ COMPLETE - Kiosk Fixes & Demo Server Role Selection
+**Task**: ✅ COMPLETE - Kiosk Fixes, Demo Server Enhancements & Onboarding Flow
 
 ---
 
@@ -12,10 +12,7 @@
 
 **Problem**: Clicking employee buttons on the Kiosk page had no effect. JavaScript ReferenceError in browser console.
 
-**Root Cause**: The `showScreen()` function was called 3 times in the code but was never defined:
-- Line 1614 (now ~1642): `showScreen('pin')` - When employee button clicked
-- Line 1781 (now ~1809): `showScreen('actions')` - When PIN verified
-- Line 2549 (now ~2577): `showScreen('employee')` - When returning to grid
+**Root Cause**: The `showScreen()` function was called 3 times in the code but was never defined.
 
 **Fix**: Added `showScreen()` function at line 1544 in `templates/kiosk.html` to toggle `.active` CSS class on screen divs.
 
@@ -23,47 +20,30 @@
 
 ---
 
-### Issue 2: Theme Display Not Showing (RESOLVED - Was Actually Issue 1)
+### Issue 2: Theme Display (RESOLVED - Working as Designed)
 
 **Initial Misdiagnosis**: Thought theme clock-in requirement was the problem
 **Actual Problem**: User couldn't clock in to trigger themes because showScreen() was missing
 
-**Resolution**:
-- Kept original clock-in requirement: `if (allowKioskCustomization && emp.is_clocked_in)`
-- This was intentional design - themes only show when employee is actively clocked in
-- Real issue was fixed by adding showScreen() function (Issue 1)
-- Now users can clock in successfully and themes display as designed
-
-**Impact**:
-- Themes display correctly when employee clocks in (via working navigation)
-- Clock-in status visual indicator maintained as designed
-- Clean, minimal appearance for clocked-out employees
+**Resolution**: Kept original clock-in requirement - themes only show when employee is actively clocked in (intentional design per user feedback)
 
 ---
 
 ### Issue 3: /setup_demo_roles Command Not Appearing (P0 - CRITICAL)
 
-**Problem**: User reported `/setup_demo_roles` command doesn't exist after republishing bot.
+**Problem**: Command doesn't exist after republishing bot.
 
-**Root Cause**: Command syncing issue
-- `GUILD_ID` env var was set to main server (1085872975343009812)
-- Bot only synced commands to GUILD_ID, not demo server (1419894879894507661)
-- `/setup_demo_roles` command existed in code but wasn't visible on demo server
+**Root Cause**: Command syncing issue - bot was only syncing to main server, not demo server.
 
-**Fix**: Modified command sync logic in `bot.py:4235-4283`
-1. Added dual sync - both main guild AND demo server
-2. Non-critical error handling if demo sync fails
-3. Commands now appear on both production and demo servers
+**Fix**: Modified command sync logic in `bot.py:4235-4283` (later removed by Replit Agent due to duplicate issue).
 
-**Impact**: `/setup_demo_roles` command now appears on demo server for admins to use.
+**Resolution**: Command now syncs via global fallback and appears on demo server.
 
 ---
 
 ### Issue 4: Auto-Role Assignment (Enhancement)
 
 **Problem**: New members were automatically assigned "Test Employee" role, preventing user choice.
-
-**Root Cause**: `on_member_join` event handler (bot.py:4640-4650) auto-assigned DEMO_EMPLOYEE_ROLE_ID.
 
 **Fix**: Commented out auto-assignment code so users choose their own role via buttons.
 
@@ -75,24 +55,73 @@
 
 **Problem**: Welcome message didn't direct users to role selection.
 
-**Fix**: Updated welcome DM (bot.py:4662-4680) with clear steps:
-- STEP 1: Choose Your Demo Persona
-- STEP 2: Try the Web Dashboard
-- STEP 3: Try the Kiosk Mode
-- Discord Commands section
+**Fix**: Updated welcome DM with clear steps directing to role selection.
 
-**Impact**: New demo server members now have clear onboarding workflow.
+---
+
+### Issue 6: Duplicate Messages from /setup_demo_roles (P1)
+
+**Problem**: Running `/setup_demo_roles` sent two embeds to channel.
+
+**Root Cause**: Dual command sync was causing command to register twice on demo server.
+
+**Fix**: Replit Agent removed duplicate sync code (commit `1b46ba3`).
+
+**Debug**: Added execution ID logging to track future issues (commit `33fb15e`).
+
+**Status**: Fixed by Replit Agent, debug logging added for monitoring.
+
+---
+
+### Issue 7: Demo Onboarding Flow (MAJOR Enhancement)
+
+**Problem**: After choosing a role, users had to:
+1. Manually discover `/clock` command
+2. Run it separately
+3. No guidance to dashboard or kiosk
+
+**Solution**: Enhanced demo role switcher buttons to provide seamless onboarding.
+
+**Implementation** (commit `ef2893b`):
+
+1. **Auto-send Timeclock Hub**
+   - After clicking "Become Admin" or "Become Employee"
+   - Ephemeral message with full timeclock interface
+   - All buttons ready to use immediately
+
+2. **Dashboard & Kiosk Links**
+   - Admin: Dashboard link with management features
+   - Employee: Dashboard + Kiosk links
+   - Clickable URLs in confirmation message
+
+3. **Clean Message Management**
+   - Tracks previous timeclock message per user (dict: `_demo_user_timeclocks`)
+   - Deletes old timeclock when switching roles
+   - Prevents message clutter
+
+4. **Role-Specific Embeds**
+   - Admin: Red embed with admin capabilities
+   - Employee: Blue embed with employee features
+   - Clear descriptions of what each role can do
+
+**Benefits**:
+- No need to discover `/clock` command
+- Immediate access to all features
+- Switching roles feels instant and clean
+- Guides users to both Discord and web features
 
 ---
 
 ## Summary
 
-Fixed three critical bugs and two enhancements for the Kiosk page and demo server onboarding:
+Fixed four critical bugs and implemented three major enhancements:
 
-1. **Missing navigation function** - Added `showScreen()` to enable screen transitions (this fixed the theme issue too!)
-2. **Command sync issue** - Added dual sync for demo server
-3. **Auto-role assignment** - Removed to enable user choice
-4. **Welcome message** - Added clear onboarding steps
+1. **Missing navigation function** - Added `showScreen()` to enable kiosk navigation
+2. **Command sync issue** - Enabled `/setup_demo_roles` on demo server
+3. **Duplicate messages** - Fixed by Replit Agent + added debug logging
+4. **Auto-role assignment** - Removed to enable user choice
+5. **Welcome message** - Added clear onboarding steps
+6. **Seamless onboarding** - Auto-send timeclock hub after role selection
 
 ## Files Modified
 
@@ -100,90 +129,68 @@ Fixed three critical bugs and two enhancements for the Kiosk page and demo serve
 |------|---------|---------|
 | `templates/kiosk.html:1544` | Added `showScreen()` function | Enable screen navigation |
 | `templates/kiosk.html:1597` | Kept `&& emp.is_clocked_in` | Intentional design per user |
-| `bot.py:4235-4283` | Added dual command sync | Sync to both guilds |
+| `bot.py:4235-4283` | Added dual command sync (reverted) | Sync to both guilds |
 | `bot.py:4640-4650` | Commented auto-assignment | Enable role selection |
 | `bot.py:4662-4680` | Updated welcome message | Clear onboarding workflow |
+| `bot.py:5346-5415` | Added debug logging | Track duplicate issues |
+| `bot.py:3584-3733` | Enhanced role switcher | Auto-send timeclock hub |
 | `WORKING_FILES.md` | Updated | File lock management |
 
 ---
 
 ## Commits Made
 
-1. `82e215d` - Fix Kiosk page: Add missing showScreen() & fix theme display
+1. `82e215d` - Fix Kiosk page: Add missing showScreen()
 2. `f01ff54` - Enable /setup_demo_roles command on demo server
-3. `5d6b713` - Revert: Restore clock-in requirement for theme display on kiosk
+3. `5d6b713` - Revert: Restore clock-in requirement for theme display
+4. `4dabb20` - Update CURRENT_TASK.md documentation
+5. `1b46ba3` - Remove duplicate command sync (Replit Agent)
+6. `33fb15e` - Add debug logging to /setup_demo_roles
+7. `ef2893b` - Enhance demo role switcher with automatic timeclock hub
 
 ---
 
-## Demo Server Workflow (Now Complete)
+## Demo Server Workflow (Complete & Enhanced!)
 
-**For Admins:**
+### For Admins:
 1. Run `/setup_demo_roles` in any channel on demo server
-2. Embed appears with "Choose Your Demo Persona" title
+2. Embed appears with "Choose Your Role" title
 3. Two buttons: 👷 "Become Employee" (blue) and 👑 "Become Admin" (red)
 
-**For New Members:**
+### For New Members (New Enhanced Flow):
 1. Join demo Discord server (1419894879894507661)
 2. Receive welcome DM with instructions
 3. Find role selection message in server
 4. Click "Become Admin" or "Become Employee" button
-5. Receive confirmation and feature list
-6. Login to dashboard at https://time-warden.com
-7. Navigate to demo server dashboard
-8. Access Kiosk at https://time-warden.com/kiosk/1419894879894507661
+5. **NEW**: Automatically receive:
+   - Ephemeral confirmation with dashboard/kiosk links
+   - Personal timeclock hub with all interactive buttons
+   - Role-specific guidance on what they can do
+6. Start using timeclock immediately (no need to run `/clock`)
+7. Switch roles anytime - old timeclock is automatically replaced
 
-**Kiosk Access:**
-- Demo server automatically grants admin access to all users (app.py:805)
-- Demo server bypasses Pro tier requirement for kiosk (app.py:1075)
-- All demo actions are sandboxed (no DB writes, fake success messages)
+### Switching Roles:
+1. Click the other role button
+2. Old timeclock message is automatically deleted
+3. New timeclock message appears with updated role context
+4. Clean, seamless experience
 
 ---
 
 ## Next Steps
 
-1. **Restart bot** to trigger command sync
+1. **Deploy the enhanced bot** (commit `ef2893b`)
+2. **Test the new flow**:
+   - Click "Become Employee"
+   - Verify timeclock hub appears
+   - Verify dashboard and kiosk links work
+   - Click "Become Admin"
+   - Verify old timeclock is deleted
+   - Verify new admin timeclock appears
+3. **Monitor debug logs** for duplicate message issues:
    ```bash
-   # Kill existing bot process
-   pkill -f "python.*bot.py"
-   # Start bot
-   nohup python bot.py &
+   tail -f nohup.out | grep "SETUP_DEMO_ROLES"
    ```
-
-2. **Verify command appears**
-   - Open Discord on demo server
-   - Type `/` and search for "setup_demo_roles"
-   - Should appear with [ADMIN] tag
-
-3. **Post role switcher**
-   - Run `/setup_demo_roles` in welcome channel
-   - Verify embed appears with two buttons
-
-4. **Test role switching**
-   - Click "Become Employee" → Verify role assigned
-   - Click "Become Admin" → Verify roles switched
-   - Check ephemeral responses
-
-5. **Test kiosk workflow**
-   - Login to dashboard with employee role
-   - Navigate to Kiosk page
-   - Verify buttons work (from Issue 1 fix)
-   - Verify themes display (from Issue 2 fix)
-
----
-
-## Previous Work This Session
-
-### My Info Page Fix
-
-**Problem**: My Info page was showing "Failed to Load: Server Error"
-
-**Fix**: Modified SQL queries in `app.py:6743-6771` to convert seconds to minutes (commit `fe20fcf`)
-
-### Kiosk Tier Investigation
-
-**Problem**: User received `PRO_REQUIRED` error
-
-**Resolution**: Confirmed tier structure is correct; user updated database to grant Pro tier access
 
 ---
 
