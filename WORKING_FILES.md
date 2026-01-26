@@ -7,12 +7,13 @@
 
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
-- `app.py` - Claude Code - 2026-01-26 - Fix Employee Profile API server error (enhanced logging + defensive datetime handling)
+(none)
 
 ---
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `app.py` - 2026-01-26 - Claude Code (Employee Profile API: Enhanced error logging + defensive datetime handling)
 - `bot.py` - 2026-01-26 - Claude Code (Fix duplicate posting + timeclock hub visibility)
 - `bot.py` - 2026-01-26 - Claude Code (Enhanced demo role switcher with auto-timeclock)
 - `bot.py` - 2026-01-26 - Claude Code (Add debug logging to setup_demo_roles)

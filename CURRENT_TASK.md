@@ -2,11 +2,115 @@
 
 **Date**: 2026-01-26
 **Agent**: Claude Code (Backend Specialist)
-**Task**: ✅ COMPLETE - Kiosk Fixes, Demo Server Enhancements & Onboarding Flow
+**Task**: 🔧 IN PROGRESS - Employee Profile API Error Diagnosis
 
 ---
 
-## 🎯 Issues Resolved This Session
+## 🔍 Current Issue: Employee Profile API Server Error (P0 - CRITICAL)
+
+**Problem**: Employee Profile page shows "Failed to load profile: Server error"
+- URL pattern: `/dashboard/server/{guild_id}/profile/{user_id}`
+- API endpoint: `GET /api/server/<guild_id>/employee/<user_id>/profile` (app.py:6317)
+- Error: 500 status with minimal logging
+
+**Implementation Status**: ✅ **Logging Enhanced - Ready for Testing**
+
+### Changes Made (Commit: `ecbf03b`)
+
+**1. Enhanced Exception Logging** (app.py:6474-6478)
+- Added full traceback output with `traceback.format_exc()`
+- Log exception type and message separately
+- Include guild_id and user_id in error context
+
+**2. Strategic Debug Checkpoints**
+Added debug logging after each major operation:
+- Line 6352: After profile fetch
+- Line 6357: Before stats calculation
+- Line 6378: Before weekly hours calculation
+- Line 6401: Before tenure calculation
+- Line 6418: Before clock status check
+- Line 6436: Before tier check
+- Line 6448: Before building response
+
+**3. Defensive Datetime Handling**
+
+**first_clock calculation** (app.py:6380-6393):
+- Added try/except wrapper
+- Type checking: `isinstance(first_clock, datetime)`
+- Safe timezone handling
+- Fallback to 0 on error
+
+**hire_date calculation** (app.py:6401-6425):
+- Added try/except wrapper
+- Type checking: `isinstance(hire_date, datetime)`
+- Safe timezone handling
+- Fallback to "Error calculating tenure" on error
+
+### Next Steps
+
+**1. Restart the App**
+```bash
+# Kill current process
+pkill -f "python.*start.py" || pkill -f "python.*app.py"
+
+# Start fresh
+python start.py
+```
+
+**2. Monitor Logs in Real-Time**
+```bash
+tail -f nohup.out | grep -E "ERROR|DEBUG.*profile|Exception type"
+```
+
+**3. Reproduce the Error**
+- Navigate to: `/dashboard/server/{guild_id}/profile/{user_id}`
+- Observe server logs for:
+  - Which debug checkpoint was last reached
+  - Full exception traceback
+  - Exception type (AttributeError, TypeError, etc.)
+
+**4. Identify Root Cause**
+From logs, determine:
+- Exact line that failed (from traceback)
+- What operation failed (from last debug checkpoint)
+- Data type issue or missing field
+
+**5. Apply Specific Fix**
+Once root cause identified:
+- Implement targeted fix
+- Test that profile loads successfully
+- Verify all fields display correctly
+
+### Expected Log Output
+
+**Success case:**
+```
+DEBUG: Profile fetched for user 123456: True
+DEBUG: Calculating stats for user 123456
+DEBUG: Calculating weekly hours for user 123456
+DEBUG: Calculating tenure for user 123456
+DEBUG: Checking clock status for user 123456
+DEBUG: Checking tier for guild 789
+DEBUG: Building profile response for user 123456
+```
+
+**Error case example:**
+```
+DEBUG: Profile fetched for user 123456: True
+DEBUG: Calculating stats for user 123456
+ERROR: Error fetching employee profile for guild 789, user 123456
+ERROR: Exception type: AttributeError
+ERROR: Exception message: 'NoneType' object has no attribute 'replace'
+ERROR: Full traceback:
+Traceback (most recent call last):
+  File "/home/runner/workspace/app.py", line 6410, in api_get_employee_profile
+    days = (datetime.now(pytz.UTC) - hire_date.replace(tzinfo=pytz.UTC)).days
+AttributeError: 'NoneType' object has no attribute 'replace'
+```
+
+---
+
+## 🎯 Previously Resolved Issues
 
 ### Issue 1: Employee Buttons Not Working (P0 - CRITICAL)
 
