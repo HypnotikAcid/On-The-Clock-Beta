@@ -50,7 +50,7 @@ BOT_OWNER_ID = int(os.getenv("BOT_OWNER_ID", "107103438139056128"))  # Discord u
 
 # --- Demo Server Configuration ---
 DEMO_SERVER_ID = 1419894879894507661  # "On The Clock" demo server
-DEMO_EMPLOYEE_ROLE_ID = 1460483767050178631  # "Test Employee" role for auto-assignment
+DEMO_EMPLOYEE_ROLE_ID = 1465150374968033340  # "Demo Employee" role for auto-assignment
 DEMO_ADMIN_ROLE_ID = 1465149753510596628  # "Demo Admin" role for simulating admin access
 
 # --- Discord Application Configuration ---
