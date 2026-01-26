@@ -4535,23 +4535,28 @@ async def on_member_join(member):
         dashboard_url = "https://time-warden.com"
         
         embed = discord.Embed(
-            title="Welcome to Time Warden!",
-            description="Thanks for checking out our Discord timeclock bot! You now have demo access to explore all features.",
-            color=0xFFC107
+            title="🎮 Welcome to the Time Warden Demo Server!",
+            description="Thanks for checking out our Discord timeclock bot! You now have demo access to explore **all features** with live test data.",
+            color=0x00FFFF  # Cyan to match branding
         )
         embed.add_field(
-            name="Try the Dashboard",
-            value=f"[Open Dashboard]({dashboard_url}/auth/login)\n\nLog in with Discord to see the employee view with sample data.",
+            name="🖥️ Try the Web Dashboard",
+            value=f"[Login to Dashboard]({dashboard_url}/auth/login)\n\nExplore the full admin dashboard with sample employee data, reports, and settings.",
             inline=False
         )
         embed.add_field(
-            name="Discord Commands",
-            value="• `/clock` - Open your personal timeclock\n• `/help` - See all available commands",
+            name="📱 Try the Kiosk Mode",
+            value=f"[Open Demo Kiosk]({dashboard_url}/kiosk/{DEMO_SERVER_ID})\n\nTest our tablet-friendly kiosk interface with PIN-based clock in/out.",
             inline=False
         )
         embed.add_field(
-            name="Questions?",
-            value="Check the server channels for FAQs or ask in chat!",
+            name="💬 Discord Commands",
+            value="• `/clock` - Open your personal timeclock\n• `/help` - See all available commands\n• `/report` - Generate timesheet reports",
+            inline=False
+        )
+        embed.add_field(
+            name="❓ Questions?",
+            value="Check the server channels for FAQs, tutorials, and support!",
             inline=False
         )
         embed.set_footer(text="Time Warden - Professional Time Tracking for Discord Teams")
