@@ -1541,6 +1541,34 @@
         // Kiosk customization setting
         let allowKioskCustomization = false;
 
+        // Screen navigation function
+        function showScreen(screenName) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+
+            // Map friendly names to screen IDs
+            const screenMap = {
+                'employee': 'employeeScreen',
+                'pin': 'pinScreen',
+                'actions': 'actionsScreen'
+            };
+
+            // Show requested screen
+            const screenId = screenMap[screenName];
+            if (screenId) {
+                const targetScreen = document.getElementById(screenId);
+                if (targetScreen) {
+                    targetScreen.classList.add('active');
+                } else {
+                    console.error(`Screen element not found: ${screenId}`);
+                }
+            } else {
+                console.error(`Unknown screen name: ${screenName}`);
+            }
+        }
+
         // Load employees
         async function loadEmployees() {
             showLoading(true);
@@ -1566,7 +1594,7 @@
             grid.innerHTML = employees.map(emp => {
                 let accentAttribute = '';
                 let backgroundClass = '';
-                if (allowKioskCustomization && emp.is_clocked_in) {
+                if (allowKioskCustomization) {
                     accentAttribute = `data-accent="${emp.accent_color || 'cyan'}"`;
                     if (emp.profile_background && emp.profile_background !== 'default') {
                         backgroundClass = `bg-${emp.profile_background}`;
