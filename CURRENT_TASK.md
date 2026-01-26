@@ -2,11 +2,13 @@
 
 **Date**: 2026-01-26
 **Agent**: Claude Code (Backend Specialist)
-**Task**: ✅ COMPLETE - Fixed My Info page "Server Error"
+**Task**: ✅ COMPLETE - Fixed My Info page & Investigated Kiosk tier issue
 
 ---
 
-## 🎯 Issue Resolved
+## 🎯 Issues Resolved
+
+### Issue 1: My Info Page "Server Error"
 
 **Problem**: My Info page was showing "Failed to Load: Server Error"
 
@@ -17,15 +19,28 @@
 
 **Fix**: Modified SQL queries in `app.py:6743-6771` to divide EPOCH values by 60, converting seconds to minutes before returning to frontend.
 
+### Issue 2: Kiosk Access "PRO_REQUIRED" Error
+
+**Problem**: User received error `{"code":"PRO_REQUIRED","current_tier":"premium"}` when accessing Kiosk
+
+**Investigation**:
+- Confirmed tier structure is correct: Free → Premium ($8/mo, 30-day) → Pro ($15/mo, 30-day + Kiosk)
+- Kiosk decorator properly requires Pro tier (`retention_tier='pro'`)
+- User's server had Premium tier but needed Pro tier for Kiosk access
+
+**Resolution**: User updated database to grant Pro tier access. System working as designed.
+
 ---
 
 ## Summary
 
-Fixed critical bug in employee status API endpoint where time calculations were returned in seconds instead of the expected minutes format. The My Info page now correctly displays:
+1. Fixed critical bug in employee status API endpoint where time calculations were returned in seconds instead of the expected minutes format. The My Info page now correctly displays:
 - Hours worked today
 - Hours worked this week
 - Hours worked this month
 - Progress bar calculations (8-hour goal)
+
+2. Investigated and confirmed tier gating system is functioning correctly - Kiosk properly requires Pro tier subscription.
 
 ## Files Modified
 
