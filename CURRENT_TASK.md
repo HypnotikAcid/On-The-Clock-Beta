@@ -114,14 +114,16 @@
 
 ## Summary
 
-Fixed four critical bugs and implemented three major enhancements:
+Fixed five critical bugs and implemented three major enhancements:
 
 1. **Missing navigation function** - Added `showScreen()` to enable kiosk navigation
 2. **Command sync issue** - Enabled `/setup_demo_roles` on demo server
-3. **Duplicate messages** - Fixed by Replit Agent + added debug logging
+3. **Duplicate messages** - Fixed with deduplication mechanism (2-second window)
 4. **Auto-role assignment** - Removed to enable user choice
 5. **Welcome message** - Added clear onboarding steps
 6. **Seamless onboarding** - Auto-send timeclock hub after role selection
+7. **Timeclock hub visibility** - Changed from ephemeral to visible channel message
+8. **Duplicate prevention** - Added call tracking to prevent duplicate command execution
 
 ## Files Modified
 
@@ -134,6 +136,9 @@ Fixed four critical bugs and implemented three major enhancements:
 | `bot.py:4662-4680` | Updated welcome message | Clear onboarding workflow |
 | `bot.py:5346-5415` | Added debug logging | Track duplicate issues |
 | `bot.py:3584-3733` | Enhanced role switcher | Auto-send timeclock hub |
+| `bot.py:3587` | Added deduplication dict | Track recent command calls |
+| `bot.py:3663,3743` | Changed to channel.send() | Make timeclock hub visible |
+| `bot.py:5434-5447` | Added deduplication logic | Prevent duplicate posting |
 | `WORKING_FILES.md` | Updated | File lock management |
 
 ---
@@ -147,6 +152,7 @@ Fixed four critical bugs and implemented three major enhancements:
 5. `1b46ba3` - Remove duplicate command sync (Replit Agent)
 6. `33fb15e` - Add debug logging to /setup_demo_roles
 7. `ef2893b` - Enhance demo role switcher with automatic timeclock hub
+8. `a75be75` - Fix demo role switcher: prevent duplicates and make timeclock visible
 
 ---
 
@@ -174,6 +180,45 @@ Fixed four critical bugs and implemented three major enhancements:
 2. Old timeclock message is automatically deleted
 3. New timeclock message appears with updated role context
 4. Clean, seamless experience
+
+---
+
+### Issue 8: Persistent Duplicate Posting & Missing Timeclock Hub (P0)
+
+**Problem 1**: /setup_demo_roles still sending duplicate embeds despite previous fixes
+**Problem 2**: Timeclock hub not appearing after clicking "Become Admin" or "Become Employee"
+
+**Root Causes**:
+1. Multiple bot instances or rapid clicks causing duplicate execution
+2. Discord.py limitation: ephemeral messages with persistent views don't render properly
+
+**Solution** (commit `a75be75`):
+
+1. **Deduplication Mechanism**:
+   ```python
+   _setup_demo_roles_recent_calls: dict[tuple[int, int], float] = {}
+
+   # Check if called within last 2 seconds
+   if call_key in _setup_demo_roles_recent_calls:
+       last_call = _setup_demo_roles_recent_calls[call_key]
+       if current_time - last_call < 2.0:
+           # Reject duplicate
+   ```
+   - Tracks calls by (guild_id, user_id)
+   - Rejects duplicate calls within 2-second window
+   - Auto-cleanup of old entries after 10 seconds
+
+2. **Timeclock Hub Visibility Fix**:
+   - Changed from `interaction.followup.send(ephemeral=True)` to `interaction.channel.send()`
+   - Timeclock hub now visible to all users in the channel
+   - No longer ephemeral (user preference for demo server)
+   - Updated confirmation messages to reflect channel visibility
+
+**Impact**:
+- Duplicate messages prevented by deduplication logic
+- Timeclock hub appears reliably as visible channel message
+- Demo server users can see and use timeclock hub immediately
+- Front and center in channel (as requested for demo purposes)
 
 ---
 

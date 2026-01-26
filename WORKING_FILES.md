@@ -13,6 +13,7 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `bot.py` - 2026-01-26 - Claude Code (Fix duplicate posting + timeclock hub visibility)
 - `bot.py` - 2026-01-26 - Claude Code (Enhanced demo role switcher with auto-timeclock)
 - `bot.py` - 2026-01-26 - Claude Code (Add debug logging to setup_demo_roles)
 - `templates/kiosk.html` - 2026-01-26 - Claude Code (Revert theme clock-in requirement)
