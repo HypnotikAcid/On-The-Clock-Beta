@@ -6366,7 +6366,19 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NOT NULL
             """, (int(guild_id), int(user_id)))
             stats_row = stats_cursor.fetchone()
-            
+
+            # Safety check: ensure stats_row is not None
+            if not stats_row:
+                app.logger.warning(f"No stats_row returned for user {user_id} in guild {guild_id}")
+                # Create default stats row
+                stats_row = {
+                    'total_sessions': 0,
+                    'total_hours': 0,
+                    'longest_shift_hours': 0,
+                    'first_session': None,
+                    'last_session': None
+                }
+
             # Calculate this week's hours
             week_cursor = conn.execute("""
                 SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time))), 0) / 3600.0 as weekly_hours
@@ -6375,6 +6387,12 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 AND clock_in_time >= date_trunc('week', NOW() AT TIME ZONE %s)
             """, (int(guild_id), int(user_id), guild_tz))
             week_row = week_cursor.fetchone()
+
+            # Safety check: ensure week_row is not None
+            if not week_row:
+                app.logger.warning(f"No week_row returned for user {user_id} in guild {guild_id}")
+                week_row = {'weekly_hours': 0}
+
             app.logger.debug(f"Calculating weekly hours for user {user_id}")
 
             # Calculate average weekly hours (total hours / weeks since first clock)
