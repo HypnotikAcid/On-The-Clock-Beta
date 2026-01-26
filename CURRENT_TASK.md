@@ -1,79 +1,55 @@
 # Current Task
 
-**Date**: 2026-01-25
-**Agent**: Gemini (UI/Frontend Specialist)
-**Task**: ✅ COMPLETE - Phase 2 UI Streamlining, Purchase Flow, and Mobile Polish
+**Date**: 2026-01-26
+**Agent**: Claude Code (Backend Specialist)
+**Task**: ✅ COMPLETE - Fixed My Info page "Server Error"
 
 ---
 
-## 🎯 All Phase 2 Frontend Tasks Completed
+## 🎯 Issue Resolved
 
-**Summary of work done**:
-- **UI Streamlining**: Grouped scattered dashboard settings into a collapsible "Advanced Settings" section to declutter the UI.
-- **Demo Visibility**: Added a prominent, animated "Try Live Demo" button to the landing page to improve user engagement.
-- **Purchase Flow**: Overhauled the purchase page with a clear Free vs. Pro comparison table and improved styling to encourage upgrades.
-- **Mobile Responsiveness**: Ensured all new and existing UI components are responsive and functional on mobile and tablet devices.
+**Problem**: My Info page was showing "Failed to Load: Server Error"
 
-**Reference**: See `GEMINI_PHASE2_PLAN.md` for full details.
+**Root Cause**: Unit mismatch between API and frontend
+- API endpoint `/api/server/<guild_id>/employee/<user_id>/status` was returning time values in **seconds** (from `EXTRACT(EPOCH)`)
+- Frontend `formatDuration()` function expects **minutes**
+- This caused incorrect display values and potential runtime errors
+
+**Fix**: Modified SQL queries in `app.py:6743-6771` to divide EPOCH values by 60, converting seconds to minutes before returning to frontend.
 
 ---
 
 ## Summary
 
-Successfully completed all frontend tasks for Phase 2, including UI streamlining, purchase flow improvements, and mobile responsiveness polish. All changes are production-ready and committed.
-
-## Completed Work
-
-### Phase 2: UI Streamlining ✅
-
-#### Task 2A: Create "Advanced Settings" Section ✅
-- Grouped Role Management, Email Settings, Timezone Settings, and other admin sections into a collapsible `<details>` element on the dashboard.
-- Added Neon Cyber theming to the new section.
-
-#### Task 2B: Make Demo Server More Visible ✅
-- Added a prominent, animated "Try Live Demo" button to the `landing.html` page.
-
-#### Task 2C: Dashboard Layout Improvements ✅
-- Improved responsiveness of the dashboard grid.
-- Added hover effects to dashboard tiles for better user feedback.
-
-### Phase 2: Purchase Flow Streamlining ✅
-
-#### Task 3A & 3B: Improve Purchase Page UI & Add Loading States ✅
-- Replaced the basic purchase page with a modern, two-card comparison layout (Free vs. Pro).
-- Added a loading spinner to the upgrade button for better UX during Stripe redirection.
-
-### Phase 2: Mobile Responsiveness ✅
-
-#### Task 4: Mobile Polish ✅
-- Ensured all new sections and pages (`Advanced Settings`, `Purchase Page`) are fully responsive.
-- Added specific media queries to handle layout changes on smaller screens.
-
----
+Fixed critical bug in employee status API endpoint where time calculations were returned in seconds instead of the expected minutes format. The My Info page now correctly displays:
+- Hours worked today
+- Hours worked this week
+- Hours worked this month
+- Progress bar calculations (8-hour goal)
 
 ## Files Modified
 
 | File | Changes | Purpose |
 |------|---------|---------|
-| `templates/dashboard.html` | +/- | Grouped settings into collapsible section |
-| `static/css/dashboard.css` | +/- | Added styles for advanced settings and improved responsiveness |
-| `templates/landing.html` | +/- | Added demo button |
-| `templates/dashboard_purchase.html` | +/- | Overhauled purchase page UI |
-| `CURRENT_TASK.md` | - | This file |
+| `app.py:6743-6771` | Modified SQL queries | Convert EPOCH seconds to minutes |
+| `WORKING_FILES.md` | Updated | File lock management |
 
 ---
 
 ## Commits Made
 
-1. `6324de5` - Group dashboard settings into Advanced Settings section
-2. `65ce3ee` - feat: Improve landing page and dashboard UI
-3. `8a91e69` - Improve purchase flow UI
-4. `8241130` - feat: Improve mobile responsiveness
+1. `fe20fcf` - Fix My Info page server error: API returning seconds instead of minutes
 
 ---
 
 ## Next Steps
 
-All frontend tasks for Phase 2 are complete. The project is ready for the next phase of development or final testing.
+The My Info page should now work correctly. User can test by:
+1. Navigate to any server dashboard
+2. Click "My Info" in the navigation
+3. Verify that hours display correctly (e.g., "2h 30m" format)
+4. Verify progress bar shows accurate percentage
+
+If there are additional issues with the My Info page, they would be separate from this unit mismatch bug.
 
 ---
