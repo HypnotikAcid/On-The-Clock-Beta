@@ -6303,7 +6303,7 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                        ep.first_clock_at, ep.bio, ep.is_active,
                        ep.profile_setup_completed, ep.welcome_dm_sent, ep.first_clock_used,
                        ep.phone, ep.avatar_choice, ep.profile_background, ep.catchphrase,
-                       ep.selected_stickers
+                       ep.selected_stickers, ep.accent_color
                 FROM employee_profiles ep
                 WHERE ep.guild_id = %s AND ep.user_id = %s
             """, (int(guild_id), int(user_id)))
