@@ -1,0 +1,43 @@
+                                                          
+  The Discord slash command /setup_demo_roles is not       
+  appearing on the demo server (ID: 1419894879894507661)   
+  even after bot restart. Please investigate:              
+                                                           
+  1. CHECK COMMAND DEFINITION (bot.py:5336-5400)           
+     - Verify @tree.command decorator is present           
+     - Confirm it's not wrapped in any conditional blocks  
+     - Check                                               
+  @app_commands.default_permissions(administrator=True)    
+     - Verify @app_commands.guild_only() is set            
+                                                           
+  2. CHECK COMMAND SYNC LOGIC (bot.py:4235-4283)           
+     - Verify dual sync was added for demo server          
+  (1419894879894507661)                                    
+     - Confirm DEMO_SERVER_ID constant matches (bot.py:52) 
+     - Check if sync is inside try/except that might be    
+  failing silently                                         
+                                                           
+  3. CHECK BOT RUNTIME                                     
+     - Run: ps aux | grep "python.*bot.py"                 
+     - Check logs: tail -100 nohup.out | grep -E           
+  "Synced|demo|setup_demo"                                 
+     - Look for error messages during command registration 
+                                                           
+  4. CHECK DISCORD COMMAND TREE                            
+     - In bot.py on_ready, verify command is in tree:      
+  tree.get_commands()                                      
+     - Check if command count matches expected number      
+     - Verify the command isn't being filtered out somehow 
+                                                           
+  5. POTENTIAL FIXES TO TRY                                
+     - Add explicit guild parameter to @tree.command       
+  decorator                                                
+     - Try tree.copy_global_to(guild=discord.Object(id=DEMO
+  _SERVER_ID))                                             
+     - Check if command needs to be wrapped in a           
+  guild-specific check                                     
+                                                           
+  Look at the recent commits (82e215d, f01ff54) to see what
+   was changed. The command exists in code but Discord     
+  isn't seeing it on the demo server.                      
+                                       
