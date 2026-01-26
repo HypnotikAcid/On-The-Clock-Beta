@@ -5348,6 +5348,10 @@ async def setup_demo_roles_command(interaction: discord.Interaction):
     Posts a persistent message with buttons for users to switch between Admin and Employee roles.
     Only works on the demo server. Admins use this to set up the role switcher.
     """
+    import time
+    execution_id = f"{interaction.user.id}-{int(time.time() * 1000)}"
+    print(f"🎭 [SETUP_DEMO_ROLES] Execution ID: {execution_id} - Command invoked by {interaction.user} in guild {interaction.guild_id}")
+
     # Verify this is the demo server
     if interaction.guild_id != DEMO_SERVER_ID:
         await send_reply(
@@ -5398,16 +5402,19 @@ async def setup_demo_roles_command(interaction: discord.Interaction):
         view = DemoRoleSwitcherView()
 
         # Send the message
-        await interaction.channel.send(embed=embed, view=view)
+        print(f"🎭 [SETUP_DEMO_ROLES] {execution_id} - Sending embed to channel {interaction.channel.id}")
+        message = await interaction.channel.send(embed=embed, view=view)
+        print(f"🎭 [SETUP_DEMO_ROLES] {execution_id} - Message sent successfully with ID {message.id}")
 
         await send_reply(
             interaction,
             "✅ Demo role switcher posted! Users can now choose their role.",
             ephemeral=True
         )
+        print(f"🎭 [SETUP_DEMO_ROLES] {execution_id} - Command completed successfully")
 
     except Exception as e:
-        print(f"❌ Error in setup_demo_roles: {e}")
+        print(f"❌ [SETUP_DEMO_ROLES] {execution_id} - Error: {e}")
         await send_reply(
             interaction,
             "❌ Failed to post role switcher. Please try again.",
