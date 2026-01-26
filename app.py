@@ -6348,10 +6348,12 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 WHERE ep.guild_id = %s AND ep.user_id = %s
             """, (int(guild_id), int(user_id)))
             profile_row = cursor.fetchone()
-            
+            app.logger.debug(f"Profile fetched for user {user_id}: {profile_row is not None}")
+
             if not profile_row:
                 return jsonify({'success': False, 'error': 'Employee not found'}), 404
-            
+
+            app.logger.debug(f"Calculating stats for user {user_id}")
             # Calculate stats from timeclock_sessions
             stats_cursor = conn.execute("""
                 SELECT 
@@ -6373,13 +6375,23 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 AND clock_in_time >= date_trunc('week', NOW() AT TIME ZONE %s)
             """, (int(guild_id), int(user_id), guild_tz))
             week_row = week_cursor.fetchone()
-            
+            app.logger.debug(f"Calculating weekly hours for user {user_id}")
+
             # Calculate average weekly hours (total hours / weeks since first clock)
             first_clock = profile_row.get('first_clock_at') or stats_row.get('first_session')
             avg_weekly = 0
             if first_clock and stats_row.get('total_hours'):
-                weeks_active = max(1, (datetime.now() - first_clock.replace(tzinfo=None)).days / 7)
-                avg_weekly = round(stats_row['total_hours'] / weeks_active, 1)
+                try:
+                    # Ensure first_clock is a datetime object
+                    if isinstance(first_clock, datetime):
+                        naive_first_clock = first_clock.replace(tzinfo=None) if first_clock.tzinfo else first_clock
+                        weeks_active = max(1, (datetime.now() - naive_first_clock).days / 7)
+                        avg_weekly = round(stats_row['total_hours'] / weeks_active, 1)
+                    else:
+                        app.logger.warning(f"first_clock is not datetime: {type(first_clock)}")
+                except Exception as e:
+                    app.logger.error(f"Error calculating avg_weekly: {e}")
+                    avg_weekly = 0
             
             # Calculate average daily hours
             avg_daily = 0
@@ -6387,22 +6399,32 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 avg_daily = round(stats_row['total_hours'] / stats_row['total_sessions'], 1)
             
             # Calculate tenure
+            app.logger.debug(f"Calculating tenure for user {user_id}")
             hire_date = profile_row.get('hire_date')
             tenure_text = "Not set"
             if hire_date:
-                days = (datetime.now(pytz.UTC) - hire_date.replace(tzinfo=pytz.UTC)).days
-                if days < 30:
-                    tenure_text = f"{days} days"
-                elif days < 365:
-                    months = days // 30
-                    tenure_text = f"{months} month{'s' if months > 1 else ''}"
-                else:
-                    years = days // 365
-                    months = (days % 365) // 30
-                    tenure_text = f"{years} year{'s' if years > 1 else ''}"
-                    if months > 0:
-                        tenure_text += f", {months} mo"
-            
+                try:
+                    if isinstance(hire_date, datetime):
+                        hire_with_tz = hire_date.replace(tzinfo=pytz.UTC) if hire_date.tzinfo is None else hire_date
+                        days = (datetime.now(pytz.UTC) - hire_with_tz).days
+                        if days < 30:
+                            tenure_text = f"{days} days"
+                        elif days < 365:
+                            months = days // 30
+                            tenure_text = f"{months} month{'s' if months > 1 else ''}"
+                        else:
+                            years = days // 365
+                            months = (days % 365) // 30
+                            tenure_text = f"{years} year{'s' if years > 1 else ''}"
+                            if months > 0:
+                                tenure_text += f", {months} mo"
+                    else:
+                        app.logger.warning(f"hire_date is not datetime: {type(hire_date)}")
+                except Exception as e:
+                    app.logger.error(f"Error calculating tenure: {e}")
+                    tenure_text = "Error calculating tenure"
+
+            app.logger.debug(f"Checking clock status for user {user_id}")
             # Check if currently clocked in
             clock_cursor = conn.execute("""
                 SELECT clock_in_time FROM timeclock_sessions
@@ -6411,7 +6433,8 @@ def api_get_employee_profile(user_session, guild_id, user_id):
             """, (int(guild_id), int(user_id)))
             clock_row = clock_cursor.fetchone()
             is_clocked_in = clock_row is not None
-            
+
+            app.logger.debug(f"Checking tier for guild {guild_id}")
             # Check server subscription tier for premium customization access using Entitlements
             tier_cursor = conn.execute("""
                 SELECT bot_access_paid, COALESCE(retention_tier, 'none') as retention_tier,
@@ -6429,7 +6452,8 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 guild_tier = UserTier.FREE
             # Customization available for Premium, Pro, and Grandfathered tiers
             has_premium_customization = guild_tier in [UserTier.PREMIUM, UserTier.PRO, UserTier.GRANDFATHERED]
-            
+
+            app.logger.debug(f"Building profile response for user {user_id}")
             profile_data = {
                 'user_id': str(profile_row['user_id']),
                 'display_name': profile_row['display_name'] or profile_row['full_name'] or 'Unknown',
@@ -6470,7 +6494,10 @@ def api_get_employee_profile(user_session, guild_id, user_id):
                 'guild_tier': guild_tier.value if guild_tier else 'free'
             })
     except Exception as e:
-        app.logger.error(f"Error fetching employee profile: {str(e)}")
+        app.logger.error(f"Error fetching employee profile for guild {guild_id}, user {user_id}")
+        app.logger.error(f"Exception type: {type(e).__name__}")
+        app.logger.error(f"Exception message: {str(e)}")
+        app.logger.error(f"Full traceback:\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
