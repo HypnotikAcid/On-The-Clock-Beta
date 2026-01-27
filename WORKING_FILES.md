@@ -13,6 +13,8 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `app.py` - Gemini - 2026-01-26 - Fix kiosk employee cards to show custom accent colors
+- `templates/kiosk.html` - Gemini - 2026-01-26 - Fix kiosk employee cards to show custom accent colors
 - `app.py` - 2026-01-26 - Claude Code (Employee Profile API: Enhanced error logging + defensive datetime handling)
 - `bot.py` - 2026-01-26 - Claude Code (Fix duplicate posting + timeclock hub visibility)
 - `bot.py` - 2026-01-26 - Claude Code (Enhanced demo role switcher with auto-timeclock)

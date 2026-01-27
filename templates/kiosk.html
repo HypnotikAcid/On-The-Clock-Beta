@@ -178,14 +178,6 @@
         }
 
         /* Accent color customization for employee buttons - ONLY when clocked in */
-        .employee-btn.clocked-in[data-accent="cyan"] { border: 2px solid cyan !important; box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); }
-        .employee-btn.clocked-in[data-accent="magenta"] { border: 2px solid magenta !important; box-shadow: 0 0 20px rgba(255, 0, 255, 0.4); }
-        .employee-btn.clocked-in[data-accent="gold"] { border: 2px solid #D4AF37 !important; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
-        .employee-btn.clocked-in[data-accent="lime"] { border: 2px solid #00FF00 !important; box-shadow: 0 0 20px rgba(0, 255, 0, 0.4); }
-        .employee-btn.clocked-in[data-accent="purple"] { border: 2px solid #800080 !important; box-shadow: 0 0 20px rgba(128, 0, 128, 0.4); }
-        .employee-btn.clocked-in[data-accent="orange"] { border: 2px solid #FFA500 !important; box-shadow: 0 0 20px rgba(255, 165, 0, 0.4); }
-        .employee-btn.clocked-in[data-accent="pink"] { border: 2px solid #FFC0CB !important; box-shadow: 0 0 20px rgba(255, 192, 203, 0.4); }
-
         .employee-btn.clocked-in[data-accent]:hover {
             transform: scale(1.03);
             box-shadow: 0 0 30px rgba(255, 255, 255, 0.3); /* Generic bright glow on hover */
@@ -1591,22 +1583,19 @@
 
         function renderEmployees(employees) {
             const grid = document.getElementById('employeeGrid');
-            grid.innerHTML = employees.map(emp => {
-                let accentAttribute = '';
+            grid.innerHTML = ''; // Clear existing employees
+
+            employees.forEach(emp => {
                 let backgroundClass = '';
-                if (allowKioskCustomization && emp.is_clocked_in) {
-                    accentAttribute = `data-accent="${emp.accent_color || 'cyan'}"`;
-                    if (emp.profile_background && emp.profile_background !== 'default') {
-                        backgroundClass = `bg-${emp.profile_background}`;
-                    }
+                if (allowKioskCustomization && emp.is_clocked_in && emp.profile_background && emp.profile_background !== 'default') {
+                    backgroundClass = `bg-${emp.profile_background}`;
                 }
-                
+
                 const stickersHtml = (emp.selected_stickers || []).map(s => 
                     `<span class="employee-sticker">${stickerEmojis[s] || '🏷️'}</span>`
                 ).join('');
 
-                return `
-                <button class="employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''} ${backgroundClass}" ${accentAttribute} onclick="selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+                const btnHtml = `
                     ${emp.has_alerts ? '<div class="alert-badge pin-lockout">!</div>' : ''}
                     <div class="employee-avatar">
                         ${emp.avatar_url ? `<img src="${emp.avatar_url}" alt="${emp.display_name}">` : emp.display_name.charAt(0).toUpperCase()}
@@ -1617,9 +1606,24 @@
                     <div class="employee-status ${emp.is_clocked_in ? 'in' : 'out'}">
                         ${emp.is_clocked_in ? '✅ Clocked In' : '❌ Clocked Out'}
                     </div>
-                </button>
-            `;
-            }).join('');
+                `;
+                
+                const btn = document.createElement('button');
+                btn.className = `employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''} ${backgroundClass}`;
+                btn.innerHTML = btnHtml;
+                btn.onclick = () => selectEmployee(emp);
+
+                if (allowKioskCustomization && emp.is_clocked_in && emp.accent_color) {
+                    const color = emp.accent_color;
+                    // Validate that the color is a reasonable hex-like value
+                    if (/^#?([0-9a-fA-F]{3}){1,2}$/.test(color) || /^[a-zA-Z]+$/.test(color)) {
+                         btn.style.setProperty('border-color', color, 'important');
+                         btn.style.boxShadow = `0 0 20px ${color}66`; // 40% opacity
+                    }
+                }
+                
+                grid.appendChild(btn);
+            });
         }
 
         function selectEmployee(employee) {
