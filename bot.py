@@ -3490,7 +3490,7 @@ class SetupInstructionsView(discord.ui.View):
 
 # --- Timeclock Hub View (Bulletproof Button Persistence) ---
 # Uses stable custom_ids with "tc:" prefix for maximum reliability
-SUPPORT_DISCORD_URL = "https://discord.gg/KdTRTqdPcj"
+SUPPORT_DISCORD_URL = "https://discord.gg/tMGssTjkUt"
 LANDING_PAGE_URL = "https://time-warden.com"
 
 class TimeclockHubView(discord.ui.View):
@@ -4483,7 +4483,7 @@ def create_setup_embed() -> discord.Embed:
         name="💬 Need Help?",
         value=(
             "Join our support server for assistance:\n"
-            "🔗 https://discord.gg/KdTRTqdPcj\n\n"
+            "🔗 https://discord.gg/tMGssTjkUt\n\n"
             "Run `/help` anytime to see all available commands!"
         ),
         inline=False
@@ -4891,7 +4891,7 @@ async def setup(interaction: discord.Interaction):
             name="🆘 Need Help?",
             value=(
                 "Join our Discord support server:\n"
-                "https://discord.gg/KdTRTqdPcj\n\n"
+                "https://discord.gg/tMGssTjkUt\n\n"
                 "Get assistance with setup, billing, and troubleshooting"
             ),
             inline=False
