@@ -94,6 +94,12 @@
 - **Webhook Events**: `checkout.session.completed`, `customer.subscription.created/updated/deleted`, `invoice.payment_succeeded/failed` all handled.
 - **Route Conflict**: `/purchase/<product_type>` (string) and `/purchase/<int:guild_id>` (int) coexist because Flask tries `int` first. Guild-ID purchases redirect to `/dashboard/purchase`.
 
+## Cross-Domain Session Cookie Loss (2026-02-19)
+- **Root Cause**: Purchase flow used Flask session cookie to store `purchase_intent` before OAuth redirect. But the purchase link goes to `time-warden.com` (custom domain) while the OAuth callback returns to `on-the-clock.replit.app` (Replit domain). Session cookies are domain-scoped, so the intent was always lost.
+- **Fix**: Encode `purchase_intent` into the OAuth `state` parameter metadata (stored in the `oauth_states` DB table). The state token travels as a URL parameter through Discord and back, surviving the cross-domain redirect.
+- **Pattern**: Never rely on session cookies to carry data across OAuth redirects when custom domains are involved. Use the OAuth state parameter or database-backed tokens instead.
+- **Testing**: Discord OAuth doesn't work in Replit's preview iframe — always test via published deployment logs (`fetch_deployment_logs`).
+
 ## Discord Bot Double Messages (2026-02-19)
 - **Root Cause**: A global `on_interaction` fallback handler was racing with registered persistent views (`TimeclockHubView`). Both tried to handle the same `tc:` button interactions.
 - **Fix**: Removed the `on_interaction` fallback entirely. Persistent views registered in `setup_hook` already handle all button callbacks reliably after restarts.

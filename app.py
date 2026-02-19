@@ -531,12 +531,15 @@ def get_db():
 def init_dashboard_tables():
     """Initialize database tables for OAuth and user sessions"""
     with get_db() as conn:
-        # OAuth states table for CSRF protection
         conn.execute("""
             CREATE TABLE IF NOT EXISTS oauth_states (
                 state TEXT PRIMARY KEY,
-                expires_at TEXT NOT NULL
+                expires_at TEXT NOT NULL,
+                metadata TEXT
             )
+        """)
+        conn.execute("""
+            ALTER TABLE oauth_states ADD COLUMN IF NOT EXISTS metadata TEXT
         """)
         
         # User sessions table for logged-in users
@@ -600,31 +603,39 @@ def init_dashboard_tables():
 # This allows the Flask app to bind to port 5000 immediately without blocking on DB
 
 # OAuth Helper Functions
-def create_oauth_state():
-    """Generate and store OAuth state for CSRF protection"""
+def create_oauth_state(metadata=None):
+    """Generate and store OAuth state for CSRF protection.
+    Optionally stores metadata (e.g. purchase_intent) that survives cross-domain redirects."""
     state = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    metadata_json = json.dumps(metadata) if metadata else None
     
     with get_db() as conn:
         conn.execute(
-            "INSERT INTO oauth_states (state, expires_at) VALUES (%s, %s)",
-            (state, expires_at.isoformat())
+            "INSERT INTO oauth_states (state, expires_at, metadata) VALUES (%s, %s, %s)",
+            (state, expires_at.isoformat(), metadata_json)
         )
     return state
 
 def verify_oauth_state(state):
-    """Verify OAuth state and delete it"""
+    """Verify OAuth state and delete it. Returns (True, metadata_dict) or (False, None)."""
     with get_db() as conn:
         cursor = conn.execute(
-            "SELECT state FROM oauth_states WHERE state = %s AND expires_at > %s",
+            "SELECT state, metadata FROM oauth_states WHERE state = %s AND expires_at > %s",
             (state, datetime.now(timezone.utc).isoformat())
         )
         result = cursor.fetchone()
         
         if result:
             conn.execute("DELETE FROM oauth_states WHERE state = %s", (state,))
-            return True
-    return False
+            metadata = None
+            if result['metadata']:
+                try:
+                    metadata = json.loads(result['metadata'])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return True, metadata
+    return False, None
 
 def exchange_code_for_token(code, redirect_uri):
     """Exchange authorization code for access token"""
@@ -1766,35 +1777,33 @@ def auth_callback():
             app.logger.error("Missing code or state in OAuth callback")
             return "<h1>Authentication Error</h1><p>Invalid authentication request. Please try again.</p><a href='/'>Return Home</a>", 400
         
-        if not verify_oauth_state(state):
+        state_valid, state_metadata = verify_oauth_state(state)
+        if not state_valid:
             app.logger.error(f"Invalid OAuth state: {state[:8]}... (CSRF check failed)")
             return "<h1>Authentication Error</h1><p>Security validation failed. Please try again.</p><a href='/'>Return Home</a>", 400
         
-        # Exchange code for token (use same redirect_uri as in authorization)
         redirect_uri = get_redirect_uri()
         app.logger.info(f"Exchanging code for token with redirect_uri: {redirect_uri}")
         token_data = exchange_code_for_token(code, redirect_uri)
         access_token = token_data['access_token']
         refresh_token = token_data.get('refresh_token')
         
-        # Get user info
         app.logger.info("Fetching user info from Discord")
         user_data = get_user_info(access_token)
         app.logger.info(f"User authenticated: {user_data.get('username')}")
         
-        # Get user's guilds
         app.logger.info("Fetching user guilds")
         guilds_data = get_user_guilds(access_token)
         app.logger.info(f"Found {len(guilds_data)} guilds")
         
-        # Create session
         session_id = create_user_session(user_data, access_token, refresh_token, guilds_data)
         session['session_id'] = session_id
         app.logger.info(f"Session created: {session_id[:8]}...")
         
-        # Check if this is a purchase flow
-        if session.get('purchase_intent'):
-            app.logger.info("Redirecting to server selection for purchase")
+        purchase_intent = (state_metadata or {}).get('purchase_intent') or session.get('purchase_intent')
+        if purchase_intent:
+            session['purchase_intent'] = purchase_intent
+            app.logger.info(f"Purchase flow detected via state metadata, redirecting to server selection for: {purchase_intent.get('product_type')}")
             return redirect('/purchase/select_server')
         
         return redirect('/dashboard')
@@ -7110,10 +7119,11 @@ def purchase_init(product_type):
     if product_type not in valid_products:
         return "<h1>Invalid Product</h1><p>Unknown product type.</p><a href='/'>Return Home</a>", 400
     
-    session['purchase_intent'] = {
+    purchase_data = {
         'product_type': product_type,
         'initiated_at': datetime.now(timezone.utc).isoformat()
     }
+    session['purchase_intent'] = purchase_data
     
     session_id = session.get('session_id')
     if session_id:
@@ -7122,7 +7132,7 @@ def purchase_init(product_type):
             app.logger.info(f"Purchase flow: user already logged in, skipping OAuth for {product_type}")
             return redirect('/purchase/select_server')
     
-    state = create_oauth_state()
+    state = create_oauth_state(metadata={'purchase_intent': purchase_data})
     redirect_uri = get_redirect_uri()
     
     params = {
@@ -7134,7 +7144,7 @@ def purchase_init(product_type):
     }
     
     auth_url = f'https://discord.com/oauth2/authorize?{urlencode(params)}'
-    app.logger.info(f"Purchase flow initiated for {product_type} (needs OAuth)")
+    app.logger.info(f"Purchase flow initiated for {product_type} (intent stored in OAuth state)")
     return redirect(auth_url)
 
 @app.route("/purchase/select_server")

@@ -68,7 +68,12 @@ This project supports multiple AI coding agents. All agents should:
 - **Health check**: `curl http://localhost:5000/health`
 - **Workflow restart**: Use Replit's workflow panel
 
+## Testing & Debugging
+- **Always use published/deployment logs** for testing — Discord OAuth only works in production, not in the Replit preview iframe.
+- Use `fetch_deployment_logs` tool to trace request flows in production.
+
 ## Don't Do
 - Never hardcode API keys (use secrets)
 - Never skip the lessons-learned pre-check
 - Never work on overlapping files with another agent simultaneously
+- Never rely on Flask session cookies to carry data across OAuth redirects (use OAuth state metadata instead — see lessons-learned)
