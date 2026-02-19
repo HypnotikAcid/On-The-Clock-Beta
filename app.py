@@ -7105,19 +7105,23 @@ def api_make_ban_permanent(user_session, guild_id):
 
 @app.route("/purchase/<product_type>")
 def purchase_init(product_type):
-    """Initialize purchase flow - store intent and redirect to OAuth"""
-    # Validate product type
+    """Initialize purchase flow - store intent and redirect to OAuth or server selection"""
     valid_products = ['premium', 'pro', 'bot_access', 'retention_7day', 'retention_30day']
     if product_type not in valid_products:
         return "<h1>Invalid Product</h1><p>Unknown product type.</p><a href='/'>Return Home</a>", 400
     
-    # Store purchase intent in session
     session['purchase_intent'] = {
         'product_type': product_type,
         'initiated_at': datetime.now(timezone.utc).isoformat()
     }
     
-    # Redirect to OAuth login
+    session_id = session.get('session_id')
+    if session_id:
+        user_session = get_user_session(session_id)
+        if user_session:
+            app.logger.info(f"Purchase flow: user already logged in, skipping OAuth for {product_type}")
+            return redirect('/purchase/select_server')
+    
     state = create_oauth_state()
     redirect_uri = get_redirect_uri()
     
@@ -7130,7 +7134,7 @@ def purchase_init(product_type):
     }
     
     auth_url = f'https://discord.com/oauth2/authorize?{urlencode(params)}'
-    app.logger.info(f"Purchase flow initiated for {product_type}")
+    app.logger.info(f"Purchase flow initiated for {product_type} (needs OAuth)")
     return redirect(auth_url)
 
 @app.route("/purchase/select_server")
