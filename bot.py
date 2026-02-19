@@ -360,21 +360,39 @@ def create_secure_checkout_session(guild_id: int, product_type: str, guild_name:
             },
         }
         
-        if apply_trial_coupon:
-            session_params['discounts'] = [{'coupon': os.getenv('STRIPE_COUPON_FIRST_MONTH', 'sfaexZAF')}]
-            metadata['trial_applied'] = 'true'
+        import logging
+        logger = logging.getLogger('gunicorn.error')
         
-        print(f"[STRIPE] Creating checkout session for guild {guild_id}, product {product_type}, trial={apply_trial_coupon}")
+        if apply_trial_coupon:
+            coupon_id = os.getenv('STRIPE_COUPON_FIRST_MONTH', 'sfaexZAF')
+            try:
+                coupon = stripe.Coupon.retrieve(coupon_id)
+                if coupon.valid:
+                    session_params['discounts'] = [{'coupon': coupon_id}]
+                    metadata['trial_applied'] = 'true'
+                    logger.info(f"[STRIPE] Coupon {coupon_id} validated and applied")
+                else:
+                    logger.warning(f"[STRIPE] Coupon {coupon_id} is no longer valid, skipping")
+            except StripeError as ce:
+                logger.warning(f"[STRIPE] Coupon {coupon_id} retrieval failed: {ce}, skipping coupon")
+        
+        logger.info(f"[STRIPE] Creating checkout session for guild {guild_id}, product {product_type}, trial={apply_trial_coupon}")
+        logger.info(f"[STRIPE] Session params keys: {list(session_params.keys())}")
+        logger.info(f"[STRIPE] API key set: {bool(stripe.api_key)}, key prefix: {stripe.api_key[:8] if stripe.api_key else 'NONE'}...")
+        
+        stripe.max_network_retries = 1
         checkout_session = stripe.checkout.Session.create(**session_params)  # type: ignore[arg-type]
-        print(f"[STRIPE] Checkout session created: {checkout_session.id}")
+        logger.info(f"[STRIPE] Checkout session created: {checkout_session.id}")
         
         return checkout_session.url or ""
         
     except StripeError as e:
-        print(f"[STRIPE] Stripe API error: {e}")
+        import logging
+        logging.getLogger('gunicorn.error').error(f"[STRIPE] Stripe API error: {e}")
         raise ValueError(f"Stripe error: {str(e)}")
     except Exception as e:
-        print(f"[STRIPE] Checkout creation failed: {e}")
+        import logging
+        logging.getLogger('gunicorn.error').error(f"[STRIPE] Checkout creation failed: {e}")
         raise ValueError(f"Checkout creation failed: {str(e)}")
 
 
