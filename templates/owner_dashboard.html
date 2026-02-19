@@ -1090,7 +1090,7 @@
                         <h3 style="color: #C9D1D9; font-size: 16px; margin: 0;">Trial Management</h3>
                     </div>
                     <p style="color: #8B949E; font-size: 12px; margin-bottom: 16px; line-height: 1.5;">
-                        Grant or reset 1-month trial ($5 first month). Each server gets one trial.
+                        Grant or reset 1-month trial (First Month Free!). Each server gets one trial.
                     </p>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <button class="tool-btn" onclick="grantTrial()" style="width: 100%; padding: 12px 16px; font-size: 13px; background: linear-gradient(135deg, #D4AF37, #B8860B);">
@@ -1301,7 +1301,7 @@
                                 ⭐ Grandfathered (Protected)
                             </button>
                             <button class="grant-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
-                                Legacy $5 Lifetime - Cannot Revoke
+                                Legacy Grandfathered - Cannot Revoke
                             </button>
                             {% else %}
                             <button class="grant-btn {% if server.retention_tier == '30day' or server.bot_access %}granted{% endif %}" disabled style="opacity: 0.8;">
@@ -1409,7 +1409,7 @@
                             {% if purchase.amount_cents %}
                                 ${{ "%.2f"|format(purchase.amount_cents / 100) }}
                             {% else %}
-                                $5.00
+                                ${{ "%.2f"|format(purchase.amount_cents / 100) }}
                             {% endif %}
                         </td>
                     </tr>
@@ -1904,7 +1904,7 @@
                         resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
                         resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
                         resultDiv.style.color = '#34D399';
-                        resultDiv.textContent = 'Trial available - server has not used their $5 first month yet';
+                        resultDiv.textContent = 'Trial available - server has not used their First Month Free yet';
                     }
                 } else {
                     resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
@@ -1935,7 +1935,7 @@
                 return;
             }
             
-            if (!confirm('Are you sure you want to reset the trial for this server? This will allow them to use the $5 first-month discount again.')) {
+            if (!confirm('Are you sure you want to reset the trial for this server? This will allow them to use the First Month Free discount again.')) {
                 return;
             }
             

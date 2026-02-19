@@ -843,6 +843,46 @@ def check_user_admin_realtime(user_id, guild_id):
         # Fail closed - deny access on error
         return {'is_member': False, 'is_admin': False, 'reason': 'check_error'}
 
+def get_flask_guild_access(guild_id):
+    """Check guild tier, trial status, and exemption for dashboard routes"""
+    from entitlements import Entitlements, UserTier
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT ss.bot_access_paid, ss.retention_tier, ss.grandfathered,
+                       gs.trial_start_date
+                FROM server_subscriptions ss
+                LEFT JOIN guild_settings gs ON ss.guild_id = gs.guild_id
+                WHERE ss.guild_id = %s
+            """, (int(guild_id),))
+            row = cursor.fetchone()
+            if not row:
+                return {'tier': 'free', 'trial_active': False, 'days_remaining': 0, 'is_exempt': False}
+            grandfathered = row.get('grandfathered', False) or False
+            tier = Entitlements.get_guild_tier(
+                row.get('bot_access_paid', False),
+                row.get('retention_tier', 'none'),
+                grandfathered
+            )
+            trial_start = row.get('trial_start_date')
+            # Check for owner grants
+            grant_cursor = conn.execute("""
+                SELECT COUNT(*) as cnt FROM server_subscriptions
+                WHERE guild_id = %s AND (grandfathered = true OR bot_access_paid = true)
+            """, (int(guild_id),))
+            grant_row = grant_cursor.fetchone()
+            owner_granted = (grant_row and grant_row['cnt'] > 0) or False
+            is_exempt = Entitlements.is_server_exempt(int(guild_id), grandfathered, owner_granted)
+            return {
+                'tier': tier.value,
+                'trial_active': Entitlements.is_trial_active(trial_start),
+                'days_remaining': Entitlements.get_trial_days_remaining(trial_start),
+                'is_exempt': is_exempt
+            }
+    except Exception as e:
+        app.logger.error(f"Error checking guild access: {e}")
+        return {'tier': 'free', 'trial_active': False, 'days_remaining': 0, 'is_exempt': False}
+
 def require_paid_access(f):
     """
     Decorator to require both authentication AND paid bot access for dashboard routes.
@@ -1653,7 +1693,9 @@ def dashboard_invite():
 @app.route("/dashboard/purchase")
 def dashboard_purchase():
     """Page shown when user tries to access dashboard but server doesn't have paid bot access."""
-    return render_template('dashboard_purchase.html')
+    guild_id = request.args.get('guild_id')
+    access = get_flask_guild_access(guild_id) if guild_id else None
+    return render_template('dashboard_purchase.html', guild_id=guild_id, access=access)
 
 @app.route("/dashboard/no-access")
 def dashboard_no_access():
@@ -2200,6 +2242,10 @@ def dashboard_beta_settings(user_session, guild_id):
 @require_auth
 def dashboard_employee_profile(user_session, guild_id, user_id):
     """Employee profile page - viewable by the employee or admins"""
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return redirect(f'/dashboard/purchase?guild_id={guild_id}')
+
     if not guild_id.isdigit() or len(guild_id) > 20:
         return redirect('/dashboard')
     if not user_id.isdigit() or len(user_id) > 20:
@@ -6125,6 +6171,15 @@ def api_get_server_data(user_session, guild_id):
 @require_api_auth
 def api_get_server_settings(user_session, guild_id):
     """API endpoint to fetch server settings for dashboard pages"""
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to continue.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
     try:
         guild, access_level = verify_guild_access(user_session, guild_id, allow_employee=True)
         if not guild:
@@ -6143,6 +6198,13 @@ def api_get_server_settings(user_session, guild_id):
                 settings['retention_tier'] = sub_row.get('retention_tier', 'none')
                 settings['tier'] = sub_row.get('tier', 'free')
         
+        settings['trial_info'] = {
+            'is_trial': access['tier'] == 'free',
+            'trial_active': access['trial_active'],
+            'days_remaining': access['days_remaining'],
+            'is_exempt': access['is_exempt']
+        }
+        
         return jsonify({'success': True, 'settings': settings})
     except Exception as e:
         app.logger.error(f"Error fetching server settings: {str(e)}")
@@ -6153,6 +6215,15 @@ def api_get_server_settings(user_session, guild_id):
 @require_api_auth
 def api_get_server_employees(user_session, guild_id):
     """API endpoint to fetch employees for dashboard pages (admin only)"""
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to continue.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
     try:
         guild, access_level = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -6221,6 +6292,15 @@ def api_get_server_employees(user_session, guild_id):
 @require_api_auth
 def api_sync_server_employees(user_session, guild_id):
     """API endpoint to sync employees from Discord roles into employee_profiles (admin only)"""
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to continue.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
     try:
         guild, access_level = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -6265,6 +6345,15 @@ def api_sync_server_employees(user_session, guild_id):
 @require_api_auth
 def api_send_employee_onboarding(user_session, guild_id):
     """API endpoint to send onboarding DMs to all employees (admin only, premium only)"""
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to continue.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
     try:
         guild, access_level = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -6318,6 +6407,15 @@ def api_send_employee_onboarding(user_session, guild_id):
 @require_api_auth
 def api_get_employee_profile(user_session, guild_id, user_id):
     """API endpoint to fetch employee profile with stats"""
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to continue.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
     try:
         guild, access_level = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -6523,6 +6621,15 @@ def api_get_employee_profile(user_session, guild_id, user_id):
 @require_api_auth
 def api_update_employee_profile(user_session, guild_id, user_id):
     """API endpoint to update employee's own profile (email, etc.)"""
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to continue.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
     try:
         guild, access_level = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -6944,6 +7051,15 @@ def api_get_monthly_summary(user_session, guild_id):
     Admin Calendar API: Get guild-wide daily summary for a month.
     Returns shift counts and total hours per day for all employees.
     """
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to continue.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
     try:
         guild, access_level = verify_guild_access(user_session, guild_id)
         if not guild:
@@ -7008,6 +7124,15 @@ def api_get_day_detail(user_session, guild_id):
     Admin Calendar API: Get all employees and their sessions for a specific day.
     Returns employee info with their clock in/out times.
     """
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to continue.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
     try:
         guild, access_level = verify_guild_access(user_session, guild_id)
         if not guild:

@@ -313,7 +313,7 @@ def create_secure_checkout_session(guild_id: int, product_type: str, guild_name:
         guild_id: Discord guild/server ID
         product_type: One of 'bot_access', 'retention_7day', 'retention_30day'
         guild_name: Optional guild name for confirmation messages
-        apply_trial_coupon: If True, applies the first-month $5 trial coupon (vzRYNZed)
+        apply_trial_coupon: If True, applies the first-month free trial.
     
     Returns:
         Checkout session URL
@@ -480,6 +480,31 @@ def get_guild_tier_string(guild_id: int) -> str:
 
         tier_enum = Entitlements.get_guild_tier(bot_access_paid, retention_tier, grandfathered)
         return tier_enum.value
+
+def get_guild_access_info(guild_id: int) -> dict:
+    """Get complete access info for a guild including tier and trial status"""
+    tier = get_guild_tier_string(guild_id)
+    with db() as conn:
+        cursor = conn.execute("SELECT trial_start_date FROM guild_settings WHERE guild_id = %s", (guild_id,))
+        gs_row = cursor.fetchone()
+        trial_start_date = gs_row['trial_start_date'] if gs_row else None
+
+        cursor = conn.execute("SELECT grandfathered, grant_source FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
+        ss_row = cursor.fetchone()
+        grandfathered = ss_row['grandfathered'] if ss_row else False
+        owner_granted = ss_row['grant_source'] == 'manual' if ss_row else False
+
+    trial_active = Entitlements.is_trial_active(trial_start_date)
+    days_remaining = Entitlements.get_trial_days_remaining(trial_start_date)
+    is_exempt = Entitlements.is_server_exempt(guild_id, grandfathered, owner_granted)
+
+    return {
+        'tier': tier,
+        'trial_active': trial_active,
+        'days_remaining': days_remaining,
+        'is_exempt': is_exempt
+    }
+
 
 def set_server_tier(guild_id: int, tier: str, subscription_id: Optional[str] = None, customer_id: Optional[str] = None):
     """Set subscription tier for a server"""
@@ -2969,171 +2994,7 @@ class TimeClockView(discord.ui.View):
 
     async def show_help(self, interaction: discord.Interaction):
         """Show help commands instead of user time info with robust error handling"""
-        try:
-            if interaction.guild is None:
-                await send_reply(interaction, "Use this in a server.", ephemeral=True)
-                return
-            
-            guild_id = interaction.guild.id
-            user_id = interaction.user.id
-            
-            # RATE LIMITING: Check for spam/abuse
-            is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "help")
-            if not is_allowed:
-                # Use send_reply for show_help, but still need to handle server abuse
-                if action == "server_abuse":
-                    await send_reply(interaction,
-                        "🚨 **Server Abuse Detected**\n\nThis server has excessive spam activity. The bot is leaving this server.",
-                        ephemeral=True
-                    )
-                    try:
-                        await interaction.guild.leave()
-                        print(f"🚨 Bot left guild {guild_id} due to abuse")
-                    except Exception as e:
-                        print(f"❌ Failed to leave guild {guild_id}: {e}")
-                elif action == "warning":
-                    await send_reply(interaction,
-                        "⚠️ **Spam Detection Warning**\n\nYou're clicking the same button too quickly (5+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
-                        ephemeral=True
-                    )
-                else:  # banned
-                    await send_reply(interaction,
-                        "🚫 **24-Hour Ban**\n\nYour access has been temporarily suspended due to spam/abuse.\n**Ban Duration:** 24 hours",
-                        ephemeral=True
-                    )
-                return
-
-            # Check clock access permissions
-            server_tier = get_guild_tier_string(interaction.guild.id)
-            # Type guard: ensure we have a Member for guild-specific functions
-            if not isinstance(interaction.user, discord.Member):
-                await send_reply(interaction,
-                    "❌ Unable to verify access permissions. Please try again.",
-                    ephemeral=True
-                )
-                return
-            
-            if not user_has_clock_access(interaction.user, server_tier):
-                await send_reply(interaction,
-                    "🔒 **Access Restricted**\n"
-                    "You need an employee role to use the timeclock.\n"
-                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
-                    ephemeral=True
-                )
-                return
-
-            # Get current server tier for comprehensive help display
-            server_tier = get_guild_tier_string(interaction.guild.id)
-            tier_color = {"free": discord.Color.green(), "basic": discord.Color.blue(), "pro": discord.Color.purple()}
-            
-            embed = discord.Embed(
-                title="📋 Complete Command Reference",
-                description=f"**Current Plan:** {server_tier.title()}\n\n**All 21 available slash commands organized by function:**",
-                color=tier_color.get(server_tier, discord.Color.green())
-            )
-        
-            # Setup & Configuration Commands
-            embed.add_field(
-                name="⚙️ Setup & Configuration",
-                value=(
-                    "`/setup_timeclock [channel]` - Post a persistent Clock In/Clock Out message\n"
-                    "`/set_recipient <user>` - Set who receives private time entries (DMs)\n"
-                    "`/set_timezone <timezone>` - Set display timezone (e.g., America/New_York)\n"
-                    "`/toggle_name_display` - Toggle between username and nickname display\n"
-                    "`/help` - List all available slash commands"
-                ),
-                inline=False
-            )
-            
-            # Admin Role Management Commands
-            embed.add_field(
-                name="👤 Admin Role Management",
-                value=(
-                    "`/add_admin_role <role>` - Add a role that can access Reports and Upgrade buttons\n"
-                    "`/remove_admin_role <role>` - Remove a role's admin access to Reports and Upgrade buttons\n"
-                    "`/list_admin_roles` - List all roles with admin access\n"
-                    "`/set_main_role <role>` - Set the primary admin role (gets all admin functions)\n"
-                    "`/show_main_role` - View the current main admin role\n"
-                    "`/clear_main_role` - Remove the main admin role designation"
-                ),
-                inline=False
-            )
-            
-            # Employee Role Management Commands
-            embed.add_field(
-                name="👥 Employee Role Management",
-                value=(
-                    "`/add_employee_role <role>` - Add a role that can use timeclock functions\n"
-                    "`/remove_employee_role <role>` - Remove a role's access to timeclock functions\n"
-                    "`/list_employee_roles` - List all roles that can use timeclock functions"
-                ),
-                inline=False
-            )
-            
-            # Reports & Data Management Commands
-            embed.add_field(
-                name="📊 Reports & Data Management",
-                value=(
-                    "`/report <user> <start_date> <end_date>` - Generate CSV timesheet report for individual user\n"
-                    "`/data_cleanup` - Manually trigger data cleanup (Admin only)\n"
-                    "`/purge` - Permanently delete timeclock data (preserves subscription)"
-                ),
-                inline=False
-            )
-            
-            # Subscription Management Commands
-            embed.add_field(
-                name="💳 Subscription Management",
-                value=(
-                    "`/upgrade` - Upgrade your server to Dashboard Premium or Pro Retention\n"
-                    "`/cancel_subscription` - Learn how to cancel your subscription\n"
-                    "`/subscription_status` - View current subscription status"
-                ),
-                inline=False
-            )
-            
-            # Tier Information & Features
-            tier_info = "\n\n**Plan Features:**\n"
-            if server_tier == "free":
-                tier_info += (
-                    "🆓 **Free Tier:** Admin-only testing • Sample reports • Employee roles configured but inactive\n"
-                    "💡 **Upgrade Benefits:** Dashboard Premium ($5 one-time) unlocks full team access & real CSV reports"
-                )
-            elif server_tier == "basic":
-                tier_info += (
-                    "💙 **Dashboard Premium:** Full team access • Real CSV reports • 7-day data retention\n"
-                    "💡 **Pro Retention Benefits:** 30-day retention • Multiple manager notifications • Extended features"
-                )
-            else:  # pro tier
-                tier_info += "💜 **Pro Retention:** All features unlocked • 30-day retention • Multiple managers • Priority support"
-            
-            embed.add_field(
-                name="🔘 Interactive Timeclock Buttons",
-                value=(
-                    "🟢 **Clock In** - Start tracking your time\n"
-                    "🔴 **Clock Out** - Stop tracking and log your shift\n"
-                    "📊 **Reports** - Generate timesheet reports (admin access)\n"
-                    "⬆️ **Upgrade** - Upgrade to Dashboard Premium/Pro Retention\n" + 
-                    tier_info
-                ),
-                inline=False
-            )
-        
-            embed.set_footer(text=f"💡 {server_tier.title()} Plan Active | 20 total commands available | Contact admin for upgrades")
-            
-            await send_reply(interaction, embed=embed, ephemeral=True)
-            
-        except (discord.NotFound, discord.errors.NotFound):
-            # Interaction expired or was deleted - silently handle this
-            print(f"⚠️ Help interaction expired/not found for user {interaction.user.id}")
-        except Exception as e:
-            # General error handling
-            print(f"❌ Error in show_help callback: {e}")
-            try:
-                await send_reply(interaction, "❌ An error occurred while showing help. Please try again.", ephemeral=True)
-            except Exception:
-                # If we can't even send an error message, just log it
-                print(f"❌ Failed to send error message for show_help: {e}")
+        await send_reply(interaction, "Please use the `/help` command to see a full list of commands.", ephemeral=True)
 
     async def generate_reports(self, interaction: discord.Interaction):
         # Robust defer with proper fallback
@@ -3178,34 +3039,41 @@ class TimeClockView(discord.ui.View):
                     ephemeral=True
                 )
                 return
+            
+            access = get_guild_access_info(guild_id)
 
-            guild_id = interaction.guild.id
-            server_tier = get_guild_tier_string(guild_id)
-            
-            # Free tier: Admin only + fake data 
-            if server_tier == "free":
-                fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is the free version, please upgrade for more options"
-                filename = f"sample_report_last_30_days.csv"
-                
-                file = discord.File(
-                    io.BytesIO(fake_csv.encode('utf-8')), 
-                    filename=filename
-                )
-            
-                await interaction.followup.send(
-                    f"📊 **Free Tier Sample Report**\n"
-                    f"🎯 This is sample data. Upgrade to Dashboard Premium (~~$10~~ $5 one-time) for real reports!\n"
-                    f"📅 Date Range: Last 30 days",
-                    file=file,
-                    ephemeral=True
-                )
-                return
-            
-            # Basic and Pro tier: Full reports access with retention limits
+            if not access['is_exempt'] and access['tier'] == 'free':
+                if not access['trial_active']:
+                    embed = discord.Embed(
+                        title="⏰ Free Trial Expired",
+                        description="Your 30-day free trial has ended.\nUpgrade to Premium to generate reports!",
+                        color=discord.Color.red()
+                    )
+                    embed.add_field(name="💎 Premium", value="$8/month (first month FREE!)\n✅ Full team clock in/out\n✅ Dashboard & reports\n✅ 30-day data retention", inline=False)
+                    embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+                    return
+                else:
+                    # Free tier with active trial: show sample data with trial countdown
+                    fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is sample data from your free trial."
+                    filename = f"sample_report_last_30_days.csv"
+                    file = discord.File(io.BytesIO(fake_csv.encode('utf-8')), filename=filename)
+                    days = access['days_remaining']
+                    await interaction.followup.send(
+                        f"📊 **Free Trial Sample Report**\n"
+                        f"🎯 This is sample data. Upgrade to Premium for real reports!\n"
+                        f"⚠️ **{days} day{'s' if days != 1 else ''} left on your free trial.**",
+                        file=file,
+                        ephemeral=True
+                    )
+                    return
+
+            # Paid or exempt users get full reports
             guild_tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
             if guild_tz_name is None:
                 guild_tz_name = DEFAULT_TZ
             
+            server_tier = get_guild_tier_string(guild_id)
             # Determine report range based on tier
             if server_tier == "basic":
                 report_days = 7  # Basic tier: 7 days max
@@ -3332,71 +3200,23 @@ class TimeClockView(discord.ui.View):
         if not interaction.guild:
             await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
             return
-            
-        guild_id = interaction.guild.id
-        user_id = interaction.user.id
         
-        # RATE LIMITING: Check for spam/abuse
-        is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "upgrade")
-        if not is_allowed:
-            # Handle rate limit response
-            if action == "server_abuse":
-                await send_reply(interaction,
-                    "🚨 **Server Abuse Detected**\n\nThis server has excessive spam activity. The bot is leaving this server.",
-                    ephemeral=True
-                )
-                try:
-                    await interaction.guild.leave()
-                    print(f"🚨 Bot left guild {guild_id} due to abuse")
-                except Exception as e:
-                    print(f"❌ Failed to leave guild {guild_id}: {e}")
-            elif action == "warning":
-                await send_reply(interaction,
-                    "⚠️ **Spam Detection Warning**\n\nYou're clicking the same button too quickly (5+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
-                    ephemeral=True
-                )
-            else:  # banned
-                await send_reply(interaction,
-                    "🚫 **24-Hour Ban**\n\nYour access has been temporarily suspended due to spam/abuse.\n**Ban Duration:** 24 hours",
-                    ephemeral=True
-                )
-            return
+        # This command should always be available.
+        # No rate limiting or permission checks needed for showing upgrade options.
 
-        server_tier = get_guild_tier_string(guild_id)
-        has_bot_access = check_bot_access(guild_id)
-        
-        # Show appropriate message based on current status
-        if has_bot_access:
-            await send_reply(interaction, "✅ This server already has bot access! Use `/upgrade` to add data retention if needed.", ephemeral=True)
-            return
-        
         embed = discord.Embed(
-            title="🚀 Unlock Full Bot Access",
-            description="Get complete control of your team's time tracking:",
+            title="⬆️ Upgrade Your Server",
+            description="Unlock the full power of Time Warden!",
             color=discord.Color.gold()
         )
-        
         embed.add_field(
-            name="💎 Dashboard Premium - ~~$10~~ $5 One-Time (Beta Price!)",
-            value="• **Unlimited team members** can use timeclock\n"
-                  "• **All admin commands** unlocked\n"
-                  "• **CSV Reports** for tracking\n"
-                  "• **Role management** features\n"
-                  "• **Dashboard access** for settings\n"
-                  "• **7-day data retention** (included!)",
+            name="💎 Premium — $8/month",
+            value="First month FREE!\n✅ Full team clock in/out\n✅ Web dashboard access\n✅ CSV reports & exports\n✅ 30-day data retention\n✅ Email reports\n✅ Time adjustments",
             inline=False
         )
-        
         embed.add_field(
-            name="📦 Optional Add-On",
-            value="**Pro Retention:** $5/month - Extend to 30-day data retention\n\n"
-                  "*Can be added after Dashboard Premium purchase*",
-            inline=False
-        )
-        
-        embed.add_field(
-            name="🔗 Get Started",
-            value="Use `/upgrade` command to purchase bot access via secure Stripe checkout!",
+            name="🚀 Pro — $15/month (Coming Soon!)",
+            value="Everything in Premium, plus:\n✅ Kiosk mode for shared devices\n✅ Ad-free dashboard\n✅ Priority support",
             inline=False
         )
         
@@ -3750,17 +3570,14 @@ class DemoRoleSwitcherView(discord.ui.View):
             await send_reply(interaction, "❌ An error occurred. Please try again.", ephemeral=True)
 
 
-def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
+def build_timeclock_hub_view(guild_id: int, embed: discord.Embed) -> discord.ui.View:
     """
     Factory function to dynamically build the timeclock hub view
     with conditional buttons based on subscription tier.
     
-    - Free tier: Shows "Dashboard Access" button linking to upgrade page
-    - Dashboard Premium (basic): Shows "Pro Retention" button for 30-day upgrade
-    - Fully upgraded (pro): No upgrade button shown
-    
     Args:
         guild_id: The Discord guild ID to check subscription status
+        embed: The discord.Embed object to which trial information may be added
         
     Returns:
         A discord.ui.View with the appropriate buttons
@@ -3769,82 +3586,50 @@ def build_timeclock_hub_view(guild_id: int) -> discord.ui.View:
     
     # Core buttons - always present (Row 0)
     clock_in_btn = discord.ui.Button(
-        label="Clock In",
-        style=discord.ButtonStyle.success,
-        custom_id="tc:clock_in",
-        emoji="⏰",
-        row=0
+        label="Clock In", style=discord.ButtonStyle.success, custom_id="tc:clock_in", emoji="⏰", row=0
     )
-    clock_in_btn.callback = handle_tc_clock_in  # type: ignore[method-assign]
+    clock_in_btn.callback = handle_tc_clock_in
     view.add_item(clock_in_btn)
     
     clock_out_btn = discord.ui.Button(
-        label="Clock Out",
-        style=discord.ButtonStyle.secondary,
-        custom_id="tc:clock_out",
-        emoji="🏁",
-        row=0
+        label="Clock Out", style=discord.ButtonStyle.secondary, custom_id="tc:clock_out", emoji="🏁", row=0
     )
-    clock_out_btn.callback = handle_tc_clock_out  # type: ignore[method-assign]
+    clock_out_btn.callback = handle_tc_clock_out
     view.add_item(clock_out_btn)
     
     # Feature buttons - always present (Row 1)
     adjustments_btn = discord.ui.Button(
-        label="My Adjustments",
-        style=discord.ButtonStyle.primary,
-        custom_id="tc:adjustments",
-        emoji="📝",
-        row=1
+        label="My Adjustments", style=discord.ButtonStyle.primary, custom_id="tc:adjustments", emoji="📝", row=1
     )
-    adjustments_btn.callback = handle_tc_adjustments  # type: ignore[method-assign]
+    adjustments_btn.callback = handle_tc_adjustments
     view.add_item(adjustments_btn)
     
     my_hours_btn = discord.ui.Button(
-        label="My Hours",
-        style=discord.ButtonStyle.primary,
-        custom_id="tc:my_hours",
-        emoji="📊",
-        row=1
+        label="My Hours", style=discord.ButtonStyle.primary, custom_id="tc:my_hours", emoji="📊", row=1
     )
-    my_hours_btn.callback = handle_tc_my_hours  # type: ignore[method-assign]
+    my_hours_btn.callback = handle_tc_my_hours
     view.add_item(my_hours_btn)
     
     support_btn = discord.ui.Button(
-        label="Support",
-        style=discord.ButtonStyle.danger,
-        custom_id="tc:support",
-        emoji="🆘",
-        row=1
+        label="Support", style=discord.ButtonStyle.danger, custom_id="tc:support", emoji="🆘", row=1
     )
-    support_btn.callback = handle_tc_support  # type: ignore[method-assign]
+    support_btn.callback = handle_tc_support
     view.add_item(support_btn)
-    
-    # Conditional upgrade button (Row 2) - based on subscription tier
-    has_bot_access = check_bot_access(guild_id)
-    retention_tier = get_retention_tier(guild_id)
-    
-    if not has_bot_access:
-        # Free tier - show "Dashboard Access" link button
+
+    # Conditional upgrade button and trial status
+    access = get_guild_access_info(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free':
         upgrade_btn = discord.ui.Button(
-            label="Dashboard Access",
-            style=discord.ButtonStyle.link,
-            url=LANDING_PAGE_URL,
-            emoji="🚀",
-            row=2
+            label="⬆️ Upgrade — First Month Free!", style=discord.ButtonStyle.success, custom_id="tc:upgrade", row=2
         )
+        upgrade_btn.callback = handle_tc_upgrade
         view.add_item(upgrade_btn)
-    elif retention_tier != '30day':
-        # Dashboard Premium only - show "Pro Retention" link button
-        upgrade_btn = discord.ui.Button(
-            label="Pro Retention",
-            style=discord.ButtonStyle.link,
-            url=LANDING_PAGE_URL,
-            emoji="📈",
-            row=2
-        )
-        view.add_item(upgrade_btn)
-    # Else: Fully upgraded (pro with 30day retention) - no upgrade button
-    
+
+        if not access['trial_active']:
+            embed.add_field(name="⚠️ Trial Expired", value="Upgrade to continue using the bot.", inline=False)
+        elif access['days_remaining'] <= 10:
+            embed.add_field(name="⏳ Trial Ends Soon!", value=f"{access['days_remaining']} days left. Upgrade to keep access.", inline=False)
+
     return view
 
 
@@ -3920,10 +3705,21 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
             str(member.avatar.url) if member.avatar else str(member.default_avatar.url)
         )
         
+        access = get_guild_access_info(guild_id)
+        trial_msg = ""
+        if access['tier'] == 'free' and access['trial_active'] and not access['is_exempt']:
+            days = access['days_remaining']
+            if days <= 3:
+                trial_msg = f"\n\n🚨 **Trial expires in {days} day{'s' if days != 1 else ''}!** Your team will lose clock access. Use `/upgrade` now!"
+            elif days <= 7:
+                trial_msg = f"\n\n⚠️ **{days} days left** on your free trial. Use `/upgrade` to keep access!"
+            elif days <= 10:
+                trial_msg = f"\n\n💡 {days} days left on your free trial."
+
         await interaction.followup.send(
             f"✅ **Clocked In!**\n\n"
             f"**Time:** <t:{int(now.timestamp())}:f>\n"
-            f"Have a productive shift!",
+            f"Have a productive shift!{trial_msg}",
             ephemeral=True
         )
         print(f"✅ [TC Hub] User {user_id} clocked in at guild {guild_id}")
@@ -4004,12 +3800,23 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
                 (now.isoformat(), session['id'])
             )
         
+        access = get_guild_access_info(guild_id)
+        trial_msg = ""
+        if access['tier'] == 'free' and access['trial_active'] and not access['is_exempt']:
+            days = access['days_remaining']
+            if days <= 3:
+                trial_msg = f"\n\n🚨 **Trial expires in {days} day{'s' if days != 1 else ''}!** Your team will lose clock access. Use `/upgrade` now!"
+            elif days <= 7:
+                trial_msg = f"\n\n⚠️ **{days} days left** on your free trial. Use `/upgrade` to keep access!"
+            elif days <= 10:
+                trial_msg = f"\n\n💡 {days} days left on your free trial."
+
         await interaction.followup.send(
             f"✅ **Clocked Out!**\n\n"
             f"**Started:** <t:{int(clock_in_time.timestamp())}:f>\n"
             f"**Ended:** <t:{int(now.timestamp())}:f>\n"
             f"**Duration:** {hours_int}h {minutes}m\n\n"
-            f"Great work today!",
+            f"Great work today!{trial_msg}",
             ephemeral=True
         )
         print(f"✅ [TC Hub] User {user_id} clocked out at guild {guild_id} ({hours:.2f}h)")
@@ -4145,81 +3952,24 @@ async def handle_tc_upgrade(interaction: discord.Interaction):
     if not interaction.guild:
         await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
         return
+
+    embed = discord.Embed(
+        title="⬆️ Upgrade Your Server",
+        description="Unlock the full power of Time Warden!",
+        color=discord.Color.gold()
+    )
+    embed.add_field(
+        name="💎 Premium — $8/month",
+        value="First month FREE!\n✅ Full team clock in/out\n✅ Web dashboard access\n✅ CSV reports & exports\n✅ 30-day data retention\n✅ Email reports\n✅ Time adjustments",
+        inline=False
+    )
+    embed.add_field(
+        name="🚀 Pro — $15/month (Coming Soon!)",
+        value="Everything in Premium, plus:\n✅ Kiosk mode for shared devices\n✅ Ad-free dashboard\n✅ Priority support",
+        inline=False
+    )
     
-    guild_id = interaction.guild.id
-    
-    # Check current subscription status
-    has_bot_access = check_bot_access(guild_id)
-    retention_tier = get_retention_tier(guild_id)
-    
-    # Build upgrade embed based on current status
-    embed = discord.Embed(color=0x57F287)
-    view = discord.ui.View()
-    
-    if not has_bot_access:
-        # Free tier - promote Dashboard Premium
-        embed.title = "🚀 Unlock Dashboard Access"
-        embed.description = "Get full access to powerful time tracking features!"
-        embed.add_field(
-            name="📊 Dashboard Premium ($5 one-time)",
-            value="• 7-day data retention\n• Full dashboard access\n• CSV reports & exports\n• Time adjustment requests\n• Email automation\n• Team management",
-            inline=False
-        )
-        embed.add_field(
-            name="📈 Pro Retention (Optional Add-on)",
-            value="• $5/month for 30-day data retention\n• Perfect for payroll and long-term tracking",
-            inline=False
-        )
-        view.add_item(discord.ui.Button(
-            label="Get Dashboard Access",
-            url=LANDING_PAGE_URL,
-            style=discord.ButtonStyle.link
-        ))
-        
-    elif retention_tier != '30day':
-        # Dashboard Premium only - promote Pro Retention
-        embed.title = "📈 Extend Your Data Retention"
-        embed.description = "You have Dashboard Premium! Upgrade to keep your time records longer."
-        embed.add_field(
-            name="📈 Pro Retention ($5/month)",
-            value="• Upgrade from 7 to 30-day data retention\n• Perfect for monthly payroll cycles\n• Never lose important time records",
-            inline=False
-        )
-        embed.add_field(
-            name="✅ Your Current Plan",
-            value="Dashboard Premium (7-day retention)",
-            inline=False
-        )
-        view.add_item(discord.ui.Button(
-            label="Get Pro Retention",
-            url=LANDING_PAGE_URL,
-            style=discord.ButtonStyle.link
-        ))
-        
-    else:
-        # Fully upgraded - thank them!
-        embed.title = "🎉 You're Fully Upgraded!"
-        embed.description = "Thank you for your support! You have access to all features."
-        embed.color = 0xD4AF37  # Gold color
-        embed.add_field(
-            name="✅ Your Current Plan",
-            value="**Dashboard Premium + Pro Retention**\n• 30-day data retention\n• Full dashboard access\n• CSV reports & exports\n• Time adjustment requests\n• Email automation\n• Team management",
-            inline=False
-        )
-        embed.add_field(
-            name="💡 Need Help?",
-            value="Join our support server if you have any questions!",
-            inline=False
-        )
-        view.add_item(discord.ui.Button(
-            label="Support Server",
-            url=SUPPORT_DISCORD_URL,
-            style=discord.ButtonStyle.link
-        ))
-    
-    embed.set_footer(text="On the Clock • Professional Time Tracking")
-    
-    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 # --- Global on_interaction Fallback Handler ---
@@ -4372,6 +4122,19 @@ async def on_ready():
     except Exception as e:
         print(f"❌ Error updating bot_guilds table: {e}")
 
+    # Backfill trial start dates for existing guilds
+    try:
+        with db() as conn:
+            for guild in bot.guilds:
+                conn.execute("""
+                    INSERT INTO guild_settings (guild_id, trial_start_date)
+                    VALUES (%s, NOW())
+                    ON CONFLICT (guild_id) DO NOTHING
+                """, (guild.id,))
+        print(f"✅ Backfilled trial start dates for {len(bot.guilds)} guilds")
+    except Exception as e:
+        print(f"❌ Error backfilling trial start dates: {e}")
+
     # --- Employee Profile Catch-up ---
     print("🔄 Running employee profile catch-up...")
     try:
@@ -4407,19 +4170,9 @@ def create_setup_embed() -> discord.Embed:
         title="⏰ Welcome to Time Warden!",
         description=(
             "Thanks for adding our professional Discord timeclock bot to your server!\n\n"
-            "**⚠️ Free mode is for testing - data is auto-deleted after 24 hours.**"
+            "**You now have a 30-day free trial with full access to all features.**"
         ),
         color=discord.Color.blurple()
-    )
-    
-    # DATA DELETION WARNING - Top-level field for maximum visibility
-    embed.add_field(
-        name="⚠️ IMPORTANT: Data Deletion Policy",
-        value=(
-            "**All time entries are purged after 24 hours unless a retention add-on is active.**\n"
-            "Free tier is for testing only. Upgrade to save your data!"
-        ),
-        inline=False
     )
     
     # Add setup instructions
@@ -4435,45 +4188,17 @@ def create_setup_embed() -> discord.Embed:
         inline=False
     )
     
-    # Add free tier features
+    # Add subscription tier information
     embed.add_field(
-        name="🆓 Free Tier - What You Get",
+        name="💼 After Your Trial",
         value=(
-            "✅ Employee role management via Dashboard\n"
-            "✅ Clock in/out tracking via `/clock`\n"
-            "✅ View current status (who's clocked in)\n"
-            "✅ Basic timezone settings\n\n"
-            "**Note:** Reports locked in free tier. Upgrade to unlock!"
-        ),
-        inline=False
-    )
-    
-    # Add subscription tier information - NEW MODEL
-    embed.add_field(
-        name="💼 Upgrade Options",
-        value=(
-            "**🔓 Dashboard Premium (~~$10~~ $5 one-time - Beta Price!):**\n"
-            "• Unlock real reports & CSV exports\n"
-            "• Full dashboard access\n"
-            "• 7-day data retention included\n"
-            "• One-time payment, lifetime access\n\n"
-            "**📁 Optional: Pro Retention ($5/month):**\n"
-            "• Extend to 30-day data retention\n\n"
-            "Use `/upgrade` to unlock features!"
-        ),
-        inline=False
-    )
-    
-    # Add feature highlights
-    embed.add_field(
-        name="✨ Key Features",
-        value=(
-            "• One-click time tracking with Discord buttons\n"
-            "• Smart timezone support (EST/EDT by default)\n"
-            "• Professional CSV reports for payroll\n"
-            "• Real-time \"who's on the clock\" status\n"
-            "• Role-based access control\n"
-            "• Secure Stripe payment integration"
+            "Upgrade to Premium to continue using all features.\n\n"
+            "**💎 Premium ($8/month, first month FREE!):**\n"
+            "• Full team access\n"
+            "• CSV reports & exports\n"
+            "• 30-day data retention\n"
+            "• Dashboard & all features\n\n"
+            "Use `/upgrade` to subscribe!"
         ),
         inline=False
     )
@@ -4665,6 +4390,18 @@ async def on_guild_join(guild):
         print(f"✅ Added {guild.name} to bot_guilds table")
     except Exception as e:
         print(f"❌ Error adding guild to bot_guilds table: {e}")
+
+    # Set trial start date
+    try:
+        with db() as conn:
+            conn.execute("""
+                INSERT INTO guild_settings (guild_id, trial_start_date)
+                VALUES (%s, NOW())
+                ON CONFLICT (guild_id) DO NOTHING
+            """, (guild.id,))
+        print(f"✅ Set trial start date for {guild.name}")
+    except Exception as e:
+        print(f"❌ Error setting trial start date for {guild.name}: {e}")
 
 
 @bot.event
@@ -4875,13 +4612,12 @@ async def setup(interaction: discord.Interaction):
         embed.add_field(
             name="💰 Step 3: Understand Pricing",
             value=(
-                "**Dashboard Premium** - ~~$10~~ $5 one-time (Beta Price!)\n"
+                "**Premium** - $8/month (First month FREE!)\n"
                 "• Unlocks full bot functionality for your entire team\n"
-                "• Includes 7-day data retention\n"
-                "• One-time payment, no recurring charges\n\n"
-                "**Optional: Pro Retention** - $5/month\n"
-                "• Extend to 30-day data retention\n\n"
-                "💡 Free tier available for testing (24-hour data retention)\n"
+                "• Includes 30-day data retention\n\n"
+                "**Pro** - $15/month (Coming Soon!)\n"
+                "• All premium features, plus Kiosk mode and ad-free dashboard\n\n"
+                "💡 Your server starts with a 30-day free trial of all features!\n"
                 f"🛒 Purchase: {payment_url}"
             ),
             inline=False
@@ -4929,6 +4665,19 @@ async def clock_command(interaction: discord.Interaction):
     guild_id = interaction.guild_id
     if guild_id is None:
         await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+
+    access = get_guild_access_info(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        embed = discord.Embed(
+            title="⏰ Free Trial Expired",
+            description="Your 30-day free trial has ended.\nUpgrade to Premium to continue using the timeclock!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="💎 Premium", value="$8/month (first month FREE!)\n✅ Full team clock in/out\n✅ Dashboard & reports\n✅ 30-day data retention", inline=False)
+        embed.add_field(name="🚀 Pro", value="$15/month — Coming Soon!\n✅ Everything in Premium\n✅ Kiosk mode\n✅ Ad-free dashboard", inline=False)
+        embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=True)
         return
 
     # Check permissions
@@ -5002,7 +4751,8 @@ async def clock_command(interaction: discord.Interaction):
             )
             welcome_embed.set_footer(text="Click any button below to get started!")
             
-            await interaction.followup.send(embed=welcome_embed, view=build_timeclock_hub_view(guild_id), ephemeral=True)
+            view = build_timeclock_hub_view(guild_id, welcome_embed)
+            await interaction.followup.send(embed=welcome_embed, view=view, ephemeral=True)
             print(f"First-time /clock onboarding sent to {interaction.user} in guild {guild_id}")
             return
         
@@ -5068,7 +4818,8 @@ async def clock_command(interaction: discord.Interaction):
         embed.set_footer(text="Buttons below work even after bot restarts • On the Clock")
         
         # Send with bulletproof view
-        await interaction.followup.send(embed=embed, view=build_timeclock_hub_view(guild_id), ephemeral=True)
+        view = build_timeclock_hub_view(guild_id, embed)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         print(f"✅ [TC Hub] Sent timeclock hub to {interaction.user} in guild {guild_id}")
         
     except Exception as e:
@@ -5100,20 +4851,34 @@ async def help_command(interaction: discord.Interaction):
         return
     
     guild_id = interaction.guild_id
-    
-    has_bot_access = check_bot_access(guild_id)
-    retention_tier = get_retention_tier(guild_id)
-    
-    if retention_tier == '30day':
-        tier_display = "🚀 PRO RETENTION"
+    access = get_guild_access_info(guild_id)
+
+    tier_display = ""
+    tier_color = discord.Color.greyple()
+    footer_text = ""
+
+    if access['is_exempt']:
+        tier_display = "⭐ Full Access"
         tier_color = discord.Color.gold()
-    elif has_bot_access:
-        tier_display = "💎 DASHBOARD PREMIUM"
+        footer_text = "⭐ Full Access"
+    elif access['tier'] == 'pro':
+        tier_display = "🚀 PRO PLAN"
+        tier_color = discord.Color.purple()
+        footer_text = "🚀 Pro Plan Active"
+    elif access['tier'] == 'premium':
+        tier_display = "💎 PREMIUM PLAN"
         tier_color = discord.Color.blue()
+        footer_text = "💎 Premium Plan Active"
+    elif access['trial_active']:
+        tier_display = "🆓 FREE TRIAL"
+        tier_color = discord.Color.green()
+        days = access['days_remaining']
+        footer_text = f"🆓 Free Trial - {days} day{'s' if days != 1 else ''} remaining"
     else:
-        tier_display = "🆓 FREE TIER"
-        tier_color = discord.Color.greyple()
-    
+        tier_display = "⚠️ TRIAL EXPIRED"
+        tier_color = discord.Color.red()
+        footer_text = "⚠️ Trial Expired — Use /upgrade to continue"
+
     embed = discord.Embed(
         title="⏰ On the Clock - Help",
         description=f"**Your Server:** {tier_display}\n\nSimple time tracking for your team, right in Discord.",
@@ -5158,13 +4923,13 @@ async def help_command(interaction: discord.Interaction):
         inline=False
     )
     
-    if not has_bot_access:
+    if not access['is_exempt'] and access['tier'] == 'free':
         embed.add_field(
             name="⬆️ Upgrade to Premium",
             value=(
-                "**Free:** 24-hour data • Basic clock in/out\n"
-                "**Premium ($5 one-time):** 7-day data • Full dashboard\n"
-                "**Pro ($5/mo add-on):** 30-day data retention\n\n"
+                "**Free Trial:** 30-day full access trial\n"
+                "**Premium ($8/month, first month FREE!):** Full team access, dashboard, reports, 30-day retention\n"
+                "**Pro ($15/month — Coming Soon!):** Kiosk mode + ad-free dashboard\n\n"
                 "👉 Visit the dashboard to upgrade!"
             ),
             inline=False
@@ -5176,7 +4941,7 @@ async def help_command(interaction: discord.Interaction):
             inline=False
         )
     
-    embed.set_footer(text="Need help? Visit our dashboard for all settings and features.")
+    embed.set_footer(text=footer_text)
     
     await send_reply(interaction, embed=embed, ephemeral=True)
 
@@ -5580,7 +5345,7 @@ async def owner_broadcast_command(interaction: discord.Interaction, title: str, 
 @tree.command(name="owner_grant", description="[OWNER] Grant subscription tier to current server")
 @app_commands.describe(tier="Subscription tier to grant")
 @app_commands.choices(tier=[
-    app_commands.Choice(name="Dashboard Premium (7-day retention)", value="bot_access"),
+    app_commands.Choice(name="Premium", value="bot_access"),
     app_commands.Choice(name="Pro Retention (30-day)", value="pro")
 ])
 async def owner_grant_tier(interaction: discord.Interaction, tier: str):
@@ -5615,7 +5380,7 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
             
             embed.add_field(name="Server", value=guild_name, inline=True)
             embed.add_field(name="Server ID", value=str(guild_id), inline=True)
-            embed.add_field(name="Grant Type", value="Bot Access ($5)", inline=True)
+            embed.add_field(name="Grant Type", value="Bot Access", inline=True)
             embed.add_field(name="Granted By", value="Bot Owner (Manual)", inline=True)
             
             embed.add_field(
@@ -5666,7 +5431,7 @@ async def owner_grant_tier(interaction: discord.Interaction, tier: str):
     tier="Subscription tier to grant"
 )
 @app_commands.choices(tier=[
-    app_commands.Choice(name="Dashboard Premium (7-day retention)", value="bot_access"),
+    app_commands.Choice(name="Premium", value="bot_access"),
     app_commands.Choice(name="Pro Retention (30-day)", value="pro")
 ])
 async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: str, tier: str):
@@ -5710,7 +5475,7 @@ async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: 
             embed.add_field(name="Target Server", value=guild_name, inline=True)
             embed.add_field(name="Server ID", value=str(guild_id), inline=True)
             embed.add_field(name="Bot Present", value="✅ Yes" if guild else "❌ No", inline=True)
-            embed.add_field(name="Grant Type", value="Bot Access ($5)", inline=True)
+            embed.add_field(name="Grant Type", value="Bot Access", inline=True)
             
             if guild:
                 embed.add_field(name="Member Count", value=str(guild.member_count), inline=True)
@@ -5875,6 +5640,22 @@ async def context_view_hours(interaction: discord.Interaction, user: discord.Mem
     """Right-click context menu to view a user's hours"""
     await interaction.response.defer(ephemeral=True)
     
+    guild_id = interaction.guild_id
+    if not guild_id:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+
+    access = get_guild_access_info(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        embed = discord.Embed(
+            title="⏰ Free Trial Expired",
+            description="Your 30-day free trial has ended.\nUpgrade to Premium to use this feature!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return
+
     # Check if invoker is admin
     if interaction.user and isinstance(interaction.user, discord.Member) and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send("❌ Only admins can use this.", ephemeral=True)
@@ -5905,6 +5686,22 @@ async def context_view_hours(interaction: discord.Interaction, user: discord.Mem
 async def context_force_clockout(interaction: discord.Interaction, user: discord.Member):
     """Right-click context menu to force clock out a user"""
     await interaction.response.defer(ephemeral=True)
+
+    guild_id = interaction.guild_id
+    if not guild_id:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+
+    access = get_guild_access_info(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        embed = discord.Embed(
+            title="⏰ Free Trial Expired",
+            description="Your 30-day free trial has ended.\nUpgrade to Premium to use this feature!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return
     
     # Check if invoker is admin
     if interaction.user and isinstance(interaction.user, discord.Member) and not interaction.user.guild_permissions.administrator:
@@ -5931,6 +5728,22 @@ async def context_force_clockout(interaction: discord.Interaction, user: discord
 async def context_ban_user(interaction: discord.Interaction, user: discord.Member):
     """Right-click context menu to ban a user from timeclock (24-hour ban)"""
     await interaction.response.defer(ephemeral=True)
+
+    guild_id = interaction.guild_id
+    if not guild_id:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+
+    access = get_guild_access_info(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        embed = discord.Embed(
+            title="⏰ Free Trial Expired",
+            description="Your 30-day free trial has ended.\nUpgrade to Premium to use this feature!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return
     
     # Check if invoker is admin
     if interaction.user and isinstance(interaction.user, discord.Member) and not interaction.user.guild_permissions.administrator:
@@ -5994,6 +5807,22 @@ async def context_view_profile(interaction: discord.Interaction, user: discord.M
 async def context_send_shift_report(interaction: discord.Interaction, user: discord.Member):
     """Right-click context menu to email employee's shift report to configured recipients"""
     await interaction.response.defer(ephemeral=True)
+
+    guild_id = interaction.guild_id
+    if not guild_id:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+
+    access = get_guild_access_info(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        embed = discord.Embed(
+            title="⏰ Free Trial Expired",
+            description="Your 30-day free trial has ended.\nUpgrade to Premium to use this feature!",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return
     
     if interaction.user and isinstance(interaction.user, discord.Member) and not interaction.user.guild_permissions.administrator:
         await interaction.followup.send("❌ Only admins can send shift reports.", ephemeral=True)

@@ -18,10 +18,9 @@
         <div class="pricing-card">
             <div class="pricing-header">Unlock Premium</div>
             <div class="pricing-price">
-                <span class="original-price">$8</span>
-                <span class="trial-price">$5</span>
-                <span class="price-period">first month</span>
+                <span class="trial-price">$8/mo</span>
             </div>
+            <div class="pricing-offer" style="color: #4CAF50; margin-bottom: 1rem; font-weight: 600;">First month FREE!</div>
             <ul class="premium-features">
                 <li>Full dashboard access</li>
                 <li>Time adjustment requests</li>
@@ -30,7 +29,7 @@
                 <li>Email notifications</li>
                 <li>30-day data retention</li>
             </ul>
-            <a href="/dashboard/server/{{ server.id }}/purchase" class="upgrade-btn">Upgrade to Premium</a>
+            <a href="/dashboard/purchase?guild_id={{ server.id }}" class="upgrade-btn">Upgrade to Premium</a>
         </div>
         
         <a href="/dashboard/server/{{ server.id }}" class="back-link">Back to Server Overview</a>

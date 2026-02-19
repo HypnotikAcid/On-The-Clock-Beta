@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upgrade to Pro - Time Warden</title>
+    <title>Upgrade Your Server - On the Clock</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
@@ -21,17 +20,14 @@
             justify-content: center;
             padding: 2rem;
         }
-
         .container {
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
         }
-
         .header {
             text-align: center;
             margin-bottom: 2.5rem;
         }
-
         .header h1 {
             font-size: 2.5rem;
             font-weight: 700;
@@ -40,18 +36,32 @@
             -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
         }
-
         .header p {
             font-size: 1.1rem;
             color: #8B949E;
         }
-
+        .trial-status {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            font-weight: 500;
+        }
+        .trial-active {
+            background-color: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00FFFF;
+            color: #00FFFF;
+        }
+        .trial-expired {
+            background-color: rgba(255, 82, 82, 0.1);
+            border: 1px solid #FF5252;
+            color: #FF5252;
+        }
         .pricing-comparison {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
         }
-
         .pricing-card {
             background: rgba(30, 35, 45, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -61,36 +71,30 @@
             flex-direction: column;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-
         .pricing-card:hover {
             transform: translateY(-5px);
         }
-
         .pricing-card h3 {
             font-size: 1.5rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
             color: #C9D1D9;
         }
-
         .price {
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 0.25rem;
         }
-
         .price-period {
             font-size: 0.9rem;
             color: #8B949E;
             margin-bottom: 1.5rem;
         }
-
         .features {
             list-style: none;
             margin-bottom: 2rem;
             flex-grow: 1;
         }
-
         .features li {
             display: flex;
             align-items: center;
@@ -98,32 +102,23 @@
             margin-bottom: 0.75rem;
             color: #8B949E;
         }
-
         .features li.included {
             color: #C9D1D9;
         }
-
         .features .icon {
             font-size: 1.2rem;
         }
-
-        .free-tier {
-            color: #8B949E;
-        }
-
-        .free-tier .price {
-            color: #C9D1D9;
-        }
-
-        .pro-tier {
+        .premium-tier {
             border-color: #00FFFF;
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
         }
-
-        .pro-tier .price {
+        .premium-tier .price {
             color: #00FFFF;
         }
-
+        .pro-tier {
+            opacity: 0.6;
+            border-color: #555;
+        }
         .badge {
             display: inline-block;
             background: linear-gradient(135deg, #00FFFF, #0099FF);
@@ -136,7 +131,6 @@
             margin-bottom: 1rem;
             align-self: center;
         }
-
         .upgrade-btn {
             display: block;
             width: 100%;
@@ -151,12 +145,15 @@
             border: none;
             cursor: pointer;
         }
-
         .upgrade-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 20px rgba(0, 255, 255, 0.3);
         }
-        
+        .upgrade-btn.disabled {
+            background: #333;
+            cursor: not-allowed;
+            color: #777;
+        }
         .spinner {
             display: inline-block;
             width: 16px;
@@ -168,33 +165,23 @@
             margin-right: 8px;
             vertical-align: middle;
         }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
+        @keyframes spin { to { transform: rotate(360deg); } }
         .back-link {
             text-align: center;
             margin-top: 2rem;
         }
-
         .back-link a {
             color: #8B949E;
             text-decoration: none;
             font-size: 0.9rem;
             transition: color 0.3s ease;
         }
-
         .back-link a:hover {
             color: #00FFFF;
         }
-
         @media (max-width: 768px) {
             .pricing-comparison {
                 grid-template-columns: 1fr;
-            }
-            .pro-tier {
-                order: -1;
             }
         }
     </style>
@@ -202,40 +189,51 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Unlock Your Team's Potential</h1>
-            <p>Choose the plan that's right for your server.</p>
+            <h1>Upgrade to Continue</h1>
+            <p>Your free trial has ended. Choose a plan to restore full access.</p>
         </div>
 
+        {% if access %}
+        <div class="trial-status {% if access.trial_active %}trial-active{% else %}trial-expired{% endif %}">
+            {% if access.trial_active %}
+                You have {{ access.days_remaining }} days left on your free trial.
+            {% else %}
+                Your trial has expired — upgrade now to restore access.
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="pricing-comparison">
-            <div class="pricing-card free-tier">
-                <h3>Free</h3>
-                <p class="price">$0</p>
-                <p class="price-period">per month</p>
+            <div class="pricing-card premium-tier">
+                <div class="badge">Premium</div>
+                <h3>Premium</h3>
+                <p class="price">$8</p>
+                <p class="price-period">per month (First month FREE!)</span></p>
                 <ul class="features">
-                    <li class="included"><span class="icon">✅</span> Basic clock in/out</li>
-                    <li class="included"><span class="icon">✅</span> 24-hour retention</li>
-                    <li><span class="icon">❌</span> Kiosk mode</li>
-                    <li><span class="icon">❌</span> Extended retention</li>
-                    <li><span class="icon">❌</span> Priority support</li>
+                    <li class="included"><span class="icon">✅</span> Full team clock in/out</li>
+                    <li class="included"><span class="icon">✅</span> Web dashboard access</li>
+                    <li class="included"><span class="icon">✅</span> CSV reports & exports</li>
+                    <li class="included"><span class="icon">✅</span> 30-day data retention</li>
+                    <li class="included"><span class="icon">✅</span> Email reports</li>
+                    <li class="included"><span class="icon">✅</span> Time adjustments</li>
                 </ul>
-                <button class="upgrade-btn" disabled style="background: #333; cursor: not-allowed; color: #777;">Current Plan</button>
+                <a href="/purchase/checkout?tier=premium&guild_id={{ guild_id }}" class="upgrade-btn" onclick="handleUpgrade(this)">
+                    Upgrade to Premium
+                </a>
             </div>
 
-            <div class="pricing-card pro-tier featured">
-                <div class="badge">RECOMMENDED</div>
+            <div class="pricing-card pro-tier">
                 <h3>Pro</h3>
                 <p class="price">$15</p>
                 <p class="price-period">per month</p>
                 <ul class="features">
-                    <li class="included"><span class="icon">✅</span> Everything in Free</li>
-                    <li class="included"><span class="icon">✅</span> 30-day retention</li>
-                    <li class="included"><span class="icon">✅</span> Kiosk mode</li>
+                    <li class="included"><span class="icon">✅</span> Everything in Premium</li>
+                    <li class="included"><span class="icon">✅</span> Kiosk Mode for shared devices</li>
+                    <li class="included"><span class="icon">✅</span> Advanced scheduling</li>
+                    <li class="included"><span class="icon">✅</span> Role-based permissions</li>
                     <li class="included"><span class="icon">✅</span> Priority support</li>
-                    <li class="included"><span class="icon">✅</span> Ad-free experience</li>
                 </ul>
-                <a href="/purchase/select_server" class="upgrade-btn" onclick="handleUpgrade(this)">
-                    Upgrade Now
-                </a>
+                <button class="upgrade-btn disabled" disabled>Coming Soon</button>
             </div>
         </div>
 
@@ -245,7 +243,7 @@
     </div>
     <script>
         function handleUpgrade(btn) {
-            btn.innerHTML = '<span class="spinner"></span> Redirecting to checkout...';
+            btn.innerHTML = '<span class="spinner"></span> Redirecting...';
             btn.style.pointerEvents = 'none';
         }
     </script>

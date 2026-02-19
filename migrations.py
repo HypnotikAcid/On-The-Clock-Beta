@@ -494,6 +494,11 @@ def run_migrations():
                 print("   Checking for last_demo_reset column in guild_settings")
                 cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS last_demo_reset TIMESTAMPTZ")
 
+                # 24. Add trial columns to guild_settings
+                print("   Checking for trial columns in guild_settings")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS trial_start_date TIMESTAMP DEFAULT NULL")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS trial_expired BOOLEAN DEFAULT FALSE")
+
                 # 24. Add original_profile_data column to employee_archive for complete profile restoration
                 print("   Checking for original_profile_data column in employee_archive")
                 cur.execute("ALTER TABLE employee_archive ADD COLUMN IF NOT EXISTS original_profile_data JSONB")

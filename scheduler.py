@@ -359,12 +359,11 @@ Retention Period: {days_to_keep} days
 
 {session_count} timeclock session(s) will be automatically deleted soon as they have exceeded your {days_to_keep}-day retention period.
 
-To preserve this data:
-- Generate reports now using the /report command
-- Upgrade to Dashboard Premium ($5 one-time) for 7-day retention
-- Add Pro Retention ($5/month) for 30-day retention
+To preserve this data, you can upgrade your plan:
+- **Premium Plan ($8/month):** Get full dashboard access, CSV reports, and 30-day data retention.
+- Your first month of Premium is FREE!
 
-This is an automated reminder from On the Clock Discord Bot.
+This is an automated reminder from Time Warden.
 """
             
             await send_email(
@@ -430,7 +429,7 @@ async def send_predeletion_dm_warnings():
                     )
                     embed.add_field(
                         name="💎 Upgrade to Keep Your Data",
-                        value="Get Dashboard Premium for **$5 one-time** (7-day retention) or add Pro Retention for **$5/month** (30-day)!",
+                        value="Upgrade to the **Premium Plan ($8/month)** for 30-day data retention, full dashboard access, and more. Your first month is FREE!",
                         inline=False
                     )
                     embed.add_field(

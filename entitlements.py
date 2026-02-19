@@ -22,6 +22,30 @@ class UserRole(Enum):
 class Entitlements:
     """Check user entitlements for features"""
     
+    DEMO_SERVER_ID = 1419894879894507661
+
+    @staticmethod
+    def is_trial_active(trial_start_date) -> bool:
+        """Check if 30-day trial is still active"""
+        if trial_start_date is None:
+            return True
+        from datetime import datetime, timedelta
+        return (datetime.now() - trial_start_date.replace(tzinfo=None)) < timedelta(days=30)
+
+    @staticmethod
+    def get_trial_days_remaining(trial_start_date) -> int:
+        """Get days remaining in trial, 0 if expired"""
+        if trial_start_date is None:
+            return 30
+        from datetime import datetime
+        elapsed = (datetime.now() - trial_start_date.replace(tzinfo=None)).days
+        return max(0, 30 - elapsed)
+
+    @staticmethod
+    def is_server_exempt(guild_id: int, grandfathered: bool = False, owner_granted: bool = False) -> bool:
+        """Check if server bypasses all trial/tier restrictions"""
+        return int(guild_id) == Entitlements.DEMO_SERVER_ID or grandfathered or owner_granted
+
     @staticmethod
     def get_guild_tier(bot_access_paid: bool, retention_tier: str, grandfathered: bool = False) -> UserTier:
         """Determine guild tier from database values"""
@@ -45,7 +69,7 @@ class Entitlements:
         return RETENTION_FREE_DAYS  # Free tier = 24 hours (strictly enforced)
     
     @staticmethod
-    def can_access_feature(tier: UserTier, role: UserRole, feature: str) -> bool:
+    def can_access_feature(tier: UserTier, role: UserRole, feature: str, trial_active: bool = True) -> bool:
         """Check if user can access a feature"""
         # Features that require Premium
         premium_features = {
@@ -54,7 +78,13 @@ class Entitlements:
             'email_automation',
             'advanced_settings',
             'employee_profiles_extended', # Changed from employee_profiles
-            'ban_management'
+            'ban_management',
+            'dashboard_access'
+        }
+
+        # Pro-only features
+        pro_only_features = {
+            'kiosk'
         }
         
         # Admin-only features (still need premium for some)
@@ -77,9 +107,12 @@ class Entitlements:
         
         if feature in free_features:
             return True
+
+        if feature in pro_only_features:
+            return tier == UserTier.PRO
             
         # Check if premium required (Grandfathered users have Premium access)
-        if feature in premium_features and tier == UserTier.FREE:
+        if feature in premium_features and tier == UserTier.FREE and not trial_active:
             return False
         
         # Grandfathered tier has same access as Premium
@@ -92,12 +125,23 @@ class Entitlements:
         return True
     
     @staticmethod
-    def get_locked_message(feature: str) -> Dict[str, str]:
+    def get_locked_message(feature: str, trial_expired: bool = False) -> Dict[str, str]:
         """Get the message to show for a locked feature"""
+        cta = 'Upgrade Now' if trial_expired else 'Start Free Trial'
         return {
             'title': 'Premium Required',
             'message': f'Upgrade to Premium to unlock {feature}.',
             'price': '$8/mo',
-            'beta_price': '~~$8~~ $5 (First Month!)',
+            'offer': 'First month FREE!',
+            'cta': cta
+        }
+
+    @staticmethod
+    def get_trial_expired_message() -> dict:
+        return {
+            'title': 'Free Trial Expired',
+            'message': 'Your 30-day free trial has ended. Upgrade to Premium to continue using all features.',
+            'price': '$8/mo',
+            'offer': 'First month FREE!',
             'cta': 'Upgrade Now'
         }
