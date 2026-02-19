@@ -358,9 +358,13 @@ DISCORD_OAUTH_SCOPES = 'identify guilds'
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 STRIPE_PRICE_IDS = {
+    'premium': os.environ.get('STRIPE_PRICE_PREMIUM'),
+    'pro': os.environ.get('STRIPE_PRICE_PRO'),
+}
+STRIPE_PRICE_IDS_LEGACY = {
     'bot_access': os.environ.get('STRIPE_PRICE_BOT_ACCESS'),
     'retention_7day': os.environ.get('STRIPE_PRICE_RETENTION_7DAY'),
-    'retention_30day': os.environ.get('STRIPE_PRICE_RETENTION_30DAY')
+    'retention_30day': os.environ.get('STRIPE_PRICE_RETENTION_30DAY'),
 }
 
 # Bot API Configuration
@@ -1303,9 +1307,11 @@ def log_purchase_and_notify(guild_id, guild_name, customer_email, customer_id, p
             import asyncio
             
             product_display = {
-                'bot_access': 'Bot Access ($5)',
-                'retention_7day': '7-Day Retention ($5/mo)',
-                'retention_30day': '30-Day Retention ($5/mo)'
+                'premium': 'Premium ($8/mo)',
+                'pro': 'Pro ($15/mo)',
+                'bot_access': 'Bot Access (Legacy)',
+                'retention_7day': '7-Day Retention (Legacy)',
+                'retention_30day': '30-Day Retention (Legacy)'
             }.get(product_type, product_type)
             
             amount_display = f"${amount_cents / 100:.2f}" if amount_cents else "N/A"
@@ -1378,10 +1384,14 @@ def stripe_webhook():
         # Handle different event types
         if event_type == 'checkout.session.completed':
             handle_checkout_completed(event['data']['object'])
+        elif event_type == 'customer.subscription.created':
+            handle_subscription_change(event['data']['object'])
         elif event_type == 'customer.subscription.updated':
             handle_subscription_change(event['data']['object'])
         elif event_type == 'customer.subscription.deleted':
             handle_subscription_cancellation(event['data']['object'])
+        elif event_type == 'invoice.payment_succeeded':
+            app.logger.info(f"[OK] Invoice payment succeeded: {event['data']['object'].get('id')}")
         elif event_type == 'invoice.payment_failed':
             handle_payment_failure(event['data']['object'])
         else:
@@ -1401,15 +1411,13 @@ def stripe_webhook():
         return jsonify({'error': 'Internal error'}), 500
 
 def handle_checkout_completed(session):
-    """Process a completed checkout session"""
+    """Process a completed checkout session - handles new subscription model"""
     try:
-        # Retrieve full session with line items to verify pricing
         full_session = stripe.checkout.Session.retrieve(
             session['id'],
             expand=['line_items']
         )
         
-        # Extract price_id from session
         price_id = None
         amount_cents = None
         if full_session.line_items and full_session.line_items.data:
@@ -1422,9 +1430,9 @@ def handle_checkout_completed(session):
             app.logger.error("[ERROR] No price ID found in checkout session")
             return
         
-        # Match price_id against STRIPE_PRICE_IDS to determine product_type
         product_type = None
-        for ptype, pid in STRIPE_PRICE_IDS.items():
+        all_price_ids = {**STRIPE_PRICE_IDS, **STRIPE_PRICE_IDS_LEGACY}
+        for ptype, pid in all_price_ids.items():
             if pid == price_id:
                 product_type = ptype
                 break
@@ -1441,14 +1449,13 @@ def handle_checkout_completed(session):
             return
         
         guild_id = int(guild_id)
-        
-        # Extract customer details
-        customer_email = None
+        subscription_id = session.get('subscription')
         customer_id = session.get('customer')
+        
+        customer_email = None
         if full_session.customer_details:
             customer_email = full_session.customer_details.get('email')
         
-        # Log purchase to history and send owner notification
         log_purchase_and_notify(
             guild_id=guild_id,
             guild_name=guild_name,
@@ -1459,63 +1466,56 @@ def handle_checkout_completed(session):
             stripe_session_id=session['id']
         )
         
-        # Process based on product type (using Flask-side functions for production DB)
-        if product_type == 'bot_access':
-            # One-time bot access payment
+        if product_type in ('premium', 'bot_access'):
             flask_set_bot_access(guild_id, True)
-            app.logger.info(f"[OK] Bot access granted for server {guild_id}")
-            
-        elif product_type == 'retention_7day':
-            # 7-day retention subscription
-            if not flask_check_bot_access(guild_id):
-                app.logger.error(f"[ERROR] SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
-                return
-            
-            subscription_id = session.get('subscription')
-            customer_id = session.get('customer')
-            flask_set_retention_tier(guild_id, '7day')
-            
-            # Store subscription_id, customer_id and ensure bot_access_paid is TRUE
             with get_db() as conn:
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid)
-                    VALUES (%s, %s, %s, 'active', TRUE)
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid, tier)
+                    VALUES (%s, %s, %s, 'active', TRUE, 'premium')
                     ON CONFLICT(guild_id) DO UPDATE SET 
-                        subscription_id = %s,
-                        customer_id = %s,
+                        subscription_id = COALESCE(%s, server_subscriptions.subscription_id),
+                        customer_id = COALESCE(%s, server_subscriptions.customer_id),
                         status = 'active',
-                        bot_access_paid = TRUE
+                        bot_access_paid = TRUE,
+                        tier = 'premium'
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
+            app.logger.info(f"[OK] Premium subscription activated for server {guild_id}")
             
-            app.logger.info(f"[OK] 7-day retention granted for server {guild_id} (bot_access_paid=TRUE)")
-            
-        elif product_type == 'retention_30day':
-            # 30-day retention subscription
-            if not flask_check_bot_access(guild_id):
-                app.logger.error(f"[ERROR] SECURITY: Retention purchase blocked - bot access not paid for server {guild_id}")
-                return
-            
-            subscription_id = session.get('subscription')
-            customer_id = session.get('customer')
+        elif product_type == 'pro':
+            flask_set_bot_access(guild_id, True)
             flask_set_retention_tier(guild_id, '30day')
-            
-            # Store subscription_id, customer_id and ensure bot_access_paid is TRUE
             with get_db() as conn:
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid)
-                    VALUES (%s, %s, %s, 'active', TRUE)
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid, retention_tier, tier)
+                    VALUES (%s, %s, %s, 'active', TRUE, '30day', 'pro')
                     ON CONFLICT(guild_id) DO UPDATE SET 
-                        subscription_id = %s,
-                        customer_id = %s,
+                        subscription_id = COALESCE(%s, server_subscriptions.subscription_id),
+                        customer_id = COALESCE(%s, server_subscriptions.customer_id),
                         status = 'active',
-                        bot_access_paid = TRUE
+                        bot_access_paid = TRUE,
+                        retention_tier = '30day',
+                        tier = 'pro'
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
-            
-            app.logger.info(f"[OK] 30-day retention granted for server {guild_id} (bot_access_paid=TRUE)")
+            app.logger.info(f"[OK] Pro subscription activated for server {guild_id}")
         
-        # Record trial usage if trial coupon was applied
+        elif product_type in ('retention_7day', 'retention_30day'):
+            retention_val = '7day' if product_type == 'retention_7day' else '30day'
+            flask_set_retention_tier(guild_id, retention_val)
+            with get_db() as conn:
+                conn.execute("""
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid, retention_tier)
+                    VALUES (%s, %s, %s, 'active', TRUE, %s)
+                    ON CONFLICT(guild_id) DO UPDATE SET 
+                        subscription_id = COALESCE(%s, server_subscriptions.subscription_id),
+                        customer_id = COALESCE(%s, server_subscriptions.customer_id),
+                        status = 'active',
+                        bot_access_paid = TRUE,
+                        retention_tier = %s
+                """, (guild_id, subscription_id, customer_id, retention_val, subscription_id, customer_id, retention_val))
+            app.logger.info(f"[OK] Legacy {retention_val} retention granted for server {guild_id}")
+        
         trial_applied = session.get('metadata', {}).get('trial_applied')
-        if trial_applied == 'true' and product_type in ['retention_7day', 'retention_30day']:
+        if trial_applied == 'true':
             try:
                 with get_db() as conn:
                     conn.execute("""
@@ -1532,7 +1532,7 @@ def handle_checkout_completed(session):
         app.logger.error(traceback.format_exc())
 
 def handle_subscription_change(subscription):
-    """Handle subscription change events"""
+    """Handle subscription create/update events - status changes, plan changes"""
     try:
         subscription_id = subscription.get('id')
         status = subscription.get('status')
@@ -1541,22 +1541,55 @@ def handle_subscription_change(subscription):
             app.logger.error("[ERROR] No subscription ID in subscription change event")
             return
         
-        # Using Flask's get_db for production database
+        guild_id = None
+        metadata = subscription.get('metadata', {})
+        if metadata.get('guild_id'):
+            guild_id = int(metadata['guild_id'])
+        
         with get_db() as conn:
+            cursor = conn.execute(
+                "SELECT guild_id FROM server_subscriptions WHERE subscription_id = %s",
+                (subscription_id,)
+            )
+            result = cursor.fetchone()
+            
+            if result:
+                guild_id = result['guild_id']
+            elif guild_id:
+                conn.execute("""
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid)
+                    VALUES (%s, %s, %s, %s, TRUE)
+                    ON CONFLICT(guild_id) DO UPDATE SET
+                        subscription_id = %s,
+                        status = %s,
+                        bot_access_paid = TRUE
+                """, (guild_id, subscription_id, subscription.get('customer'), status, subscription_id, status))
+                app.logger.info(f"[OK] Created subscription record for server {guild_id} from lifecycle event")
+            else:
+                app.logger.warning(f"[WARN] No server found for subscription {subscription_id} and no metadata")
+                return
+            
             conn.execute("""
                 UPDATE server_subscriptions 
                 SET status = %s
                 WHERE subscription_id = %s
             """, (status, subscription_id))
-        
-        app.logger.info(f"[OK] Subscription {subscription_id} status updated to {status}")
+            
+            if status in ('active', 'trialing'):
+                flask_set_bot_access(guild_id, True)
+                app.logger.info(f"[OK] Subscription {subscription_id} active for server {guild_id}")
+            elif status in ('past_due', 'unpaid'):
+                app.logger.warning(f"[WARN] Subscription {subscription_id} is {status} for server {guild_id}")
+            elif status == 'canceled':
+                flask_set_bot_access(guild_id, False)
+                app.logger.info(f"[OK] Subscription canceled, access revoked for server {guild_id}")
         
     except Exception as e:
         app.logger.error(f"[ERROR] Error processing subscription change: {e}")
         app.logger.error(traceback.format_exc())
 
 def handle_subscription_cancellation(subscription):
-    """Handle subscription cancellation events"""
+    """Handle subscription deletion/cancellation events"""
     try:
         subscription_id = subscription.get('id')
         customer_id = subscription.get('customer')
@@ -1565,7 +1598,6 @@ def handle_subscription_cancellation(subscription):
             app.logger.error("[ERROR] No subscription ID in cancellation event")
             return
         
-        # Using Flask's get_db for production database
         with get_db() as conn:
             cursor = conn.execute("""
                 SELECT guild_id FROM server_subscriptions 
@@ -1576,20 +1608,16 @@ def handle_subscription_cancellation(subscription):
             if result:
                 guild_id = result['guild_id']
                 
-                # Set retention tier to 'none' using Flask-side function
+                flask_set_bot_access(guild_id, False)
                 flask_set_retention_tier(guild_id, 'none')
                 
-                # Update subscription status to canceled
                 conn.execute("""
                     UPDATE server_subscriptions 
-                    SET status = 'canceled', subscription_id = NULL
+                    SET status = 'canceled', subscription_id = NULL, bot_access_paid = FALSE
                     WHERE guild_id = %s
                 """, (guild_id,))
                 
-                # Trigger immediate data deletion (this still uses bot function)
-                purge_timeclock_data_only(guild_id)
-                
-                app.logger.info(f"[OK] Retention subscription canceled for server {guild_id}")
+                app.logger.info(f"[OK] Subscription canceled for server {guild_id}, access revoked")
             else:
                 app.logger.error(f"[ERROR] No guild found for subscription {subscription_id}")
                 
@@ -4846,255 +4874,14 @@ def upgrade_info(user_session, guild_id):
 
 @app.route("/purchase/<int:guild_id>")
 def purchase_page(guild_id):
-    """Public purchase page for $5 bot access - explains what it unlocks"""
+    """Purchase page for a specific guild - redirects to new Premium subscription flow"""
     try:
-        import html
-        
-        # Check if already has bot access (using Flask-side function for production)
         has_bot_access = flask_check_bot_access(guild_id)
         
         if has_bot_access:
-            # Already purchased - redirect to upgrade page for retention options
-            return f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta http-equiv="refresh" content="3;url=/upgrade/{guild_id}" />
-                <title>Already Purchased</title>
-                <style>
-                    body {{
-                        font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-                        background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
-                        color: #C9D1D9;
-                        min-height: 100vh;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        text-align: center;
-                        padding: 20px;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div>
-                    <h1>[OK] Bot Access Already Active!</h1>
-                    <p>Redirecting to upgrade options...</p>
-                </div>
-            </body>
-            </html>
-            """
+            return redirect(f'/dashboard/{guild_id}')
         
-        # Show purchase information page
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Get Bot Access - Time Warden</title>
-            <style>
-                body {{
-                    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-                    background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
-                    color: #C9D1D9;
-                    min-height: 100vh;
-                    padding: 40px 20px;
-                }}
-                .container {{
-                    max-width: 800px;
-                    margin: 0 auto;
-                }}
-                .header {{
-                    text-align: center;
-                    margin-bottom: 50px;
-                }}
-                .header h1 {{
-                    color: #D4AF37;
-                    font-size: 2.5em;
-                    margin-bottom: 10px;
-                }}
-                .price-tag {{
-                    background: linear-gradient(135deg, #D4AF37, #F4C542);
-                    color: #0A0F1F;
-                    padding: 15px 30px;
-                    border-radius: 12px;
-                    display: inline-block;
-                    font-size: 1.8em;
-                    font-weight: bold;
-                    margin: 20px 0;
-                }}
-                .features-grid {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                    gap: 20px;
-                    margin: 40px 0;
-                }}
-                .feature-card {{
-                    background: rgba(30, 35, 45, 0.8);
-                    border: 2px solid rgba(212, 175, 55, 0.3);
-                    border-radius: 12px;
-                    padding: 25px;
-                }}
-                .feature-card h3 {{
-                    color: #D4AF37;
-                    margin-bottom: 15px;
-                }}
-                .feature-card ul {{
-                    list-style: none;
-                    padding: 0;
-                }}
-                .feature-card li {{
-                    padding: 8px 0;
-                    display: flex;
-                    align-items: center;
-                }}
-                .feature-card li::before {{
-                    content: "[OK]";
-                    margin-right: 10px;
-                }}
-                .cta-section {{
-                    background: rgba(59, 130, 246, 0.1);
-                    border: 2px solid rgba(59, 130, 246, 0.3);
-                    border-radius: 12px;
-                    padding: 30px;
-                    text-align: center;
-                    margin: 40px 0;
-                }}
-                .command {{
-                    background: rgba(16, 185, 129, 0.1);
-                    border: 2px solid rgba(16, 185, 129, 0.3);
-                    padding: 15px 25px;
-                    border-radius: 8px;
-                    font-family: monospace;
-                    font-size: 1.4em;
-                    color: #10B981;
-                    margin: 20px auto;
-                    display: inline-block;
-                }}
-                .comparison {{
-                    background: rgba(30, 35, 45, 0.6);
-                    border-radius: 12px;
-                    padding: 30px;
-                    margin: 40px 0;
-                }}
-                .comparison table {{
-                    width: 100%;
-                    border-collapse: collapse;
-                }}
-                .comparison th, .comparison td {{
-                    padding: 15px;
-                    text-align: left;
-                    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-                }}
-                .comparison th {{
-                    color: #D4AF37;
-                    font-weight: 600;
-                }}
-                .yes {{ color: #10B981; }}
-                .no {{ color: #EF4444; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>≡ƒoô Unlock Full Bot Access</h1>
-                    <p style="font-size: 1.2em;">One-time payment to unlock all features</p>
-                    <div class="price-tag">$5 One-Time</div>
-                </div>
-
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <h3>≡ƒæÑ Full Team Access</h3>
-                        <ul>
-                            <li>Unlimited employees</li>
-                            <li>Role-based access control</li>
-                            <li>Admin management</li>
-                            <li>Employee tracking</li>
-                        </ul>
-                    </div>
-
-                    <div class="feature-card">
-                        <h3>≡ƒôè Real Reports</h3>
-                        <ul>
-                            <li>CSV timesheet exports</li>
-                            <li>Individual user reports</li>
-                            <li>Team summaries</li>
-                            <li>Email delivery</li>
-                        </ul>
-                    </div>
-
-                    <div class="feature-card">
-                        <h3>≡ƒÄ¢∩╕Å Dashboard Access</h3>
-                        <ul>
-                            <li>Web-based settings</li>
-                            <li>Role management UI</li>
-                            <li>Timezone controls</li>
-                            <li>Email automation</li>
-                        </ul>
-                    </div>
-
-                    <div class="feature-card">
-                        <h3>ΓÜÖ∩╕Å All Commands</h3>
-                        <ul>
-                            <li>Clock in/out tracking</li>
-                            <li>Time management</li>
-                            <li>Admin tools</li>
-                            <li>Settings control</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="comparison">
-                    <h2 style="color: #D4AF37; text-align: center; margin-bottom: 25px;">Free vs Bot Access</h2>
-                    <table>
-                        <tr>
-                            <th>Feature</th>
-                            <th>Free Tier</th>
-                            <th>Bot Access ($5)</th>
-                        </tr>
-                        <tr>
-                            <td>Clock In/Out</td>
-                            <td class="yes">[OK] Basic</td>
-                            <td class="yes">[OK] Full Access</td>
-                        </tr>
-                        <tr>
-                            <td>Team Reports</td>
-                            <td class="no">[ERROR] Dummy Only</td>
-                            <td class="yes">[OK] Real CSV Reports</td>
-                        </tr>
-                        <tr>
-                            <td>Dashboard</td>
-                            <td class="no">[ERROR] Locked</td>
-                            <td class="yes">[OK] Full Access</td>
-                        </tr>
-                        <tr>
-                            <td>Role Management</td>
-                            <td class="no">[ERROR] Admin Only</td>
-                            <td class="yes">[OK] Full Control</td>
-                        </tr>
-                        <tr>
-                            <td>Data Retention</td>
-                            <td class="no">[WARN] 24 Hours</td>
-                            <td class="yes">[WARN] 24 Hours*</td>
-                        </tr>
-                    </table>
-                    <p style="margin-top: 20px; color: #9CA3AF; font-size: 0.9em;">
-                        *Dashboard Premium includes 7-day retention. Add Pro Retention ($5/mo) for 30-day storage.
-                    </p>
-                </div>
-
-                <div class="cta-section">
-                    <h2 style="color: #D4AF37; margin-bottom: 20px;">How to Purchase</h2>
-                    <p style="font-size: 1.1em; margin-bottom: 20px;">
-                        Go to your Discord server and run this command:
-                    </p>
-                    <div class="command">/upgrade</div>
-                    <p style="margin-top: 20px; color: #9CA3AF;">
-                        The bot will provide a secure Stripe checkout link for the $5 bot access payment.
-                    </p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        return redirect('/dashboard/purchase?guild_id=' + str(guild_id))
     except Exception as e:
         app.logger.error(f"Purchase page error: {str(e)}")
         return "<h1>Error</h1><p>Unable to load purchase page.</p>", 500
@@ -7320,7 +7107,7 @@ def api_make_ban_permanent(user_session, guild_id):
 def purchase_init(product_type):
     """Initialize purchase flow - store intent and redirect to OAuth"""
     # Validate product type
-    valid_products = ['bot_access', 'retention_7day', 'retention_30day']
+    valid_products = ['premium', 'pro', 'bot_access', 'retention_7day', 'retention_30day']
     if product_type not in valid_products:
         return "<h1>Invalid Product</h1><p>Unknown product type.</p><a href='/'>Return Home</a>", 400
     
@@ -7436,9 +7223,8 @@ def purchase_checkout(user_session):
             app.logger.error(f"Bot not present in guild {guild_id}")
             return "<h1>Error</h1><p>Bot must be added to the server before purchasing.</p><a href='/purchase/select_server'>Go Back</a>", 400
         
-        # Check trial eligibility for Premium subscriptions
         apply_trial = False
-        if product_type in ['retention_7day', 'retention_30day']:
+        if product_type in ['premium', 'pro']:
             try:
                 with get_db() as conn:
                     cursor = conn.execute(
@@ -7447,7 +7233,7 @@ def purchase_checkout(user_session):
                     )
                     if not cursor.fetchone():
                         apply_trial = True
-                        app.logger.info(f"Guild {guild_id} eligible for first-month trial")
+                        app.logger.info(f"Guild {guild_id} eligible for first-month-free trial")
             except Exception as e:
                 app.logger.warning(f"Could not check trial eligibility: {e}")
         

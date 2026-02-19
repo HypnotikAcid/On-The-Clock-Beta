@@ -212,16 +212,18 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔓 Purchase Bot Access</h1>
+            <h1>🔓 {% if product_type == 'pro' %}Upgrade to Pro{% else %}Subscribe to Premium{% endif %}</h1>
             <p>Select a server to unlock full features</p>
         </div>
 
-        {% if product_type == 'bot_access' %}
         <div class="info-box">
             <h3>💡 What you're purchasing</h3>
-            <p><strong>Premium Subscription</strong> - Unlock full bot features, CSV reports, and dashboard access for the selected server. Includes 30-day data retention and more.</p>
+            {% if product_type == 'pro' %}
+            <p><strong>Pro Subscription ($15/mo)</strong> - Everything in Premium plus Kiosk Mode, ad-free dashboard, and priority support.</p>
+            {% else %}
+            <p><strong>Premium Subscription ($8/mo)</strong> - Unlock full bot features, CSV reports, and dashboard access for the selected server. First month is FREE!</p>
+            {% endif %}
         </div>
-        {% endif %}
 
         {% if servers_with_bot %}
         <h2 style="color: #10B981; margin-bottom: 1rem; font-size: 1.2rem;">✓ Ready to Purchase</h2>
@@ -241,9 +243,9 @@
                         <p>Bot is installed and ready</p>
                     </div>
                 </div>
-                <a href="/purchase/checkout?guild_id={{ server.id }}&product_type={{ product_type }}" class="btn btn-purchase">
+                <a href="/purchase/checkout?guild_id={{ server.id }}" class="btn btn-purchase">
                     <span>💳</span>
-                    <span>Upgrade to Premium</span>
+                    <span>{% if product_type == 'pro' %}Upgrade to Pro{% else %}Start Free Month{% endif %}</span>
                 </a>
             </div>
             {% endfor %}

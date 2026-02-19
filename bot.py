@@ -209,9 +209,13 @@ user_interaction_timestamps: dict[tuple[int, int, str], list[float]] = {}  # {(g
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 STRIPE_PRICE_IDS = {
+    'premium': os.getenv('STRIPE_PRICE_PREMIUM'),
+    'pro': os.getenv('STRIPE_PRICE_PRO'),
+}
+STRIPE_PRICE_IDS_LEGACY = {
     'bot_access': os.getenv('STRIPE_PRICE_BOT_ACCESS'),
     'retention_7day': os.getenv('STRIPE_PRICE_RETENTION_7DAY'),
-    'retention_30day': os.getenv('STRIPE_PRICE_RETENTION_30DAY')
+    'retention_30day': os.getenv('STRIPE_PRICE_RETENTION_30DAY'),
 }
 
 # Session storage - now using database for persistence instead of in-memory dictionaries
@@ -307,13 +311,13 @@ def generate_dashboard_deeplink(guild_id: int, user_id: int, page: str, secret: 
 
 
 def create_secure_checkout_session(guild_id: int, product_type: str, guild_name: str = "", apply_trial_coupon: bool = False) -> str:
-    """Create a secure Stripe checkout session with proper validation
+    """Create a secure Stripe checkout session for subscription products.
     
     Args:
         guild_id: Discord guild/server ID
-        product_type: One of 'bot_access', 'retention_7day', 'retention_30day'
+        product_type: One of 'premium', 'pro'
         guild_name: Optional guild name for confirmation messages
-        apply_trial_coupon: If True, applies the first-month free trial.
+        apply_trial_coupon: If True, applies the first-month free coupon.
     
     Returns:
         Checkout session URL
@@ -327,45 +331,39 @@ def create_secure_checkout_session(guild_id: int, product_type: str, guild_name:
     if product_type not in STRIPE_PRICE_IDS:
         raise ValueError(f"Invalid product_type: {product_type}. Must be one of: {', '.join(STRIPE_PRICE_IDS.keys())}")
     
-    # CRITICAL: Server-side enforcement - prevent retention purchase without bot access
-    if product_type in ['retention_7day', 'retention_30day']:
-        if not check_bot_access(guild_id):
-            raise ValueError("Bot access must be purchased before adding retention plans")
+    price_id = STRIPE_PRICE_IDS[product_type]
+    if not price_id:
+        raise ValueError(f"Stripe price ID not configured for {product_type}")
     
     domain = get_domain()
     
-    # Determine mode based on product type
-    # 'bot_access' is a one-time payment, retention products are subscriptions
-    mode = 'payment' if product_type == 'bot_access' else 'subscription'
-    
     try:
-        # Build metadata
         metadata = {
             'guild_id': str(guild_id),
             'product_type': product_type
         }
         
-        # Add guild_name to metadata if provided
         if guild_name:
             metadata['guild_name'] = guild_name
         
-        # Build checkout session params
         session_params = {
             'line_items': [{
-                'price': STRIPE_PRICE_IDS[product_type],
+                'price': price_id,
                 'quantity': 1,
             }],
-            'mode': mode,
+            'mode': 'subscription',
             'success_url': f'https://{domain}/success?session_id={{CHECKOUT_SESSION_ID}}',
             'cancel_url': f'https://{domain}/cancel',
             'metadata': metadata,
+            'subscription_data': {
+                'metadata': metadata,
+            },
             'automatic_tax': {'enabled': True},
             'billing_address_collection': 'required',
         }
         
-        # Apply trial coupon for first-time Premium subscribers
-        if apply_trial_coupon and mode == 'subscription':
-            session_params['discounts'] = [{'coupon': 'vzRYNZed'}]
+        if apply_trial_coupon:
+            session_params['discounts'] = [{'coupon': os.getenv('STRIPE_COUPON_FIRST_MONTH', 'vzRYNZed')}]
             metadata['trial_applied'] = 'true'
         
         checkout_session = stripe.checkout.Session.create(**session_params)  # type: ignore[arg-type]

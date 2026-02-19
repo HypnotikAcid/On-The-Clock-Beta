@@ -83,3 +83,13 @@
 - **Page-Level Gating**: HTML-serving dashboard pages (like the employee profile) now redirect to the upgrade page if the trial is expired.
 - **Trial Info in APIs**: The main server settings API endpoint now includes a `trial_info` object in its response, allowing the frontend to dynamically display trial status (e.g., "X days remaining") and upgrade prompts.
 - **Upgrade Page**: The `/dashboard/purchase` page has been updated to show the correct Premium ($8/mo) and Pro ($15/mo, coming soon) tiers and dynamically displays messages about trial status.
+
+## Stripe Subscription Migration (2026-02-19)
+- **Old Model Retired**: Old 3-tier model (bot_access $5 one-time, retention_7day $5/mo, retention_30day $10/mo) replaced with 2-tier subscription model (Premium $8/mo, Pro $15/mo).
+- **Price IDs**: Use `STRIPE_PRICE_PREMIUM` and `STRIPE_PRICE_PRO` env vars. Legacy IDs kept in `STRIPE_PRICE_IDS_LEGACY` for backward-compatible webhook handling.
+- **All Subscriptions**: Both Premium and Pro use `mode='subscription'` in Stripe checkout. No more one-time payments.
+- **Coupon**: `STRIPE_COUPON_FIRST_MONTH` env var (defaults to 'vzRYNZed'). User needs to create a 100% off coupon in Stripe and update this.
+- **Subscription Metadata**: `subscription_data.metadata` must include `guild_id` so lifecycle events can find the server even if checkout.completed hasn't fired yet.
+- **Purchase Flow**: `/purchase/premium` -> OAuth -> `/purchase/select_server` -> select server -> `/purchase/checkout?guild_id=xxx` -> Stripe checkout.
+- **Webhook Events**: `checkout.session.completed`, `customer.subscription.created/updated/deleted`, `invoice.payment_succeeded/failed` all handled.
+- **Route Conflict**: `/purchase/<product_type>` (string) and `/purchase/<int:guild_id>` (int) coexist because Flask tries `int` first. Guild-ID purchases redirect to `/dashboard/purchase`.
