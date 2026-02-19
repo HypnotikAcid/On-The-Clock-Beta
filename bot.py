@@ -358,21 +358,23 @@ def create_secure_checkout_session(guild_id: int, product_type: str, guild_name:
             'subscription_data': {
                 'metadata': metadata,
             },
-            'automatic_tax': {'enabled': True},
-            'billing_address_collection': 'required',
         }
         
         if apply_trial_coupon:
             session_params['discounts'] = [{'coupon': os.getenv('STRIPE_COUPON_FIRST_MONTH', 'sfaexZAF')}]
             metadata['trial_applied'] = 'true'
         
+        print(f"[STRIPE] Creating checkout session for guild {guild_id}, product {product_type}, trial={apply_trial_coupon}")
         checkout_session = stripe.checkout.Session.create(**session_params)  # type: ignore[arg-type]
+        print(f"[STRIPE] Checkout session created: {checkout_session.id}")
         
         return checkout_session.url or ""
         
     except StripeError as e:
+        print(f"[STRIPE] Stripe API error: {e}")
         raise ValueError(f"Stripe error: {str(e)}")
     except Exception as e:
+        print(f"[STRIPE] Checkout creation failed: {e}")
         raise ValueError(f"Checkout creation failed: {str(e)}")
 
 
@@ -3461,8 +3463,6 @@ class DemoRoleSwitcherView(discord.ui.View):
                 ephemeral=True
             )
 
-            # Send timeclock hub as visible channel message (not ephemeral)
-            view = build_timeclock_hub_view(interaction.guild_id)
             embed = discord.Embed(
                 title="⏰ Your Timeclock Hub",
                 description=(
@@ -3474,6 +3474,7 @@ class DemoRoleSwitcherView(discord.ui.View):
                 ),
                 color=0xFF0000  # Red for admin
             )
+            view = build_timeclock_hub_view(interaction.guild_id, embed)
 
             timeclock_msg = await interaction.channel.send(content=f"{interaction.user.mention}", embed=embed, view=view)
             _demo_user_timeclocks[interaction.user.id] = timeclock_msg.id
@@ -3538,8 +3539,6 @@ class DemoRoleSwitcherView(discord.ui.View):
                 ephemeral=True
             )
 
-            # Send timeclock hub as visible channel message (not ephemeral)
-            view = build_timeclock_hub_view(interaction.guild_id)
             embed = discord.Embed(
                 title="⏰ Your Timeclock Hub",
                 description=(
@@ -3552,6 +3551,7 @@ class DemoRoleSwitcherView(discord.ui.View):
                 ),
                 color=0x0099FF  # Blue for employee
             )
+            view = build_timeclock_hub_view(interaction.guild_id, embed)
 
             timeclock_msg = await interaction.channel.send(content=f"{interaction.user.mention}", embed=embed, view=view)
             _demo_user_timeclocks[interaction.user.id] = timeclock_msg.id
