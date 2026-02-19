@@ -363,7 +363,7 @@ def create_secure_checkout_session(guild_id: int, product_type: str, guild_name:
         }
         
         if apply_trial_coupon:
-            session_params['discounts'] = [{'coupon': os.getenv('STRIPE_COUPON_FIRST_MONTH', 'vzRYNZed')}]
+            session_params['discounts'] = [{'coupon': os.getenv('STRIPE_COUPON_FIRST_MONTH', 'sfaexZAF')}]
             metadata['trial_applied'] = 'true'
         
         checkout_session = stripe.checkout.Session.create(**session_params)  # type: ignore[arg-type]
