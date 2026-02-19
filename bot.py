@@ -4262,18 +4262,24 @@ def trigger_welcome_dm(guild_id: int, user_id: int) -> dict:
         return {'success': False, 'message': str(e)}
 
 
+_recent_guild_joins = {}
+
 @bot.event
 async def on_guild_join(guild):
     """Send welcome message with setup instructions when bot joins a new server"""
+    now = datetime.now(timezone.utc)
+    last_join = _recent_guild_joins.get(guild.id)
+    if last_join and (now - last_join).total_seconds() < 60:
+        print(f"⚠️ Duplicate on_guild_join for {guild.name} (ID: {guild.id}) — skipping")
+        return
+    _recent_guild_joins[guild.id] = now
+    
     print(f"🎉 Bot joined new server: {guild.name} (ID: {guild.id})")
     
-    # Try to find the person who added the bot (guild owner as fallback)
     inviter = guild.owner
     
-    # Create the setup embed using the helper function
     embed = create_setup_embed()
     
-    # Try to send the welcome message to the server owner via DM
     try:
         if inviter:
             await inviter.send(embed=embed)
@@ -4285,21 +4291,17 @@ async def on_guild_join(guild):
     except Exception as e:
         print(f"❌ Error sending welcome DM for {guild.name}: {e}")
     
-    # ALSO send a welcome message with button to first available text channel
     try:
         target_channel = guild.system_channel
         if not target_channel:
-            # Find first text channel the bot can send to
             for channel in guild.text_channels:
                 if channel.permissions_for(guild.me).send_messages:
                     target_channel = channel
                     break
         
         if target_channel:
-            # Create the SetupInstructionsView button
             view = SetupInstructionsView()
             
-            # Send a brief welcome message with the button
             welcome_text = f"👋 Welcome! I'm **On the Clock**, your professional Discord timeclock bot.\n\n"
             if inviter:
                 welcome_text += f"{inviter.mention} added me to help manage your team's time tracking.\n\n"
