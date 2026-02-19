@@ -136,8 +136,74 @@ def set_retention_tier(*args, **kwargs):
 def purge_timeclock_data_only(*args, **kwargs):
     return _get_bot_func('purge_timeclock_data_only')(*args, **kwargs)
 
-def create_secure_checkout_session(*args, **kwargs):
-    return _get_bot_func('create_secure_checkout_session')(*args, **kwargs)
+def create_secure_checkout_session(guild_id: int, product_type: str, guild_name: str = "", apply_trial_coupon: bool = False) -> str:
+    """Create a secure Stripe checkout session - implemented directly in app.py to avoid bot module import blocking."""
+    if not stripe.api_key:
+        raise ValueError("STRIPE_SECRET_KEY not configured")
+    
+    price_map = {
+        'premium': os.environ.get('STRIPE_PRICE_PREMIUM'),
+        'pro': os.environ.get('STRIPE_PRICE_PRO'),
+    }
+    
+    if product_type not in price_map:
+        raise ValueError(f"Invalid product_type: {product_type}")
+    
+    price_id = price_map[product_type]
+    if not price_id:
+        raise ValueError(f"Stripe price ID not configured for {product_type}")
+    
+    if os.getenv('REPLIT_ENVIRONMENT') == 'production':
+        domain = 'time-warden.com'
+    else:
+        domains = os.getenv('REPLIT_DOMAINS', '')
+        domain = domains.split(',')[0] if domains else 'localhost:5000'
+    
+    try:
+        metadata = {
+            'guild_id': str(guild_id),
+            'product_type': product_type
+        }
+        if guild_name:
+            metadata['guild_name'] = guild_name
+        
+        session_params = {
+            'line_items': [{'price': price_id, 'quantity': 1}],
+            'mode': 'subscription',
+            'success_url': f'https://{domain}/success?session_id={{CHECKOUT_SESSION_ID}}',
+            'cancel_url': f'https://{domain}/cancel',
+            'metadata': metadata,
+            'subscription_data': {'metadata': metadata},
+        }
+        
+        if apply_trial_coupon:
+            coupon_id = os.getenv('STRIPE_COUPON_FIRST_MONTH', 'sfaexZAF')
+            try:
+                coupon = stripe.Coupon.retrieve(coupon_id)
+                if coupon.valid:
+                    session_params['discounts'] = [{'coupon': coupon_id}]
+                    metadata['trial_applied'] = 'true'
+                    app.logger.info(f"[STRIPE] Coupon {coupon_id} validated and applied")
+                else:
+                    app.logger.warning(f"[STRIPE] Coupon {coupon_id} is no longer valid, skipping")
+            except Exception as ce:
+                app.logger.warning(f"[STRIPE] Coupon validation failed: {ce}, skipping coupon")
+        
+        app.logger.info(f"[STRIPE] Creating checkout session for guild {guild_id}, product {product_type}, trial={apply_trial_coupon}")
+        app.logger.info(f"[STRIPE] Price ID: {price_id}, domain: {domain}")
+        
+        stripe.max_network_retries = 1
+        checkout_session = stripe.checkout.Session.create(**session_params)
+        app.logger.info(f"[STRIPE] Checkout session created: {checkout_session.id}")
+        
+        return checkout_session.url or ""
+        
+    except stripe.StripeError as e:
+        app.logger.error(f"[STRIPE] Stripe API error: {e}")
+        raise ValueError(f"Stripe error: {str(e)}")
+    except Exception as e:
+        app.logger.error(f"[STRIPE] Checkout creation failed: {e}")
+        raise ValueError(f"Checkout creation failed: {str(e)}")
 
 def notify_server_owner_bot_access(*args, **kwargs):
     return _get_bot_func('notify_server_owner_bot_access')(*args, **kwargs)
