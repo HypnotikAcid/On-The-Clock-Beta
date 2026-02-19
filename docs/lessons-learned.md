@@ -93,3 +93,9 @@
 - **Purchase Flow**: `/purchase/premium` -> OAuth -> `/purchase/select_server` -> select server -> `/purchase/checkout?guild_id=xxx` -> Stripe checkout.
 - **Webhook Events**: `checkout.session.completed`, `customer.subscription.created/updated/deleted`, `invoice.payment_succeeded/failed` all handled.
 - **Route Conflict**: `/purchase/<product_type>` (string) and `/purchase/<int:guild_id>` (int) coexist because Flask tries `int` first. Guild-ID purchases redirect to `/dashboard/purchase`.
+
+## Discord Bot Double Messages (2026-02-19)
+- **Root Cause**: A global `on_interaction` fallback handler was racing with registered persistent views (`TimeclockHubView`). Both tried to handle the same `tc:` button interactions.
+- **Fix**: Removed the `on_interaction` fallback entirely. Persistent views registered in `setup_hook` already handle all button callbacks reliably after restarts.
+- **Secondary Bug**: In `TimeClockView.clock_in`, the profile setup code could send a welcome message, then if the DB update failed, the exception handler would fall through and send a second "Clocked in" message. Fixed by tracking `profile_message_sent` flag.
+- **Pattern**: Never use `on_interaction` fallback handlers alongside registered persistent views — they will race and cause double responses.

@@ -2819,9 +2819,9 @@ class TimeClockView(discord.ui.View):
                 
             start_session(guild_id, user_id, now_utc().isoformat())
             
-            # --- NEW: Profile Setup Logic ---
+            # --- Profile Setup Logic ---
+            profile_message_sent = False
             try:
-                # Ensure profile exists
                 avatar_url = str(interaction.user.avatar.url) if interaction.user.avatar else str(interaction.user.default_avatar.url)
                 ensure_employee_profile(
                     guild_id, user_id, 
@@ -2829,7 +2829,6 @@ class TimeClockView(discord.ui.View):
                     avatar_url
                 )
                 
-                # Check if we should send setup link (first clock-in)
                 with db() as conn:
                     cursor = conn.execute(
                         "SELECT profile_sent_on_first_clockin, profile_setup_completed FROM employee_profiles WHERE guild_id = %s AND user_id = %s",
@@ -2838,13 +2837,11 @@ class TimeClockView(discord.ui.View):
                     row = cursor.fetchone()
                     
                     if row and not row['profile_sent_on_first_clockin'] and not row['profile_setup_completed']:
-                        # Generate token and link
                         token = generate_profile_setup_token(guild_id, user_id)
                         domain = get_domain()
                         protocol = "https" if "replit.app" in domain else "http"
                         setup_url = f"{protocol}://{domain}/setup-profile/{token}"
                         
-                        # Send ephemeral message with link
                         await interaction.followup.send(
                             f"✅ **Clocked In!**\n\n"
                             f"👋 **Welcome to the team!**\n"
@@ -2853,18 +2850,17 @@ class TimeClockView(discord.ui.View):
                             f"*(This link expires in 30 days)*", 
                             ephemeral=True
                         )
+                        profile_message_sent = True
                         
-                        # Mark as sent
                         conn.execute(
                             "UPDATE employee_profiles SET profile_sent_on_first_clockin = TRUE WHERE guild_id = %s AND user_id = %s",
                             (guild_id, user_id)
                         )
-                        return # Exit early since we sent the message
             except Exception as e:
                 print(f"Error in profile setup logic: {e}")
-            # --------------------------------
             
-            await interaction.followup.send("✅ Clocked in. Have a great shift!", ephemeral=True)
+            if not profile_message_sent:
+                await interaction.followup.send("✅ Clocked in. Have a great shift!", ephemeral=True)
             
         except (discord.NotFound, discord.errors.NotFound):
             # Interaction expired or was deleted - silently handle this
@@ -3970,66 +3966,6 @@ async def handle_tc_upgrade(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-# --- Global on_interaction Fallback Handler ---
-# Catches button interactions that might have lost their view reference after bot restart
-
-@bot.event
-async def on_interaction(interaction: discord.Interaction):
-    """
-    Global fallback handler for button interactions.
-    
-    This catches tc: prefixed buttons that might have lost their view
-    reference after a bot restart, ensuring bulletproof reliability.
-    """
-    # Only handle component (button) interactions
-    if interaction.type != discord.InteractionType.component:
-        return
-    
-    # Get the custom_id from interaction data
-    custom_id = interaction.data.get('custom_id', '') if interaction.data else ''
-    
-    # Only handle our tc: prefixed buttons as fallback
-    if not custom_id.startswith('tc:'):
-        return
-    
-    # Check if interaction is already handled by the view
-    if interaction.response.is_done():
-        return
-    
-    print(f"🔄 [Fallback] Handling orphaned button: {custom_id}")
-    
-    try:
-        if custom_id == 'tc:clock_in':
-            await handle_tc_clock_in(interaction)
-        elif custom_id == 'tc:clock_out':
-            await handle_tc_clock_out(interaction)
-        elif custom_id == 'tc:adjustments':
-            await handle_tc_adjustments(interaction)
-        elif custom_id == 'tc:my_hours':
-            await handle_tc_my_hours(interaction)
-        elif custom_id == 'tc:support':
-            await handle_tc_support(interaction)
-        elif custom_id == 'tc:upgrade':
-            await handle_tc_upgrade(interaction)
-        else:
-            print(f"⚠️ [Fallback] Unknown tc: button: {custom_id}")
-            
-    except Exception as e:
-        print(f"❌ [Fallback] Error handling {custom_id}: {e}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    "❌ An error occurred. Please try again.",
-                    ephemeral=True
-                )
-            else:
-                await interaction.followup.send(
-                    "❌ An error occurred. Please try again.",
-                    ephemeral=True
-                )
-        except Exception:
-            pass
-
 
 @bot.event
 async def on_ready():
@@ -4839,6 +4775,99 @@ async def clock_command(interaction: discord.Interaction):
 # /set_main_role, /show_main_role, /clear_main_role
 # /add_employee_role, /remove_employee_role, /list_employee_roles
 # These features are now available in the Dashboard under Admin Roles and Employee Roles
+
+
+@tree.command(name="upgrade", description="View subscription plans and upgrade your server")
+@app_commands.guild_only()
+async def upgrade_command(interaction: discord.Interaction):
+    if interaction.guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+
+    guild_id = interaction.guild_id
+    access = get_guild_access_info(guild_id)
+    domain = get_domain()
+    purchase_url = f"https://{domain}/purchase/premium"
+
+    if access['is_exempt']:
+        embed = discord.Embed(
+            title="⭐ Full Access Granted",
+            description="This server has full access to all features. No upgrade needed!",
+            color=discord.Color.gold()
+        )
+        await send_reply(interaction, embed=embed, ephemeral=True)
+        return
+
+    if access['tier'] == 'pro':
+        embed = discord.Embed(
+            title="🚀 Pro Plan Active",
+            description="This server is on the **Pro** plan — you have access to everything!",
+            color=discord.Color.purple()
+        )
+        embed.add_field(name="Includes", value="All Premium features + Kiosk Mode + Ad-free Dashboard", inline=False)
+        await send_reply(interaction, embed=embed, ephemeral=True)
+        return
+
+    if access['tier'] == 'premium':
+        embed = discord.Embed(
+            title="💎 Premium Plan Active",
+            description="This server is on the **Premium** plan.",
+            color=discord.Color.blue()
+        )
+        embed.add_field(
+            name="🚀 Upgrade to Pro ($15/mo)",
+            value="Get Kiosk Mode for shared-device clock-in, ad-free dashboard, and priority support.",
+            inline=False
+        )
+        embed.add_field(name="How to Upgrade", value=f"Visit your [dashboard]({purchase_url}) to manage your subscription.", inline=False)
+        await send_reply(interaction, embed=embed, ephemeral=True)
+        return
+
+    if access['trial_active']:
+        days = access['days_remaining']
+        embed = discord.Embed(
+            title="🆓 Free Trial Active",
+            description=f"You have **{days} day{'s' if days != 1 else ''}** remaining on your free trial.",
+            color=discord.Color.green()
+        )
+    else:
+        embed = discord.Embed(
+            title="⚠️ Trial Expired",
+            description="Your free trial has ended. Subscribe to continue using the bot!",
+            color=discord.Color.red()
+        )
+
+    embed.add_field(
+        name="💎 Premium — $8/month",
+        value=(
+            "**First month FREE!**\n"
+            "• Full bot access (clock in/out, reports)\n"
+            "• Web dashboard with team management\n"
+            "• CSV report exports\n"
+            "• Email automation & reminders\n"
+            "• 30-day data retention\n"
+            "• Calendar view & time adjustments"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="🚀 Pro — $15/month (Coming Soon)",
+        value=(
+            "Everything in Premium, plus:\n"
+            "• Kiosk Mode for shared devices\n"
+            "• Ad-free dashboard\n"
+            "• Priority support"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="👉 Subscribe Now",
+        value=f"**[Click here to subscribe]({purchase_url})**",
+        inline=False
+    )
+    embed.set_footer(text="Cancel anytime. Your first month of Premium is completely free!")
+
+    await send_reply(interaction, embed=embed, ephemeral=True)
 
 
 @tree.command(name="help", description="List all available slash commands")
