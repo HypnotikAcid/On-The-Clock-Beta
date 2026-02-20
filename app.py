@@ -1545,15 +1545,17 @@ def handle_checkout_completed(session):
         
         if product_type in ('premium', 'bot_access'):
             flask_set_bot_access(guild_id, True)
+            flask_set_retention_tier(guild_id, '30day')
             with get_db() as conn:
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid, tier)
-                    VALUES (%s, %s, %s, 'active', TRUE, 'premium')
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid, retention_tier, tier)
+                    VALUES (%s, %s, %s, 'active', TRUE, '30day', 'premium')
                     ON CONFLICT(guild_id) DO UPDATE SET 
                         subscription_id = COALESCE(%s, server_subscriptions.subscription_id),
                         customer_id = COALESCE(%s, server_subscriptions.customer_id),
                         status = 'active',
                         bot_access_paid = TRUE,
+                        retention_tier = '30day',
                         tier = 'premium'
                 """, (guild_id, subscription_id, customer_id, subscription_id, customer_id))
             app.logger.info(f"[OK] Premium subscription activated for server {guild_id}")
@@ -1596,10 +1598,10 @@ def handle_checkout_completed(session):
             try:
                 with get_db() as conn:
                     conn.execute("""
-                        INSERT INTO trial_usage (guild_id, granted_by, grant_type)
-                        VALUES (%s, %s, 'checkout')
+                        INSERT INTO trial_usage (guild_id, grant_type)
+                        VALUES (%s, 'checkout')
                         ON CONFLICT (guild_id) DO NOTHING
-                    """, (guild_id, customer_id or 'stripe'))
+                    """, (guild_id,))
                 app.logger.info(f"[OK] Trial usage recorded for server {guild_id} via checkout")
             except Exception as trial_error:
                 app.logger.warning(f"Could not record trial usage: {trial_error}")
@@ -6051,7 +6053,7 @@ def api_get_server_settings(user_session, guild_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT bot_access_paid, retention_tier, tier 
+                SELECT bot_access_paid, retention_tier, tier, grandfathered 
                 FROM server_subscriptions WHERE guild_id = %s
             """, (int(guild_id),))
             sub_row = cursor.fetchone()
@@ -6059,6 +6061,14 @@ def api_get_server_settings(user_session, guild_id):
                 settings['bot_access_paid'] = sub_row.get('bot_access_paid', False)
                 settings['retention_tier'] = sub_row.get('retention_tier', 'none')
                 settings['tier'] = sub_row.get('tier', 'free')
+                from entitlements import Entitlements
+                guild_tier = Entitlements.get_guild_tier(
+                    bool(sub_row.get('bot_access_paid', False)),
+                    sub_row.get('retention_tier', 'none'),
+                    bool(sub_row.get('grandfathered', False))
+                )
+                settings['tier'] = guild_tier.value
+                settings['retention_days'] = Entitlements.get_retention_days(guild_tier)
         
         settings['trial_info'] = {
             'is_trial': access['tier'] == 'free',

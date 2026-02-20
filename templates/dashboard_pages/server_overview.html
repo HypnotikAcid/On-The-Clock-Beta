@@ -72,18 +72,17 @@ async function loadOverviewData() {
         if (data.success) {
             const settings = data.settings;
             
-            const botAccess = settings.bot_access_paid;
-            const retentionTier = settings.retention_tier || 'none';
+            const tier = settings.tier || 'free';
+            const retentionDays = settings.retention_days || 1;
             
-            document.getElementById('tier-status').textContent = botAccess ? 'Premium' : 'Free';
-            document.getElementById('tier-status').style.color = botAccess ? '#10B981' : '#8B949E';
+            const tierLabels = { 'premium': 'Premium', 'pro': 'Pro', 'grandfathered': 'Premium (Legacy)', 'free': 'Free' };
+            document.getElementById('tier-status').textContent = tierLabels[tier] || tier;
+            document.getElementById('tier-status').style.color = tier !== 'free' ? '#10B981' : '#8B949E';
             
-            document.getElementById('dashboard-access').textContent = botAccess ? 'Enabled' : 'Upgrade Required';
-            document.getElementById('dashboard-access').style.color = botAccess ? '#10B981' : '#F59E0B';
+            document.getElementById('dashboard-access').textContent = tier !== 'free' ? 'Enabled' : 'Upgrade Required';
+            document.getElementById('dashboard-access').style.color = tier !== 'free' ? '#10B981' : '#F59E0B';
             
-            let retentionText = '3 days';
-            if (retentionTier === '30day') retentionText = '30 days';
-            else if (retentionTier === '7day' || botAccess) retentionText = '7 days';
+            const retentionText = retentionDays >= 30 ? '30 days' : (retentionDays >= 7 ? '7 days' : '24 hours');
             document.getElementById('retention-days').textContent = retentionText;
         }
         
