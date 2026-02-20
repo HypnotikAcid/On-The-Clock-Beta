@@ -3537,9 +3537,8 @@ class DemoRoleSwitcherView(discord.ui.View):
             await send_reply(
                 interaction,
                 f"✅ **You are now an Employee!**\n\n"
-                f"🔑 Your personal Kiosk PIN is: **{pin}**\n\n"
-                f"🖥️ **[Open Dashboard]({dashboard_url})** - Clock in/out, view your hours\n"
-                f"📱 **[Try Kiosk Mode]({kiosk_url})** - PIN-based clock system",
+                f"🖥️ **[Open Web Dashboard]({dashboard_url})** - Our core product. Clock in/out and view your hours.\n"
+                f"📱 **[Try Kiosk Mode (BETA)]({kiosk_url})** - Upcoming tablet feature. Your test PIN is: **{pin}**",
                 ephemeral=True
             )
 
@@ -4386,17 +4385,17 @@ async def on_member_join(member):
         )
         embed.add_field(
             name="🎭 STEP 1: Choose Your Demo Persona",
-            value="Click a button below to begin your demo:\n• 👷 **Become Employee** - Get a PIN & test clock in/out features\n• 👑 **Become Admin** - Manage employees and settings",
+            value="Click a button below to begin your demo:\n• 👷 **Become Employee** - Test clock in/out features\n• 👑 **Become Admin** - Manage employees and settings",
             inline=False
         )
         embed.add_field(
             name="🖥️ STEP 2: Try the Web Dashboard",
-            value=f"[Login to Dashboard]({dashboard_url}/auth/login)\n\nExplore the full admin dashboard with sample employee data, reports, and settings.",
+            value=f"[Login to Dashboard]({dashboard_url}/auth/login)\n\nExplore our core product! The full admin dashboard allows you to manage staff, edit timesheets, view reports, and configure server settings.",
             inline=False
         )
         embed.add_field(
-            name="📱 STEP 3: Try the Kiosk Mode",
-            value=f"[Open Demo Kiosk]({dashboard_url}/kiosk/{DEMO_SERVER_ID})\n\nTest our tablet-friendly kiosk interface with PIN-based clock in/out.",
+            name="📱 STEP 3: Try the Kiosk Mode (BETA)",
+            value=f"[Open Demo Kiosk]({dashboard_url}/kiosk/{DEMO_SERVER_ID})\n\nOur upcoming physical workplace solution. Test our tablet-friendly interface with PIN-based clock in/out.",
             inline=False
         )
         embed.add_field(
