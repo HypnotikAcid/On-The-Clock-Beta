@@ -3517,19 +3517,19 @@ class DemoRoleSwitcherView(discord.ui.View):
             # Generate and store a PIN for the demo user
             import random
             import hashlib
-            import os
             
             pin = str(random.randint(1000, 9999))
-            salt = os.urandom(16).hex()
-            hashed_pin = hashlib.sha256((pin + salt).encode()).hexdigest()
+            
+            # The app.py hashing format: f"{guild_id}:{user_id}:{pin}"
+            pin_hash = hashlib.sha256(f"{interaction.guild_id}:{interaction.user.id}:{pin}".encode()).hexdigest()
             
             with db() as conn:
                 conn.execute("""
-                    INSERT INTO employee_pins (guild_id, user_id, pin_hash, pin_salt)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO employee_pins (guild_id, user_id, pin_hash)
+                    VALUES (%s, %s, %s)
                     ON CONFLICT (guild_id, user_id) 
-                    DO UPDATE SET pin_hash = EXCLUDED.pin_hash, pin_salt = EXCLUDED.pin_salt, created_at = NOW()
-                """, (interaction.guild_id, interaction.user.id, hashed_pin, salt))
+                    DO UPDATE SET pin_hash = EXCLUDED.pin_hash, updated_at = NOW()
+                """, (str(interaction.guild_id), str(interaction.user.id), pin_hash))
 
             # Send confirmation with dashboard and kiosk links
             dashboard_url = "https://time-warden.com"
