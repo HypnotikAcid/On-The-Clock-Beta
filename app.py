@@ -1615,6 +1615,8 @@ def handle_subscription_change(subscription):
     try:
         subscription_id = subscription.get('id')
         status = subscription.get('status')
+        cancel_at_period_end = subscription.get('cancel_at_period_end', False)
+        current_period_end = subscription.get('current_period_end')
         
         if not subscription_id:
             app.logger.error("[ERROR] No subscription ID in subscription change event")
@@ -1636,13 +1638,15 @@ def handle_subscription_change(subscription):
                 guild_id = result['guild_id']
             elif guild_id:
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid)
-                    VALUES (%s, %s, %s, %s, TRUE)
+                    INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid, cancel_at_period_end, current_period_end)
+                    VALUES (%s, %s, %s, %s, TRUE, %s, %s)
                     ON CONFLICT(guild_id) DO UPDATE SET
                         subscription_id = %s,
                         status = %s,
-                        bot_access_paid = TRUE
-                """, (guild_id, subscription_id, subscription.get('customer'), status, subscription_id, status))
+                        bot_access_paid = TRUE,
+                        cancel_at_period_end = %s,
+                        current_period_end = %s
+                """, (guild_id, subscription_id, subscription.get('customer'), status, cancel_at_period_end, current_period_end, subscription_id, status, cancel_at_period_end, current_period_end))
                 app.logger.info(f"[OK] Created subscription record for server {guild_id} from lifecycle event")
             else:
                 app.logger.warning(f"[WARN] No server found for subscription {subscription_id} and no metadata")
@@ -1650,9 +1654,11 @@ def handle_subscription_change(subscription):
             
             conn.execute("""
                 UPDATE server_subscriptions 
-                SET status = %s
+                SET status = %s,
+                    cancel_at_period_end = %s,
+                    current_period_end = %s
                 WHERE subscription_id = %s
-            """, (status, subscription_id))
+            """, (status, cancel_at_period_end, current_period_end, subscription_id))
             
             if status in ('active', 'trialing'):
                 flask_set_bot_access(guild_id, True)
@@ -6053,7 +6059,7 @@ def api_get_server_settings(user_session, guild_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT bot_access_paid, retention_tier, tier, grandfathered 
+                SELECT bot_access_paid, retention_tier, tier, grandfathered, cancel_at_period_end, current_period_end
                 FROM server_subscriptions WHERE guild_id = %s
             """, (int(guild_id),))
             sub_row = cursor.fetchone()
@@ -6069,6 +6075,8 @@ def api_get_server_settings(user_session, guild_id):
                 )
                 settings['tier'] = guild_tier.value
                 settings['retention_days'] = Entitlements.get_retention_days(guild_tier)
+                settings['cancel_at_period_end'] = sub_row.get('cancel_at_period_end', False)
+                settings['current_period_end'] = sub_row.get('current_period_end')
         
         settings['trial_info'] = {
             'is_trial': access['tier'] == 'free',
@@ -6080,6 +6088,100 @@ def api_get_server_settings(user_session, guild_id):
         return jsonify({'success': True, 'settings': settings})
     except Exception as e:
         app.logger.error(f"Error fetching server settings: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/subscription/cancel", methods=["POST"])
+@require_api_auth
+def api_cancel_subscription(user_session, guild_id):
+    """API endpoint to cancel a server's Stripe subscription at period end"""
+    if is_demo_server(guild_id):
+        return jsonify({'success': True, 'cancel_at_period_end': True, 'demo_note': 'Demo server subscriptions cannot be modified.'})
+        
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+            
+        with get_db() as conn:
+            cursor = conn.execute("SELECT subscription_id FROM server_subscriptions WHERE guild_id = %s AND status IN ('active', 'trialing')", (int(guild_id),))
+            sub_row = cursor.fetchone()
+            if not sub_row or not sub_row['subscription_id']:
+                return jsonify({'success': False, 'error': 'No active subscription found'}), 404
+                
+            subscription_id = sub_row['subscription_id']
+            
+            import stripe
+            stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+            
+            # Cancel at period end
+            updated_sub = stripe.Subscription.modify(
+                subscription_id,
+                cancel_at_period_end=True
+            )
+            
+            # Update local DB immediately
+            conn.execute("""
+                UPDATE server_subscriptions 
+                SET cancel_at_period_end = TRUE,
+                    current_period_end = %s
+                WHERE subscription_id = %s
+            """, (updated_sub.get('current_period_end'), subscription_id))
+            
+            return jsonify({
+                'success': True, 
+                'cancel_at_period_end': True,
+                'current_period_end': updated_sub.get('current_period_end')
+            })
+            
+    except Exception as e:
+        app.logger.error(f"Error canceling subscription: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+@app.route("/api/server/<guild_id>/subscription/resume", methods=["POST"])
+@require_api_auth
+def api_resume_subscription(user_session, guild_id):
+    """API endpoint to resume a canceled server's Stripe subscription"""
+    if is_demo_server(guild_id):
+        return jsonify({'success': True, 'cancel_at_period_end': False, 'demo_note': 'Demo server subscriptions cannot be modified.'})
+        
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+            
+        with get_db() as conn:
+            cursor = conn.execute("SELECT subscription_id FROM server_subscriptions WHERE guild_id = %s AND status IN ('active', 'trialing') AND cancel_at_period_end = TRUE", (int(guild_id),))
+            sub_row = cursor.fetchone()
+            if not sub_row or not sub_row['subscription_id']:
+                return jsonify({'success': False, 'error': 'No pending cancellation found'}), 404
+                
+            subscription_id = sub_row['subscription_id']
+            
+            import stripe
+            stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+            
+            # Resume subscription
+            updated_sub = stripe.Subscription.modify(
+                subscription_id,
+                cancel_at_period_end=False
+            )
+            
+            # Update local DB immediately
+            conn.execute("""
+                UPDATE server_subscriptions 
+                SET cancel_at_period_end = FALSE
+                WHERE subscription_id = %s
+            """, (subscription_id,))
+            
+            return jsonify({
+                'success': True, 
+                'cancel_at_period_end': False,
+                'current_period_end': updated_sub.get('current_period_end')
+            })
+            
+    except Exception as e:
+        app.logger.error(f"Error resuming subscription: {str(e)}")
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 

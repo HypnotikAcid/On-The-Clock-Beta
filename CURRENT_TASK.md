@@ -1,357 +1,43 @@
 # Current Task
 
-**Date**: 2026-01-26
-**Agent**: Claude Code (Backend Specialist)
-**Task**: 🔧 IN PROGRESS - Employee Profile API Error Diagnosis
+**Date**: 2026-02-19
+**Agent**: Gemini (UI/Frontend Specialist / Backend Implementation)
+**Task**: ✅ COMPLETED - Subscription Cancellation Flow (Stripe `cancel_at_period_end`)
 
 ---
 
-## 🔍 Current Issue: Employee Profile API Server Error (P0 - CRITICAL)
-
-**Problem**: Employee Profile page shows "Failed to load profile: Server error"
-- URL pattern: `/dashboard/server/{guild_id}/profile/{user_id}`
-- API endpoint: `GET /api/server/<guild_id>/employee/<user_id>/profile` (app.py:6317)
-- Error: 500 status with minimal logging
-
-**Implementation Status**: ✅ **Logging Enhanced - Ready for Testing**
-
-### Changes Made (Commit: `ecbf03b`)
-
-**1. Enhanced Exception Logging** (app.py:6474-6478)
-- Added full traceback output with `traceback.format_exc()`
-- Log exception type and message separately
-- Include guild_id and user_id in error context
-
-**2. Strategic Debug Checkpoints**
-Added debug logging after each major operation:
-- Line 6352: After profile fetch
-- Line 6357: Before stats calculation
-- Line 6378: Before weekly hours calculation
-- Line 6401: Before tenure calculation
-- Line 6418: Before clock status check
-- Line 6436: Before tier check
-- Line 6448: Before building response
-
-**3. Defensive Datetime Handling**
-
-**first_clock calculation** (app.py:6380-6393):
-- Added try/except wrapper
-- Type checking: `isinstance(first_clock, datetime)`
-- Safe timezone handling
-- Fallback to 0 on error
-
-**hire_date calculation** (app.py:6401-6425):
-- Added try/except wrapper
-- Type checking: `isinstance(hire_date, datetime)`
-- Safe timezone handling
-- Fallback to "Error calculating tenure" on error
-
-### Next Steps
-
-**1. Restart the App**
-```bash
-# Kill current process
-pkill -f "python.*start.py" || pkill -f "python.*app.py"
-
-# Start fresh
-python start.py
-```
-
-**2. Monitor Logs in Real-Time**
-```bash
-tail -f nohup.out | grep -E "ERROR|DEBUG.*profile|Exception type"
-```
-
-**3. Reproduce the Error**
-- Navigate to: `/dashboard/server/{guild_id}/profile/{user_id}`
-- Observe server logs for:
-  - Which debug checkpoint was last reached
-  - Full exception traceback
-  - Exception type (AttributeError, TypeError, etc.)
-
-**4. Identify Root Cause**
-From logs, determine:
-- Exact line that failed (from traceback)
-- What operation failed (from last debug checkpoint)
-- Data type issue or missing field
-
-**5. Apply Specific Fix**
-Once root cause identified:
-- Implement targeted fix
-- Test that profile loads successfully
-- Verify all fields display correctly
-
-### Expected Log Output
-
-**Success case:**
-```
-DEBUG: Profile fetched for user 123456: True
-DEBUG: Calculating stats for user 123456
-DEBUG: Calculating weekly hours for user 123456
-DEBUG: Calculating tenure for user 123456
-DEBUG: Checking clock status for user 123456
-DEBUG: Checking tier for guild 789
-DEBUG: Building profile response for user 123456
-```
-
-**Error case example:**
-```
-DEBUG: Profile fetched for user 123456: True
-DEBUG: Calculating stats for user 123456
-ERROR: Error fetching employee profile for guild 789, user 123456
-ERROR: Exception type: AttributeError
-ERROR: Exception message: 'NoneType' object has no attribute 'replace'
-ERROR: Full traceback:
-Traceback (most recent call last):
-  File "/home/runner/workspace/app.py", line 6410, in api_get_employee_profile
-    days = (datetime.now(pytz.UTC) - hire_date.replace(tzinfo=pytz.UTC)).days
-AttributeError: 'NoneType' object has no attribute 'replace'
-```
-
----
-
-## 🎯 Previously Resolved Issues
-
-### Issue 1: Employee Buttons Not Working (P0 - CRITICAL)
-
-**Problem**: Clicking employee buttons on the Kiosk page had no effect. JavaScript ReferenceError in browser console.
-
-**Root Cause**: The `showScreen()` function was called 3 times in the code but was never defined.
-
-**Fix**: Added `showScreen()` function at line 1544 in `templates/kiosk.html` to toggle `.active` CSS class on screen divs.
-
-**Impact**: Kiosk navigation now works - employees can click buttons, enter PINs, and access clock in/out actions.
-
----
-
-### Issue 2: Theme Display (RESOLVED - Working as Designed)
-
-**Initial Misdiagnosis**: Thought theme clock-in requirement was the problem
-**Actual Problem**: User couldn't clock in to trigger themes because showScreen() was missing
-
-**Resolution**: Kept original clock-in requirement - themes only show when employee is actively clocked in (intentional design per user feedback)
-
----
-
-### Issue 3: /setup_demo_roles Command Not Appearing (P0 - CRITICAL)
-
-**Problem**: Command doesn't exist after republishing bot.
-
-**Root Cause**: Command syncing issue - bot was only syncing to main server, not demo server.
-
-**Fix**: Modified command sync logic in `bot.py:4235-4283` (later removed by Replit Agent due to duplicate issue).
-
-**Resolution**: Command now syncs via global fallback and appears on demo server.
-
----
-
-### Issue 4: Auto-Role Assignment (Enhancement)
-
-**Problem**: New members were automatically assigned "Test Employee" role, preventing user choice.
-
-**Fix**: Commented out auto-assignment code so users choose their own role via buttons.
-
-**Impact**: Users now manually select "Become Admin" or "Become Employee" via `/setup_demo_roles` embed.
-
----
-
-### Issue 5: Welcome Message Clarity (Enhancement)
-
-**Problem**: Welcome message didn't direct users to role selection.
-
-**Fix**: Updated welcome DM with clear steps directing to role selection.
-
----
-
-### Issue 6: Duplicate Messages from /setup_demo_roles (P1)
-
-**Problem**: Running `/setup_demo_roles` sent two embeds to channel.
-
-**Root Cause**: Dual command sync was causing command to register twice on demo server.
-
-**Fix**: Replit Agent removed duplicate sync code (commit `1b46ba3`).
-
-**Debug**: Added execution ID logging to track future issues (commit `33fb15e`).
-
-**Status**: Fixed by Replit Agent, debug logging added for monitoring.
-
----
-
-### Issue 7: Demo Onboarding Flow (MAJOR Enhancement)
-
-**Problem**: After choosing a role, users had to:
-1. Manually discover `/clock` command
-2. Run it separately
-3. No guidance to dashboard or kiosk
-
-**Solution**: Enhanced demo role switcher buttons to provide seamless onboarding.
-
-**Implementation** (commit `ef2893b`):
-
-1. **Auto-send Timeclock Hub**
-   - After clicking "Become Admin" or "Become Employee"
-   - Ephemeral message with full timeclock interface
-   - All buttons ready to use immediately
-
-2. **Dashboard & Kiosk Links**
-   - Admin: Dashboard link with management features
-   - Employee: Dashboard + Kiosk links
-   - Clickable URLs in confirmation message
-
-3. **Clean Message Management**
-   - Tracks previous timeclock message per user (dict: `_demo_user_timeclocks`)
-   - Deletes old timeclock when switching roles
-   - Prevents message clutter
-
-4. **Role-Specific Embeds**
-   - Admin: Red embed with admin capabilities
-   - Employee: Blue embed with employee features
-   - Clear descriptions of what each role can do
-
-**Benefits**:
-- No need to discover `/clock` command
-- Immediate access to all features
-- Switching roles feels instant and clean
-- Guides users to both Discord and web features
-
----
-
-## Summary
-
-Fixed five critical bugs and implemented three major enhancements:
-
-1. **Missing navigation function** - Added `showScreen()` to enable kiosk navigation
-2. **Command sync issue** - Enabled `/setup_demo_roles` on demo server
-3. **Duplicate messages** - Fixed with deduplication mechanism (2-second window)
-4. **Auto-role assignment** - Removed to enable user choice
-5. **Welcome message** - Added clear onboarding steps
-6. **Seamless onboarding** - Auto-send timeclock hub after role selection
-7. **Timeclock hub visibility** - Changed from ephemeral to visible channel message
-8. **Duplicate prevention** - Added call tracking to prevent duplicate command execution
-
-## Files Modified
-
-| File | Changes | Purpose |
-|------|---------|---------|
-| `templates/kiosk.html:1544` | Added `showScreen()` function | Enable screen navigation |
-| `templates/kiosk.html:1597` | Kept `&& emp.is_clocked_in` | Intentional design per user |
-| `bot.py:4235-4283` | Added dual command sync (reverted) | Sync to both guilds |
-| `bot.py:4640-4650` | Commented auto-assignment | Enable role selection |
-| `bot.py:4662-4680` | Updated welcome message | Clear onboarding workflow |
-| `bot.py:5346-5415` | Added debug logging | Track duplicate issues |
-| `bot.py:3584-3733` | Enhanced role switcher | Auto-send timeclock hub |
-| `bot.py:3587` | Added deduplication dict | Track recent command calls |
-| `bot.py:3663,3743` | Changed to channel.send() | Make timeclock hub visible |
-| `bot.py:5434-5447` | Added deduplication logic | Prevent duplicate posting |
-| `WORKING_FILES.md` | Updated | File lock management |
-
----
-
-## Commits Made
-
-1. `82e215d` - Fix Kiosk page: Add missing showScreen()
-2. `f01ff54` - Enable /setup_demo_roles command on demo server
-3. `5d6b713` - Revert: Restore clock-in requirement for theme display
-4. `4dabb20` - Update CURRENT_TASK.md documentation
-5. `1b46ba3` - Remove duplicate command sync (Replit Agent)
-6. `33fb15e` - Add debug logging to /setup_demo_roles
-7. `ef2893b` - Enhance demo role switcher with automatic timeclock hub
-8. `a75be75` - Fix demo role switcher: prevent duplicates and make timeclock visible
-
----
-
-## Demo Server Workflow (Complete & Enhanced!)
-
-### For Admins:
-1. Run `/setup_demo_roles` in any channel on demo server
-2. Embed appears with "Choose Your Role" title
-3. Two buttons: 👷 "Become Employee" (blue) and 👑 "Become Admin" (red)
-
-### For New Members (New Enhanced Flow):
-1. Join demo Discord server (1419894879894507661)
-2. Receive welcome DM with instructions
-3. Find role selection message in server
-4. Click "Become Admin" or "Become Employee" button
-5. **NEW**: Automatically receive:
-   - Ephemeral confirmation with dashboard/kiosk links
-   - Personal timeclock hub with all interactive buttons
-   - Role-specific guidance on what they can do
-6. Start using timeclock immediately (no need to run `/clock`)
-7. Switch roles anytime - old timeclock is automatically replaced
-
-### Switching Roles:
-1. Click the other role button
-2. Old timeclock message is automatically deleted
-3. New timeclock message appears with updated role context
-4. Clean, seamless experience
-
----
-
-### Issue 8: Persistent Duplicate Posting & Missing Timeclock Hub (P0)
-
-**Problem 1**: /setup_demo_roles still sending duplicate embeds despite previous fixes
-**Problem 2**: Timeclock hub not appearing after clicking "Become Admin" or "Become Employee"
-
-**Root Causes**:
-1. Multiple bot instances or rapid clicks causing duplicate execution
-2. Discord.py limitation: ephemeral messages with persistent views don't render properly
-
-**Solution** (commit `a75be75`):
-
-1. **Deduplication Mechanism**:
-   ```python
-   _setup_demo_roles_recent_calls: dict[tuple[int, int], float] = {}
-
-   # Check if called within last 2 seconds
-   if call_key in _setup_demo_roles_recent_calls:
-       last_call = _setup_demo_roles_recent_calls[call_key]
-       if current_time - last_call < 2.0:
-           # Reject duplicate
-   ```
-   - Tracks calls by (guild_id, user_id)
-   - Rejects duplicate calls within 2-second window
-   - Auto-cleanup of old entries after 10 seconds
-
-2. **Timeclock Hub Visibility Fix**:
-   - Changed from `interaction.followup.send(ephemeral=True)` to `interaction.channel.send()`
-   - Timeclock hub now visible to all users in the channel
-   - No longer ephemeral (user preference for demo server)
-   - Updated confirmation messages to reflect channel visibility
-
-**Impact**:
-- Duplicate messages prevented by deduplication logic
-- Timeclock hub appears reliably as visible channel message
-- Demo server users can see and use timeclock hub immediately
-- Front and center in channel (as requested for demo purposes)
-
----
-
-## Next Steps
-
-1. **Deploy the enhanced bot** (commit `ef2893b`)
-2. **Test the new flow**:
-   - Click "Become Employee"
-   - Verify timeclock hub appears
-   - Verify dashboard and kiosk links work
-   - Click "Become Admin"
-   - Verify old timeclock is deleted
-   - Verify new admin timeclock appears
-3. **Monitor debug logs** for duplicate message issues:
-   ```bash
-   tail -f nohup.out | grep "SETUP_DEMO_ROLES"
-   ```
-
----
-
-## Demo Server Configuration
-
-| Item | Value |
-|------|-------|
-| **Demo Server ID** | 1419894879894507661 |
-| **Demo Admin Role** | 1465149753510596628 |
-| **Demo Employee Role** | 1460483767050178631 |
-| **Main Server ID** | 1085872975343009812 |
-| **Kiosk URL** | https://time-warden.com/kiosk/1419894879894507661 |
-| **Dashboard URL** | https://time-warden.com |
-
----
+## 📋 Task Summary
+
+Implemented the ability for server administrators to cancel and resume their Stripe subscriptions from the dashboard, utilizing Stripe's `cancel_at_period_end` feature to ensure users retain access until the end of their current billing cycle.
+
+### Implementation Details:
+
+**1. Database Schema Updates**
+- Created migration script `migrations/add_cancellation_columns.py` to add `cancel_at_period_end` (BOOLEAN) and `current_period_end` (BIGINT) to the `server_subscriptions` table.
+- Added these columns directly to the main `migrations.py` file to ensure they are created automatically on future setups.
+
+**2. Backend API Updates (`app.py`)**
+- Updated `api_get_server_settings` to return `cancel_at_period_end` and `current_period_end` properties so the frontend can retrieve the current status.
+- Implemented `POST /api/server/<guild_id>/subscription/cancel`:
+  - Interacts with Stripe API (`stripe.Subscription.modify`) to set `cancel_at_period_end=True`.
+  - Immediately updates the local database.
+- Implemented `POST /api/server/<guild_id>/subscription/resume`:
+  - Interacts with Stripe API to set `cancel_at_period_end=False`.
+  - Immediately updates the local database.
+- Enhanced `handle_subscription_change` webhook handler to listen to `customer.subscription.updated/created` events and update the `cancel_at_period_end` status from Stripe to keep the local database synchronized.
+
+**3. Frontend UI (`templates/dashboard_pages/server_overview.html`)**
+- Injected a dynamic warning badge inside the Subscription Status tile that displays: "Canceling on [Date]" if a pending cancellation is detected.
+- Added a "Cancel Subscription" button if the subscription is Active/Premium.
+- Added a "Resume Subscription" button if a cancellation is currently pending at period end.
+- Added Javascript API handlers with `confirm()` dialogs to manage user intent securely.
+
+### Next Steps for Human Verification
+1. Please ensure that environment variables for the database and Stripe are configured correctly locally (or in production).
+2. Run the application (`python start.py`) and log in to the dashboard.
+3. Access a server with an active Stripe subscription.
+4. Verify the "Cancel Subscription" logic effectively transitions the status to "Canceling on [Date]".
+5. Verify that "Resume Subscription" successfully restores the subscription to normal billing.
+
+> [!NOTE]
+> Database migrations will automatically run on startup. However, the manual migration script at `migrations/add_cancellation_columns.py` is also available if needed.

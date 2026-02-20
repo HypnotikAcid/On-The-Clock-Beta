@@ -503,6 +503,11 @@ def run_migrations():
                 print("   Checking for original_profile_data column in employee_archive")
                 cur.execute("ALTER TABLE employee_archive ADD COLUMN IF NOT EXISTS original_profile_data JSONB")
 
+                # 25. Add Stripe cancellation columns to server_subscriptions
+                print("   Checking for cancellation columns in server_subscriptions")
+                cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE")
+                cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS current_period_end BIGINT")
+
         _migrations_run = True
         print("✅ Database schema is up to date")
         return True
