@@ -3415,8 +3415,7 @@ class TimeclockHubView(discord.ui.View):
 # Demo Role Switcher View
 # =============================================================================
 
-# Track timeclock messages per user for cleanup when switching roles
-_demo_user_timeclocks: dict[int, int] = {}  # {user_id: message_id}
+
 
 # Track recent /setup_demo_roles calls to prevent duplicate execution
 _setup_demo_roles_recent_calls: dict[tuple[int, int], float] = {}  # {(guild_id, user_id): timestamp}
@@ -3457,27 +3456,12 @@ class DemoRoleSwitcherView(discord.ui.View):
             if employee_role and employee_role in interaction.user.roles:
                 await interaction.user.remove_roles(employee_role, reason="Demo: Switched from Admin to Employee")
 
-            # Delete previous timeclock message if it exists
-            if interaction.user.id in _demo_user_timeclocks:
-                try:
-                    old_message_id = _demo_user_timeclocks[interaction.user.id]
-                    # Try to fetch and delete the old message
-                    channel = interaction.channel
-                    if channel:
-                        old_message = await channel.fetch_message(old_message_id)
-                        await old_message.delete()
-                        print(f"🧹 Deleted old timeclock message {old_message_id} for user {interaction.user.id}")
-                except Exception as e:
-                    print(f"⚠️ Could not delete old timeclock message: {e}")
-                del _demo_user_timeclocks[interaction.user.id]
-
             # Send confirmation with dashboard link
             dashboard_url = "https://time-warden.com"
             await send_reply(
                 interaction,
                 f"✅ **You are now an Admin!**\n\n"
-                f"🖥️ **[Open Dashboard]({dashboard_url})** - Manage employees, view reports, configure settings\n\n"
-                f"📬 Your personal timeclock hub has been posted below in the channel!",
+                f"🖥️ **[Open Dashboard]({dashboard_url})** - Manage employees, view reports, configure settings",
                 ephemeral=True
             )
 
@@ -3494,9 +3478,8 @@ class DemoRoleSwitcherView(discord.ui.View):
             )
             view = build_timeclock_hub_view(interaction.guild_id, embed)
 
-            timeclock_msg = await interaction.channel.send(content=f"{interaction.user.mention}", embed=embed, view=view)
-            _demo_user_timeclocks[interaction.user.id] = timeclock_msg.id
-            print(f"📌 Sent timeclock hub to channel as message {timeclock_msg.id} for admin user {interaction.user.id}")
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            print(f"📌 Sent ephemeral timeclock hub for admin user {interaction.user.id}")
 
         except discord.Forbidden:
             await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
@@ -3531,19 +3514,22 @@ class DemoRoleSwitcherView(discord.ui.View):
             if admin_role and admin_role in interaction.user.roles:
                 await interaction.user.remove_roles(admin_role, reason="Demo: Switched from Admin to Employee")
 
-            # Delete previous timeclock message if it exists
-            if interaction.user.id in _demo_user_timeclocks:
-                try:
-                    old_message_id = _demo_user_timeclocks[interaction.user.id]
-                    # Try to fetch and delete the old message
-                    channel = interaction.channel
-                    if channel:
-                        old_message = await channel.fetch_message(old_message_id)
-                        await old_message.delete()
-                        print(f"🧹 Deleted old timeclock message {old_message_id} for user {interaction.user.id}")
-                except Exception as e:
-                    print(f"⚠️ Could not delete old timeclock message: {e}")
-                del _demo_user_timeclocks[interaction.user.id]
+            # Generate and store a PIN for the demo user
+            import random
+            import hashlib
+            import os
+            
+            pin = str(random.randint(1000, 9999))
+            salt = os.urandom(16).hex()
+            hashed_pin = hashlib.sha256((pin + salt).encode()).hexdigest()
+            
+            with db() as conn:
+                conn.execute("""
+                    INSERT INTO employee_pins (guild_id, user_id, pin_hash, pin_salt)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (guild_id, user_id) 
+                    DO UPDATE SET pin_hash = EXCLUDED.pin_hash, pin_salt = EXCLUDED.pin_salt, created_at = NOW()
+                """, (interaction.guild_id, interaction.user.id, hashed_pin, salt))
 
             # Send confirmation with dashboard and kiosk links
             dashboard_url = "https://time-warden.com"
@@ -3551,9 +3537,9 @@ class DemoRoleSwitcherView(discord.ui.View):
             await send_reply(
                 interaction,
                 f"✅ **You are now an Employee!**\n\n"
+                f"🔑 Your personal Kiosk PIN is: **{pin}**\n\n"
                 f"🖥️ **[Open Dashboard]({dashboard_url})** - Clock in/out, view your hours\n"
-                f"📱 **[Try Kiosk Mode]({kiosk_url})** - PIN-based clock system\n\n"
-                f"📬 Your personal timeclock hub has been posted below in the channel!",
+                f"📱 **[Try Kiosk Mode]({kiosk_url})** - PIN-based clock system",
                 ephemeral=True
             )
 
@@ -3571,8 +3557,8 @@ class DemoRoleSwitcherView(discord.ui.View):
             )
             view = build_timeclock_hub_view(interaction.guild_id, embed)
 
-            timeclock_msg = await interaction.channel.send(content=f"{interaction.user.mention}", embed=embed, view=view)
-            _demo_user_timeclocks[interaction.user.id] = timeclock_msg.id
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            print(f"📌 Sent ephemeral timeclock hub for employee user {interaction.user.id}")
             print(f"📌 Sent timeclock hub to channel as message {timeclock_msg.id} for employee user {interaction.user.id}")
 
         except discord.Forbidden:
@@ -4388,18 +4374,6 @@ async def on_member_join(member):
         return
     
     print(f"👋 New member joined demo server: {member.display_name}")
-
-    # Role selection removed - users now choose their role via /setup_demo_roles buttons
-    # See DemoRoleSwitcherView for the interactive role selection system
-    # try:
-    #     role = member.guild.get_role(DEMO_EMPLOYEE_ROLE_ID)
-    #     if role:
-    #         await member.add_roles(role, reason="Auto-assigned for demo access")
-    #         print(f"✅ Assigned Test Employee role to {member.display_name}")
-    # except discord.Forbidden:
-    #     print(f"❌ Could not assign role to {member.display_name} - missing permissions")
-    # except Exception as e:
-    #     print(f"❌ Error assigning role: {e}")
     
     try:
         # Use production URL for OAuth compatibility
@@ -4412,7 +4386,7 @@ async def on_member_join(member):
         )
         embed.add_field(
             name="🎭 STEP 1: Choose Your Demo Persona",
-            value="Look for the **'Choose Your Demo Persona'** message in the server:\n• 👷 **Become Employee** - Test clock in/out features\n• 👑 **Become Admin** - Manage employees and settings",
+            value="Click a button below to begin your demo:\n• 👷 **Become Employee** - Get a PIN & test clock in/out features\n• 👑 **Become Admin** - Manage employees and settings",
             inline=False
         )
         embed.add_field(
@@ -4430,19 +4404,35 @@ async def on_member_join(member):
             value="• `/clock` - Open your personal timeclock\n• `/help` - See all available commands\n• `/report` - Generate timesheet reports",
             inline=False
         )
-        embed.add_field(
-            name="❓ Questions?",
-            value="Check the server channels for FAQs, tutorials, and support!",
-            inline=False
-        )
         embed.set_footer(text="Time Warden - Professional Time Tracking for Discord Teams")
         
-        await member.send(embed=embed)
-        print(f"✅ Sent welcome DM to {member.display_name}")
-    except discord.Forbidden:
-        print(f"⚠️ Could not DM {member.display_name} - DMs disabled")
+        # Send Welcome DM as a reference
+        try:
+            await member.send(embed=embed)
+            print(f"✅ Sent welcome DM to {member.display_name}")
+        except discord.Forbidden:
+            print(f"⚠️ Could not DM {member.display_name} - DMs disabled")
+            
+        # Send Interactive Onboarding directly in the server
+        channel = member.guild.system_channel
+        if not channel:
+            # Fallback to the first available text channel we can send in
+            for c in member.guild.text_channels:
+                if c.permissions_for(member.guild.me).send_messages:
+                    channel = c
+                    break
+                    
+        if channel:
+            view = DemoRoleSwitcherView()
+            await channel.send(
+                content=f"👋 Welcome {member.mention}! Please select your demo experience below:",
+                embed=embed,
+                view=view
+            )
+            print(f"✅ Sent interactive role selector to #{channel.name} for {member.display_name}")
+            
     except Exception as e:
-        print(f"❌ Error sending welcome DM: {e}")
+        print(f"❌ Error sending welcome messages: {e}")
 
 
 @bot.event
