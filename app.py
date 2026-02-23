@@ -3503,11 +3503,11 @@ def seed_demo_data_internal():
     
     demo_guild_id = 1419894879894507661
     demo_employees = [
-        {'user_id': 100000000000000001, 'display_name': 'Alex Manager', 'full_name': 'Alex Thompson', 'first_name': 'Alex', 'last_name': 'Thompson', 'email': 'alex.demo@ontheclock.app', 'position': 'Store Manager', 'department': 'Management', 'company_role': 'Manager', 'bio': 'Demo manager account - 5 years with the company', 'role_tier': 'admin'},
-        {'user_id': 100000000000000002, 'display_name': 'Jordan Sales', 'full_name': 'Jordan Rivera', 'first_name': 'Jordan', 'last_name': 'Rivera', 'email': 'jordan.demo@ontheclock.app', 'position': 'Sales Associate', 'department': 'Sales', 'company_role': 'Employee', 'bio': 'Top performer in sales department', 'role_tier': 'employee'},
-        {'user_id': 100000000000000003, 'display_name': 'Casey Support', 'full_name': 'Casey Williams', 'first_name': 'Casey', 'last_name': 'Williams', 'email': 'casey.demo@ontheclock.app', 'position': 'Customer Support', 'department': 'Support', 'company_role': 'Employee', 'bio': 'Friendly face of customer service', 'role_tier': 'employee'},
-        {'user_id': 100000000000000004, 'display_name': 'Sam Warehouse', 'full_name': 'Sam Johnson', 'first_name': 'Sam', 'last_name': 'Johnson', 'email': 'sam.demo@ontheclock.app', 'position': 'Warehouse Lead', 'department': 'Warehouse', 'company_role': 'Employee', 'bio': 'Keeps the warehouse running smoothly', 'role_tier': 'employee'},
-        {'user_id': 100000000000000005, 'display_name': 'Taylor Intern', 'full_name': 'Taylor Chen', 'first_name': 'Taylor', 'last_name': 'Chen', 'email': 'taylor.demo@ontheclock.app', 'position': 'Marketing Intern', 'department': 'Marketing', 'company_role': 'Intern', 'bio': 'Learning the ropes of digital marketing', 'role_tier': 'employee'}
+        {'user_id': 100000000000000001, 'display_name': 'Alex Manager', 'full_name': 'Alex Thompson', 'first_name': 'Alex', 'last_name': 'Thompson', 'email': 'alex.demo@ontheclock.app', 'position': 'Store Manager', 'department': 'Management', 'company_role': 'Manager', 'bio': 'Demo manager account - 5 years with the company', 'role_tier': 'admin', 'accent_color': '#3b82f6', 'profile_background': 'theme-ocean'},
+        {'user_id': 100000000000000002, 'display_name': 'Jordan Sales', 'full_name': 'Jordan Rivera', 'first_name': 'Jordan', 'last_name': 'Rivera', 'email': 'jordan.demo@ontheclock.app', 'position': 'Sales Associate', 'department': 'Sales', 'company_role': 'Employee', 'bio': 'Top performer in sales department', 'role_tier': 'employee', 'accent_color': '#eab308', 'profile_background': 'theme-sunset'},
+        {'user_id': 100000000000000003, 'display_name': 'Casey Support', 'full_name': 'Casey Williams', 'first_name': 'Casey', 'last_name': 'Williams', 'email': 'casey.demo@ontheclock.app', 'position': 'Customer Support', 'department': 'Support', 'company_role': 'Employee', 'bio': 'Friendly face of customer service', 'role_tier': 'employee', 'accent_color': '#8b5cf6', 'profile_background': 'theme-default'},
+        {'user_id': 100000000000000004, 'display_name': 'Sam Warehouse', 'full_name': 'Sam Johnson', 'first_name': 'Sam', 'last_name': 'Johnson', 'email': 'sam.demo@ontheclock.app', 'position': 'Warehouse Lead', 'department': 'Warehouse', 'company_role': 'Employee', 'bio': 'Keeps the warehouse running smoothly', 'role_tier': 'employee', 'accent_color': '#ef4444', 'profile_background': 'theme-default'},
+        {'user_id': 100000000000000005, 'display_name': 'Taylor Intern', 'full_name': 'Taylor Chen', 'first_name': 'Taylor', 'last_name': 'Chen', 'email': 'taylor.demo@ontheclock.app', 'position': 'Marketing Intern', 'department': 'Marketing', 'company_role': 'Intern', 'bio': 'Learning the ropes of digital marketing', 'role_tier': 'employee', 'accent_color': '#10b981', 'profile_background': 'theme-forest'}
     ]
     
     try:
@@ -3517,8 +3517,8 @@ def seed_demo_data_internal():
             # 1. Seed Employees
             for emp in demo_employees:
                 conn.execute("""
-                    INSERT INTO employee_profiles (guild_id, user_id, display_name, full_name, first_name, last_name, email, position, department, company_role, bio, role_tier, is_active, profile_setup_completed, hire_date)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE, %s)
+                    INSERT INTO employee_profiles (guild_id, user_id, display_name, full_name, first_name, last_name, email, position, department, company_role, bio, role_tier, is_active, profile_setup_completed, hire_date, accent_color, profile_background)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE, %s, %s, %s)
                     ON CONFLICT (guild_id, user_id) DO UPDATE SET 
                         display_name = EXCLUDED.display_name, 
                         full_name = EXCLUDED.full_name, 
@@ -3531,8 +3531,10 @@ def seed_demo_data_internal():
                         bio = EXCLUDED.bio, 
                         role_tier = EXCLUDED.role_tier, 
                         is_active = TRUE, 
-                        profile_setup_completed = TRUE
-                """, (demo_guild_id, emp['user_id'], emp['display_name'], emp['full_name'], emp['first_name'], emp['last_name'], emp['email'], emp['position'], emp['department'], emp['company_role'], emp['bio'], emp['role_tier'], now - timedelta(days=random.randint(30, 365))))
+                        profile_setup_completed = TRUE,
+                        accent_color = EXCLUDED.accent_color,
+                        profile_background = EXCLUDED.profile_background
+                """, (demo_guild_id, emp['user_id'], emp['display_name'], emp['full_name'], emp['first_name'], emp['last_name'], emp['email'], emp['position'], emp['department'], emp['company_role'], emp['bio'], emp['role_tier'], now - timedelta(days=random.randint(30, 365)), emp.get('accent_color'), emp.get('profile_background')))
             
             # 2. Clear and Seed Sessions
             demo_user_ids = [e['user_id'] for e in demo_employees]
@@ -9191,13 +9193,16 @@ def api_kiosk_employees(guild_id):
             try:
                 bot_api_secret = os.getenv('BOT_API_SECRET')
                 bot_port = os.getenv('BOT_API_PORT', '8081')
-                requests.post(
+                response = requests.post(
                     f"http://127.0.0.1:{bot_port}/api/guild/{guild_id}/employees/prune-ghosts", 
                     headers={'Authorization': f'Bearer {bot_api_secret}'} if bot_api_secret else {},
                     timeout=2
                 )
+                if response.status_code != 200:
+                    app.logger.warning(f"[Prune Ghosts] Bot API returned {response.status_code}: {response.text}")
             except Exception as e:
-                pass
+                import traceback
+                app.logger.warning(f"Error kicking off prune_ghosts background thread: {e}\n{traceback.format_exc()}")
                 
         threading.Thread(target=prune_ghosts, daemon=True).start()
         

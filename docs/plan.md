@@ -89,3 +89,10 @@
 
 ## Plan Archive
 For detailed historical plans, see `docs/plans/*.md`
+
+---
+
+## Backlog & Future Ideas
+*   **Custom Kiosk Users:** Allow admins to add manual/non-Discord users to the Kiosk employee directory directly from the dashboard so that employees without Discord accounts can still clock in and out.
+*   **Discord Auto-Roles:** Have the Discord bot automatically assign a specific role (e.g., "On Watch") to members dynamically based on their live clocked-in/clocked-out status. (Will require a setup guide for admins on how to configure role hierarchy).
+*   **Audit Log Channel:** Allow admins to designate a specific Discord channel as a "Log Channel", where the bot will automatically broadcast a log message whenever users clock in, clock out, or submit time adjustment requests.

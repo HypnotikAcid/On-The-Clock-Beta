@@ -6126,9 +6126,12 @@ async def handle_prune_ghosts(request: web.Request):
         guild = bot.get_guild(guild_id)
         
         if not guild:
+            # Maybe the bot hasn't fully loaded the guild cache yet, or the ID is mistyped
+            print(f"⚠️ [Prune Ghosts] Guild {guild_id} not found in bot cache. Skipping auto-prune.")
             return web.json_response({'success': False, 'error': 'Guild not found in bot cache'}, status=404)
             
         employee_role_ids = get_employee_roles(guild_id)
+        # print(f"🔍 [Prune Ghosts] Guild {guild_id} expects roles: {employee_role_ids}")
         archived_count = 0
         
         with db() as conn:
@@ -6162,6 +6165,8 @@ async def handle_prune_ghosts(request: web.Request):
         })
     except Exception as e:
         print(f"❌ Error auto-pruning ghosts (guild {request.match_info.get('guild_id')}): {e}")
+        import traceback
+        traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def handle_send_onboarding(request: web.Request):
