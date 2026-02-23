@@ -25,10 +25,16 @@ We investigated the unfinished Kiosk features reported in the January 2026 techn
   - Updated the frontend Javascript `updateEmployeeGrid()` function to map the user's `accent_color` to an inline `background-color` style with a 10% opacity hex code appended (`1A`) if no predefined theme was selected, restoring personalized visuals for employees.
 
 ### Next Steps for Human Verification
-1. Open up the Demo Server physical Kiosk URL.
+1. Open up the Demo Server physical Kiosk URL on a tablet or phone.
 2. Select an employee with custom colors assigned (or assign custom colors to one in the Admin Dashboard).
-3. Clock them in.
-4. Verify that their customized Hex color and stickers render properly instead of defaulting to the solid green default background.
+3. Clock them in and verify that their customized Hex color and stickers render properly instead of defaulting to the solid green default background.
+4. Rotate your device to Landscape and verify that you can natively scroll down, and that the PIN pad correctly aligns horizontally instead of vertically to prevent the buttons from falling off the screen.
+5. Tap the numbers and verify the tactile golden flash.
 
 > [!NOTE]
 > All CSS UI changes have been committed and pushed to the `main` branch.
+
+**3. Kiosk Tablet & Mobile UX Polish**
+- **Scrolling Constraints:** Removed the global `overflow: hidden` from the `body` and refactored `.kiosk-container` to `min-height: 100vh` to allow native touch scrolling.
+- **PIN Pad Landscape Layout:** Added a CSS `@media (max-height: 700px) and (orientation: landscape)` query to force a horizontal layout on short screens, preventing the `.numpad` getting cut off.
+- **Tactile Feedback:** Intensified the background color transition on `.numpad-btn:active` for obvious touch feedback.
