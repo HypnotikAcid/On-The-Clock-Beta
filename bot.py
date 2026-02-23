@@ -3660,6 +3660,23 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
         await handle_rate_limit_response(interaction, action)
         return
 
+    # Check Kiosk Only Mode
+    try:
+        with db() as conn:
+            cursor = conn.execute("SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = %s", (guild_id,))
+            settings = cursor.fetchone()
+            
+        if settings and settings.get('kiosk_only_mode'):
+            await interaction.followup.send(
+                "🖥️ **Kiosk Only Mode Active**\n\n"
+                "Discord clocking is disabled for this server.\n"
+                f"Please clock in physically at the terminal: `https://time-warden.com/kiosk/{guild_id}`",
+                ephemeral=True
+            )
+            return
+    except Exception as e:
+        print(f"Error checking kiosk mode: {e}")
+
     # Check permissions
     server_tier = get_guild_tier_string(guild_id)
     if not isinstance(interaction.user, discord.Member):
@@ -3755,6 +3772,23 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
     if not is_allowed:
         await handle_rate_limit_response(interaction, action)
         return
+
+    # Check Kiosk Only Mode
+    try:
+        with db() as conn:
+            cursor = conn.execute("SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = %s", (guild_id,))
+            settings = cursor.fetchone()
+            
+        if settings and settings.get('kiosk_only_mode'):
+            await interaction.followup.send(
+                "🖥️ **Kiosk Only Mode Active**\n\n"
+                "Discord clocking is disabled for this server.\n"
+                f"Please clock out physically at the terminal: `https://time-warden.com/kiosk/{guild_id}`",
+                ephemeral=True
+            )
+            return
+    except Exception as e:
+        print(f"Error checking kiosk mode: {e}")
 
     # Check permissions
     server_tier = get_guild_tier_string(guild_id)
@@ -4629,6 +4663,23 @@ async def clock_command(interaction: discord.Interaction):
         embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
         await interaction.followup.send(embed=embed, ephemeral=True)
         return
+
+    # Check Kiosk Only Mode
+    try:
+        with db() as conn:
+            cursor = conn.execute("SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = %s", (guild_id,))
+            settings = cursor.fetchone()
+            
+        if settings and settings.get('kiosk_only_mode'):
+            await interaction.followup.send(
+                "🖥️ **Kiosk Only Mode Active**\n\n"
+                "Discord clocking is disabled for this server.\n"
+                f"Please manage your time physically at the terminal: `https://time-warden.com/kiosk/{guild_id}`",
+                ephemeral=True
+            )
+            return
+    except Exception as e:
+        print(f"Error checking kiosk mode: {e}")
 
     # Check permissions
     server_tier = get_guild_tier_string(guild_id)

@@ -2396,8 +2396,43 @@ def dashboard_beta_settings(user_session, guild_id):
     
     if context['user_role'] != 'admin':
         return redirect(f'/dashboard/server/{guild_id}')
-    
     return render_template('dashboard_pages/beta_settings.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/kiosk")
+@require_auth
+def dashboard_kiosk_settings(user_session, guild_id):
+    """Dedicated Kiosk settings page (demo server only)"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    # Gating the route to only the Demo Server for now
+    if guild_id != '1419894879894507661':
+        return redirect(f'/dashboard/server/{guild_id}')
+        
+    context, error = get_server_page_context(user_session, guild_id, 'kiosk')
+    if error:
+        return error
+        
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+        
+    # Fetch kiosk settings
+    with get_db() as conn:
+        cursor = conn.execute("SELECT allow_kiosk_customization, kiosk_only_mode FROM guild_settings WHERE guild_id = %s", (guild_id,))
+        settings = cursor.fetchone()
+        
+    allow_kiosk_customization = settings['allow_kiosk_customization'] if settings else True
+    
+    # Safely get kiosk_only_mode since it was just added in a migration and might not be populated in all rows yet
+    kiosk_only_mode = False
+    if settings and 'kiosk_only_mode' in settings:
+        kiosk_only_mode = settings['kiosk_only_mode'] if settings['kiosk_only_mode'] is not None else False
+
+    context['allow_kiosk_customization'] = allow_kiosk_customization
+    context['kiosk_only_mode'] = kiosk_only_mode
+    
+    return render_template('dashboard_pages/kiosk_settings.html', **context)
 
 
 @app.route("/dashboard/server/<guild_id>/profile/<user_id>")
@@ -6363,11 +6398,52 @@ def api_sync_server_employees(user_session, guild_id):
                 'synced_count': data.get('synced_count', 0)
             })
         else:
-            return jsonify({'success': False, 'error': 'Failed to sync employees'}), 500
-            
+            return jsonify({'success': False, 'error': f"Bot returned {response.status_code}"}), response.status_code
     except Exception as e:
         app.logger.error(f"Error syncing employees: {str(e)}")
         return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/kiosk-settings", methods=["POST"])
+@require_api_auth
+def api_save_kiosk_settings(user_session, guild_id):
+    """API endpoint to save Kiosk-specific settings (admin only)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+            
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+        updates = {}
+        if 'allow_kiosk_customization' in data:
+            updates['allow_kiosk_customization'] = bool(data['allow_kiosk_customization'])
+        
+        if 'kiosk_only_mode' in data:
+            updates['kiosk_only_mode'] = bool(data['kiosk_only_mode'])
+            
+        if not updates:
+            return jsonify({'success': False, 'error': 'No valid fields to update'}), 400
+            
+        set_clauses = []
+        values = []
+        for key, value in updates.items():
+            set_clauses.append(f"{key} = %s")
+            values.append(value)
+            
+        values.append(guild_id)
+        
+        query = f"UPDATE guild_settings SET {', '.join(set_clauses)} WHERE guild_id = %s"
+        
+        with get_db() as conn:
+            conn.execute(query, tuple(values))
+            
+        return jsonify({'success': True, 'message': 'Kiosk settings updated successfully'})
+    except Exception as e:
+        app.logger.error(f"Error updating kiosk settings for {guild_id}: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to save settings'}), 500
 
 
 @app.route("/api/server/<guild_id>/employees/send-onboarding", methods=["POST"])

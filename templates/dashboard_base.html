@@ -10,25 +10,36 @@
 </head>
 
 <body data-user-id="{{ user.user_id if user else '' }}" data-guild-id="{{ server.id if server else '' }}">
-    <div id="matrix-toggle" onclick="toggleMatrix()" style="position: fixed; top: 1rem; right: 1rem; z-index: 1001; cursor: pointer; background: rgba(10, 15, 31, 0.7); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 255, 255, 0.3); font-size: 0.75rem; color: rgba(0, 255, 255, 0.8); display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; user-select: none;">
+    <div id="matrix-toggle" onclick="toggleMatrix()"
+        style="position: fixed; top: 1rem; right: 1rem; z-index: 1001; cursor: pointer; background: rgba(10, 15, 31, 0.7); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 255, 255, 0.3); font-size: 0.75rem; color: rgba(0, 255, 255, 0.8); display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; user-select: none;">
         <span id="matrix-toggle-text">Exit The Matrix</span>
-        <div style="width: 30px; height: 16px; background: rgba(0, 255, 255, 0.1); border-radius: 10px; position: relative; border: 1px solid rgba(0, 255, 255, 0.3);">
-            <div id="matrix-toggle-knob" style="width: 10px; height: 10px; background: #00FFFF; border-radius: 50%; position: absolute; top: 2px; right: 3px; transition: all 0.3s ease; box-shadow: 0 0 8px #00FFFF;"></div>
+        <div
+            style="width: 30px; height: 16px; background: rgba(0, 255, 255, 0.1); border-radius: 10px; position: relative; border: 1px solid rgba(0, 255, 255, 0.3);">
+            <div id="matrix-toggle-knob"
+                style="width: 10px; height: 10px; background: #00FFFF; border-radius: 50%; position: absolute; top: 2px; right: 3px; transition: all 0.3s ease; box-shadow: 0 0 8px #00FFFF;">
+            </div>
         </div>
     </div>
-    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" id="coffee-btn-fixed" style="position: fixed; top: 3.5rem; right: 1rem; z-index: 1001; display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 221, 0, 0.9); color: #000; padding: 5px 12px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: all 0.3s ease; box-shadow: 0 2px 10px rgba(255, 221, 0, 0.3); border: 1px solid rgba(0, 0, 0, 0.2);">
+    <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" id="coffee-btn-fixed"
+        style="position: fixed; top: 3.5rem; right: 1rem; z-index: 1001; display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 221, 0, 0.9); color: #000; padding: 5px 12px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; text-decoration: none; transition: all 0.3s ease; box-shadow: 0 2px 10px rgba(255, 221, 0, 0.3); border: 1px solid rgba(0, 0, 0, 0.2);">
         <span style="font-size: 1rem;">☕</span>
         <span>Buy Me a Coffee</span>
     </a>
     {% if is_demo_server and server %}
-    <div id="demo-view-toggle" style="position: fixed; top: 6rem; right: 1rem; z-index: 1001; background: rgba(10, 15, 31, 0.9); padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(212, 175, 55, 0.5); font-size: 0.75rem; color: rgba(212, 175, 55, 0.9);">
+    <div id="demo-view-toggle"
+        style="position: fixed; top: 6rem; right: 1rem; z-index: 1001; background: rgba(10, 15, 31, 0.9); padding: 8px 14px; border-radius: 12px; border: 1px solid rgba(212, 175, 55, 0.5); font-size: 0.75rem; color: rgba(212, 175, 55, 0.9);">
         <div style="font-weight: 600; margin-bottom: 6px; text-align: center;">Demo Mode</div>
         <div style="display: flex; gap: 6px;">
-            <a href="/dashboard/server/{{ server.id }}?view_as=admin" style="padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: 0.7rem; {% if not view_as_employee %}background: rgba(212, 175, 55, 0.3); color: #D4AF37; border: 1px solid #D4AF37;{% else %}background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1);{% endif %}">Admin View</a>
-            <a href="/dashboard/server/{{ server.id }}?view_as=employee" style="padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: 0.7rem; {% if view_as_employee %}background: rgba(0, 255, 255, 0.3); color: #00FFFF; border: 1px solid #00FFFF;{% else %}background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1);{% endif %}">Employee View</a>
+            <a href="/dashboard/server/{{ server.id }}?view_as=admin"
+                style="padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: 0.7rem; {% if not view_as_employee %}background: rgba(212, 175, 55, 0.3); color: #D4AF37; border: 1px solid #D4AF37;{% else %}background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1);{% endif %}">Admin
+                View</a>
+            <a href="/dashboard/server/{{ server.id }}?view_as=employee"
+                style="padding: 4px 10px; border-radius: 6px; text-decoration: none; font-size: 0.7rem; {% if view_as_employee %}background: rgba(0, 255, 255, 0.3); color: #00FFFF; border: 1px solid #00FFFF;{% else %}background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1);{% endif %}">Employee
+                View</a>
         </div>
         {% if last_demo_reset %}
-        <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(212, 175, 55, 0.3); font-size: 0.65rem; color: rgba(255,255,255,0.5); text-align: center;">
+        <div
+            style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(212, 175, 55, 0.3); font-size: 0.65rem; color: rgba(255,255,255,0.5); text-align: center;">
             Last reset: {{ last_demo_reset.strftime('%b %d, %H:%M UTC') if last_demo_reset else 'Never' }}<br>
             <span style="color: rgba(16, 185, 129, 0.8);">Auto-resets daily at midnight UTC</span>
         </div>
@@ -77,7 +88,8 @@
             <div class="server-nav-header">
                 <div class="server-nav-icon">
                     {% if server.icon %}
-                    <img src="https://cdn.discordapp.com/icons/{{ server.id }}/{{ server.icon }}.png?size=64" alt="{{ server.name }}" style="width: 100%; height: 100%; border-radius: 50%;">
+                    <img src="https://cdn.discordapp.com/icons/{{ server.id }}/{{ server.icon }}.png?size=64"
+                        alt="{{ server.name }}" style="width: 100%; height: 100%; border-radius: 50%;">
                     {% else %}
                     {{ server.name[0]|upper }}
                     {% endif %}
@@ -85,70 +97,94 @@
                 <div class="server-nav-name">{{ server.name }}</div>
             </div>
             <div class="nav-section-title">Server Settings</div>
-            
-            <a href="/dashboard/server/{{ server.id }}" class="nav-item {% if active_page == 'overview' %}active{% endif %}">
+
+            <a href="/dashboard/server/{{ server.id }}"
+                class="nav-item {% if active_page == 'overview' %}active{% endif %}">
                 <span class="nav-item-icon">📊</span>
                 <span>Server Overview</span>
             </a>
-            
+
             {% if user_role == 'admin' %}
-            <a href="/dashboard/server/{{ server.id }}/admin-roles" class="nav-item {% if active_page == 'admin-roles' %}active{% endif %}">
+            <a href="/dashboard/server/{{ server.id }}/admin-roles"
+                class="nav-item {% if active_page == 'admin-roles' %}active{% endif %}">
                 <span class="nav-item-icon">👥</span>
                 <span>Admin Roles</span>
             </a>
-            <a href="/dashboard/server/{{ server.id }}/employee-roles" class="nav-item {% if active_page == 'employee-roles' %}active{% endif %}">
+            <a href="/dashboard/server/{{ server.id }}/employee-roles"
+                class="nav-item {% if active_page == 'employee-roles' %}active{% endif %}">
                 <span class="nav-item-icon">👷</span>
                 <span>Employee Roles</span>
             </a>
-            <a href="/dashboard/server/{{ server.id }}/email" class="nav-item {% if active_page == 'email' %}active{% endif %}">
+            <a href="/dashboard/server/{{ server.id }}/email"
+                class="nav-item {% if active_page == 'email' %}active{% endif %}">
                 <span class="nav-item-icon">📧</span>
                 <span>Email Settings</span>
             </a>
-            <a href="/dashboard/server/{{ server.id }}/timezone" class="nav-item {% if active_page == 'timezone' %}active{% endif %}">
+            <a href="/dashboard/server/{{ server.id }}/timezone"
+                class="nav-item {% if active_page == 'timezone' %}active{% endif %}">
                 <span class="nav-item-icon">⏰</span>
                 <span>Timezone Settings</span>
                 {% if show_tz_reminder %}
-                <span class="badge" style="background:#F59E0B; color:#111; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:auto;">Set TZ!</span>
+                <span class="badge"
+                    style="background:#F59E0B; color:#111; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:auto;">Set
+                    TZ!</span>
                 {% endif %}
             </a>
-            <a href="/dashboard/server/{{ server.id }}/employees" class="nav-item {% if active_page == 'employees' %}active{% endif %}">
+            <a href="/dashboard/server/{{ server.id }}/employees"
+                class="nav-item {% if active_page == 'employees' %}active{% endif %}">
                 <span class="nav-item-icon">👥</span>
                 <span>Employee Status</span>
             </a>
             {% endif %}
-            
+
             {% if user_role == 'employee' or (user_role == 'admin' and is_also_employee) %}
-            <a href="/dashboard/server/{{ server.id }}/profile/{{ user.user_id }}" class="nav-item {% if active_page == 'my-info' or active_page == 'profile' %}active{% endif %}">
+            <a href="/dashboard/server/{{ server.id }}/profile/{{ user.user_id }}"
+                class="nav-item {% if active_page == 'my-info' or active_page == 'profile' %}active{% endif %}">
                 <span class="nav-item-icon">👤</span>
                 <span>My Info</span>
             </a>
             {% endif %}
-            
-            <a href="/dashboard/server/{{ server.id }}/adjustments" class="nav-item {% if active_page == 'adjustments' %}active{% endif %}">
+
+            <a href="/dashboard/server/{{ server.id }}/adjustments"
+                class="nav-item {% if active_page == 'adjustments' %}active{% endif %}">
                 <span class="nav-item-icon">⏳</span>
                 <span>Time Adjustments</span>
                 {% if pending_adjustments > 0 %}
-                <span class="badge" style="background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">{{ pending_adjustments }}</span>
+                <span class="badge"
+                    style="background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">{{
+                    pending_adjustments }}</span>
                 {% endif %}
             </a>
-            
+
             {% if active_page == 'calendar' and server %}
             {% if user_role == 'admin' %}
-            <a href="/dashboard/server/{{ server.id }}/calendar" class="nav-item {% if active_page == 'calendar' %}active{% endif %}">
+            <a href="/dashboard/server/{{ server.id }}/calendar"
+                class="nav-item {% if active_page == 'calendar' %}active{% endif %}">
                 <span class="nav-item-icon">📅</span>
                 <span>Admin Calendar</span>
             </a>
-            <a href="/dashboard/server/{{ server.id }}/bans" class="nav-item {% if active_page == 'bans' %}active{% endif %}">
+            <a href="/dashboard/server/{{ server.id }}/bans"
+                class="nav-item {% if active_page == 'bans' %}active{% endif %}">
                 <span class="nav-item-icon">🚫</span>
                 <span>Ban Management</span>
             </a>
-            <a href="/dashboard/server/{{ server.id }}/beta" class="nav-item {% if active_page == 'beta' %}active{% endif %}">
+
+            {% if server.id|string == '1419894879894507661' %}
+            <a href="/dashboard/server/{{ server.id }}/kiosk"
+                class="nav-item {% if active_page == 'kiosk' %}active{% endif %}">
+                <span class="nav-item-icon">🖥️</span>
+                <span>Kiosk Settings</span>
+            </a>
+            {% endif %}
+
+            <a href="/dashboard/server/{{ server.id }}/beta"
+                class="nav-item {% if active_page == 'beta' %}active{% endif %}">
                 <span class="nav-item-icon">🧪</span>
                 <span>Beta Settings</span>
             </a>
             {% endif %}
             {% endif %}
-            
+
             {% else %}
             <div class="nav-section-title">Navigation</div>
             <a href="/dashboard" class="nav-item {% if active_page == 'my-servers' %}active{% endif %}">
@@ -165,7 +201,8 @@
         <div class="sidebar-user">
             <div class="sidebar-user-avatar">
                 {% if user.avatar %}
-                <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128" alt="Avatar">
+                <img src="https://cdn.discordapp.com/avatars/{{ user.user_id }}/{{ user.avatar }}.png?size=128"
+                    alt="Avatar">
                 {% else %}
                 {{ user.username[0]|upper }}
                 {% endif %}
@@ -177,7 +214,8 @@
             <a href="/auth/logout" class="logout-icon" title="Logout">🚪</a>
         </div>
         <div style="padding: 10px 20px; border-top: 1px solid rgba(255,255,255,0.05);">
-            <button onclick="DashboardTour.reset()" class="btn-secondary" style="width: 100%; font-size: 0.75rem; padding: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <button onclick="DashboardTour.reset()" class="btn-secondary"
+                style="width: 100%; font-size: 0.75rem; padding: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <span>🔄</span> Reset Onboarding
             </button>
         </div>
@@ -191,7 +229,7 @@
         <main class="content-area">
             {% block content %}{% endblock %}
         </main>
-        
+
         {% if server_settings and not server_settings.bot_access_paid %}
         <div class="ad-container" id="dashboard-ad-container">
             <div class="ad-placeholder">
@@ -215,10 +253,12 @@
                 z-index: 100;
                 text-align: center;
             }
+
             .ad-placeholder {
                 max-width: 728px;
                 margin: 0 auto;
             }
+
             .ad-label {
                 font-size: 10px;
                 color: #6e7681;
@@ -227,6 +267,7 @@
                 display: block;
                 margin-bottom: 4px;
             }
+
             .ad-content {
                 min-height: 50px;
                 display: flex;
@@ -236,18 +277,22 @@
                 border-radius: 8px;
                 border: 1px dashed rgba(212, 175, 55, 0.3);
             }
+
             .ad-upgrade-link {
                 color: #D4AF37;
                 text-decoration: none;
                 font-size: 14px;
                 transition: color 0.2s;
             }
+
             .ad-upgrade-link:hover {
                 color: #F4E5A1;
             }
+
             .content-area {
                 padding-bottom: 100px !important;
             }
+
             @media (max-width: 1024px) {
                 .ad-container {
                     left: 0;
@@ -272,27 +317,27 @@
     {% block page_scripts %}{% endblock %}
 
     <script>
-        (function() {
+        (function () {
             const sidebar = document.getElementById('sidebar');
             const mobileOverlay = document.getElementById('mobileOverlay');
             const mobileHamburger = document.getElementById('mobileHamburger');
-            
+
             function isMobile() {
                 return window.innerWidth <= 1024;
             }
-            
+
             function openSidebar() {
                 document.body.classList.add('sidebar-open');
                 sidebar.classList.remove('mobile-hidden');
                 document.body.style.overflow = 'hidden';
             }
-            
+
             function closeSidebar() {
                 document.body.classList.remove('sidebar-open');
                 sidebar.classList.add('mobile-hidden');
                 document.body.style.overflow = '';
             }
-            
+
             function initSidebarState() {
                 document.body.classList.remove('sidebar-open');
                 document.body.style.overflow = '';
@@ -302,11 +347,11 @@
                     sidebar.classList.remove('mobile-hidden');
                 }
             }
-            
+
             initSidebarState();
-            
+
             if (mobileHamburger) {
-                mobileHamburger.addEventListener('click', function(e) {
+                mobileHamburger.addEventListener('click', function (e) {
                     e.stopPropagation();
                     if (sidebar.classList.contains('mobile-hidden')) {
                         openSidebar();
@@ -317,24 +362,24 @@
             }
 
             if (mobileOverlay) {
-                mobileOverlay.addEventListener('click', function() {
+                mobileOverlay.addEventListener('click', function () {
                     closeSidebar();
                 });
             }
 
             const navLinks = sidebar.querySelectorAll('.nav-item, .back-to-servers');
             navLinks.forEach(link => {
-                link.addEventListener('click', function() {
+                link.addEventListener('click', function () {
                     if (isMobile()) {
                         closeSidebar();
                     }
                 });
             });
-            
+
             let resizeTimer;
-            window.addEventListener('resize', function() {
+            window.addEventListener('resize', function () {
                 clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(function() {
+                resizeTimer = setTimeout(function () {
                     document.body.classList.remove('sidebar-open');
                     document.body.style.overflow = '';
                     if (!isMobile()) {
@@ -347,23 +392,23 @@
         })();
     </script>
     <script src="/static/js/dashboard-tour.js"></script>
-    
+
     <style>
         /* Existing styles... */
     </style>
-    
+
     <div id="page-help-modal" class="help-modal" onclick="closePageHelp()">
         <div class="help-modal-content" onclick="event.stopPropagation()">
             <button class="help-modal-close" onclick="closePageHelp()">&times;</button>
             <div id="page-help-content"></div>
         </div>
     </div>
-    
+
     <script>
         /* Existing help modal JS... */
 
         // Wizard Trigger Logic
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const wizardCompleted = localStorage.getItem('setup_wizard_completed');
             const wizardSkipped = localStorage.getItem('setup_wizard_skipped');
             const isFirstVisitToServer = !wizardCompleted && !wizardSkipped && GUILD_ID; // Only trigger if a server is selected

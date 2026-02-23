@@ -1,0 +1,146 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}{{ server.name }} - Kiosk Settings{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1 class="content-title">Kiosk Settings</h1>
+    <p class="content-subtitle">Manage physical device settings for your venue</p>
+</div>
+
+<!-- Kiosk Access Banner -->
+<div class="kiosk-access-banner"
+    style="background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(0, 150, 255, 0.05)); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 12px; padding: 25px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+    <div style="flex: 1; min-width: 250px;">
+        <h2 style="color: #00FFFF; font-size: 20px; margin: 0 0 8px 0; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 24px;">🖥️</span> Launch Kiosk Terminal
+        </h2>
+        <p style="color: #8B949E; margin: 0; font-size: 14px; line-height: 1.5;">
+            Deploy the Kiosk to a tablet or computer at your physical location. Employees will use this dedicated screen
+            to clock in and out seamlessly.
+        </p>
+    </div>
+
+    <a href="/kiosk/{{ server.id }}" target="_blank" class="btn btn-primary"
+        style="padding: 12px 24px; font-size: 16px; display: flex; align-items: center; gap: 8px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);">
+        <span>Launch Kiosk</span>
+        <span>→</span>
+    </a>
+</div>
+
+
+<div class="tiles-grid">
+    <!-- Kiosk Customization Tile -->
+    <div class="tile" style="border-top: 2px solid rgba(212, 175, 55, 0.5);">
+        <h2><span class="tile-icon">✨</span>Kiosk Customization</h2>
+        <p class="tile-description">Allow employees to personalize their buttons on the kiosk screen with their profile
+            theme.</p>
+
+        <div class="setting-row"
+            style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <div class="setting-info">
+                <span style="display: block; font-weight: 500; margin-bottom: 4px; color: #E6EDF3;">Employee
+                    Themes</span>
+                <span style="display: block; font-size: 13px; color: #8B949E;">Employees can use custom Hex Colors and
+                    backgrounds</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="allow_kiosk_customization" {% if allow_kiosk_customization %}checked{% endif
+                    %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Force Kiosk Mode Tile -->
+    <div class="tile" style="border-top: 2px solid rgba(245, 158, 11, 0.5);">
+        <h2><span class="tile-icon">🔒</span>Kiosk Only Mode</h2>
+        <p class="tile-description">Disable Discord slash commands, forcing all employees to clock in physically at the
+            terminal.</p>
+
+        <div class="setting-row"
+            style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <div class="setting-info">
+                <span style="display: block; font-weight: 500; margin-bottom: 4px; color: #E6EDF3;">Enforce Terminal
+                    Usage</span>
+                <span style="display: block; font-size: 13px; color: #8B949E;">Blocks `/clock` and `/out` commands in
+                    Discord</span>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="kiosk_only_mode" {% if kiosk_only_mode %}checked{% endif %}>
+                <span class="toggle-slider" id="kiosk-slider-ui"></span>
+            </label>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const guildId = '{{ server.id }}';
+
+        const customizationToggle = document.getElementById('allow_kiosk_customization');
+        const kioskOnlyToggle = document.getElementById('kiosk_only_mode');
+
+        async function saveSettings(payload) {
+            try {
+                // Assuming showLoading() is globally available from dashboard-core.js
+                if (typeof showLoading === 'function') showLoading('Saving Kiosk Settings...');
+
+                const response = await fetch(`/api/server/${guildId}/kiosk-settings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (typeof hideLoading === 'function') hideLoading();
+
+                if (data.success) {
+                    if (typeof showToast === 'function') showToast('Settings saved successfully', 'success');
+                } else {
+                    if (typeof showToast === 'function') showToast(data.error || 'Failed to save settings', 'error');
+                    // Revert toggles visually if failure
+                    customizationToggle.checked = !payload.allow_kiosk_customization;
+                    kioskOnlyToggle.checked = !payload.kiosk_only_mode;
+                }
+            } catch (error) {
+                if (typeof hideLoading === 'function') hideLoading();
+                if (typeof showToast === 'function') showToast('Network error while saving', 'error');
+                // Revert toggles visually if failure
+                customizationToggle.checked = !payload.allow_kiosk_customization;
+                kioskOnlyToggle.checked = !payload.kiosk_only_mode;
+            }
+        }
+
+        if (customizationToggle) {
+            customizationToggle.addEventListener('change', function () {
+                saveSettings({
+                    allow_kiosk_customization: this.checked,
+                    kiosk_only_mode: kioskOnlyToggle ? kioskOnlyToggle.checked : false
+                });
+            });
+        }
+
+        if (kioskOnlyToggle) {
+            // Update slider color dynamically based on state to match the warning theme
+            const slider = kioskOnlyToggle.nextElementSibling;
+
+            kioskOnlyToggle.addEventListener('change', function () {
+                if (this.checked) {
+                    slider.style.backgroundColor = '#F59E0B'; // Amber orange
+                } else {
+                    slider.style.backgroundColor = ''; // Reverts to CSS default
+                }
+
+                saveSettings({
+                    allow_kiosk_customization: customizationToggle ? customizationToggle.checked : true,
+                    kiosk_only_mode: this.checked
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}
