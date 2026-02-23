@@ -3428,6 +3428,14 @@ class DemoRoleSwitcherView(discord.ui.View):
     """
     def __init__(self):
         super().__init__(timeout=None)  # REQUIRED for persistence
+        
+        # Add a prominent Kiosk advertisement button to the role selection view (Row 1)
+        self.add_item(discord.ui.Button(
+            label="📱 Test Kiosk Tablet Mode (BETA)",
+            emoji="✨",
+            url=f"https://time-warden.com/kiosk/{DEMO_SERVER_ID}",
+            row=1
+        ))
 
     @discord.ui.button(
         label="Become Admin",
