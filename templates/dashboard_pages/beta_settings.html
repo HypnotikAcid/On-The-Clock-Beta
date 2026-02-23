@@ -13,15 +13,17 @@
 
     <div class="tile">
         <h2><span class="tile-icon">🧪</span>Kiosk Customization</h2>
-        <p class="tile-description">Allow employees to personalize their buttons on the kiosk screen with their profile theme.</p>
-        
+        <p class="tile-description">Allow employees to personalize their buttons on the kiosk screen with their profile
+            theme.</p>
+
         <div class="beta-feature-item">
             <div class="feature-info">
                 <span class="feature-name">Button Themes</span>
                 <span class="feature-description">Employees can set custom colors and backgrounds</span>
             </div>
             <label class="toggle-switch">
-                <input type="checkbox" id="allow_kiosk_customization" {% if allow_kiosk_customization %}checked{% endif %}>
+                <input type="checkbox" id="allow_kiosk_customization" {% if allow_kiosk_customization %}checked{% endif
+                    %}>
                 <span class="toggle-slider"></span>
             </label>
         </div>
@@ -30,7 +32,7 @@
     <div class="tile">
         <h2><span class="tile-icon">🧪</span>Beta Features</h2>
         <p class="tile-description">Try out new features before they're released</p>
-        
+
         <div class="beta-features-list" id="beta-features">
             <div class="loading-placeholder">Loading beta features...</div>
         </div>
@@ -39,7 +41,7 @@
     <div class="tile">
         <h2><span class="tile-icon">📋</span>Feedback</h2>
         <p class="tile-description">Help us improve by sharing your thoughts</p>
-        
+
         <div class="form-group">
             <label for="feedback-type">Type:</label>
             <select id="feedback-type" class="form-select">
@@ -48,12 +50,12 @@
                 <option value="improvement">Improvement Suggestion</option>
             </select>
         </div>
-        
+
         <div class="form-group">
             <label for="feedback-text">Your Feedback:</label>
             <textarea id="feedback-text" class="form-textarea" placeholder="Describe your feedback..."></textarea>
         </div>
-        
+
         <button id="submit-feedback-btn" class="btn btn-primary">Submit Feedback</button>
     </div>
 
@@ -61,19 +63,19 @@
     <div class="tile">
         <h2><span class="tile-icon">👤</span>Employee Profile</h2>
         <p class="tile-description">Your personal settings for this server</p>
-        
+
         <div class="form-group">
             <label for="display-name">Display Name:</label>
             <input type="text" id="display-name" class="form-input" placeholder="Your display name">
         </div>
-        
+
         <div class="form-group">
             <label for="preferred-timezone">Preferred Timezone:</label>
             <select id="preferred-timezone" class="form-select">
                 <option value="">Use server default</option>
             </select>
         </div>
-        
+
         <button id="save-profile-btn" class="btn btn-primary">Save Profile</button>
     </div>
     {% endif %}
@@ -82,13 +84,13 @@
 
 {% block page_scripts %}
 <script>
-const guildId = '{{ server.id }}';
-const userRole = '{{ user_role }}';
+    const guildId = '{{ server.id }}';
+    const userRole = '{{ user_role }}';
 
-async function loadBetaFeatures() {
-    const container = document.getElementById('beta-features');
-    
-    container.innerHTML = `
+    async function loadBetaFeatures() {
+        const container = document.getElementById('beta-features');
+
+        container.innerHTML = `
         <div class="beta-feature-item">
             <div class="feature-info">
                 <span class="feature-name">Enhanced Calendar</span>
@@ -123,168 +125,117 @@ async function loadBetaFeatures() {
             <span class="coming-soon-badge">Planned</span>
         </div>
     `;
-}
-
-document.getElementById('submit-feedback-btn').addEventListener('click', async function() {
-    const type = document.getElementById('feedback-type').value;
-    const text = document.getElementById('feedback-text').value.trim();
-    
-    if (!text) {
-        DashboardUtils.showNotification('Please enter your feedback', 'error');
-        return;
     }
-    
-    this.disabled = true;
-    this.textContent = 'Submitting...';
-    
-    try {
-        const response = await fetch(`/api/feedback`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                guild_id: guildId,
-                type: type,
-                message: text
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            DashboardUtils.showNotification('Thank you for your feedback!', 'success');
-            document.getElementById('feedback-text').value = '';
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to submit', 'error');
+
+    document.getElementById('submit-feedback-btn').addEventListener('click', async function () {
+        const type = document.getElementById('feedback-type').value;
+        const text = document.getElementById('feedback-text').value.trim();
+
+        if (!text) {
+            DashboardUtils.showNotification('Please enter your feedback', 'error');
+            return;
         }
-    } catch (error) {
-        DashboardUtils.showNotification('Feedback received! (offline mode)', 'success');
-        document.getElementById('feedback-text').value = '';
-    }
-    
-    this.disabled = false;
-    this.textContent = 'Submit Feedback';
-});
 
-if (document.getElementById('save-profile-btn')) {
-    document.getElementById('save-profile-btn').addEventListener('click', async function() {
-        const displayName = document.getElementById('display-name').value.trim();
-        const timezone = document.getElementById('preferred-timezone').value;
-        
         this.disabled = true;
-        this.textContent = 'Saving...';
-        
+        this.textContent = 'Submitting...';
+
         try {
-            const response = await fetch(`/api/server/${guildId}/employee/profile`, {
+            const response = await fetch(`/api/feedback`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    display_name: displayName || null,
-                    preferred_timezone: timezone || null
+                    guild_id: guildId,
+                    type: type,
+                    message: text
                 })
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
-                DashboardUtils.showNotification('Profile saved', 'success');
+                DashboardUtils.showNotification('Thank you for your feedback!', 'success');
+                document.getElementById('feedback-text').value = '';
             } else {
-                DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
+                DashboardUtils.showNotification(data.error || 'Failed to submit', 'error');
             }
         } catch (error) {
-            DashboardUtils.showNotification('Failed to save profile', 'error');
+            DashboardUtils.showNotification('Feedback received! (offline mode)', 'success');
+            document.getElementById('feedback-text').value = '';
         }
-        
+
         this.disabled = false;
-        this.textContent = 'Save Profile';
+        this.textContent = 'Submit Feedback';
     });
-}
 
-// Kiosk mode functions
-async function loadKioskSettings() {
-    const kioskToggle = document.getElementById('kiosk-mode-toggle');
-    const kioskUrl = document.getElementById('kiosk-url');
-    
-    if (!kioskToggle) return; // Not admin
-    
-    // Set kiosk URL
-    const baseUrl = window.location.origin;
-    kioskUrl.value = `${baseUrl}/kiosk/${guildId}`;
-    
-    // Load current setting
-    try {
-        const response = await fetch(`/api/server/${guildId}/kiosk-mode`);
-        const data = await response.json();
-        if (data.success) {
-            kioskToggle.checked = data.kiosk_mode_only;
-        }
-    } catch (error) {
-        console.error('Failed to load kiosk settings:', error);
-    }
-    
-    // Handle toggle change
-    kioskToggle.addEventListener('change', async function() {
-        try {
-            const response = await fetch(`/api/server/${guildId}/kiosk-mode`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ kiosk_mode_only: this.checked })
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                DashboardUtils.showNotification(
-                    this.checked ? 'Kiosk Mode enabled - Discord clock buttons are now disabled' : 'Kiosk Mode disabled',
-                    'success'
-                );
-            } else {
-                this.checked = !this.checked;
-                DashboardUtils.showNotification(data.error || 'Failed to update', 'error');
-            }
-        } catch (error) {
-            this.checked = !this.checked;
-            DashboardUtils.showNotification('Failed to update kiosk mode', 'error');
-        }
-    });
-}
+    if (document.getElementById('save-profile-btn')) {
+        document.getElementById('save-profile-btn').addEventListener('click', async function () {
+            const displayName = document.getElementById('display-name').value.trim();
+            const timezone = document.getElementById('preferred-timezone').value;
 
-async function copyKioskUrl() {
-    const urlInput = document.getElementById('kiosk-url');
-    const url = urlInput.value;
-    
-    try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(url);
-        } else {
-            // Fallback for older browsers
-            urlInput.select();
-            document.execCommand('copy');
-        }
-        DashboardUtils.showNotification('Kiosk URL copied to clipboard', 'success');
-    } catch (err) {
-        // Final fallback
-        urlInput.select();
-        try {
-            document.execCommand('copy');
-            DashboardUtils.showNotification('Kiosk URL copied to clipboard', 'success');
-        } catch (e) {
-            DashboardUtils.showNotification('Please copy the URL manually', 'error');
-        }
-    }
-    // Handle kiosk customization toggle
-    const customizationToggle = document.getElementById('allow_kiosk_customization');
-    if (customizationToggle) {
-        customizationToggle.addEventListener('change', async function() {
+            this.disabled = true;
+            this.textContent = 'Saving...';
+
             try {
-                const response = await fetch(`/api/server/${guildId}/kiosk-customization`, {
+                const response = await fetch(`/api/server/${guildId}/employee/profile`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ allow_kiosk_customization: this.checked })
+                    body: JSON.stringify({
+                        display_name: displayName || null,
+                        preferred_timezone: timezone || null
+                    })
                 });
-                
+
+                const data = await response.json();
+
+                if (data.success) {
+                    DashboardUtils.showNotification('Profile saved', 'success');
+                } else {
+                    DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
+                }
+            } catch (error) {
+                DashboardUtils.showNotification('Failed to save profile', 'error');
+            }
+
+            this.disabled = false;
+            this.textContent = 'Save Profile';
+        });
+    }
+
+    // Kiosk mode functions
+    async function loadKioskSettings() {
+        const kioskToggle = document.getElementById('kiosk-mode-toggle');
+        const kioskUrl = document.getElementById('kiosk-url');
+
+        if (!kioskToggle) return; // Not admin
+
+        // Set kiosk URL
+        const baseUrl = window.location.origin;
+        kioskUrl.value = `${baseUrl}/kiosk/${guildId}`;
+
+        // Load current setting
+        try {
+            const response = await fetch(`/api/server/${guildId}/kiosk-mode`);
+            const data = await response.json();
+            if (data.success) {
+                kioskToggle.checked = data.kiosk_mode_only;
+            }
+        } catch (error) {
+            console.error('Failed to load kiosk settings:', error);
+        }
+
+        // Handle toggle change
+        kioskToggle.addEventListener('change', async function () {
+            try {
+                const response = await fetch(`/api/server/${guildId}/kiosk-mode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ kiosk_mode_only: this.checked })
+                });
+
                 const data = await response.json();
                 if (data.success) {
                     DashboardUtils.showNotification(
-                        this.checked ? 'Kiosk customization enabled' : 'Kiosk customization disabled',
+                        this.checked ? 'Kiosk Mode enabled - Discord clock buttons are now disabled' : 'Kiosk Mode disabled',
                         'success'
                     );
                 } else {
@@ -293,15 +244,70 @@ async function copyKioskUrl() {
                 }
             } catch (error) {
                 this.checked = !this.checked;
-                DashboardUtils.showNotification('Failed to update settings', 'error');
+                DashboardUtils.showNotification('Failed to update kiosk mode', 'error');
             }
         });
     }
-}
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadBetaFeatures();
-    loadKioskSettings();
-});
+    async function copyKioskUrl() {
+        const urlInput = document.getElementById('kiosk-url');
+        const url = urlInput.value;
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                // Fallback for older browsers
+                urlInput.select();
+                document.execCommand('copy');
+            }
+            DashboardUtils.showNotification('Kiosk URL copied to clipboard', 'success');
+        } catch (err) {
+            // Final fallback
+            urlInput.select();
+            try {
+                document.execCommand('copy');
+                DashboardUtils.showNotification('Kiosk URL copied to clipboard', 'success');
+            } catch (e) {
+                DashboardUtils.showNotification('Please copy the URL manually', 'error');
+            }
+        }
+    }
+
+    async function loadCustomizationSettings() {
+        // Handle kiosk customization toggle
+        const customizationToggle = document.getElementById('allow_kiosk_customization');
+        if (customizationToggle) {
+            customizationToggle.addEventListener('change', async function () {
+                try {
+                    const response = await fetch(`/api/server/${guildId}/kiosk-customization`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ allow_kiosk_customization: this.checked })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        DashboardUtils.showNotification(
+                            this.checked ? 'Kiosk customization enabled' : 'Kiosk customization disabled',
+                            'success'
+                        );
+                    } else {
+                        this.checked = !this.checked;
+                        DashboardUtils.showNotification(data.error || 'Failed to update', 'error');
+                    }
+                } catch (error) {
+                    this.checked = !this.checked;
+                    DashboardUtils.showNotification('Failed to update settings', 'error');
+                }
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadBetaFeatures();
+        loadKioskSettings();
+        loadCustomizationSettings();
+    });
 </script>
 {% endblock %}
