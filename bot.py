@@ -6116,6 +6116,54 @@ async def handle_sync_employees(request: web.Request):
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+async def handle_prune_ghosts(request: web.Request):
+    """HTTP endpoint: Prune ghost employees who left the server or lost roles"""
+    if not verify_api_request(request):
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+        
+    try:
+        guild_id = int(request.match_info['guild_id'])
+        guild = bot.get_guild(guild_id)
+        
+        if not guild:
+            return web.json_response({'success': False, 'error': 'Guild not found in bot cache'}, status=404)
+            
+        employee_role_ids = get_employee_roles(guild_id)
+        archived_count = 0
+        
+        with db() as conn:
+            # Only pull active employees
+            cursor = conn.execute("SELECT user_id, display_name FROM employee_profiles WHERE guild_id = %s AND is_active = TRUE", (guild_id,))
+            active_employees = cursor.fetchall()
+            
+            for emp in active_employees:
+                user_id = emp['user_id']
+                member = guild.get_member(user_id)
+                
+                # Check 1: Did they leave the Discord server completely?
+                if not member:
+                    archive_employee(guild_id, user_id, reason="left_server_auto_prune")
+                    archived_count += 1
+                    continue
+                    
+                # Check 2: Are they still in the server, but lost their specific Employee role?
+                if employee_role_ids: # only check if the guild actually uses employee roles
+                    has_role = any(r.id in employee_role_ids for r in member.roles)
+                    if not has_role:
+                        archive_employee(guild_id, user_id, reason="lost_role_auto_prune")
+                        archived_count += 1
+                        
+        if archived_count > 0:
+            print(f"🧹 Auto-pruned {archived_count} ghost employees from guild {guild_id}")
+            
+        return web.json_response({
+            'success': True,
+            'archived_count': archived_count
+        })
+    except Exception as e:
+        print(f"❌ Error auto-pruning ghosts (guild {request.match_info.get('guild_id')}): {e}")
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
 async def handle_send_onboarding(request: web.Request):
     """HTTP endpoint: Send onboarding DMs to all employees with profile links"""
     if not verify_api_request(request):
@@ -6342,6 +6390,7 @@ async def start_bot_api_server():
     app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
     app.router.add_post('/api/guild/{guild_id}/employee-roles/remove', handle_remove_employee_role)
     app.router.add_post('/api/guild/{guild_id}/employees/sync', handle_sync_employees)
+    app.router.add_post('/api/guild/{guild_id}/employees/prune-ghosts', handle_prune_ghosts)
     app.router.add_post('/api/guild/{guild_id}/employees/send-onboarding', handle_send_onboarding)
     app.router.add_get('/api/guild/{guild_id}/user/{user_id}/check-admin', handle_check_user_admin)
     app.router.add_post('/api/broadcast', handle_broadcast)

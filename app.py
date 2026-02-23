@@ -3575,11 +3575,13 @@ def seed_demo_data_internal():
                 rev_at = now - timedelta(days=scenario['days_ago'] - 1) if scenario['status'] != 'pending' else None
                 conn.execute("INSERT INTO time_adjustment_requests (guild_id, user_id, request_type, reason, status, requested_clock_in, requested_clock_out, reviewed_by, reviewed_at, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (demo_guild_id, emp['user_id'], scenario['request_type'], scenario['reason'], scenario['status'], req_in.isoformat(), req_out.isoformat(), rev_by, rev_at.isoformat() if rev_at else None, request_date.isoformat()))
             
-            # 5. Track last reset
+            # 5. Track last reset and enable kiosk customization
             conn.execute("""
-                INSERT INTO guild_settings (guild_id, name, last_demo_reset)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (guild_id) DO UPDATE SET last_demo_reset = EXCLUDED.last_demo_reset
+                INSERT INTO guild_settings (guild_id, name, last_demo_reset, allow_kiosk_customization)
+                VALUES (%s, %s, %s, TRUE)
+                ON CONFLICT (guild_id) DO UPDATE SET 
+                    last_demo_reset = EXCLUDED.last_demo_reset,
+                    allow_kiosk_customization = TRUE
             """, (demo_guild_id, "On The Clock Demo", now.isoformat()))
             
             conn.commit()
@@ -9181,6 +9183,24 @@ def kiosk_page(guild_id):
 def api_kiosk_employees(guild_id):
     """Get all employees for the kiosk display optimized with CTE"""
     try:
+        import threading
+        import requests
+        
+        # Fire-and-forget background task to auto-prune ghost employees
+        def prune_ghosts():
+            try:
+                bot_api_secret = os.getenv('BOT_API_SECRET')
+                bot_port = os.getenv('BOT_API_PORT', '8081')
+                requests.post(
+                    f"http://127.0.0.1:{bot_port}/api/guild/{guild_id}/employees/prune-ghosts", 
+                    headers={'Authorization': f'Bearer {bot_api_secret}'} if bot_api_secret else {},
+                    timeout=2
+                )
+            except Exception as e:
+                pass
+                
+        threading.Thread(target=prune_ghosts, daemon=True).start()
+        
         with get_db() as conn:
             # Check if kiosk customization is enabled for this guild
             settings_cursor = conn.execute("""
@@ -9271,15 +9291,6 @@ def api_kiosk_create_pin(guild_id):
         if not user_id or not pin or len(pin) != 4 or not pin.isdigit():
             return jsonify({'success': False, 'error': 'Invalid PIN format'}), 400
 
-        # Demo server protection - fake success, no DB write
-        if is_demo_server(guild_id):
-            app.logger.info(f"Demo server: Blocking PIN creation for guild {guild_id}")
-            return jsonify({
-                'success': True,
-                'message': 'PIN created successfully',
-                'demo_note': 'In live server: PIN would be saved to database'
-            }), 200
-        
         # Hash the PIN
         pin_hash = hashlib.sha256(f"{guild_id}:{user_id}:{pin}".encode()).hexdigest()
         
@@ -9659,18 +9670,6 @@ def api_kiosk_clock(guild_id):
         if not user_id or action not in ['in', 'out']:
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
 
-        # Demo server protection - fake success, no DB write
-        if is_demo_server(guild_id):
-            from datetime import timezone
-            app.logger.info(f"Demo server: Blocking clock {action} for guild {guild_id}")
-            return jsonify({
-                'success': True,
-                'message': f'Clocked {action} successfully',
-                'demo_note': f'In live server: Employee would be clocked {action} with timestamp saved to database',
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'action': action
-            }), 200
-        
         now = datetime.now()
         
         with get_db() as conn:
