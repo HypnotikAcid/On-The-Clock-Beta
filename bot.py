@@ -4472,11 +4472,10 @@ async def on_guild_remove(guild):
                 print(f"   - Deleted time adjustment requests")
                 
                 # Delete admin roles
-                conn.execute("DELETE FROM admin_roles WHERE guild_id = %s", (guild_id_int,))
+                conn.execute("DELETE FROM admin_roles WHERE guild_id = %s", (guild_id_str,))
                 print(f"   - Deleted admin roles")
                 
-                # Delete employee roles  
-                conn.execute("DELETE FROM employee_roles WHERE guild_id = %s", (guild_id_int,))
+                conn.execute("DELETE FROM employee_roles WHERE guild_id = %s", (guild_id_str,))
                 print(f"   - Deleted employee roles")
                 
                 # Delete guild settings

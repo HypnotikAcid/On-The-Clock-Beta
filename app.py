@@ -1435,6 +1435,37 @@ Time Warden Bot - Purchase Notification
         app.logger.error(f"[ERROR] Failed to log purchase or send notification: {e}")
         app.logger.error(traceback.format_exc())
 
+def notify_owner_webhook_failure(event_type, error_message, guild_id=None):
+    """Send email alert to owner when a Stripe webhook fails."""
+    try:
+        owner_email = os.getenv('OWNER_EMAIL')
+        if not owner_email:
+            return
+        from email_utils import queue_email
+        subject = f"⚠️ Stripe Webhook Failed: {event_type}"
+        text_content = f"""Stripe Webhook Failure Alert
+
+Event Type: {event_type}
+Error: {error_message}
+Guild ID: {guild_id or 'N/A'}
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+Please check the deployment logs for more details.
+
+---
+Time Warden Bot - Webhook Alert
+"""
+        queue_email(
+            email_type='webhook_failure',
+            recipients=[owner_email],
+            subject=subject,
+            text_content=text_content,
+            guild_id=guild_id
+        )
+        app.logger.info(f"[OK] Webhook failure alert queued for owner: {event_type}")
+    except Exception as notify_err:
+        app.logger.error(f"[ERROR] Could not queue webhook failure alert: {notify_err}")
+
 @app.route("/webhook", methods=["POST"])
 def stripe_webhook():
     """Handle Stripe webhook events"""
@@ -1485,6 +1516,7 @@ def stripe_webhook():
     except Exception as e:
         app.logger.error(f"[ERROR] Error processing webhook: {e}")
         app.logger.error(traceback.format_exc())
+        notify_owner_webhook_failure(locals().get('event_type', 'unknown'), str(e))
         return jsonify({'error': 'Internal error'}), 500
 
 def handle_checkout_completed(session):
@@ -1611,7 +1643,11 @@ def handle_checkout_completed(session):
         app.logger.error(traceback.format_exc())
 
 def handle_subscription_change(subscription):
-    """Handle subscription create/update events - status changes, plan changes"""
+    """Handle subscription create/update events - status changes, plan changes.
+    
+    Deduplicates with checkout.session.completed: if the guild already has an active
+    subscription with this subscription_id, only update status fields (don't re-process).
+    """
     try:
         subscription_id = subscription.get('id')
         status = subscription.get('status')
@@ -1629,24 +1665,35 @@ def handle_subscription_change(subscription):
         
         with get_db() as conn:
             cursor = conn.execute(
-                "SELECT guild_id FROM server_subscriptions WHERE subscription_id = %s",
+                "SELECT guild_id, status, bot_access_paid FROM server_subscriptions WHERE subscription_id = %s",
                 (subscription_id,)
             )
             result = cursor.fetchone()
             
             if result:
                 guild_id = result['guild_id']
+                existing_status = result.get('status')
+                already_active = result.get('bot_access_paid', False) and existing_status in ('active', 'trialing')
+                
+                if already_active and status in ('active', 'trialing'):
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET cancel_at_period_end = %s, current_period_end = %s
+                        WHERE subscription_id = %s
+                    """, (cancel_at_period_end, current_period_end, subscription_id))
+                    app.logger.info(f"[OK] Subscription {subscription_id} already active for server {guild_id} - updated period fields only")
+                    return
             elif guild_id:
                 conn.execute("""
                     INSERT INTO server_subscriptions (guild_id, subscription_id, customer_id, status, bot_access_paid, cancel_at_period_end, current_period_end)
                     VALUES (%s, %s, %s, %s, TRUE, %s, %s)
                     ON CONFLICT(guild_id) DO UPDATE SET
-                        subscription_id = %s,
+                        subscription_id = COALESCE(EXCLUDED.subscription_id, server_subscriptions.subscription_id),
                         status = %s,
                         bot_access_paid = TRUE,
                         cancel_at_period_end = %s,
                         current_period_end = %s
-                """, (guild_id, subscription_id, subscription.get('customer'), status, cancel_at_period_end, current_period_end, subscription_id, status, cancel_at_period_end, current_period_end))
+                """, (guild_id, subscription_id, subscription.get('customer'), status, cancel_at_period_end, current_period_end, status, cancel_at_period_end, current_period_end))
                 app.logger.info(f"[OK] Created subscription record for server {guild_id} from lifecycle event")
             else:
                 app.logger.warning(f"[WARN] No server found for subscription {subscription_id} and no metadata")
@@ -1731,14 +1778,18 @@ def handle_payment_failure(invoice):
             if result:
                 guild_id = result['guild_id']
                 
-                # Update subscription status to past_due
                 conn.execute("""
                     UPDATE server_subscriptions 
                     SET status = 'past_due'
                     WHERE guild_id = %s
                 """, (guild_id,))
                 
-                app.logger.info(f"[WARN] Payment failed: Guild {guild_id} marked as past_due")
+                app.logger.warning(f"[WARN] Payment failed: Guild {guild_id} marked as past_due")
+                notify_owner_webhook_failure(
+                    'invoice.payment_failed',
+                    f"Payment failed for guild {guild_id}. Subscription marked as past_due.",
+                    guild_id=guild_id
+                )
             else:
                 app.logger.error(f"[ERROR] No guild found for customer {customer_id}")
                 

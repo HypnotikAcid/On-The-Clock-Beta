@@ -100,6 +100,17 @@
 - **Pattern**: Never rely on session cookies to carry data across OAuth redirects when custom domains are involved. Use the OAuth state parameter or database-backed tokens instead.
 - **Testing**: Discord OAuth doesn't work in Replit's preview iframe — always test via published deployment logs (`fetch_deployment_logs`).
 
+## Stripe Webhook Reliability (2026-02-23)
+- **Root Cause**: `checkout.session.completed` and `customer.subscription.created` both fire for the same purchase. The second webhook redundantly re-processes an already-active subscription, causing unnecessary DB writes and potential worker timeouts.
+- **Fix**: Added deduplication in `handle_subscription_change()` — if the subscription is already active with `bot_access_paid=True`, only update period fields and return early.
+- **Pattern**: Always deduplicate Stripe webhook handlers. Multiple event types fire for a single action.
+- **Alerting**: Added `notify_owner_webhook_failure()` using `queue_email()` to alert the owner on webhook errors and payment failures. Never block on email sends in webhook handlers.
+
+## Column Type Consistency for guild_id (2026-02-23)
+- **Root Cause**: `admin_roles` and `employee_roles` tables store `guild_id` as `text`, but the guild removal handler passed `guild_id_int` (bigint), causing `operator does not exist: text = bigint`.
+- **Fix**: Use `guild_id_str` for tables that store guild_id as text (`admin_roles`, `employee_roles`, `bot_guilds`), and `guild_id_int` for tables that use bigint (`employee_profiles`, `timeclock_sessions`, `guild_settings`, `server_subscriptions`).
+- **Pattern**: Always verify column types before writing DELETE/UPDATE queries. Check the INSERT functions to see what type the table expects.
+
 ## Discord Bot Double Messages (2026-02-19)
 - **Root Cause**: A global `on_interaction` fallback handler was racing with registered persistent views (`TimeclockHubView`). Both tried to handle the same `tc:` button interactions.
 - **Fix**: Removed the `on_interaction` fallback entirely. Persistent views registered in `setup_hook` already handle all button callbacks reliably after restarts.
