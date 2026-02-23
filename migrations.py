@@ -506,6 +506,10 @@ def run_migrations():
                 # 24. Add original_profile_data column to employee_archive for complete profile restoration
                 print("   Checking for original_profile_data column in employee_archive")
                 cur.execute("ALTER TABLE employee_archive ADD COLUMN IF NOT EXISTS original_profile_data JSONB")
+                
+                # 24b. Add archived_at column to employee_archive for ghost pruning
+                print("   Checking for archived_at column in employee_archive")
+                cur.execute("ALTER TABLE employee_archive ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ DEFAULT NOW()")
 
                 # 25. Add Stripe cancellation columns to server_subscriptions
                 print("   Checking for cancellation columns in server_subscriptions")
