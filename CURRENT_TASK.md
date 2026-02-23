@@ -1,43 +1,34 @@
 # Current Task
 
-**Date**: 2026-02-19
+**Date**: 2026-02-23
 **Agent**: Gemini (UI/Frontend Specialist / Backend Implementation)
-**Task**: ✅ COMPLETED - Subscription Cancellation Flow (Stripe `cancel_at_period_end`)
+**Task**: ✅ COMPLETED - Kiosk Security Audit & Customization Polish
 
 ---
 
 ## 📋 Task Summary
 
-Implemented the ability for server administrators to cancel and resume their Stripe subscriptions from the dashboard, utilizing Stripe's `cancel_at_period_end` feature to ensure users retain access until the end of their current billing cycle.
+We investigated the unfinished Kiosk features reported in the January 2026 technical audit, specifically focusing on enforcing the Pro Tier on the physical Kiosk URL, and fixing a CSS bug that was breaking employee profile card customization.
 
 ### Implementation Details:
 
-**1. Database Schema Updates**
-- Created migration script `migrations/add_cancellation_columns.py` to add `cancel_at_period_end` (BOOLEAN) and `current_period_end` (BIGINT) to the `server_subscriptions` table.
-- Added these columns directly to the main `migrations.py` file to ensure they are created automatically on future setups.
+**1. Route Security Audit (`app.py`)**
+- **Investigation:** An old audit report warned that `/kiosk/...` endpoints lacked tier gating, hypothetically allowing Free users to use the $15/mo feature.
+- **Result:** We confirmed that **no security patch is needed**. The previous iterations of this codebase have already successfully applied the `@require_kiosk_access` decorator to all 11 Kiosk endpoints.
+- **Verification:** The `@require_kiosk_access` explicitly enforces `tier == UserTier.PRO` for all production servers, while retaining the bypass exclusively for `DEMO_SERVER_ID`.
 
-**2. Backend API Updates (`app.py`)**
-- Updated `api_get_server_settings` to return `cancel_at_period_end` and `current_period_end` properties so the frontend can retrieve the current status.
-- Implemented `POST /api/server/<guild_id>/subscription/cancel`:
-  - Interacts with Stripe API (`stripe.Subscription.modify`) to set `cancel_at_period_end=True`.
-  - Immediately updates the local database.
-- Implemented `POST /api/server/<guild_id>/subscription/resume`:
-  - Interacts with Stripe API to set `cancel_at_period_end=False`.
-  - Immediately updates the local database.
-- Enhanced `handle_subscription_change` webhook handler to listen to `customer.subscription.updated/created` events and update the `cancel_at_period_end` status from Stripe to keep the local database synchronized.
-
-**3. Frontend UI (`templates/dashboard_pages/server_overview.html`)**
-- Injected a dynamic warning badge inside the Subscription Status tile that displays: "Canceling on [Date]" if a pending cancellation is detected.
-- Added a "Cancel Subscription" button if the subscription is Active/Premium.
-- Added a "Resume Subscription" button if a cancellation is currently pending at period end.
-- Added Javascript API handlers with `confirm()` dialogs to manage user intent securely.
+**2. Kiosk CSS Custom Color Fix (`templates/kiosk.html`)**
+- **The Bug:** When an employee clocks in, Javascript adds the `.clocked-in` class to their profile card button. This class utilized a hard-coded CSS `background` shorthand property, which was completely overriding the dynamic `#HEX` `background-color` properties that users customize in the dashboard.
+- **The Fix:**
+  - Modified `.employee-btn.clocked-in` to use `background-color` instead of `background`, dropping its specificity.
+  - Added the `!important` selector to predefined theme backgrounds (e.g., `.bg-sunset`, `.bg-ocean`) to ensure they correctly cascade and override inline HTML styles when a preset theme is chosen over a hex color.
+  - Updated the frontend Javascript `updateEmployeeGrid()` function to map the user's `accent_color` to an inline `background-color` style with a 10% opacity hex code appended (`1A`) if no predefined theme was selected, restoring personalized visuals for employees.
 
 ### Next Steps for Human Verification
-1. Please ensure that environment variables for the database and Stripe are configured correctly locally (or in production).
-2. Run the application (`python start.py`) and log in to the dashboard.
-3. Access a server with an active Stripe subscription.
-4. Verify the "Cancel Subscription" logic effectively transitions the status to "Canceling on [Date]".
-5. Verify that "Resume Subscription" successfully restores the subscription to normal billing.
+1. Open up the Demo Server physical Kiosk URL.
+2. Select an employee with custom colors assigned (or assign custom colors to one in the Admin Dashboard).
+3. Clock them in.
+4. Verify that their customized Hex color and stickers render properly instead of defaulting to the solid green default background.
 
 > [!NOTE]
-> Database migrations will automatically run on startup. However, the manual migration script at `migrations/add_cancellation_columns.py` is also available if needed.
+> All CSS UI changes have been committed and pushed to the `main` branch.

@@ -13,14 +13,12 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `templates/kiosk.html` - Gemini - 2026-02-23 - Kiosk CSS Profile Color Fix
+- `app.py` - Gemini - 2026-02-23 - CSS/Permissions Kiosk Route Audit
 - `bot.py` - Gemini - 2026-02-19 - Demo Onboarding Overhaul
 - `app.py` - Gemini - 2026-02-19 - Subscription Cancellation Flow
 - `bot.py` - Gemini - 2026-02-19 - Subscription Cancellation Flow
 - `templates/dashboard_pages/server_overview.html` - Gemini - 2026-02-19 - Cancel Button
-- `app.py` - Gemini - 2026-01-26 - Fix kiosk employee cards to show custom accent colors
-- `templates/kiosk.html` - Gemini - 2026-01-26 - Fix kiosk employee cards to show custom accent colors
-- `app.py` - 2026-01-26 - Claude Code (Employee Profile API: Enhanced error logging + defensive datetime handling)
-- `bot.py` - 2026-01-26 - Claude Code (Fix duplicate posting + timeclock hub visibility)
 - `bot.py` - 2026-01-26 - Claude Code (Enhanced demo role switcher with auto-timeclock)
 - `bot.py` - 2026-01-26 - Claude Code (Add debug logging to setup_demo_roles)
 - `templates/kiosk.html` - 2026-01-26 - Claude Code (Revert theme clock-in requirement)
