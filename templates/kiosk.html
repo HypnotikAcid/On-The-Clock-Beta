@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -102,7 +103,8 @@
             min-height: 160px;
         }
 
-        .employee-btn:hover, .employee-btn:active {
+        .employee-btn:hover,
+        .employee-btn:active {
             background: rgba(212, 175, 55, 0.15);
             border-color: rgba(212, 175, 55, 0.6);
             transform: scale(1.02);
@@ -110,7 +112,7 @@
 
         .employee-btn.clocked-in {
             border-color: rgba(16, 185, 129, 0.5);
-            background: rgba(16, 185, 129, 0.1);
+            background-color: rgba(16, 185, 129, 0.1);
         }
 
         .employee-avatar {
@@ -157,7 +159,7 @@
 
         .employee-sticker {
             font-size: 18px;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
         }
 
         .employee-status {
@@ -180,17 +182,36 @@
         /* Accent color customization for employee buttons - ONLY when clocked in */
         .employee-btn.clocked-in[data-accent]:hover {
             transform: scale(1.03);
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3); /* Generic bright glow on hover */
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+            /* Generic bright glow on hover */
         }
 
 
         /* Background customization for employee buttons - ONLY when clocked in */
-        .employee-btn.clocked-in.bg-sunset { background: linear-gradient(135deg, rgba(255, 100, 50, 0.25) 0%, rgba(255, 50, 100, 0.25) 50%, rgba(150, 50, 255, 0.25) 100%); }
-        .employee-btn.clocked-in.bg-ocean { background: linear-gradient(135deg, rgba(0, 100, 200, 0.25) 0%, rgba(0, 200, 200, 0.25) 50%, rgba(0, 150, 255, 0.25) 100%); }
-        .employee-btn.clocked-in.bg-forest { background: linear-gradient(135deg, rgba(34, 139, 34, 0.25) 0%, rgba(50, 205, 50, 0.25) 50%, rgba(0, 100, 0, 0.25) 100%); }
-        .employee-btn.clocked-in.bg-midnight { background: linear-gradient(135deg, rgba(25, 25, 112, 0.25) 0%, rgba(75, 0, 130, 0.25) 50%, rgba(0, 0, 50, 0.25) 100%); }
-        .employee-btn.clocked-in.bg-neon { background: linear-gradient(135deg, rgba(255, 0, 255, 0.2) 0%, rgba(0, 255, 255, 0.2) 50%, rgba(255, 255, 0, 0.2) 100%); }
-        .employee-btn.clocked-in.bg-aurora { background: linear-gradient(135deg, rgba(0, 255, 100, 0.2) 0%, rgba(0, 200, 255, 0.2) 50%, rgba(100, 0, 255, 0.2) 100%); }
+        /* Note: !important ensures these trump the inline style="" tag set dynamically if a preset theme is chosen */
+        .employee-btn.clocked-in.bg-sunset {
+            background: linear-gradient(135deg, rgba(255, 100, 50, 0.25) 0%, rgba(255, 50, 100, 0.25) 50%, rgba(150, 50, 255, 0.25) 100%) !important;
+        }
+
+        .employee-btn.clocked-in.bg-ocean {
+            background: linear-gradient(135deg, rgba(0, 100, 200, 0.25) 0%, rgba(0, 200, 200, 0.25) 50%, rgba(0, 150, 255, 0.25) 100%) !important;
+        }
+
+        .employee-btn.clocked-in.bg-forest {
+            background: linear-gradient(135deg, rgba(34, 139, 34, 0.25) 0%, rgba(50, 205, 50, 0.25) 50%, rgba(0, 100, 0, 0.25) 100%) !important;
+        }
+
+        .employee-btn.clocked-in.bg-midnight {
+            background: linear-gradient(135deg, rgba(25, 25, 112, 0.25) 0%, rgba(75, 0, 130, 0.25) 50%, rgba(0, 0, 50, 0.25) 100%) !important;
+        }
+
+        .employee-btn.clocked-in.bg-neon {
+            background: linear-gradient(135deg, rgba(255, 0, 255, 0.2) 0%, rgba(0, 255, 255, 0.2) 50%, rgba(255, 255, 0, 0.2) 100%) !important;
+        }
+
+        .employee-btn.clocked-in.bg-aurora {
+            background: linear-gradient(135deg, rgba(0, 255, 100, 0.2) 0%, rgba(0, 200, 255, 0.2) 50%, rgba(100, 0, 255, 0.2) 100%) !important;
+        }
 
         /* PIN Pad Screen - inherits display from .screen/.screen.active */
         .pin-screen.active {
@@ -260,7 +281,8 @@
             transition: all 0.15s ease;
         }
 
-        .numpad-btn:hover, .numpad-btn:active {
+        .numpad-btn:hover,
+        .numpad-btn:active {
             background: rgba(212, 175, 55, 0.2);
             border-color: rgba(212, 175, 55, 0.6);
             transform: scale(1.05);
@@ -375,7 +397,8 @@
             right: 10px;
             width: 24px;
             height: 24px;
-            background: #F59E0B; /* Yellow for general alerts */
+            background: #F59E0B;
+            /* Yellow for general alerts */
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -387,14 +410,18 @@
         }
 
         .alert-badge.pin-lockout {
-            background: #EF4444; /* Red for PIN lockout */
+            background: #EF4444;
+            /* Red for PIN lockout */
         }
 
         @keyframes pulseBadge {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: scale(1);
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
             }
+
             50% {
                 transform: scale(1.1);
                 box-shadow: 0 0 10px 5px rgba(239, 68, 68, 0.3);
@@ -475,7 +502,8 @@
             display: flex;
         }
 
-        .adjustment-modal, .email-modal {
+        .adjustment-modal,
+        .email-modal {
             background: linear-gradient(135deg, #1a1f2e 0%, #252b3d 100%);
             border: 2px solid rgba(212, 175, 55, 0.3);
             border-radius: 20px;
@@ -572,8 +600,15 @@
         }
 
         @keyframes modalSlide {
-            from { transform: translateY(-20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .modal-header {
@@ -957,41 +992,92 @@
         .info-panel.bg-sunset {
             background: linear-gradient(135deg, rgba(255, 100, 50, 0.15) 0%, rgba(255, 50, 100, 0.15) 50%, rgba(150, 50, 255, 0.15) 100%);
         }
+
         .info-panel.bg-ocean {
             background: linear-gradient(135deg, rgba(0, 100, 200, 0.15) 0%, rgba(0, 200, 200, 0.15) 50%, rgba(0, 150, 255, 0.15) 100%);
         }
+
         .info-panel.bg-forest {
             background: linear-gradient(135deg, rgba(34, 139, 34, 0.15) 0%, rgba(50, 205, 50, 0.15) 50%, rgba(0, 100, 0, 0.15) 100%);
         }
+
         .info-panel.bg-midnight {
             background: linear-gradient(135deg, rgba(25, 25, 112, 0.15) 0%, rgba(75, 0, 130, 0.15) 50%, rgba(0, 0, 50, 0.15) 100%);
         }
+
         .info-panel.bg-neon {
             background: linear-gradient(135deg, rgba(255, 0, 255, 0.1) 0%, rgba(0, 255, 255, 0.1) 50%, rgba(255, 255, 0, 0.1) 100%);
         }
+
         .info-panel.bg-aurora {
             background: linear-gradient(135deg, rgba(0, 255, 100, 0.1) 0%, rgba(0, 200, 255, 0.1) 50%, rgba(100, 0, 255, 0.1) 100%);
         }
 
         /* Accent Color Glow Effects */
-        .info-panel.accent-cyan .info-avatar { box-shadow: 0 0 30px rgba(0, 255, 255, 0.4); }
-        .info-panel.accent-magenta .info-avatar { box-shadow: 0 0 30px rgba(255, 0, 255, 0.4); }
-        .info-panel.accent-gold .info-avatar { box-shadow: 0 0 30px rgba(212, 175, 55, 0.4); }
-        .info-panel.accent-green .info-avatar { box-shadow: 0 0 30px rgba(16, 185, 129, 0.4); }
-        .info-panel.accent-blue .info-avatar { box-shadow: 0 0 30px rgba(59, 130, 246, 0.4); }
-        .info-panel.accent-red .info-avatar { box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
-        .info-panel.accent-purple .info-avatar { box-shadow: 0 0 30px rgba(139, 92, 246, 0.4); }
-        .info-panel.accent-teal .info-avatar { box-shadow: 0 0 30px rgba(20, 184, 166, 0.4); }
+        .info-panel.accent-cyan .info-avatar {
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+        }
+
+        .info-panel.accent-magenta .info-avatar {
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.4);
+        }
+
+        .info-panel.accent-gold .info-avatar {
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+        }
+
+        .info-panel.accent-green .info-avatar {
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+        }
+
+        .info-panel.accent-blue .info-avatar {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
+        }
+
+        .info-panel.accent-red .info-avatar {
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+        }
+
+        .info-panel.accent-purple .info-avatar {
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+        }
+
+        .info-panel.accent-teal .info-avatar {
+            box-shadow: 0 0 30px rgba(20, 184, 166, 0.4);
+        }
 
         /* Accent color stat values */
-        .info-panel.accent-cyan .stat-value { color: #00FFFF; }
-        .info-panel.accent-magenta .stat-value { color: #FF00FF; }
-        .info-panel.accent-gold .stat-value { color: #D4AF37; }
-        .info-panel.accent-green .stat-value { color: #10B981; }
-        .info-panel.accent-blue .stat-value { color: #3B82F6; }
-        .info-panel.accent-red .stat-value { color: #EF4444; }
-        .info-panel.accent-purple .stat-value { color: #8B5CF6; }
-        .info-panel.accent-teal .stat-value { color: #14B8A6; }
+        .info-panel.accent-cyan .stat-value {
+            color: #00FFFF;
+        }
+
+        .info-panel.accent-magenta .stat-value {
+            color: #FF00FF;
+        }
+
+        .info-panel.accent-gold .stat-value {
+            color: #D4AF37;
+        }
+
+        .info-panel.accent-green .stat-value {
+            color: #10B981;
+        }
+
+        .info-panel.accent-blue .stat-value {
+            color: #3B82F6;
+        }
+
+        .info-panel.accent-red .stat-value {
+            color: #EF4444;
+        }
+
+        .info-panel.accent-purple .stat-value {
+            color: #8B5CF6;
+        }
+
+        .info-panel.accent-teal .stat-value {
+            color: #14B8A6;
+        }
 
         /* Catchphrase styling */
         .info-catchphrase {
@@ -1008,9 +1094,10 @@
             margin-top: 10px;
             flex-wrap: wrap;
         }
+
         .info-sticker {
             font-size: 24px;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
         }
 
         .info-user {
@@ -1126,8 +1213,15 @@
         }
 
         @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .overlay-content.success {
@@ -1182,7 +1276,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* Responsive */
@@ -1191,7 +1287,7 @@
                 flex-direction: column;
                 gap: 15px;
             }
-            
+
             .action-btn {
                 padding: 25px;
                 font-size: 18px;
@@ -1216,32 +1312,32 @@
                 overflow-x: hidden;
                 -webkit-overflow-scrolling: touch;
             }
-            
+
             .kiosk-container {
                 height: auto;
                 min-height: 100vh;
                 padding-bottom: 40px;
             }
-            
+
             .screen {
                 flex: none;
             }
-            
+
             .employee-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
-            
+
             .employee-btn {
                 padding: 20px 15px;
                 min-height: 130px;
             }
-            
+
             .employee-avatar {
                 width: 50px;
                 height: 50px;
                 font-size: 20px;
             }
-            
+
             .employee-name {
                 font-size: 14px;
             }
@@ -1253,7 +1349,7 @@
                 max-width: 320px;
                 margin: 0 auto;
             }
-            
+
             .numpad-btn {
                 width: 75px;
                 height: 75px;
@@ -1262,6 +1358,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="kiosk-container">
         <header class="kiosk-header">
@@ -1386,14 +1483,17 @@
                 <!-- Reason Field -->
                 <div class="reason-field">
                     <label for="adjustmentReason">Reason for Adjustment</label>
-                    <textarea id="adjustmentReason" placeholder="Please explain why you need this time adjustment..."></textarea>
+                    <textarea id="adjustmentReason"
+                        placeholder="Please explain why you need this time adjustment..."></textarea>
                 </div>
 
                 <!-- Disclaimer -->
                 <div class="disclaimer">
                     <div class="disclaimer-title">⚠️ Important Notice</div>
                     <div class="disclaimer-text">
-                        Time adjustment requests are not guaranteed to be approved. Your administrator will review this request and may approve or deny it. You will see the status of your request reflected in your hours once reviewed.
+                        Time adjustment requests are not guaranteed to be approved. Your administrator will review this
+                        request and may approve or deny it. You will see the status of your request reflected in your
+                        hours once reviewed.
                     </div>
                 </div>
 
@@ -1416,13 +1516,13 @@
                 <div class="email-prompt">
                     <p>Would you like to receive an email summary of your shift?</p>
                 </div>
-                
+
                 <div class="email-input-section" id="emailInputSection" style="display: none;">
                     <label for="shiftEmailInput">Email Address</label>
                     <input type="email" id="shiftEmailInput" class="email-input" placeholder="Enter your email address">
                     <div class="email-error" id="emailError"></div>
                 </div>
-                
+
                 <div class="email-buttons">
                     <button class="email-btn yes" id="emailYesBtn" onclick="showEmailInput()">
                         Yes, Send Email
@@ -1431,7 +1531,7 @@
                         No Thanks
                     </button>
                 </div>
-                
+
                 <div class="email-send-section" id="emailSendSection" style="display: none;">
                     <button class="submit-btn" onclick="sendShiftEmail()">
                         Send Summary
@@ -1471,13 +1571,13 @@
                 <div class="email-prompt">
                     <p>Enter your email address to receive shift summaries and notifications.</p>
                 </div>
-                
+
                 <div class="email-input-section">
                     <label for="setEmailInput">Email Address</label>
                     <input type="email" id="setEmailInput" class="email-input" placeholder="Enter your email address">
                     <div class="email-error" id="setEmailError"></div>
                 </div>
-                
+
                 <div style="margin-top: 20px;">
                     <button class="submit-btn" onclick="saveEmployeeEmail()">
                         Save Email
@@ -1567,7 +1667,7 @@
             try {
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/employees`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     allowKioskCustomization = data.allow_kiosk_customization || false;
                     renderEmployees(data.employees);
@@ -1591,7 +1691,7 @@
                     backgroundClass = `bg-${emp.profile_background}`;
                 }
 
-                const stickersHtml = (emp.selected_stickers || []).map(s => 
+                const stickersHtml = (emp.selected_stickers || []).map(s =>
                     `<span class="employee-sticker">${stickerEmojis[s] || '🏷️'}</span>`
                 ).join('');
 
@@ -1607,7 +1707,7 @@
                         ${emp.is_clocked_in ? '✅ Clocked In' : '❌ Clocked Out'}
                     </div>
                 `;
-                
+
                 const btn = document.createElement('button');
                 btn.className = `employee-btn ${emp.is_clocked_in ? 'clocked-in' : ''} ${backgroundClass}`;
                 btn.innerHTML = btnHtml;
@@ -1617,11 +1717,16 @@
                     const color = emp.accent_color;
                     // Validate that the color is a reasonable hex-like value
                     if (/^#?([0-9a-fA-F]{3}){1,2}$/.test(color) || /^[a-zA-Z]+$/.test(color)) {
-                         btn.style.setProperty('border-color', color, 'important');
-                         btn.style.boxShadow = `0 0 20px ${color}66`; // 40% opacity
+                        btn.style.setProperty('border-color', color, 'important');
+                        btn.style.boxShadow = `0 0 20px ${color}66`; // 40% opacity
+
+                        // If no preset background class is used and a custom accent is provided, use it as a faint background
+                        if (!backgroundClass) {
+                            btn.style.setProperty('background-color', `${color}1A`, 'important'); // 10% opacity for background tint
+                        }
                     }
                 }
-                
+
                 grid.appendChild(btn);
             });
         }
@@ -1632,7 +1737,7 @@
             updatePinDots();
             document.getElementById('pinError').textContent = '';
             resetInactivityTimer(); // Start inactivity timer
-            
+
             if (employee.has_pin) {
                 pinMode = 'verify';
                 document.getElementById('pinTitle').textContent = `Welcome, ${employee.display_name}`;
@@ -1642,7 +1747,7 @@
                 document.getElementById('pinTitle').textContent = 'Create Your PIN';
                 document.getElementById('pinSubtitle').textContent = 'Choose a 4-digit PIN you will remember';
             }
-            
+
             showScreen('pin');
         }
 
@@ -1682,7 +1787,7 @@
             if (pinBuffer.length < 4) {
                 pinBuffer += digit;
                 updatePinDots();
-                
+
                 if (pinBuffer.length === 4) {
                     setTimeout(handlePinComplete, 200);
                 }
@@ -1743,9 +1848,9 @@
                         pin: pin
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     showActionsScreen();
                 } else {
@@ -1770,9 +1875,9 @@
                         pin: pin
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     showActionsScreen();
                 } else {
@@ -1791,7 +1896,7 @@
             try {
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     renderInfoPanel(data);
                     updateActionButtons(data.is_clocked_in);
@@ -1837,7 +1942,7 @@
                     return;
                 }
                 currentEmployeeEmail = data.email || null;
-                
+
                 // Apply customization classes
                 panel.className = 'info-panel';
                 if (data.allow_customization && data.customization) {
@@ -1849,31 +1954,31 @@
                         panel.classList.add(`accent-${cust.accent_color}`);
                     }
                 }
-                
+
                 // Email display: show email with update link, or set email button
-                const emailDisplay = data.email 
+                const emailDisplay = data.email
                     ? `<div class="info-email">📧 ${escapeHtml(data.email)} <span class="info-email-link" onclick="openSetEmailModal()">Update</span></div>`
                     : `<button class="set-email-btn" onclick="openSetEmailModal()">📧 Set Email Address</button>`;
-                
+
                 // Build catchphrase HTML
                 let catchphraseHtml = '';
                 if (data.allow_customization && data.customization && data.customization.catchphrase) {
                     catchphraseHtml = `<div class="info-catchphrase">"${escapeHtml(data.customization.catchphrase)}"</div>`;
                 }
-                
+
                 // Build stickers HTML
                 let stickersHtml = '';
                 if (data.allow_customization && data.customization && data.customization.selected_stickers && data.customization.selected_stickers.length > 0) {
-                    const stickers = data.customization.selected_stickers.map(s => 
+                    const stickers = data.customization.selected_stickers.map(s =>
                         `<span class="info-sticker">${stickerEmojis[s] || '🏷️'}</span>`
                     ).join('');
                     stickersHtml = `<div class="info-stickers">${stickers}</div>`;
                 }
-                
+
                 // Build notifications HTML
                 let notificationsHtml = '';
                 const notifications = data.notifications || [];
-                
+
                 if (notifications.length > 0) {
                     notificationsHtml = notifications.map(n => `
                         <div class="notification-item ${n.type}">
@@ -1884,11 +1989,11 @@
                 } else {
                     notificationsHtml = '<div class="no-notifications">No notifications</div>';
                 }
-                
+
                 // Safely get display name
                 const displayName = currentEmployee ? (currentEmployee.display_name || 'Employee') : 'Employee';
                 const avatarInitial = displayName.charAt(0).toUpperCase();
-                
+
                 panel.innerHTML = `
                     <div class="info-main">
                         <div class="info-user">
@@ -1935,10 +2040,10 @@
         function updateActionButtons(isClockedIn) {
             const inBtn = document.getElementById('clockInBtn');
             const outBtn = document.getElementById('clockOutBtn');
-            
+
             inBtn.classList.toggle('hidden', isClockedIn);
             outBtn.classList.toggle('hidden', !isClockedIn);
-            
+
             inBtn.disabled = isClockedIn;
             outBtn.disabled = !isClockedIn;
         }
@@ -1957,10 +2062,10 @@
                         action: action
                     })
                 });
-                
+
                 const data = await response.json();
                 showLoading(false);
-                
+
                 if (data.success) {
                     // Immediately refetch the employee list in the background to update the grid
                     loadEmployees();
@@ -1988,7 +2093,7 @@
                         }
                         updateActionButtons(action === 'in');
                     }
-                    
+
                     if (action === 'in') {
                         showMessage('success', 'Clocked In Successfully!');
                         setTimeout(logout, 3000);
@@ -2013,13 +2118,13 @@
             const buttonsSection = document.querySelector('.email-buttons');
             const promptEl = modal.querySelector('.email-prompt');
             const yesBtn = modal.querySelector('.email-btn.yes');
-            
+
             // Reset modal state
             inputSection.style.display = 'none';
             sendSection.style.display = 'none';
             buttonsSection.style.display = 'flex';
             document.getElementById('emailError').textContent = '';
-            
+
             // Try to fetch saved email for auto-population
             try {
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/email`);
@@ -2030,22 +2135,22 @@
                     // Update modal to show "Send to <email>?" instead of asking to enter email
                     promptEl.innerHTML = `Send shift summary to<br><strong>${escapeHtml(data.email)}</strong>?`;
                     yesBtn.textContent = 'Send';
-                    yesBtn.onclick = function() { sendShiftEmail(); };
+                    yesBtn.onclick = function () { sendShiftEmail(); };
                 } else {
                     savedEmployeeEmail = null;
                     emailInput.value = '';
                     promptEl.innerHTML = 'Would you like a shift summary sent to your email?';
                     yesBtn.textContent = 'Yes';
-                    yesBtn.onclick = function() { showEmailInput(); };
+                    yesBtn.onclick = function () { showEmailInput(); };
                 }
             } catch (error) {
                 console.error('Failed to fetch employee email:', error);
                 emailInput.value = '';
                 promptEl.innerHTML = 'Would you like a shift summary sent to your email?';
                 yesBtn.textContent = 'Yes';
-                yesBtn.onclick = function() { showEmailInput(); };
+                yesBtn.onclick = function () { showEmailInput(); };
             }
-            
+
             modal.classList.add('active');
             resetInactivityTimer();
         }
@@ -2054,11 +2159,11 @@
             const inputSection = document.getElementById('emailInputSection');
             const sendSection = document.getElementById('emailSendSection');
             const buttonsSection = document.querySelector('.email-buttons');
-            
+
             inputSection.style.display = 'block';
             sendSection.style.display = 'block';
             buttonsSection.style.display = 'none';
-            
+
             document.getElementById('shiftEmailInput').focus();
             resetInactivityTimer();
         }
@@ -2067,26 +2172,26 @@
             const emailInput = document.getElementById('shiftEmailInput');
             const email = emailInput.value.trim();
             const errorEl = document.getElementById('emailError');
-            
+
             // Validate email
             if (!email) {
                 errorEl.textContent = 'Please enter an email address';
                 return;
             }
-            
+
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 errorEl.textContent = 'Please enter a valid email address';
                 return;
             }
-            
+
             errorEl.textContent = '';
             showLoading(true);
-            
+
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000);
-                
+
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/send-shift-email`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2097,9 +2202,9 @@
                     }),
                     signal: controller.signal
                 });
-                
+
                 clearTimeout(timeoutId);
-                
+
                 let data;
                 try {
                     data = await response.json();
@@ -2108,9 +2213,9 @@
                     errorEl.textContent = `Server error (${response.status}). Try again.`;
                     return;
                 }
-                
+
                 showLoading(false);
-                
+
                 if (data.success) {
                     closeEmailModal(true);
                     showMessage('success', 'Shift summary sent to your email!');
@@ -2131,7 +2236,7 @@
 
         function closeEmailModal(emailSent) {
             document.getElementById('emailReceiptModal').classList.remove('active');
-            
+
             if (!emailSent) {
                 // User declined email, just show clock-out success and logout
                 showMessage('success', 'Clocked Out Successfully!');
@@ -2155,10 +2260,10 @@
         async function openAdjustmentModal() {
             const modal = document.getElementById('adjustmentModal');
             modal.classList.add('active');
-            
+
             // Update current time in modal
             updateModalTime();
-            
+
             // Load today's sessions
             await loadTodaySessions();
         }
@@ -2181,14 +2286,14 @@
 
         async function loadTodaySessions() {
             if (!currentEmployee) return;
-            
+
             try {
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/today-sessions`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     todaySessions = data.sessions;
-                    
+
                     // Update status
                     const statusEl = document.getElementById('modalStatus');
                     if (data.is_clocked_in) {
@@ -2198,38 +2303,38 @@
                         statusEl.textContent = 'Clocked Out';
                         statusEl.className = 'status-value clocked-out';
                     }
-                    
+
                     // Update today's hours
                     const hours = Math.floor(data.today_total_minutes / 60);
                     const mins = data.today_total_minutes % 60;
-                    document.getElementById('modalTodayHours').textContent = 
+                    document.getElementById('modalTodayHours').textContent =
                         hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-                    
+
                     renderSessions();
                 } else {
-                    document.getElementById('sessionsContainer').innerHTML = 
+                    document.getElementById('sessionsContainer').innerHTML =
                         '<div class="no-sessions">Error loading sessions</div>';
                 }
             } catch (error) {
                 console.error('Error loading sessions:', error);
-                document.getElementById('sessionsContainer').innerHTML = 
+                document.getElementById('sessionsContainer').innerHTML =
                     '<div class="no-sessions">Error loading sessions</div>';
             }
         }
 
         function renderSessions() {
             const container = document.getElementById('sessionsContainer');
-            
+
             if (todaySessions.length === 0) {
                 container.innerHTML = '<div class="no-sessions">No time entries for today</div>';
                 return;
             }
-            
+
             let html = '';
             todaySessions.forEach((session, index) => {
                 const isActive = session.is_active;
                 const durationText = isActive ? 'Active' : `${session.duration_minutes}m`;
-                
+
                 html += `
                     <div class="session-card" data-session-id="${session.session_id}" data-index="${index}">
                         <div class="session-times">
@@ -2253,44 +2358,44 @@
                     </div>
                 `;
             });
-            
+
             container.innerHTML = html;
         }
 
         function markSessionChanged(index, field, newValue) {
             const session = todaySessions[index];
-            
+
             // Get the card using data-index for precise selection
             const card = document.querySelector(`.session-card[data-index="${index}"]`);
             const clockInInput = card.querySelector('input[data-field="clock_in"]');
             const clockOutInput = card.querySelector('input[data-field="clock_out"]');
-            
+
             const currentClockIn = clockInInput.value;
             const currentClockOut = clockOutInput.value;
-            
+
             // Check if either field differs from original
             const clockInChanged = currentClockIn !== (session.clock_in || '');
             const clockOutChanged = currentClockOut !== (session.clock_out || '');
-            
+
             // Find existing change for this session
-            const existingIdx = pendingChanges.findIndex(c => 
+            const existingIdx = pendingChanges.findIndex(c =>
                 c.session_id === session.session_id && !c.is_new
             );
-            
+
             if (clockInChanged || clockOutChanged) {
                 // Build change object with current input values
                 const change = {
                     session_id: session.session_id,
                     is_new: false
                 };
-                
+
                 if (clockInChanged) {
                     change.new_clock_in = currentClockIn;
                 }
                 if (clockOutChanged) {
                     change.new_clock_out = currentClockOut;
                 }
-                
+
                 if (existingIdx >= 0) {
                     // Update existing change
                     pendingChanges[existingIdx] = change;
@@ -2304,20 +2409,20 @@
                     pendingChanges.splice(existingIdx, 1);
                 }
             }
-            
+
             resetInactivityTimer();
         }
 
         function addNewSessionRow() {
             const container = document.getElementById('sessionsContainer');
             const tempId = `new_${nextTempId++}`;
-            
+
             // Remove "no sessions" message if present
             const noSessions = container.querySelector('.no-sessions');
             if (noSessions) {
                 noSessions.remove();
             }
-            
+
             const newCard = document.createElement('div');
             newCard.className = 'session-card';
             newCard.dataset.tempId = tempId;
@@ -2334,9 +2439,9 @@
                 </div>
                 <div class="session-duration" style="color: #3B82F6;">New Entry - Not yet saved</div>
             `;
-            
+
             container.appendChild(newCard);
-            
+
             // Track this new session in pending changes
             pendingChanges.push({
                 temp_id: tempId,
@@ -2344,28 +2449,28 @@
                 new_clock_in: null,
                 new_clock_out: null
             });
-            
+
             resetInactivityTimer();
         }
 
         async function submitAdjustment() {
             const reason = document.getElementById('adjustmentReason').value.trim();
-            
+
             if (!reason) {
                 showMessage('error', 'Please provide a reason for the adjustment');
                 return;
             }
-            
+
             // Collect all changes including new sessions
             const changes = [];
-            
+
             // Get modified existing sessions
             pendingChanges.forEach(change => {
                 if (change.is_new) {
                     // Get values from new session inputs
                     const inInput = document.getElementById(`new_in_${change.temp_id}`);
                     const outInput = document.getElementById(`new_out_${change.temp_id}`);
-                    
+
                     if (inInput && outInput && inInput.value && outInput.value) {
                         changes.push({
                             is_new: true,
@@ -2377,14 +2482,14 @@
                     changes.push(change);
                 }
             });
-            
+
             if (changes.length === 0) {
                 showMessage('error', 'No changes to submit');
                 return;
             }
-            
+
             showLoading(true);
-            
+
             try {
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/adjustment`, {
                     method: 'POST',
@@ -2395,11 +2500,11 @@
                         changes: changes
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 showLoading(false);
-                
+
                 if (data.success) {
                     closeAdjustmentModal();
                     showMessage('success', 'Adjustment request submitted! Your admin will review it.');
@@ -2429,7 +2534,7 @@
 
         async function confirmForgotPin() {
             if (!currentEmployee) return;
-            
+
             showLoading(true);
             try {
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/forgot-pin`, {
@@ -2440,17 +2545,17 @@
                         display_name: currentEmployee.display_name
                     })
                 });
-                
+
                 const data = await response.json();
                 showLoading(false);
                 closeForgotPinModal();
-                
+
                 if (data.success) {
                     showMessage('success', 'Admin has been notified. Please speak with your manager.');
                 } else {
                     showMessage('error', data.error || 'Failed to send notification');
                 }
-                
+
                 // Return to employee grid after showing message
                 setTimeout(() => {
                     logout();
@@ -2470,14 +2575,14 @@
             const modal = document.getElementById('setEmailModal');
             const input = document.getElementById('setEmailInput');
             const errorEl = document.getElementById('setEmailError');
-            
+
             // Pre-populate with current email if exists
             input.value = currentEmployeeEmail || '';
             errorEl.textContent = '';
-            
+
             modal.classList.add('active');
             input.focus();
-            
+
             // Clear timer so it doesn't close while typing
             if (inactivityTimer) {
                 clearTimeout(inactivityTimer);
@@ -2495,36 +2600,36 @@
             const input = document.getElementById('setEmailInput');
             const errorEl = document.getElementById('setEmailError');
             const email = input.value.trim();
-            
+
             // Validate email
             if (!email) {
                 errorEl.textContent = 'Please enter an email address';
                 return;
             }
-            
+
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 errorEl.textContent = 'Please enter a valid email address';
                 return;
             }
-            
+
             showLoading(true);
-            
+
             try {
                 const response = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/email`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: email })
                 });
-                
+
                 const data = await response.json();
                 showLoading(false);
-                
+
                 if (data.success) {
                     currentEmployeeEmail = email;
                     closeSetEmailModal();
                     showMessage('success', 'Email saved successfully!');
-                    
+
                     // Refresh info panel to show updated email
                     try {
                         const infoResponse = await fetch(`/api/kiosk/${GUILD_ID}/employee/${currentEmployee.user_id}/info`);
@@ -2556,10 +2661,10 @@
         }
 
         // Handle browser back button
-        window.addEventListener('popstate', function(event) {
+        window.addEventListener('popstate', function (event) {
             // Always push state back and stay in kiosk
             history.pushState({ screen: 'kiosk' }, '', window.location.href);
-            
+
             // If we're on PIN or actions screen, go back to employee grid
             const employeeScreen = document.getElementById('employeeScreen');
             if (!employeeScreen.classList.contains('active')) {
@@ -2579,7 +2684,7 @@
             currentEmployeeEmail = null;
             loadEmployees();
             showScreen('employee');
-            
+
             // Re-push history state to maintain kiosk lock
             history.pushState({ screen: 'employee' }, '', window.location.href);
         }
@@ -2593,13 +2698,13 @@
             const content = document.getElementById('overlayContent');
             const icon = document.getElementById('overlayIcon');
             const msg = document.getElementById('overlayMessage');
-            
+
             content.className = 'overlay-content ' + type;
             icon.textContent = type === 'success' ? '✓' : '✕';
             msg.textContent = message;
-            
+
             overlay.classList.add('active');
-            
+
             setTimeout(() => {
                 overlay.classList.remove('active');
             }, 2500);
@@ -2624,4 +2729,5 @@
         loadEmployees();
     </script>
 </body>
+
 </html>
