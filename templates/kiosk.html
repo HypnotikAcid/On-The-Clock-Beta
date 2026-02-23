@@ -18,14 +18,14 @@
             background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
             color: #C9D1D9;
             min-height: 100vh;
-            overflow: hidden;
             user-select: none;
+            overflow-x: hidden;
         }
 
         .kiosk-container {
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            min-height: 100vh;
             padding: 20px;
         }
 
@@ -221,6 +221,21 @@
             gap: 30px;
         }
 
+        .pin-header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        @media (max-height: 700px) and (orientation: landscape) {
+            .pin-screen.active {
+                flex-direction: row;
+                justify-content: space-evenly;
+                gap: 40px;
+            }
+        }
+
         .pin-header {
             text-align: center;
         }
@@ -281,16 +296,16 @@
             transition: all 0.15s ease;
         }
 
-        .numpad-btn:hover,
-        .numpad-btn:active {
+        .numpad-btn:hover {
             background: rgba(212, 175, 55, 0.2);
             border-color: rgba(212, 175, 55, 0.6);
             transform: scale(1.05);
         }
 
+        .numpad-btn:active,
         .numpad-btn--active {
             transform: scale(0.95);
-            background: rgba(212, 175, 55, 0.3);
+            background: rgba(212, 175, 55, 0.4);
             border-color: rgba(212, 175, 55, 0.8);
         }
 
@@ -1382,17 +1397,20 @@
 
         <!-- Screen 2: PIN Entry -->
         <div class="screen pin-screen" id="pinScreen">
-            <div class="pin-header">
-                <div class="pin-title" id="pinTitle">Enter Your PIN</div>
-                <div class="pin-subtitle" id="pinSubtitle">Enter your 4-digit PIN to continue</div>
+            <div class="pin-header-container">
+                <div class="pin-header">
+                    <div class="pin-title" id="pinTitle">Enter Your PIN</div>
+                    <div class="pin-subtitle" id="pinSubtitle">Enter your 4-digit PIN to continue</div>
+                </div>
+                <div class="pin-display">
+                    <div class="pin-dot" id="dot1"></div>
+                    <div class="pin-dot" id="dot2"></div>
+                    <div class="pin-dot" id="dot3"></div>
+                    <div class="pin-dot" id="dot4"></div>
+                </div>
+                <div class="pin-error" id="pinError"></div>
+                <button class="forgot-pin-btn" onclick="showForgotPinModal()">Forgot PIN?</button>
             </div>
-            <div class="pin-display">
-                <div class="pin-dot" id="dot1"></div>
-                <div class="pin-dot" id="dot2"></div>
-                <div class="pin-dot" id="dot3"></div>
-                <div class="pin-dot" id="dot4"></div>
-            </div>
-            <div class="pin-error" id="pinError"></div>
             <div class="numpad" id="numpad">
                 <button class="numpad-btn" data-value="1">1</button>
                 <button class="numpad-btn" data-value="2">2</button>
@@ -1407,7 +1425,6 @@
                 <button class="numpad-btn" data-value="0">0</button>
                 <button class="numpad-btn special delete" data-value="delete">⌫</button>
             </div>
-            <button class="forgot-pin-btn" onclick="showForgotPinModal()">Forgot PIN?</button>
         </div>
 
         <!-- Screen 3: Clock Actions -->
