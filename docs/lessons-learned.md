@@ -151,3 +151,8 @@
 - **Root Cause**: `dashboard_reports.html` references `access.tier`, `access.trial_active`, etc. but `get_server_page_context()` never included an `access` object. Jinja2 throws `'access' is undefined`, caught by `require_auth` as an auth failure → auth loop.
 - **Fix**: Added `access = get_flask_guild_access(guild_id)` and `'access': access` into `get_server_page_context()` so ALL server sub-pages automatically receive the tier/trial info.
 - **Pattern**: When adding new template variables, add them to `get_server_page_context()` — not individual route handlers — so every server page gets them. Always verify new templates have all required context variables before deploying.
+
+## Missing ALTER TABLE Statements in Migrations Causing INSERT Crashes (2026-02-24)
+- **Root Cause**: New columns (e.g. `role_tier`, `profile_setup_completed`) were added to the `CREATE TABLE employee_profiles` definition in `migrations.py`, but were never provisioned via `ALTER TABLE` for existing production databases. When the bot tried to `INSERT` into the table during clock-in, it crashed because the expected columns didn't exist in the remote database.
+- **Fix**: Wrote a dynamic loop in `migrations.py` that executes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for every new schema column, allowing the script to safely patch existing live databases.
+- **Pattern**: Whenever modifying a database schema, updating the `CREATE TABLE` statement is **not enough**. You MUST also provide `ALTER TABLE ADD COLUMN IF NOT EXISTS` statements so that existing legacy databases are successfully patched during the boot migration sequence. Failure to do this will immediately break production on Replit when existing rows are modified or new rows are inserted.
