@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -199,8 +200,13 @@
         }
 
         @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .logo-text {
@@ -215,7 +221,9 @@
         }
 
         @keyframes shimmer {
-            to { background-position: 200% center; }
+            to {
+                background-position: 200% center;
+            }
         }
 
         .tagline {
@@ -722,7 +730,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         #scroll-top {
@@ -777,16 +787,20 @@
             .pricing-grid {
                 grid-template-columns: 1fr !important;
             }
+
             .pricing-card.featured {
                 transform: none;
                 order: -1;
             }
+
             .features-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+
             .steps-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+
             .step-arrow {
                 display: none !important;
             }
@@ -796,27 +810,34 @@
             .features-grid {
                 grid-template-columns: 1fr;
             }
+
             .steps-grid {
                 grid-template-columns: 1fr;
             }
+
             .hero-stats {
                 gap: 1.5rem;
             }
+
             .action-buttons {
                 flex-direction: column;
                 align-items: center;
             }
+
             .btn {
                 width: 100%;
                 max-width: 280px;
                 justify-content: center;
             }
+
             .logo-text {
                 font-size: 2rem;
             }
+
             .clock-container {
                 --clock-size: 280px;
             }
+
             .clock-fade-mask {
                 width: 400px;
                 height: 400px;
@@ -824,21 +845,28 @@
         }
 
         @media (prefers-reduced-motion: reduce) {
+
             #matrix-canvas,
             .clock-background {
                 display: none !important;
             }
+
             #matrix-toggle {
                 display: none !important;
             }
         }
     </style>
 </head>
+
 <body>
-    <div id="matrix-toggle" onclick="toggleMatrix()" style="position: fixed; top: 1rem; right: 1rem; z-index: 1001; cursor: pointer; background: rgba(10, 15, 31, 0.7); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 255, 255, 0.3); font-size: 0.75rem; color: rgba(0, 255, 255, 0.8); display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; user-select: none;">
+    <div id="matrix-toggle" onclick="toggleMatrix()"
+        style="position: fixed; top: 1rem; right: 1rem; z-index: 1001; cursor: pointer; background: rgba(10, 15, 31, 0.7); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 255, 255, 0.3); font-size: 0.75rem; color: rgba(0, 255, 255, 0.8); display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; user-select: none;">
         <span id="matrix-toggle-text">Exit The Matrix</span>
-        <div style="width: 30px; height: 16px; background: rgba(0, 255, 255, 0.1); border-radius: 10px; position: relative; border: 1px solid rgba(0, 255, 255, 0.3);">
-            <div id="matrix-toggle-knob" style="width: 10px; height: 10px; background: #00FFFF; border-radius: 50%; position: absolute; top: 2px; right: 3px; transition: all 0.3s ease; box-shadow: 0 0 8px #00FFFF;"></div>
+        <div
+            style="width: 30px; height: 16px; background: rgba(0, 255, 255, 0.1); border-radius: 10px; position: relative; border: 1px solid rgba(0, 255, 255, 0.3);">
+            <div id="matrix-toggle-knob"
+                style="width: 10px; height: 10px; background: #00FFFF; border-radius: 50%; position: absolute; top: 2px; right: 3px; transition: all 0.3s ease; box-shadow: 0 0 8px #00FFFF;">
+            </div>
         </div>
     </div>
     <a href="https://buymeacoffee.com/hypnotik" target="_blank" rel="noopener noreferrer" class="buy-coffee-btn">
@@ -877,7 +905,8 @@
                 <div class="logo">
                     <div class="logo-icon">
                         <svg class="logo-gear" viewBox="0 0 24 24">
-                            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                            <path
+                                d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
                         </svg>
                     </div>
                     <div class="logo-text">Time Warden</div>
@@ -885,77 +914,98 @@
                 <div class="tagline">Professional Time Tracking for <strong>Discord Teams</strong></div>
 
                 <div class="beta-notice">
-                    <span>Beta</span> Feedback welcome! <a href="https://discord.gg/tMGssTjkUt" style="color: #A78BFA; text-decoration: none; margin-left: 4px;">Join our Discord</a>
+                    <span>Beta</span> Feedback welcome! <a href="https://discord.gg/tMGssTjkUt"
+                        style="color: #A78BFA; text-decoration: none; margin-left: 4px;">Join our Discord</a>
                 </div>
             </div>
 
-                    <div class="action-buttons">
-                        <a href="/invite" class="btn btn-primary">
-                            <span>Add to Discord — 30 Days Free</span>
-                        </a>
-                        <a href="https://discord.gg/tMGssTjkUt" target="_blank" rel="noopener noreferrer" class="btn btn-demo">
-                            🎮 View Demo
-                        </a>
-                        <a href="/auth/login" class="btn btn-secondary">
-                            <span>Dashboard Login</span>
-                        </a>
-                        <a href="https://discord.gg/tMGssTjkUt" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
-                            <span>Support Server</span>
-                        </a>
-                    </div>
-            
-                    <style>
-                        .btn-demo {
-                            background: linear-gradient(135deg, #00FFFF, #0099FF);
-                            color: #0a0e1a;
-                            padding: 15px 30px;
-                            border-radius: 10px;
-                            font-weight: bold;
-                            animation: pulse 2s infinite;
-                            border: none;
-                            cursor: pointer;
-                            text-decoration: none;
-                            display: inline-flex;
-                            align-items: center;
-                            gap: 8px;
-                            font-size: 1rem;
-                        }
-            
-                        @keyframes pulse {
-                            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
-                            50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.8); }
-                        }
-                    </style>
+            <div class="action-buttons">
+                <a href="/invite" class="btn btn-primary">
+                    <span>Add to Discord — 30 Days Free</span>
+                </a>
+                <a href="https://discord.gg/tMGssTjkUt" target="_blank" rel="noopener noreferrer" class="btn btn-demo">
+                    🎮 View Demo
+                </a>
+                <a href="/auth/login" class="btn btn-secondary">
+                    <span>Dashboard Login</span>
+                </a>
+                <a href="https://discord.gg/tMGssTjkUt" target="_blank" rel="noopener noreferrer"
+                    class="btn btn-secondary">
+                    <span>Support Server</span>
+                </a>
+            </div>
+
+            <style>
+                .btn-demo {
+                    background: linear-gradient(135deg, #00FFFF, #0099FF);
+                    color: #0a0e1a;
+                    padding: 15px 30px;
+                    border-radius: 10px;
+                    font-weight: bold;
+                    animation: pulse 2s infinite;
+                    border: none;
+                    cursor: pointer;
+                    text-decoration: none;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 1rem;
+                }
+
+                @keyframes pulse {
+
+                    0%,
+                    100% {
+                        box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+                    }
+
+                    50% {
+                        box-shadow: 0 0 40px rgba(0, 255, 255, 0.8);
+                    }
+                }
+            </style>
             <div class="features-showcase">
                 <h2 class="section-title">Everything Your Team Needs</h2>
                 <p class="section-subtitle">Simple, powerful time tracking that lives where your team already works</p>
-                
+
                 <!-- Roadmap & Version Section -->
-                <div id="version-roadmap-container" style="margin-bottom: 2.5rem; background: rgba(30, 35, 45, 0.4); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 12px; overflow: hidden; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);">
-                    <div style="padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; background: rgba(212, 175, 55, 0.05);" onclick="toggleRoadmap()">
+                <div id="version-roadmap-container"
+                    style="margin-bottom: 2.5rem; background: rgba(30, 35, 45, 0.4); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 12px; overflow: hidden; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);">
+                    <div style="padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; background: rgba(212, 175, 55, 0.05);"
+                        onclick="toggleRoadmap()">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <span style="background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">v{{ version_info.version }}</span>
-                            <span style="color: #D4AF37; font-weight: 600; font-size: 0.9rem;">Development Roadmap</span>
+                            <span
+                                style="background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">v{{
+                                version_info.version }}</span>
+                            <span style="color: #D4AF37; font-weight: 600; font-size: 0.9rem;">Development
+                                Roadmap</span>
                         </div>
-                        <span id="roadmap-chevron" style="transition: transform 0.3s ease; transform: rotate(-90deg);">▼</span>
+                        <span id="roadmap-chevron"
+                            style="transition: transform 0.3s ease; transform: rotate(-90deg);">▼</span>
                     </div>
                     <div id="roadmap-content" style="max-height: 0px; transition: all 0.5s ease; overflow: hidden;">
                         <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
                             <div>
-                                <h4 style="color: #10B981; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem;">Recent Updates</h4>
+                                <h4
+                                    style="color: #10B981; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem;">
+                                    Recent Updates</h4>
                                 <ul style="list-style: none; padding: 0; margin: 0;">
                                     {% for update in version_info.recent_updates %}
-                                    <li style="font-size: 0.85rem; color: #8B949E; margin-bottom: 8px; display: flex; gap: 8px;">
+                                    <li
+                                        style="font-size: 0.85rem; color: #8B949E; margin-bottom: 8px; display: flex; gap: 8px;">
                                         <span style="color: #10B981;">•</span> {{ update }}
                                     </li>
                                     {% endfor %}
                                 </ul>
                             </div>
                             <div>
-                                <h4 style="color: #D4AF37; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem;">Future Vision</h4>
+                                <h4
+                                    style="color: #D4AF37; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem;">
+                                    Future Vision</h4>
                                 <ul style="list-style: none; padding: 0; margin: 0;">
                                     {% for item in version_info.roadmap %}
-                                    <li style="font-size: 0.85rem; color: #8B949E; margin-bottom: 8px; display: flex; gap: 8px;">
+                                    <li
+                                        style="font-size: 0.85rem; color: #8B949E; margin-bottom: 8px; display: flex; gap: 8px;">
                                         <span style="color: #D4AF37;">○</span> {{ item }}
                                     </li>
                                     {% endfor %}
@@ -964,7 +1014,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="features-grid">
                     <div class="feature-card">
                         <span class="feature-icon">⏰</span>
@@ -974,7 +1024,8 @@
                     <div class="feature-card">
                         <span class="feature-icon">📊</span>
                         <div class="feature-title">Admin Dashboard</div>
-                        <div class="feature-desc">Full visibility into team hours with export options and employee management.</div>
+                        <div class="feature-desc">Full visibility into team hours with export options and employee
+                            management.</div>
                     </div>
                     <div class="feature-card">
                         <span class="feature-icon">📋</span>
@@ -1030,7 +1081,8 @@
 
             <div class="pricing-section">
                 <h2 class="section-title">Simple, Transparent Pricing</h2>
-                <p class="section-subtitle">Start with a 30-day free trial of all Premium features. No credit card required.</p>
+                <p class="section-subtitle">Start with a 30-day free trial of all Premium features. No credit card
+                    required.</p>
                 <div class="pricing-grid">
                     <div class="pricing-card">
                         <div class="pricing-icon">🌱</div>
@@ -1038,6 +1090,7 @@
                         <div class="pricing-price">Free</div>
                         <div class="pricing-period">30 Days of Premium Access</div>
                         <ul class="pricing-features">
+                            <li><span class="warning">⚠️</span> Limits to 3 users after trial</li>
                             <li><span class="check">✓</span> 30 days of full access</li>
                             <li><span class="check">✓</span> Clock in/out for your whole team</li>
                             <li><span class="check">✓</span> Web dashboard preview</li>
@@ -1049,7 +1102,8 @@
                         <div class="pricing-badge">PREMIUM</div>
                         <div class="pricing-icon">⭐</div>
                         <div class="pricing-name">Premium</div>
-                        <div class="pricing-price">$8<span style="font-size: 1rem; color: #8B949E; font-weight: normal;">/mo</span></div>
+                        <div class="pricing-price">$8<span
+                                style="font-size: 1rem; color: #8B949E; font-weight: normal;">/mo</span></div>
                         <div class="pricing-period">First month FREE!</div>
                         <ul class="pricing-features">
                             <li><span class="check">✓</span> Full team clock in/out</li>
@@ -1064,7 +1118,8 @@
                     <div class="pricing-card" style="opacity: 0.8; border-style: dashed;">
                         <div class="pricing-icon">🚀</div>
                         <div class="pricing-name">Pro</div>
-                        <div class="pricing-price">$15<span style="font-size: 1rem; color: #8B949E; font-weight: normal;">/mo</span></div>
+                        <div class="pricing-price">$15<span
+                                style="font-size: 1rem; color: #8B949E; font-weight: normal;">/mo</span></div>
                         <div class="pricing-period">Coming Soon</div>
                         <ul class="pricing-features">
                             <li><span class="check">✓</span> Everything in Premium</li>
@@ -1079,7 +1134,8 @@
 
             <div class="cta-section">
                 <div class="cta-title">Ready to Transform Your Time Tracking?</div>
-                <p class="cta-subtitle">Use <strong style="color: #D4AF37;">/clock</strong> in Discord to get started, then upgrade via the dashboard</p>
+                <p class="cta-subtitle">Use <strong style="color: #D4AF37;">/clock</strong> in Discord to get started,
+                    then upgrade via the dashboard</p>
                 <a href="/invite" class="btn btn-primary" style="margin-top: 0.5rem;">
                     <span>Add to Discord — 30 Days Free</span>
                 </a>
@@ -1100,7 +1156,7 @@
     <script>
         // Loading state for buttons
         document.querySelectorAll('.btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
+            btn.addEventListener('click', function (e) {
                 if (this.href && !this.href.startsWith('#') && !this.target) {
                     this.classList.add('loading');
                 }
@@ -1137,7 +1193,7 @@
             const knob = document.getElementById('matrix-toggle-knob');
             const container = document.getElementById('matrix-container');
             const isHidden = localStorage.getItem('matrixHidden') === 'true';
-            
+
             if (isHidden) {
                 // Turn ON - show matrix
                 if (container) container.style.display = 'block';
@@ -1169,7 +1225,7 @@
             const text = document.getElementById('matrix-toggle-text');
             const knob = document.getElementById('matrix-toggle-knob');
             const container = document.getElementById('matrix-container');
-            
+
             if (isHidden) {
                 if (container) container.style.display = 'none';
                 if (text) text.innerText = 'Enter The Matrix';
@@ -1236,7 +1292,7 @@
 
             for (let i = 0; i < drops.length; i++) {
                 const text = characters.charAt(Math.floor(Math.random() * characters.length));
-                
+
                 const gradient = ctx.createLinearGradient(
                     i * fontSize, drops[i] * fontSize - 20,
                     i * fontSize, drops[i] * fontSize + 20
@@ -1244,14 +1300,14 @@
                 gradient.addColorStop(0, 'rgba(0, 255, 255, 0)');
                 gradient.addColorStop(0.5, 'rgba(0, 255, 255, 0.9)');
                 gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
-                
+
                 ctx.fillStyle = gradient;
-                
+
                 if (i % 3 === 0) {
                     ctx.shadowColor = 'rgba(0, 255, 255, 0.8)';
                     ctx.shadowBlur = 12;
                 }
-                
+
                 ctx.fillText(text, i * fontSize, drops[i] * fontSize);
                 ctx.shadowBlur = 0;
 
@@ -1260,7 +1316,7 @@
                 }
                 drops[i]++;
             }
-            
+
             requestAnimationFrame(drawMatrix);
         }
 
@@ -1291,4 +1347,5 @@
         });
     </script>
 </body>
+
 </html>

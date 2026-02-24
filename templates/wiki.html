@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeWarden Documentation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --surface-color: #161b22;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-primary: #00FFFF;
+            --accent-secondary: #D4AF37;
+            --max-width: 1200px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Top Navigation */
+        .navbar {
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .nav-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-brand span {
+            color: var(--accent-primary);
+        }
+
+        .nav-links {
+            margin-left: auto;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-links .dashboard-btn {
+            background: transparent;
+            border: 1px solid var(--accent-primary);
+            color: var(--accent-primary);
+            padding: 4px 12px;
+            border-radius: 6px;
+        }
+
+        .nav-links .dashboard-btn:hover {
+            background: rgba(0, 255, 255, 0.1);
+        }
+
+        /* Main Layout */
+        .container {
+            display: flex;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            min-height: calc(100vh - 60px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 0;
+            position: sticky;
+            top: 60px;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 0 1.5rem;
+        }
+
+        .sidebar-section {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin: 1rem 0 0.5rem 0;
+        }
+
+        .sidebar-link {
+            padding: 8px 12px;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            display: block;
+        }
+
+        .sidebar-link:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar-link.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--accent-primary);
+            font-weight: 500;
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            padding: 3rem;
+            max-width: 800px;
+        }
+
+        .content h1 {
+            font-size: 2.5rem;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #00FFFF, #D4AF37);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .content h2 {
+            font-size: 1.5rem;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            font-size: 1.25rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .content p {
+            margin-bottom: 1.5rem;
+            color: #b0b8c1;
+        }
+
+        .content ul,
+        .content ol {
+            margin-bottom: 1.5rem;
+            color: #b0b8c1;
+            padding-left: 1.5rem;
+        }
+
+        .content li {
+            margin-bottom: 0.5rem;
+        }
+
+        .code-block {
+            background: #090c10;
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+            color: #79c0ff;
+        }
+
+        .callout {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            background: rgba(0, 255, 255, 0.05);
+            border-left: 4px solid var(--accent-primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .callout-pro {
+            background: rgba(212, 175, 55, 0.05);
+            border-left: 4px solid var(--accent-secondary);
+        }
+
+        .callout h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-primary);
+        }
+
+        .callout p {
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        .img-placeholder {
+            width: 100%;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-style: italic;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        td {
+            color: #b0b8c1;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+            }
+
+            .content {
+                padding: 2rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <a href="/" class="nav-brand">Time<span>Warden</span></a>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/docs" style="color: #00FFFF;">Documentation</a>
+            <a href="/login" class="dashboard-btn">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-nav">
+                <div class="sidebar-section">Core Guides</div>
+                <a href="/docs/getting-started"
+                    class="sidebar-link {% if active_page == 'getting-started' %}active{% endif %}">Getting Started</a>
+                <a href="/docs/employee-workflows"
+                    class="sidebar-link {% if active_page == 'employee-workflows' %}active{% endif %}">Employee
+                    Workflows</a>
+                <a href="/docs/exports-payroll"
+                    class="sidebar-link {% if active_page == 'exports-payroll' %}active{% endif %}">Exports &
+                    Payroll</a>
+                <a href="/docs/pricing" class="sidebar-link {% if active_page == 'pricing' %}active{% endif %}">Pricing
+                    & Tiers</a>
+            </div>
+        </aside>
+
+        <main class="content">
+            {% if active_page == 'getting-started' %}
+            <h1>Getting Started</h1>
+            <p>Welcome to TimeWarden! This guide will walk you through setting up your server for the first time,
+                mapping roles, and preparing your system to track time.</p>
+
+            <div class="callout">
+                <h4>Quick Setup Formula</h4>
+                <p>Invite Bot &rarr; Login to Dashboard &rarr; Map Roles &rarr; You're Done!</p>
+            </div>
+
+            <h2>1. Invite the Bot</h2>
+            <p>Ensure the bot has administrator permissions in your Discord server. This allows it to create necessary
+                logs, manage roles if required, and read message commands reliably.</p>
+
+            <h2>2. Role Mapping (Crucial)</h2>
+            <p>TimeWarden does not track <i>everyone</i>. It only tracks users with designated <strong>Employee
+                    Roles</strong>.</p>
+            <ul>
+                <li><strong>Admin Roles:</strong> Members with these roles can login to the dashboard and configure
+                    settings.</li>
+                <li><strong>Employee Roles:</strong> Members with these roles can use the <code>/clock</code> command.
+                    They cannot change server settings.</li>
+            </ul>
+            <div class="img-placeholder">
+                [Placeholder: Screenshot of the "Admin Roles" and "Employee Roles" mapping screen in the dashboard]
+            </div>
+
+            <h2>3. Testing the System</h2>
+            <p>Once your roles are mapped, jump into any channel where the bot has access and type:</p>
+            <div class="code-block">/clock in</div>
+            <p>You should receive a prompt confirming your shift has started. Your time is now being tracked!</p>
+
+            {% elif active_page == 'employee-workflows' %}
+            <h1>Employee Workflows</h1>
+            <p>TimeWarden provides multiple avenues for your staff to interact with the system seamlessly.</p>
+
+            <h2>Discord Slash Commands</h2>
+            <p>The standard way to log time is directly through Discord.</p>
+            <ul>
+                <li><code>/clock in</code> - Starts a shift.</li>
+                <li><code>/clock out</code> - Ends a shift and calculates hours.</li>
+                <li><code>/clock status</code> - Privately shows your current shift duration.</li>
+            </ul>
+            <div class="img-placeholder">
+                [Placeholder: GIF showing an employee using the /clock command]
+            </div>
+
+            <h2>The Web Dashboard</h2>
+            <p>Employees can log into the web dashboard to access their personal profiles. Here they can:</p>
+            <ul>
+                <li>View their entire shift history and total hours.</li>
+                <li>Request <strong>Time Adjustments</strong> if they forgot to clock in or out.</li>
+                <li>Clock in/out from the web interface if they aren't near Discord.</li>
+            </ul>
+            <div class="img-placeholder">
+                [Placeholder: Screenshot of the Employee Personal Profile dashboard view]
+            </div>
+
+            <h2>Tablet Kiosk Mode</h2>
+            <div class="callout callout-pro">
+                <h4>Business Tier Feature</h4>
+                <p>Kiosk Mode requires the Business Tier subscription.</p>
+            </div>
+            <p>For physical workplaces (like restaurants or brick-and-mortar stores), Admins can mount a tablet and open
+                the <strong>Kiosk Mode</strong> URL. Employees simply tap their profile picture and enter a 4-digit PIN
+                to clock in, completely circumventing Discord.</p>
+
+            {% elif active_page == 'exports-payroll' %}
+            <h1>Exports & Payroll</h1>
+            <p>Handling payroll should be a one-click process. TimeWarden simplifies data extraction so you can
+                accurately compensate your team.</p>
+
+            <h2>Generating Timesheets</h2>
+            <p>Navigate to the <strong>Reports & Exports</strong> tab in the dashboard. You can export data over any
+                custom date range. Note: Free tier users can only generate reports for the last 24 hours.</p>
+
+            <div class="img-placeholder">
+                [Placeholder: Screenshot of the Reports & Exports configuration screen]
+            </div>
+
+            <h2>Export Formats</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Format</th>
+                        <th>Description</th>
+                        <th>Tier Required</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Standard CSV</td>
+                        <td>A basic, raw data export of all shifts, durations, and employee names.</td>
+                        <td>Pro (for >24h)</td>
+                    </tr>
+                    <tr>
+                        <td>Quickbooks / Gusto CSV</td>
+                        <td>Pre-formatted CSV designed explicitly to be imported directly into payroll software without
+                            manual spreadsheet shifting.</td>
+                        <td>Pro</td>
+                    </tr>
+                    <tr>
+                        <td>Branded PDF</td>
+                        <td>A stylized document ideal for presenting to clients or filing offline records.</td>
+                        <td>Pro</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>Automated Email Reports</h2>
+            <p>Instead of manually logging in, you can configure TimeWarden to automatically email you a Daily or Weekly
+                summary of all clocked hours. Configure this in the <strong>Settings</strong> tab.</p>
+
+            {% elif active_page == 'pricing' %}
+            <h1>Pricing & Tiers</h1>
+            <p>TimeWarden scales with your community or business. We offer three simple tiers.</p>
+
+            <h2>Free Tier</h2>
+            <p>Designed for testing and extremely small teams. You get full access to the bot, but with structural
+                constraints.</p>
+            <ul>
+                <li><strong>3 Employee Hard-Cap:</strong> Only 3 employees can be actively tracked.</li>
+                <li><strong>24-Hour History:</strong> You cannot view or export data older than 24 hours.</li>
+            </ul>
+
+            <div class="callout">
+                <h4>The 30-Day Premium Trial</h4>
+                <p>All new servers automatically receive 30 days of <strong>Pro Tier</strong> features so you can fully
+                    test the system without limits before committing.</p>
+            </div>
+
+            <h2>Pro Tier ($9/mo)</h2>
+            <p>The standard choice for most online communities and digital teams.</p>
+            <ul>
+                <li><strong>Unlimited Employees:</strong> Track as many people as you need.</li>
+                <li><strong>Unlimited History:</strong> Export data spanning an entire year.</li>
+                <li><strong>Advanced Payroll:</strong> Unlock Quickbooks/Gusto formatting and PDF exports.</li>
+            </ul>
+
+            <h2>Business Tier ($19/mo)</h2>
+            <p>For physical storefronts or advanced organizational setups.</p>
+            <ul>
+                <li><strong>Everything in Pro</strong></li>
+                <li><strong>Tablet Kiosk Mode:</strong> Allow physical clock-ins via PIN pad.</li>
+                <li><strong>Priority Support</strong></li>
+            </ul>
+
+            {% endif %}
+        </main>
+    </div>
+
+</body>
+
+</html>

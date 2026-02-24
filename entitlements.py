@@ -79,12 +79,17 @@ class Entitlements:
             'advanced_settings',
             'employee_profiles_extended', # Changed from employee_profiles
             'ban_management',
-            'dashboard_access'
+            'dashboard_access',
+            'custom_display_names',
+            'discord_channel_logistics'
         }
 
         # Pro-only features
         pro_only_features = {
-            'kiosk'
+            'kiosk',
+            'payroll_formats',
+            'pdf_exports',
+            'advanced_reports'
         }
         
         # Admin-only features (still need premium for some)

@@ -7,12 +7,23 @@
 
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
-(No active locks)
+## 🔒 Currently Locked
+(Format: `file_path` - Agent - Since - Task)
+- `app.py` - Gemini - 2026-02-23 - Phase 3: The Universal Export & Dispatch Engine
+- `bot.py` - Gemini - 2026-02-23 - Phase 3: The Universal Export & Dispatch Engine
+- `reports.py` (if applicable) - Gemini - 2026-02-23 - Phase 3: The Universal Export & Dispatch Engine
+- `templates/home/settings.html` - Gemini - 2026-02-23 - Phase 3: The Universal Export & Dispatch Engine
 
 ---
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `templates/home/landing.html` - Gemini - 2026-02-23 - Phase 2: Free Tier App-Wide 3-User Hard-Cap
+- `app.py` - Gemini - 2026-02-23 - Phase 2: Free Tier App-Wide 3-User Hard-Cap
+- `bot.py` - Gemini - 2026-02-23 - Phase 2: Free Tier App-Wide 3-User Hard-Cap
+- `migrations.py` - Gemini - 2026-02-23 - Phase 1: Database & Feature Entitlements
+- `entitlements.py` - Gemini - 2026-02-23 - Phase 1: Database & Feature Entitlements
+- `bot.py` - Gemini - 2026-02-23 - Phase 1: Database & Feature Entitlements
 - `bot.py` - Gemini - 2026-02-23 - Ghost Employee Auto-Prune
 - `app.py` - Gemini - 2026-02-23 - Demo Server DB/Theme Unblocking
 - `templates/kiosk.html` - Gemini - 2026-02-23 - Kiosk CSS Profile Color Fix

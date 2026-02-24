@@ -470,15 +470,66 @@ async def process_email_outbox():
     try:
         stats = await process_outbox_emails(batch_size=10)
         
-        if stats['processed'] > 0:
-            logger.info(
-                f"📬 Email outbox processed: "
-                f"{stats['sent']} sent, "
-                f"{stats['retried']} scheduled for retry, "
-                f"{stats['failed']} failed permanently"
-            )
     except Exception as e:
         logger.error(f"❌ Email outbox processing failed: {e}")
+
+async def run_discord_auto_prune():
+    """Auto-prune old TimeWarden discord messages based on guild settings"""
+    if discord_bot is None:
+        logger.warning("⚠️ Discord bot not available for auto-pruning")
+        return
+        
+    logger.info("🧹 Running scheduled discord auto-prune check...")
+    
+    try:
+        with db() as cursor:
+            # Requires auto_prune_days column in guild_settings
+            # Fallback to checking if column exists using try/except in logic below, or assume it's there
+            cursor.execute("""
+                SELECT guild_id, auto_prune_days, discord_log_channel_id 
+                FROM guild_settings 
+                WHERE auto_prune_days IS NOT NULL 
+                AND auto_prune_days > 0 
+                AND discord_log_channel_id IS NOT NULL
+            """)
+            guilds_to_prune = cursor.fetchall()
+            
+        pruned_count = 0
+        
+        for row in guilds_to_prune:
+            guild_id = int(row['guild_id'])
+            prune_days = int(row['auto_prune_days'])
+            channel_id = int(row['discord_log_channel_id'])
+            
+            # Use bot.get_channel to fetch the designated log channel
+            channel = discord_bot.get_channel(channel_id)
+            if not channel:
+                try:
+                    channel = await discord_bot.fetch_channel(channel_id)
+                except Exception:
+                    logger.debug(f"   Could not fetch prune channel {channel_id} for guild {guild_id}")
+                    continue
+                    
+            if channel:
+                cutoff = datetime.now(timezone.utc) - timedelta(days=prune_days)
+                try:
+                    # We only want to delete messages sent by the bot itself
+                    def is_bot_message(m):
+                        return m.author.id == discord_bot.user.id
+                        
+                    deleted = await channel.purge(limit=100, before=cutoff, check=is_bot_message)
+                    if len(deleted) > 0:
+                        logger.info(f"   Pruned {len(deleted)} messages from Guild {guild_id} channel {channel_id} (older than {prune_days} days)")
+                        pruned_count += 1
+                except Exception as e:
+                    logger.error(f"   Error pruning channel {channel_id} in guild {guild_id}: {e}")
+                    
+        if pruned_count > 0:
+            logger.info(f"🧹 Auto-prune completed: cleaned channels in {pruned_count} servers")
+            
+    except Exception as e:
+        # Fails gracefully if auto_prune_days column doesn't exist yet
+        logger.error(f"❌ Discord auto-prune job failed: {e}")
 
 async def reset_demo_data_job():
     """Job to reset demo server data by calling the internal seeding function."""
@@ -541,6 +592,15 @@ def start_scheduler(bot=None):
         trigger=CronTrigger(hour=0, minute=0),  # Every day at midnight
         id='reset_demo_data',
         name='Auto-reset demo server data',
+        replace_existing=True
+    )
+    
+    # Scheduled job for discord auto pruning every 24 hours at 3AM
+    scheduler.add_job(
+        run_discord_auto_prune,
+        trigger=CronTrigger(hour=3, minute=0),
+        id='discord_auto_prune',
+        name='Auto-prune old discord messages',
         replace_existing=True
     )
     

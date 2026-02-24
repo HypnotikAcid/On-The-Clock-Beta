@@ -259,7 +259,8 @@ def run_migrations():
                     "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT",
                     "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS position TEXT",
                     "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS department TEXT",
-                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS discord_status TEXT"
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS discord_status TEXT",
+                    "ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS custom_report_name VARCHAR(255)"
                 ]
                 for query in alter_queries:
                     cur.execute(query)
@@ -502,6 +503,18 @@ def run_migrations():
                 print("   Checking for trial columns in guild_settings")
                 cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS trial_start_date TIMESTAMP DEFAULT NULL")
                 cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS trial_expired BOOLEAN DEFAULT FALSE")
+                
+                # 24.a Add Dashboard Onboarding marker to guild_settings
+                print("   Checking for has_completed_onboarding column in guild_settings")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS has_completed_onboarding BOOLEAN DEFAULT FALSE")
+
+                # 24.b Add Phase 1 Reporting & Monetization columns to guild_settings
+                print("   Checking for Phase 1 reporting columns in guild_settings")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS csv_name_format VARCHAR(255) DEFAULT 'standard'")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS discord_log_channel_id BIGINT")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS discord_report_channel_id BIGINT")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS auto_prune_logs_days INTEGER")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS auto_prune_reports_days INTEGER")
 
                 # 24. Add original_profile_data column to employee_archive for complete profile restoration
                 print("   Checking for original_profile_data column in employee_archive")

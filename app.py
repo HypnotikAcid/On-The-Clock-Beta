@@ -1725,6 +1725,8 @@ def handle_subscription_cancellation(subscription):
     try:
         subscription_id = subscription.get('id')
         customer_id = subscription.get('customer')
+        current_period_end = subscription.get('current_period_end')
+        cancel_at_period_end = subscription.get('cancel_at_period_end', False)
         
         if not subscription_id:
             app.logger.error("[ERROR] No subscription ID in cancellation event")
@@ -1740,16 +1742,33 @@ def handle_subscription_cancellation(subscription):
             if result:
                 guild_id = result['guild_id']
                 
-                flask_set_bot_access(guild_id, False)
-                flask_set_retention_tier(guild_id, 'none')
+                # Check if we should cancel immediately or at period end
+                now_timestamp = int(datetime.now().timestamp())
                 
-                conn.execute("""
-                    UPDATE server_subscriptions 
-                    SET status = 'canceled', subscription_id = NULL, bot_access_paid = FALSE
-                    WHERE guild_id = %s
-                """, (guild_id,))
-                
-                app.logger.info(f"[OK] Subscription canceled for server {guild_id}, access revoked")
+                if current_period_end and current_period_end > now_timestamp:
+                    # Cancel at period end - just update the flags
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET cancel_at_period_end = TRUE,
+                            current_period_end = %s
+                        WHERE guild_id = %s
+                    """, (current_period_end, guild_id))
+                    app.logger.info(f"[OK] Subscription set to cancel at period end for server {guild_id}")
+                else:
+                    # Immediate cancellation
+                    flask_set_bot_access(guild_id, False)
+                    flask_set_retention_tier(guild_id, 'none')
+                    
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET status = 'canceled', 
+                            subscription_id = NULL, 
+                            bot_access_paid = FALSE,
+                            cancel_at_period_end = FALSE
+                        WHERE guild_id = %s
+                    """, (guild_id,))
+                    
+                    app.logger.info(f"[OK] Subscription canceled for server {guild_id}, access revoked")
             else:
                 app.logger.error(f"[ERROR] No guild found for subscription {subscription_id}")
                 
@@ -2018,6 +2037,7 @@ def get_server_page_context(user_session, guild_id, active_page):
     show_tz_reminder = False
     server_settings = {}
     
+    total_shifts = 0
     with get_db() as conn:
         if access_level == 'admin':
             cursor = conn.execute("""
@@ -2028,16 +2048,27 @@ def get_server_page_context(user_session, guild_id, active_page):
             pending_adjustments = result['count'] if result else 0
             
             cursor = conn.execute("""
+                SELECT COUNT(*) as count FROM work_sessions 
+                WHERE guild_id = %s
+            """, (int(guild_id),))
+            result = cursor.fetchone()
+            total_shifts = result['count'] if result else 0
+            
+            cursor = conn.execute("""
                 SELECT 1 FROM employee_profiles 
                 WHERE guild_id = %s AND user_id = %s AND is_active = TRUE
             """, (int(guild_id), user_id))
             is_also_employee = cursor.fetchone() is not None
             
             cursor = conn.execute("""
-                SELECT timezone FROM guild_settings WHERE guild_id = %s
+                SELECT timezone, has_completed_onboarding 
+                FROM guild_settings WHERE guild_id = %s
             """, (int(guild_id),))
             tz_row = cursor.fetchone()
             show_tz_reminder = not tz_row or not tz_row.get('timezone')
+            has_completed_onboarding = tz_row.get('has_completed_onboarding', False) if tz_row else False
+        else:
+            has_completed_onboarding = False
         
         cursor = conn.execute("""
             SELECT bot_access_paid, retention_tier, tier, COALESCE(grandfathered, FALSE) as grandfathered
@@ -2072,11 +2103,13 @@ def get_server_page_context(user_session, guild_id, active_page):
         'is_also_employee': is_also_employee,
         'active_page': active_page,
         'pending_adjustments': pending_adjustments,
+        'total_shifts': total_shifts,
         'show_tz_reminder': show_tz_reminder,
         'server_settings': server_settings,
         'is_demo_server': is_demo_server_flag,
         'view_as_employee': view_as_employee,
-        'last_demo_reset': last_demo_reset
+        'last_demo_reset': last_demo_reset,
+        'has_completed_onboarding': has_completed_onboarding
     }
     
     return context, None
@@ -2328,6 +2361,40 @@ def dashboard_adjustments(user_session, guild_id):
         return premium_block
     
     return render_template('dashboard_pages/adjustments.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/reports")
+@require_auth
+def dashboard_reports(user_session, guild_id):
+    """Reports & Exports UI page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'reports')
+    if error:
+        return error
+        
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+        
+    return render_template('dashboard_reports.html', **context)
+
+
+@app.route("/dashboard/server/<guild_id>/integrations")
+@require_auth
+def dashboard_integrations(user_session, guild_id):
+    """Integrations & Notifications UI page"""
+    if not guild_id.isdigit() or len(guild_id) > 20:
+        return redirect('/dashboard')
+    
+    context, error = get_server_page_context(user_session, guild_id, 'integrations')
+    if error:
+        return error
+        
+    if context['user_role'] != 'admin':
+        return redirect(f'/dashboard/server/{guild_id}')
+        
+    return render_template('dashboard_integrations.html', **context)
 
 
 @app.route("/dashboard/server/<guild_id>/calendar")
@@ -2711,6 +2778,22 @@ def owner_dashboard(user_session):
                 'inactive_servers': stats_row['inactive_servers'],
                 'departed_unpaid_servers': stats_row['departed_unpaid_servers'] or 0
             }
+            
+            # Phase 6: Dynamic MRR & 7-Day Growth Calculation
+            # Calculate total estimated Monthly Recurring Revenue based on subscription tiers
+            mrr_premium = (stats['paid_servers'] - stats['pro_count'] - stats['grandfathered_count']) * 8
+            mrr_pro = stats['pro_count'] * 15
+            stats['estimated_mrr'] = mrr_premium + mrr_pro
+            
+            # Calculate 7-Day Server Growth
+            seven_days_ago = (now_utc() - timedelta(days=7)).isoformat()
+            cursor = conn.execute("""
+                SELECT COUNT(*) as growth
+                FROM bot_guilds
+                WHERE joined_at >= %s
+            """, (seven_days_ago,))
+            growth_row = cursor.fetchone()
+            stats['seven_day_growth'] = growth_row['growth'] if growth_row and 'growth' in growth_row else 0
             
             # Get total active sessions across all servers (using timeclock_sessions)
             cursor = conn.execute("""
@@ -6181,6 +6264,89 @@ def api_get_server_settings(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
+@app.route("/api/server/<guild_id>/settings", methods=["POST"])
+@require_api_auth
+def api_save_server_settings(user_session, guild_id):
+    """API endpoint to save general server settings (admin only)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Access denied. Admin only.'}), 403
+            
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+        updates = {}
+        if 'discord_log_channel_id' in data:
+            val = data['discord_log_channel_id']
+            updates['discord_log_channel_id'] = str(val) if val else None
+
+        if 'discord_report_channel_id' in data:
+            val = data['discord_report_channel_id']
+            updates['discord_report_channel_id'] = str(val) if val else None
+                
+        if 'auto_prune_logs_days' in data:
+            try:
+                updates['auto_prune_logs_days'] = int(data['auto_prune_logs_days'])
+            except ValueError:
+                updates['auto_prune_logs_days'] = 0
+
+        if 'auto_prune_reports_days' in data:
+            try:
+                updates['auto_prune_reports_days'] = int(data['auto_prune_reports_days'])
+            except ValueError:
+                updates['auto_prune_reports_days'] = 0
+                
+        if 'has_completed_onboarding' in data:
+            updates['has_completed_onboarding'] = bool(data['has_completed_onboarding'])
+                
+        # Legacy fallback
+        if 'auto_prune_days' in data and 'auto_prune_logs_days' not in data:
+            try:
+                updates['auto_prune_logs_days'] = int(data['auto_prune_days'])
+            except ValueError:
+                pass
+                
+        if not updates:
+            return jsonify({'success': False, 'error': 'No valid fields to update'}), 400
+            
+        set_clauses = []
+        values = []
+        for key, value in updates.items():
+            set_clauses.append(f"{key} = %s")
+            values.append(value)
+            
+        values.append(guild_id)
+        query = f"UPDATE guild_settings SET {', '.join(set_clauses)} WHERE guild_id = %s"
+        
+        with get_db() as conn:
+            # Handle unmigrated schemas gracefully
+            try:
+                conn.execute(query, tuple(values))
+            except Exception as inner_e:
+                if 'does not exist' in str(inner_e):
+                    # Filter out new columns and try again
+                    safe_updates = {}
+                    for k, v in updates.items():
+                        if k in ['discord_log_channel_id', 'has_completed_onboarding']:
+                            safe_updates[k] = v
+                    if not safe_updates:
+                        return jsonify({'success': True, 'message': 'Schema not migrated, ignored new fields.'})
+                    
+                    set_clauses = [f"{k} = %s" for k in safe_updates.keys()]
+                    safe_values = list(safe_updates.values()) + [guild_id]
+                    q = f"UPDATE guild_settings SET {', '.join(set_clauses)} WHERE guild_id = %s"
+                    conn.execute(q, tuple(safe_values))
+                else:
+                    raise inner_e
+            
+        return jsonify({'success': True, 'message': 'Settings updated successfully'})
+    except Exception as e:
+        app.logger.error(f"Error updating general settings for {guild_id}: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to save settings'}), 500
+
+
 @app.route("/api/server/<guild_id>/subscription/cancel", methods=["POST"])
 @require_api_auth
 def api_cancel_subscription(user_session, guild_id):
@@ -6442,8 +6608,264 @@ def api_save_kiosk_settings(user_session, guild_id):
             
         return jsonify({'success': True, 'message': 'Kiosk settings updated successfully'})
     except Exception as e:
-        app.logger.error(f"Error updating kiosk settings for {guild_id}: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to save settings'}), 500
+
+
+@app.route("/api/server/<guild_id>/reports/preview", methods=["POST"])
+@require_api_auth
+def api_preview_reports(user_session, guild_id):
+    """API endpoint to get live JSON preview of a report (admin only)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Access denied. Admin only.'}), 403
+            
+        access = get_flask_guild_access(guild_id)
+        is_paid = access['is_exempt'] or access['tier'] in ['pro', 'premium'] or access['trial_active']
+            
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
+        
+        if not start_date_str or not end_date_str:
+            return jsonify({'success': False, 'error': 'Start and end dates are required'}), 400
+            
+        # Parse dates
+        start_dt = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+        
+        # Enforce 24h limit for Free Tier
+        if not is_paid:
+            age_hours = (datetime.now(timezone.utc) - start_dt).total_seconds() / 3600
+            if age_hours > 24:
+                return jsonify({
+                    'success': False,
+                    'error': 'Free tier is limited to 24 hours of history for previews. Upgrade to Pro for unlimited history.',
+                    'code': 'PRO_REQUIRED',
+                    'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}&plan=pro'
+                }), 403
+        
+        # Enforce 31-day max range to prevent massive JSON payloads
+        if (end_dt - start_dt).days > 31:
+            return jsonify({'success': False, 'error': 'Preview date range cannot exceed 31 days. Use Export for larger ranges.'}), 400
+            
+        query = '''
+            SELECT 
+                user_id,
+                display_name,
+                clock_in_time,
+                clock_out_time,
+                duration_minutes
+            FROM work_sessions
+            WHERE guild_id = %s 
+              AND clock_in_time >= %s 
+              AND clock_in_time <= %s
+              AND clock_out_time IS NOT NULL
+            ORDER BY clock_in_time DESC
+        '''
+        
+        results = []
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (guild_id, start_dt, end_dt))
+            
+            for row in cursor.fetchall():
+                results.append({
+                    'user_id': str(row[0]),
+                    'display_name': row[1] or str(row[0]),
+                    'clock_in_time': row[2].isoformat() if row[2] else None,
+                    'clock_out_time': row[3].isoformat() if row[3] else None,
+                    'duration_minutes': float(row[4]) if row[4] is not None else 0
+                })
+                
+        return jsonify({
+            'success': True,
+            'sessions': results,
+            'count': len(results)
+        })
+    except Exception as e:
+        app.logger.error(f"Error previewing reports for {guild_id}: {str(e)}")
+        return jsonify({'success': False, 'error': f'Failed to generate preview: {str(e)}'}), 500
+
+
+
+@app.route("/api/server/<guild_id>/reports/export", methods=["POST"])
+@require_api_auth
+def api_export_reports(user_session, guild_id):
+    """API endpoint to generate and download reports (admin only)"""
+    access = get_flask_guild_access(guild_id)
+    if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
+        return jsonify({
+            'success': False,
+            'error': 'Your free trial has expired. Upgrade to Premium to export reports.',
+            'code': 'TRIAL_EXPIRED',
+            'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}',
+            'trial_expired': True
+        }), 403
+        
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Access denied. Admin only.'}), 403
+            
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+        export_type = data.get('export_type', 'standard_csv')
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
+        
+        if not start_date_str or not end_date_str:
+            return jsonify({'success': False, 'error': 'Start and end dates are required'}), 400
+            
+        # Parse dates
+        start_date = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
+        end_date = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+        
+        # Enforce 365-day max range to prevent OOM
+        if (end_date - start_date).days > 365:
+            return jsonify({'success': False, 'error': 'Report date range cannot exceed 365 days.'}), 400
+            
+        # Check tier restrictions
+        is_pro = access['tier'] == 'pro' or access['is_exempt']
+        if export_type in ['payroll_csv', 'pdf'] and not is_pro and not access['trial_active']:
+            return jsonify({
+                'success': False,
+                'error': f'{export_type.upper()} exports require the Pro Plan.',
+                'code': 'PRO_REQUIRED',
+                'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}&plan=pro'
+            }), 403
+            
+        # Trigger bot API to generate and return the report
+        bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/reports/export"
+        bot_api_secret = os.environ.get('BOT_API_SECRET')
+        
+        if not bot_api_secret:
+            bot_module = _get_bot_module()
+            if bot_module:
+                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
+                
+        if not bot_api_secret:
+            return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
+            
+        import requests
+        response = requests.post(
+            bot_api_url,
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            json={
+                'export_type': export_type,
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            timeout=60 # Reports can take some time
+        )
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            error_msg = 'Failed to generate report'
+            try:
+                error_msg = response.json().get('error', error_msg)
+            except:
+                pass
+            return jsonify({'success': False, 'error': error_msg}), response.status_code
+            
+    except ValueError as e:
+        return jsonify({'success': False, 'error': f'Invalid date format: {str(e)}'}), 400
+    except Exception as e:
+        app.logger.error(f"Error exporting report: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/discord-channels", methods=["GET"])
+@require_api_auth
+def api_get_discord_channels(user_session, guild_id):
+    """API endpoint to fetch a list of text channels for the UI (admin only)"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Access denied. Admin only.'}), 403
+            
+        bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/channels"
+        bot_api_secret = os.environ.get('BOT_API_SECRET')
+        
+        if not bot_api_secret:
+            bot_module = _get_bot_module()
+            if bot_module:
+                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
+                
+        if not bot_api_secret:
+            return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
+            
+        import requests
+        response = requests.get(
+            bot_api_url,
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({'success': False, 'error': 'Failed to fetch channels from bot'}), response.status_code
+            
+    except Exception as e:
+        app.logger.error(f"Error fetching discord channels for {guild_id}: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@app.route("/api/server/<guild_id>/test-discord-routing", methods=["POST"])
+@require_api_auth
+def api_test_discord_routing(user_session, guild_id):
+    """API endpoint to send a test message to a specified channel"""
+    try:
+        guild, access_level = verify_guild_access(user_session, guild_id)
+        if not guild or access_level != 'admin':
+            return jsonify({'success': False, 'error': 'Access denied. Admin only.'}), 403
+            
+        data = request.json
+        channel_id = data.get('channel_id')
+        
+        if not channel_id:
+            return jsonify({'success': False, 'error': 'Channel ID is required'}), 400
+            
+        bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/test-message"
+        bot_api_secret = os.environ.get('BOT_API_SECRET')
+        
+        if not bot_api_secret:
+            bot_module = _get_bot_module()
+            if bot_module:
+                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
+                
+        if not bot_api_secret:
+            return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
+            
+        import requests
+        response = requests.post(
+            bot_api_url,
+            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            json={'channel_id': channel_id},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            try:
+                error_msg = response.json().get('error', 'Failed to send test message')
+            except:
+                error_msg = 'Failed to send test message'
+            return jsonify({'success': False, 'error': error_msg}), response.status_code
+            
+    except Exception as e:
+        app.logger.error(f"Error testing discord routing for {guild_id}: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
 
 
 @app.route("/api/server/<guild_id>/employees/send-onboarding", methods=["POST"])
@@ -9245,6 +9667,28 @@ def api_get_employee_recent_adjustments(user_session, guild_id, user_id):
     except Exception as e:
         app.logger.error(f"Error fetching recent adjustments: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/docs")
+@app.route("/wiki")
+@app.route("/docs/<page>")
+@app.route("/wiki/<page>")
+def docs_hub(page="getting-started"):
+    """Standalone Wiki/Documentation route lacking auth bounds."""
+    # The valid pages
+    valid_pages = [
+        "getting-started",
+        "employee-workflows",
+        "exports-payroll",
+        "pricing"
+    ]
+    if page not in valid_pages:
+        page = "getting-started"
+        
+    return render_template("wiki.html", active_page=page)
+
+# ==========================================
+# Application Entry Point
+# ============================================
 
 # ============================================
 # KIOSK CONTROL CENTER ROUTES

@@ -1,0 +1,439 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Reports & Exports{% endblock %}
+
+{% block extra_css %}
+<style>
+    .reports-container {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .report-card {
+        background: rgba(30, 35, 45, 0.6);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        border-radius: 12px;
+        padding: 2rem;
+    }
+
+    .report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 1rem;
+    }
+
+    .report-title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #C9D1D9;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .report-title .icon {
+        color: #D4AF37;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #8B949E;
+        font-weight: 500;
+    }
+
+    .form-control {
+        width: 100%;
+        background: rgba(13, 17, 23, 0.8);
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        color: #C9D1D9;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+    }
+
+    .form-control:focus {
+        border-color: #D4AF37;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+    }
+
+    .date-range-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .tier-badge {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+
+    .tier-pro {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10B981;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-export {
+        background: linear-gradient(135deg, #D4AF37 0%, #F4E5A1 50%, #D4AF37 100%);
+        color: #0D1117;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .btn-export:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+    }
+
+    .btn-export:disabled {
+        background: #30363D;
+        color: #8B949E;
+        cursor: not-allowed;
+    }
+
+    .alert-banner {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #FCA5A5;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    /* Premium Upsell Card */
+    .upsell-card {
+        background: linear-gradient(135deg, rgba(30, 35, 45, 0.8), rgba(16, 185, 129, 0.05));
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 1.5rem;
+        border-radius: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .upsell-content h4 {
+        color: #10B981;
+        margin-bottom: 0.25rem;
+        font-size: 1.1rem;
+    }
+
+    .upsell-content p {
+        color: #8B949E;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .btn-upsell {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10B981;
+        border: 1px solid #10B981;
+        padding: 8px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .btn-upsell:hover {
+        background: #10B981;
+        color: #fff;
+    }
+
+    /* Live Preview Pane */
+    .preview-pane {
+        background: #0D1117;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1.5rem;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .preview-json {
+        font-family: 'Fira Code', monospace;
+        font-size: 0.85rem;
+        color: #C9D1D9;
+        margin: 0;
+        white-space: pre-wrap;
+    }
+
+    .preview-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .btn-preview {
+        background: rgba(48, 54, 61, 0.8);
+        color: #C9D1D9;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-preview:hover:not(:disabled) {
+        background: rgba(139, 148, 158, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1 class="dashboard-title">Reports & Exports</h1>
+    <p class="dashboard-subtitle">Generate CSV timesheets and documents for payroll</p>
+</div>
+
+<div class="reports-container">
+
+    {% if access.tier == 'free' and not access.trial_active %}
+    <div class="upsell-card">
+        <div class="upsell-content">
+            <h4>💎 Standard CSV Reports Require Premium</h4>
+            <p>Your Free Trial has expired. Upgrade to export your data.</p>
+        </div>
+        <a href="/dashboard/purchase?guild_id={{ server.id }}" class="btn-upsell">Upgrade</a>
+    </div>
+    {% endif %}
+
+    <!-- Generate Standard Report -->
+    <div class="report-card">
+        <div class="report-header">
+            <div class="report-title">
+                <span class="icon">📄</span> Export Timesheet
+            </div>
+        </div>
+
+        <form id="exportForm">
+            <div class="form-group">
+                <label class="form-label">Export Format <span class="info-tooltip"
+                        data-tooltip="Standard CSV is for basic spreadsheets. Payroll CSV forces strict headers matching Quickbooks/Gusto. PDF creates a branded document.">?</span></label>
+                <select class="form-control" id="exportType">
+                    <option value="standard_csv">Standard Timesheet (CSV)</option>
+                    <option value="payroll_csv" {% if access.tier not in ['pro', 'exempt' ] and not access.trial_active
+                        %}disabled{% endif %}>
+                        Quickbooks / Gusto Payroll (CSV) {% if access.tier not in ['pro', 'exempt'] and not
+                        access.trial_active %}🔒 PRO Required{% endif %}
+                    </option>
+                    <option value="pdf" {% if access.tier not in ['pro', 'exempt' ] and not access.trial_active
+                        %}disabled{% endif %}>
+                        Branded Client Report (PDF) {% if access.tier not in ['pro', 'exempt'] and not
+                        access.trial_active %}🔒 PRO Required{% endif %}
+                    </option>
+                </select>
+            </div>
+
+            <div class="date-range-container form-group">
+                <div>
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate" required>
+                </div>
+                <div>
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDate" required>
+                </div>
+            </div>
+
+            <div class="preview-actions">
+                <button type="button" class="btn-preview" id="previewBtn">
+                    <span>👁️</span> Live Preview (JSON)
+                </button>
+                <button type="submit" class="btn-export" id="exportBtn" {% if access.tier=='free' and not
+                    access.trial_active %}disabled{% endif %}>
+                    <span>📥</span> Generate Report
+                </button>
+            </div>
+
+            <div class="preview-pane" id="previewPane" style="display: none;">
+                <pre class="preview-json" id="previewContent">// Live preview data will appear here...</pre>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const isPaid = "{{ 'true' if access.tier in ['pro', 'premium'] or access.trial_active or access.is_exempt else 'false' }}" === "true";
+        // Set default dates (past 7 days for PRO, past 24h for Free)
+        const end = new Date();
+        const start = new Date();
+
+        if (isPaid) {
+            start.setDate(end.getDate() - 7);
+        } else {
+            start.setHours(start.getHours() - 24);
+        }
+
+        const toDateInputString = (date) => {
+            const tzOffset = date.getTimezoneOffset() * 60000;
+            return (new Date(date - tzOffset)).toISOString().split('T')[0];
+        };
+
+        document.getElementById('startDate').value = toDateInputString(start);
+        document.getElementById('endDate').value = toDateInputString(end);
+
+        document.getElementById('exportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('exportBtn');
+            const startVal = document.getElementById('startDate').value;
+            const endVal = document.getElementById('endDate').value;
+            const exportType = document.getElementById('exportType').value;
+
+            if (!startVal || !endVal) {
+                showToast('Please select a date range', 'error');
+                return;
+            }
+
+            // Append UTC midnight times to form valid ISO strings
+            const isoStart = `${startVal}T00:00:00Z`;
+            const isoEnd = `${endVal}T23:59:59Z`;
+
+            btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Generating...';
+
+            try {
+                const resp = await fetch(`/api/server/{{ server.id }}/reports/export`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        export_type: exportType,
+                        start_date: isoStart,
+                        end_date: isoEnd
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (data.success && data.content) {
+                    // Decode base64 
+                    const binString = atob(data.content);
+                    const bytes = new Uint8Array(binString.length);
+                    for (let i = 0; i < binString.length; i++) {
+                        bytes[i] = binString.charCodeAt(i);
+                    }
+                    const blob = new Blob([bytes], { type: data.mime_type || 'text/csv' });
+
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = data.filename || `export.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+
+                    showToast(`Report generated successfully (${data.record_count} shifts)`, 'success');
+                } else {
+                    DashboardUtils.showNotification(data.error || 'Failed to generate report', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                DashboardUtils.showNotification('Network error occurred', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+
+        document.getElementById('previewBtn').addEventListener('click', async (e) => {
+            const btn = document.getElementById('previewBtn');
+            const startVal = document.getElementById('startDate').value;
+            const endVal = document.getElementById('endDate').value;
+            const previewPane = document.getElementById('previewPane');
+            const previewContent = document.getElementById('previewContent');
+
+            if (!startVal || !endVal) {
+                DashboardUtils.showNotification('Please select a date range', 'error');
+                return;
+            }
+
+            const isoStart = `${startVal}T00:00:00Z`;
+            const isoEnd = `${endVal}T23:59:59Z`;
+
+            btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Loading...';
+            previewPane.style.display = 'block';
+            previewContent.textContent = 'Loading...';
+
+            try {
+                const resp = await fetch(`/api/server/{{ server.id }}/reports/preview`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start_date: isoStart,
+                        end_date: isoEnd
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (resp.ok && data.success) {
+                    previewContent.textContent = JSON.stringify(data.sessions, null, 2);
+                    DashboardUtils.showNotification(`Loaded ${data.count} preview records`, 'success');
+                } else {
+                    previewContent.textContent = `Error: ${data.error || 'Failed to fetch preview'}`;
+                    if (data.upgrade_url) {
+                        previewContent.innerHTML += `\n\n<a href="${data.upgrade_url}" style="color: #10B981;">Upgrade to Pro to unlock</a>`;
+                    }
+                    DashboardUtils.showNotification(data.error || 'Failed to generate preview', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                previewContent.textContent = 'Network error occurred. Try again later.';
+                DashboardUtils.showNotification('Network error occurred', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+    });
+</script>
+{% endblock %}

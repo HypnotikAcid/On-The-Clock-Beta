@@ -9,7 +9,8 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body data-user-id="{{ user.user_id if user else '' }}" data-guild-id="{{ server.id if server else '' }}">
+<body data-user-id="{{ user.user_id if user else '' }}" data-guild-id="{{ server.id if server else '' }}"
+    data-tier="{{ server_settings.tier if server_settings else 'free' }}">
     <div id="matrix-toggle" onclick="toggleMatrix()"
         style="position: fixed; top: 1rem; right: 1rem; z-index: 1001; cursor: pointer; background: rgba(10, 15, 31, 0.7); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 255, 255, 0.3); font-size: 0.75rem; color: rgba(0, 255, 255, 0.8); display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; user-select: none;">
         <span id="matrix-toggle-text">Exit The Matrix</span>
@@ -154,6 +155,18 @@
                     style="background: #EF4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto;">{{
                     pending_adjustments }}</span>
                 {% endif %}
+            </a>
+
+            <a href="/dashboard/server/{{ server.id }}/reports"
+                class="nav-item {% if active_page == 'reports' %}active{% endif %}">
+                <span class="nav-item-icon">📄</span>
+                <span>Reports & Exports</span>
+            </a>
+
+            <a href="/dashboard/server/{{ server.id }}/integrations"
+                class="nav-item {% if active_page == 'integrations' %}active{% endif %}">
+                <span class="nav-item-icon">🔌</span>
+                <span>Discord Integrations</span>
             </a>
 
             {% if active_page == 'calendar' and server %}
@@ -416,6 +429,41 @@
             if (isFirstVisitToServer && window.location.pathname !== '/setup-wizard') {
                 window.location.href = '/setup-wizard?guild_id=' + GUILD_ID;
             }
+
+            // Phase 9: Interactive Tour
+            const hasCompletedOnboarding = {{ 'true' if has_completed_onboarding else 'false' }
+        };
+        if (!hasCompletedOnboarding && GUILD_ID && window.location.pathname !== '/setup-wizard') {
+            setTimeout(() => {
+                if (typeof DashboardTour !== 'undefined') {
+                    DashboardTour.start();
+                    // Mark as completed in the backend so it doesn't run again on reload
+                    fetch(`/api/server/${GUILD_ID}/settings`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ has_completed_onboarding: true })
+                    }).catch(err => console.error("Failed to mark onboarding complete", err));
+                }
+            }, 1000);
+        }
+
+        // Phase 5: Admin Milestone Toasts
+        const totalShifts = {{ total_shifts if total_shifts is defined else 0 }};
+        const role = "{{ user_role if user_role is defined else '' }}";
+
+        if (totalShifts >= 100 && role === 'admin') {
+            const milestoneKey = `milestone_100_shown_${GUILD_ID}`;
+            if (!localStorage.getItem(milestoneKey)) {
+                setTimeout(() => {
+                    DashboardUtils.showNotification(
+                        "🎉 **Milestone Reached!** 100 shifts logged. Having a good time? Consider leaving a 5-star review!",
+                        "success",
+                        10000 // Show for 10 seconds
+                    );
+                    localStorage.setItem(milestoneKey, 'true');
+                }, 2000); // 2 second delay so it doesn't get lost in load animations
+            }
+        }
         });
     </script>
 </body>

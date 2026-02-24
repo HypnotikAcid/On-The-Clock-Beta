@@ -1,0 +1,236 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Time Warden - Integrations {% if server %}({{ server.name }}){% endif %}{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1><span class="header-icon">🔌</span> Integrations & Notifications</h1>
+    <p class="text-secondary">Manage external connections and automated alerts for your server.</p>
+</div>
+
+<div class="card fade-in">
+    <div class="card-header">
+        <h2 class="card-title"><span class="header-icon"><i class="fab fa-discord"></i></span> Discord Settings</h2>
+    </div>
+    <div class="card-body">
+
+        <form class="settings-form" id="discord-routing-form" novalidate onsubmit="return false">
+
+            <!-- LOGS CONFIGURATION -->
+            <div class="form-group">
+                <label for="discord_log_channel" class="form-label">
+                    Live Shift Alerts Channel
+                    <span class="info-icon"
+                        title="Time Warden will post Clock In/Out events here automatically.">ℹ️</span>
+                </label>
+                <div class="select-wrapper">
+                    <select id="discord_log_channel" name="discord_log_channel" class="form-control">
+                        <option value="">Loading channels...</option>
+                    </select>
+                </div>
+                <p class="form-hint">Select the text channel where clock-in and clock-out alerts should be sent.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="auto_prune_logs_days" class="form-label">
+                    Auto-Prune Alerts (Days)
+                    <span class="info-icon"
+                        title="Automatically delete old generic bot messages from the log channel.">ℹ️</span>
+                </label>
+                <select id="auto_prune_logs_days" name="auto_prune_logs_days" class="form-control">
+                    <option value="0" {% if not server_settings.auto_prune_logs_days %}selected{% endif %}>Never
+                    </option>
+                    <option value="7" {% if server_settings.auto_prune_logs_days==7 %}selected{% endif %}>7 Days
+                    </option>
+                    <option value="14" {% if server_settings.auto_prune_logs_days==14 %}selected{% endif %}>14 Days
+                    </option>
+                    <option value="30" {% if server_settings.auto_prune_logs_days==30 %}selected{% endif %}>30 Days
+                    </option>
+                </select>
+                <p class="form-hint">Shift alerts older than this many days will be deleted nightly to keep the channel
+                    clean.</p>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 2rem 0;">
+
+            <!-- REPORTS CONFIGURATION -->
+            <div class="form-group">
+                <label for="discord_report_channel" class="form-label">
+                    Automated Report Destinations
+                    <span class="info-icon" title="Time Warden will post automated scheduled reports here.">ℹ️</span>
+                </label>
+                <div class="select-wrapper">
+                    <select id="discord_report_channel" name="discord_report_channel" class="form-control">
+                        <option value="">Loading channels...</option>
+                    </select>
+                </div>
+                <p class="form-hint">Select the text channel where automated CSV/PDF reports should be dispatched.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="auto_prune_reports_days" class="form-label">
+                    Auto-Prune Reports (Days)
+                    <span class="info-icon"
+                        title="Automatically delete old automated reports from the channel.">ℹ️</span>
+                </label>
+                <select id="auto_prune_reports_days" name="auto_prune_reports_days" class="form-control">
+                    <option value="0" {% if not server_settings.auto_prune_reports_days %}selected{% endif %}>Never
+                    </option>
+                    <option value="7" {% if server_settings.auto_prune_reports_days==7 %}selected{% endif %}>7 Days
+                    </option>
+                    <option value="14" {% if server_settings.auto_prune_reports_days==14 %}selected{% endif %}>14 Days
+                    </option>
+                    <option value="30" {% if server_settings.auto_prune_reports_days==30 %}selected{% endif %}>30 Days
+                    </option>
+                </select>
+                <p class="form-hint">Scheduled reports older than this many days will be deleted nightly to preserve
+                    space.</p>
+            </div>
+
+            <div class="form-actions"
+                style="display: flex; gap: 1rem; align-items: center; justify-content: flex-start; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-primary" onclick="saveDiscordIntegrations()">
+                    <span>💾</span> Save Integrations
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="testDiscordRouting()" id="test-routing-btn"
+                    style="display: none;">
+                    <span>🔔</span> Send Test Alert
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Fetch discord channels from new Bridge API
+        const guildId = '{{ server.id }}';
+        const logChannelSelect = document.getElementById('discord_log_channel');
+        const reportChannelSelect = document.getElementById('discord_report_channel');
+        const testBtn = document.getElementById('test-routing-btn');
+        const currentLogChannelId = '{{ server_settings.discord_log_channel_id }}';
+        const currentReportChannelId = '{{ server_settings.discord_report_channel_id }}';
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/discord-channels`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.channels) {
+                    logChannelSelect.innerHTML = '<option value="">-- Select a Channel --</option>';
+                    reportChannelSelect.innerHTML = '<option value="">-- Select a Channel --</option>';
+
+                    data.channels.forEach(ch => {
+                        const optLog = document.createElement('option');
+                        optLog.value = ch.id;
+                        optLog.textContent = `#${ch.name}`;
+                        if (ch.id === currentLogChannelId) optLog.selected = true;
+                        logChannelSelect.appendChild(optLog);
+
+                        const optRep = document.createElement('option');
+                        optRep.value = ch.id;
+                        optRep.textContent = `#${ch.name}`;
+                        if (ch.id === currentReportChannelId) optRep.selected = true;
+                        reportChannelSelect.appendChild(optRep);
+                    });
+
+                    if (currentLogChannelId || currentReportChannelId) {
+                        testBtn.style.display = 'flex';
+                    }
+                } else {
+                    logChannelSelect.innerHTML = '<option value="">Failed to load channels</option>';
+                    reportChannelSelect.innerHTML = '<option value="">Failed to load channels</option>';
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching channels:', error);
+            logChannelSelect.innerHTML = '<option value="">Error loading</option>';
+            reportChannelSelect.innerHTML = '<option value="">Error loading</option>';
+        }
+
+        const handleSelectChange = () => {
+            if (logChannelSelect.value || reportChannelSelect.value) {
+                testBtn.style.display = 'flex';
+            } else {
+                testBtn.style.display = 'none';
+            }
+        };
+
+        logChannelSelect.addEventListener('change', handleSelectChange);
+        reportChannelSelect.addEventListener('change', handleSelectChange);
+    });
+
+    async function saveDiscordIntegrations() {
+        const guildId = '{{ server.id }}';
+        const logChannelId = document.getElementById('discord_log_channel').value;
+        const reportChannelId = document.getElementById('discord_report_channel').value;
+        const autoPruneLogs = document.getElementById('auto_prune_logs_days').value;
+        const autoPruneReports = document.getElementById('auto_prune_reports_days').value;
+        const btn = document.querySelector('button[onclick="saveDiscordIntegrations()"]');
+
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<span class="loading-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid;border-radius:50%;border-top-color:transparent;animation:spin 1s linear infinite"></span> Saving...';
+        btn.disabled = true;
+
+        try {
+            // Re-using the generic /api/server/<guild_id>/settings endpoint from app.py
+            const response = await fetch(`/api/server/${guildId}/settings`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    discord_log_channel_id: logChannelId || null,
+                    discord_report_channel_id: reportChannelId || null,
+                    auto_prune_logs_days: parseInt(autoPruneLogs),
+                    auto_prune_reports_days: parseInt(autoPruneReports)
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showToast('✅ Integrations saved successfully', 'success');
+            } else {
+                showToast('❌ Error: ' + (data.error || 'Failed to save'), 'error');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            showToast('❌ Network error saving integrations', 'error');
+        } finally {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
+
+    async function testDiscordRouting() {
+        const guildId = '{{ server.id }}';
+        const channelId = document.getElementById('discord_log_channel').value;
+        if (!channelId) return;
+
+        const btn = document.getElementById('test-routing-btn');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<span class="loading-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid;border-radius:50%;border-top-color:transparent;animation:spin 1s linear infinite"></span> Testing...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/test-discord-routing`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel_id: channelId })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showToast('✅ Test message sent', 'success');
+            } else {
+                showToast('❌ ' + (data.error || 'Failed to send test'), 'error');
+            }
+        } catch (error) {
+            console.error('Test error:', error);
+            showToast('❌ Network error sending test', 'error');
+        } finally {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

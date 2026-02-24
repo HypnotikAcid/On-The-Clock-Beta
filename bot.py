@@ -1792,7 +1792,21 @@ def set_guild_setting(guild_id: int, key: str, value):
         conn.execute(update_queries[key], (value, guild_id))
 
 def get_user_display_name(user: discord.Member, guild_id: int) -> str:
-    """Get user display name based on guild preference: 'username' or 'nickname'"""
+    """Get user display name based on guild preference: 'username' or 'nickname' or 'custom_name'"""
+    # 1. Phase 1: Check for custom report name if the server format is set to custom
+    csv_name_format = get_guild_setting(guild_id, "csv_name_format", "standard")
+    
+    if csv_name_format == "custom_name":
+        try:
+            with db() as conn:
+                cur = conn.execute("SELECT custom_report_name FROM employee_profiles WHERE user_id=%s AND guild_id=%s", (user.id, guild_id))
+                row = cur.fetchone()
+                if row and row['custom_report_name']:
+                    return row['custom_report_name']
+        except Exception:
+            pass # Fallback to standard logic if DB fails
+
+    # 2. Fallback to standard Discord modes
     display_mode = get_guild_setting(guild_id, "name_display_mode", "username")
     
     if display_mode == "nickname" and hasattr(user, 'display_name'):
@@ -2127,6 +2141,145 @@ async def generate_individual_csv_report(bot, user_id, sessions, guild_id, guild
     
     return output.getvalue(), user_display_name
 
+async def generate_payroll_csv_report(bot, sessions_data, guild_id, guild_tz="America/New_York"):
+    """Generate Quickbooks/Gusto compatible Payroll CSV."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Standard Payroll Headers
+    writer.writerow(["Employee Name", "Date", "Regular Hours", "Overtime Hours", "Total Hours", "Notes"])
+    
+    # Group sessions by user and date
+    user_daily_totals = {}
+    for session_row in sessions_data:
+        user_id = session_row['user_id']
+        clock_in = safe_parse_timestamp(session_row['clock_in'])
+        duration_seconds = session_row['duration_seconds']
+        
+        date_formatted = fmt(clock_in, guild_tz).split()[0]
+        
+        if user_id not in user_daily_totals:
+            user_daily_totals[user_id] = {}
+            
+        if date_formatted not in user_daily_totals[user_id]:
+            user_daily_totals[user_id][date_formatted] = 0
+            
+        user_daily_totals[user_id][date_formatted] += duration_seconds
+        
+    for user_id, daily_data in user_daily_totals.items():
+        # Fetch Discord user for display name
+        try:
+            discord_user = await bot.fetch_user(user_id)
+            user_display_name = get_user_display_name(discord_user, guild_id)
+        except:
+            user_display_name = f"User-{user_id}"
+            
+        for date_str, total_seconds in sorted(daily_data.items()):
+            total_hours = round(total_seconds / 3600, 2)
+            
+            # Simple Overtime calculation (over 8 hours a day)
+            regular_hours = min(8.0, total_hours)
+            overtime_hours = max(0.0, total_hours - 8.0)
+            
+            writer.writerow([
+                user_display_name,
+                date_str,
+                f"{regular_hours:.2f}",
+                f"{overtime_hours:.2f}",
+                f"{total_hours:.2f}",
+                ""
+            ])
+            
+    return output.getvalue()
+
+
+async def generate_pdf_report(bot, sessions_data, guild_id, guild_tz="America/New_York"):
+    """Generate a branded PDF Report using ReportLab."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    
+    output = io.BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    
+    styles = getSampleStyleSheet()
+    title_style = styles['Heading1']
+    title_style.alignment = 1 # Center
+    
+    # Check if a custom guild name is configured, else fallback to Discord API name
+    guild_settings = get_guild_settings(guild_id)
+    guild_name = guild_settings.get('custom_guild_name')
+    if not guild_name:
+        guild = bot.get_guild(guild_id)
+        guild_name = guild.name if guild else f"Server {guild_id}"
+        
+    elements = []
+    
+    # Title
+    elements.append(Paragraph(f"<b>{guild_name}</b>", title_style))
+    elements.append(Paragraph("Official Timesheet Report", styles['Heading3']))
+    elements.append(Spacer(1, 20))
+    
+    # Group sessions by user
+    user_sessions = {}
+    for session_row in sessions_data:
+        user_id = session_row['user_id']
+        clock_in = safe_parse_timestamp(session_row['clock_in'])
+        clock_out = safe_parse_timestamp(session_row['clock_out'])
+        duration_seconds = session_row['duration_seconds']
+        if user_id not in user_sessions:
+            user_sessions[user_id] = []
+        user_sessions[user_id].append((clock_in, clock_out, duration_seconds))
+        
+    for user_id, sessions in user_sessions.items():
+        try:
+            discord_user = await bot.fetch_user(user_id)
+            user_display_name = get_user_display_name(discord_user, guild_id)
+        except:
+            user_display_name = f"User-{user_id}"
+            
+        elements.append(Paragraph(f"<b>Employee: {user_display_name}</b>", styles['Heading4']))
+        elements.append(Spacer(1, 5))
+        
+        table_data = [["Date", "Clock In", "Clock Out", "Hours"]]
+        
+        total_hours_for_user = 0.0
+        
+        for clock_in, clock_out, duration_seconds in sessions:
+            date_str = fmt(clock_in, guild_tz).split()[0]
+            in_time = " ".join(fmt(clock_in, guild_tz).split()[1:3])
+            out_time = " ".join(fmt(clock_out, guild_tz).split()[1:3])
+            
+            hours = round(duration_seconds / 3600, 2)
+            total_hours_for_user += hours
+            
+            table_data.append([date_str, in_time, out_time, f"{hours:.2f}h"])
+            
+        # Add summary row
+        table_data.append(["", "", "Total:", f"<b>{total_hours_for_user:.2f}h</b>"])
+            
+        t = Table(table_data, colWidths=[100, 150, 150, 80])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#D4AF37')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0,0), (-1,-1), 1, colors.lightgrey),
+            # Bold the total row
+            ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold')
+        ]))
+        
+        elements.append(t)
+        elements.append(Spacer(1, 30))
+        
+    doc.build(elements)
+    
+    return output.getvalue()
+
+
 # --- Time helpers ---
 def now_utc():
     return datetime.now(timezone.utc)
@@ -2237,6 +2390,15 @@ def ensure_employee_profile(guild_id: int, user_id: int, username: str, display_
         )
         if cursor.fetchone():
             return False
+            
+        # PHASE 2: Free Tier App-Wide 3-User Hard-Cap (Lazy initialization block)
+        server_tier = get_guild_tier_string(guild_id)
+        if server_tier == 'free':
+            cursor = conn.execute("SELECT COUNT(*) as count FROM employee_profiles WHERE guild_id = %s AND is_active = TRUE", (guild_id,))
+            active_count = cursor.fetchone()['count']
+            if active_count >= 3:
+                print(f"🔒 Lazy profile creation blocked for {username} in guild {guild_id}: Free tier limit (3) reached.")
+                return False # Do not create the profile
             
         # Create default profile
         conn.execute("""
@@ -2977,10 +3139,14 @@ class TimeClockView(discord.ui.View):
             close_session(session_id, end_dt.isoformat(), elapsed)
 
             tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ) or DEFAULT_TZ
-            await interaction.followup.send(
-                f"🔚 Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}",
-                ephemeral=True
-            )
+            out_msg = f"🔚 Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}"
+            
+            # Phase 5: The Review & Feedback Funnel (10% Micro-Prompt)
+            import random
+            if random.random() < 0.10:
+                out_msg += "\n\n*Having a good shift? ⭐ Leave us a 5-star review on top.gg/App Directory!*"
+                
+            await interaction.followup.send(out_msg, ephemeral=True)
 
             # Send notifications to all configured recipients
             await send_timeclock_notifications(guild_id, interaction, start_dt, end_dt, elapsed, tz_name)
@@ -3400,10 +3566,10 @@ class TimeclockHubView(discord.ui.View):
         await handle_tc_support(interaction)
     
     @discord.ui.button(
-        label="Upgrade",
+        label="Unlock Premium",
         style=discord.ButtonStyle.success,
         custom_id="tc:upgrade",
-        emoji="🚀",
+        emoji="⭐",
         row=2
     )
     async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -3692,32 +3858,81 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
         )
         return
     
-    # Check if already clocked in
+    # PHASE 2: Free Tier App-Wide 3-User Hard-Cap
+    if server_tier == 'free':
+        try:
+            with db() as conn:
+                cursor = conn.execute("SELECT COUNT(*) as count FROM employee_profiles WHERE guild_id = %s AND is_active = TRUE", (guild_id,))
+                active_count = cursor.fetchone()['count']
+            if active_count > 3:
+                await interaction.followup.send(
+                    "🔒 **Server Cap Reached**\n\n"
+                    f"Your Premium Trial has expired and this server has {active_count} active profiles.\n"
+                    "The **Free Tier** limit is 3 employees.\n\n"
+                    "Please ask your Server Administrator to upgrade to Premium, or archive unused profiles from the Web Dashboard.",
+                    ephemeral=True
+                )
+                return
+        except Exception as e:
+            print(f"Error checking free tier limits: {e}")
+
+    # Check if already clocked in with transactional lock to prevent race conditions
     try:
         with db() as conn:
+            # 1. Acquire an advisory lock keyed to the user_id to strongly serialize requests
+            conn.execute("SELECT pg_try_advisory_xact_lock(%s)", (user_id,))
+            lock_acquired = conn.fetchone()[0]
+            
+            if not lock_acquired:
+                await interaction.followup.send(
+                    "⚠️ **Processing**\n\n"
+                    "Your previous clock-in request is still processing. Please wait a moment.",
+                    ephemeral=True
+                )
+                return
+            
+            # 2. Check for active session inside the lock
             cursor = conn.execute(
-                "SELECT session_id as id, clock_in_time as clock_in FROM timeclock_sessions WHERE user_id = %s AND guild_id = %s AND clock_out_time IS NULL",
+                "SELECT session_id as id, clock_in_time as clock_in FROM timeclock_sessions WHERE user_id = %s AND guild_id = %s AND clock_out_time IS NULL FOR UPDATE",
                 (user_id, guild_id)
             )
             existing = cursor.fetchone()
         
-        if existing:
-            clock_in_time = safe_parse_timestamp(existing['clock_in'])
-            await interaction.followup.send(
-                f"⚠️ **Already Clocked In**\n\n"
-                f"You clocked in at <t:{int(clock_in_time.timestamp())}:f>\n"
-                f"Use **Clock Out** to end your shift first.",
-                ephemeral=True
-            )
-            return
-        
-        # Perform clock in
-        now = datetime.now(timezone.utc)
-        with db() as conn:
+            if existing:
+                clock_in_time = safe_parse_timestamp(existing['clock_in'])
+                await interaction.followup.send(
+                    f"⚠️ **Already Clocked In**\n\n"
+                    f"You clocked in at <t:{int(clock_in_time.timestamp())}:f>\n"
+                    f"Use **Clock Out** to end your shift first.",
+                    ephemeral=True
+                )
+                return
+            
+            # 3. Perform clock in inside the same locked connection
+            now = datetime.now(timezone.utc)
             conn.execute(
                 "INSERT INTO timeclock_sessions (user_id, guild_id, clock_in_time) VALUES (%s, %s, %s)",
                 (user_id, guild_id, now.isoformat())
             )
+            
+        # Post native text alerts to discord_log_channel_id
+        try:
+            guild_settings = get_guild_settings(guild_id)
+            log_channel_id = guild_settings.get('discord_log_channel_id')
+            if log_channel_id:
+                log_channel = bot.get_channel(int(log_channel_id))
+                if log_channel:
+                    tz_name = guild_settings.get('timezone', 'UTC')
+                    in_time_formatted = fmt(now, tz_name)
+                    user_display_name = get_user_display_name(interaction.user, guild_id)
+                    try:
+                        await log_channel.send(
+                            f"🟢 **{user_display_name}** clocked in at `{in_time_formatted}`"
+                        )
+                    except discord.Forbidden:
+                        print(f"⚠️ Missing permissions to send clock-in log in channel {log_channel_id} (Guild {guild_id})")
+        except Exception as e:
+            print(f"Error sending log channel alert for clock in: {e}")
         
         # Ensure employee profile exists
         member = interaction.user
@@ -3838,6 +4053,25 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
                 "UPDATE timeclock_sessions SET clock_out_time = %s WHERE session_id = %s",
                 (now.isoformat(), session['id'])
             )
+            
+        # Post native text alerts to discord_log_channel_id
+        try:
+            guild_settings = get_guild_settings(guild_id)
+            log_channel_id = guild_settings.get('discord_log_channel_id')
+            if log_channel_id:
+                log_channel = bot.get_channel(int(log_channel_id))
+                if log_channel:
+                    tz_name = guild_settings.get('timezone', 'UTC')
+                    out_time_formatted = fmt(now, tz_name)
+                    user_display_name = get_user_display_name(interaction.user, guild_id)
+                    try:
+                        await log_channel.send(
+                            f"🔴 **{user_display_name}** clocked out at `{out_time_formatted}` ({hours_int}h {minutes}m)"
+                        )
+                    except discord.Forbidden:
+                        print(f"⚠️ Missing permissions to send clock-out log in channel {log_channel_id} (Guild {guild_id})")
+        except Exception as e:
+            print(f"Error sending log channel alert for clock out: {e}")
         
         access = get_guild_access_info(guild_id)
         trial_msg = ""
@@ -4149,7 +4383,8 @@ def create_setup_embed() -> discord.Embed:
         title="⏰ Welcome to Time Warden!",
         description=(
             "Thanks for adding our professional Discord timeclock bot to your server!\n\n"
-            "**You now have a 30-day free trial with full access to all features.**"
+            "**You now have a 30-day Premium Trial with full access to all features.**\n"
+            "*(After 30 days, the Free Tier applies a strict 3-employee limit.)*"
         ),
         color=discord.Color.blurple()
     )
@@ -4521,8 +4756,9 @@ async def on_guild_remove(guild):
                 print(f"   - Deleted employee roles")
                 
                 # Delete guild settings
-                conn.execute("DELETE FROM guild_settings WHERE guild_id = %s", (guild_id_int,))
-                print(f"   - Deleted guild settings")
+                # conn.execute("DELETE FROM guild_settings WHERE guild_id = %s", (guild_id_int,))
+                # print(f"   - Deleted guild settings")
+                # Phase 2: We no longer delete guild_settings so trial_start_date is permanently preserved
                 
                 # Delete sessions
                 conn.execute("DELETE FROM timeclock_sessions WHERE guild_id = %s", (guild_id_int,))
@@ -5009,9 +5245,9 @@ async def help_command(interaction: discord.Interaction):
             "• **Role Management** - Set admin & employee roles\n"
             "• **Team Management** - Manage your team\n"
             "• **Time Adjustments** - Review & approve corrections\n"
-            "• **Reports** - Export CSV timesheets\n"
-            "• **Email Automation** - Daily reports & reminders\n"
-            "• **Kiosk Mode** - Shared device clock-in\n"
+            "• 💎 **Reports** - Export CSV timesheets\n"
+            "• 💎 **Email Automation** - Daily reports & reminders\n"
+            "• 🚀 **Kiosk Mode** - Shared device clock-in\n"
             "• **Calendar View** - Edit time entries"
         ),
         inline=False
@@ -5038,6 +5274,56 @@ async def help_command(interaction: discord.Interaction):
     embed.set_footer(text=footer_text)
     
     await send_reply(interaction, embed=embed, ephemeral=True)
+
+# =============================================================================
+# PHASE 5: FEEDBACK FUNNEL
+# =============================================================================
+class FeedbackModal(discord.ui.Modal, title="Submit Feedback"):
+    feedback = discord.ui.TextInput(
+        label="Your Feedback / Bug Report",
+        style=discord.TextStyle.paragraph,
+        placeholder="Tell us what you love, what needs fixing, or feature requests...",
+        required=True,
+        max_length=2000
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await send_reply(interaction, "✅ Thank you! Your feedback has been sent directly to our development team.", ephemeral=True)
+        
+        webhook_url = os.environ.get('DEVELOPER_WEBHOOK_URL')
+        if not webhook_url:
+            print("⚠️ DEVELOPER_WEBHOOK_URL not configured. Feedback suppressed.")
+            return
+            
+        embed = discord.Embed(
+            title="New User Feedback submitted!",
+            description=self.feedback.value,
+            color=discord.Color.gold(),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_author(name=f"{interaction.user} ({interaction.user.id})", icon_url=interaction.user.display_avatar.url if interaction.user.display_avatar else None)
+        
+        if interaction.guild:
+            embed.set_footer(text=f"Server: {interaction.guild.name} ({interaction.guild.id})")
+        else:
+            embed.set_footer(text="Sent via DM")
+
+        def send_webhook():
+            try:
+                import requests
+                requests.post(webhook_url, json={"embeds": [embed.to_dict()]}, timeout=5)
+            except Exception as e:
+                print(f"❌ Failed to send feedback webhook: {e}")
+
+        import threading
+        t = threading.Thread(target=send_webhook)
+        t.daemon = True
+        t.start()
+
+
+@tree.command(name="feedback", description="Send feedback, feature requests, or bug reports directly to the developers")
+async def feedback_command(interaction: discord.Interaction):
+    await interaction.response.send_modal(FeedbackModal())
 
 # --- Scheduled Tasks ---
 def schedule_daily_cleanup():
@@ -6063,10 +6349,32 @@ async def sync_employees_for_role(guild_id: int, role_id: int) -> int:
         print(f"⚠️ Cannot sync employees - role {role_id} not found in guild {guild_id}")
         return 0
     
+    server_tier = get_guild_tier_string(guild_id)
+    
     new_count = 0
     for member in role.members:
         if member.bot:
             continue
+            
+        # PHASE 2: Free Tier App-Wide 3-User Hard-Cap during sync
+        if server_tier == 'free':
+            try:
+                with db() as conn:
+                    # Check if already an active employee
+                    cursor = conn.execute("SELECT is_active FROM employee_profiles WHERE guild_id = %s AND user_id = %s", (guild_id, member.id))
+                    existing = cursor.fetchone()
+                
+                # Only enforce cap if they are completely new or inactive
+                if not existing or not existing['is_active']:
+                    with db() as conn:
+                        cursor = conn.execute("SELECT COUNT(*) as count FROM employee_profiles WHERE guild_id = %s AND is_active = TRUE", (guild_id,))
+                        active_count = cursor.fetchone()['count']
+                        
+                    if active_count >= 3:
+                        print(f"🔒 Sync blocked for {member.name} in guild {guild_id}: Free tier limit (3) reached.")
+                        continue # Skip adding this member to respect the cap
+            except Exception as e:
+                print(f"Error checking free tier limits during sync: {e}")
         
         avatar_url = str(member.display_avatar.url) if member.display_avatar else None
         is_new = ensure_employee_profile(
@@ -6318,6 +6626,76 @@ async def handle_send_onboarding(request: web.Request):
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+async def handle_get_channels(request: web.Request):
+    """HTTP endpoint: Fetch list of text channels for a guild"""
+    if not verify_api_request(request):
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+        
+    guild_id_str = request.match_info.get('guild_id')
+    if not guild_id_str or not guild_id_str.isdigit():
+        return web.json_response({'success': False, 'error': 'Invalid guild ID'}, status=400)
+        
+    try:
+        guild_id = int(guild_id_str)
+        guild = bot.get_guild(guild_id)
+        
+        if not guild:
+            return web.json_response({
+                'success': True,
+                'channels': []
+            })
+            
+        channels = [
+            {'id': str(c.id), 'name': c.name}
+            for c in guild.text_channels
+            if c.permissions_for(guild.me).send_messages
+        ]
+        
+        # Sort alphabetically
+        channels.sort(key=lambda x: x['name'].lower())
+        
+        return web.json_response({
+            'success': True,
+            'channels': channels
+        })
+    except Exception as e:
+        print(f"❌ Error fetching channels for {guild_id_str}: {e}")
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
+async def handle_test_message(request: web.Request):
+    """HTTP endpoint: Send a test message to a specific channel"""
+    if not verify_api_request(request):
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+        
+    guild_id_str = request.match_info.get('guild_id')
+    
+    try:
+        data = await request.json()
+        channel_id_str = data.get('channel_id')
+        
+        if not channel_id_str or not channel_id_str.isdigit():
+            return web.json_response({'success': False, 'error': 'Invalid channel ID'}, status=400)
+            
+        channel_id = int(channel_id_str)
+        channel = bot.get_channel(channel_id)
+        
+        if not channel:
+            # Fallback to fetch if not cached
+            try:
+                channel = await bot.fetch_channel(channel_id)
+            except:
+                return web.json_response({'success': False, 'error': 'Channel not found or bot lacks access.'}, status=404)
+                
+        try:
+            await channel.send("✅ **Time Warden Integration Test**\n\nThis channel has been successfully linked to your Time Warden dashboard. You will now receive notifications here.")
+            return web.json_response({'success': True, 'message': 'Test message sent successfully'})
+        except discord.Forbidden:
+            return web.json_response({'success': False, 'error': 'The bot lacks permission to send messages in this channel.'}, status=403)
+            
+    except Exception as e:
+        print(f"❌ Error sending test message to {guild_id_str}: {e}")
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
 async def handle_broadcast(request: web.Request):
     """HTTP endpoint: Send broadcast message to guilds"""
     if not verify_api_request(request):
@@ -6426,6 +6804,88 @@ async def handle_check_user_admin(request: web.Request):
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+async def handle_reports_export(request: web.Request):
+    """HTTP endpoint: Generate reports (CSV, Payroll, PDF)"""
+    if not verify_api_request(request):
+        print(f"⚠️ Unauthorized reports export attempt")
+        return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
+        
+    try:
+        data = await request.json()
+        guild_id = int(request.match_info['guild_id'])
+        export_type = data.get('export_type', 'standard_csv')
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
+        
+        print(f"📥 API: Generating {export_type} report for guild {guild_id} from {start_date_str} to {end_date_str}")
+        
+        # Get guild settings for timezone
+        guild_settings = get_guild_settings(guild_id)
+        guild_tz = guild_settings.get('timezone') or 'America/Chicago'
+        
+        # Build UTC boundaries
+        start_dt = safe_parse_timestamp(start_date_str)
+        end_dt = safe_parse_timestamp(end_date_str)
+        
+        # Fetch data
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT user_id, clock_in_time as clock_in, clock_out_time as clock_out,
+                       EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) as duration_seconds
+                FROM timeclock_sessions
+                WHERE guild_id = %s 
+                  AND clock_out_time IS NOT NULL
+                  AND clock_in_time >= %s
+                  AND clock_in_time <= %s
+                ORDER BY user_id, clock_in_time
+            """, (guild_id, start_dt, end_dt))
+            sessions = cursor.fetchall()
+            
+        if not sessions:
+            return web.json_response({
+                'success': False,
+                'error': 'No completed timeclock sessions found for the selected date range.'
+            }, status=404)
+            
+        # Generate requested format
+        import base64
+        filename = f"timesheet_{guild_id}_{start_dt.strftime('%Y%m%d')}.csv"
+        
+        if export_type == 'standard_csv':
+            content = await generate_csv_report(bot, sessions, guild_id, guild_tz)
+            mime_type = "text/csv"
+        elif export_type == 'payroll_csv':
+            # Stub for Phase 3
+            content = await generate_csv_report(bot, sessions, guild_id, guild_tz)
+            filename = f"payroll_{guild_id}_{start_dt.strftime('%Y%m%d')}.csv"
+            mime_type = "text/csv"
+        elif export_type == 'pdf':
+            # Stub for Phase 3
+            content = await generate_csv_report(bot, sessions, guild_id, guild_tz)
+            filename = f"report_{guild_id}_{start_dt.strftime('%Y%m%d')}.txt"
+            mime_type = "text/plain"
+        else:
+            return web.json_response({'success': False, 'error': f'Unsupported export type: {export_type}'}, status=400)
+            
+        # Base64 encode the final file payload to safely transfer over HTTP JSON
+        b64_content = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+        
+        print(f"✅ API: Generated {export_type} report for guild {guild_id}")
+        
+        return web.json_response({
+            'success': True,
+            'filename': filename,
+            'mime_type': mime_type,
+            'content': b64_content,
+            'record_count': len(sessions)
+        })
+        
+    except Exception as e:
+        print(f"❌ Error exporting reports via API (guild {request.match_info.get('guild_id')}): {e}")
+        import traceback
+        traceback.print_exc()
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
 async def handle_health(request: web.Request):
     """Health check endpoint for the bot API"""
     auth_header = request.headers.get('Authorization', '')
@@ -6457,6 +6917,9 @@ async def start_bot_api_server():
     app.router.add_post('/api/guild/{guild_id}/employees/prune-ghosts', handle_prune_ghosts)
     app.router.add_post('/api/guild/{guild_id}/employees/send-onboarding', handle_send_onboarding)
     app.router.add_get('/api/guild/{guild_id}/user/{user_id}/check-admin', handle_check_user_admin)
+    app.router.add_post('/api/guild/{guild_id}/reports/export', handle_reports_export)
+    app.router.add_get('/api/guild/{guild_id}/channels', handle_get_channels)
+    app.router.add_post('/api/guild/{guild_id}/test-message', handle_test_message)
     app.router.add_post('/api/broadcast', handle_broadcast)
     
     runner = web.AppRunner(app)
