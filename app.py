@@ -2786,7 +2786,7 @@ def owner_dashboard(user_session):
             stats['estimated_mrr'] = mrr_premium + mrr_pro
             
             # Calculate 7-Day Server Growth
-            seven_days_ago = (now_utc() - timedelta(days=7)).isoformat()
+            seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
             cursor = conn.execute("""
                 SELECT COUNT(*) as growth
                 FROM bot_guilds

@@ -116,3 +116,13 @@
 - **Fix**: Removed the `on_interaction` fallback entirely. Persistent views registered in `setup_hook` already handle all button callbacks reliably after restarts.
 - **Secondary Bug**: In `TimeClockView.clock_in`, the profile setup code could send a welcome message, then if the DB update failed, the exception handler would fall through and send a second "Clocked in" message. Fixed by tracking `profile_message_sent` flag.
 - **Pattern**: Never use `on_interaction` fallback handlers alongside registered persistent views — they will race and cause double responses.
+
+## Jinja2 Template Syntax Causing Auth Loop (2026-02-24)
+- **Root Cause**: `dashboard_base.html` line 434 had `{{ 'true' if ... else 'false' }` — missing the closing `}}`. This caused a Jinja2 `TemplateSyntaxError` on every server page render.
+- **Why It Looped**: The `require_auth` decorator wraps the entire route handler in a try/except, so template render errors are caught as "Authentication error", the session is cleared, and the user is redirected to `/auth/login` — creating an infinite OAuth loop.
+- **Fix**: Added the missing `}}` closing delimiter.
+- **Pattern**: The `require_auth` decorator masks non-auth errors as auth failures. Any exception inside a `@require_auth` route (template errors, DB errors, etc.) will appear as an auth loop. Always check deployment logs for the full traceback.
+
+## Undefined `now_utc()` in Owner Dashboard (2026-02-24)
+- **Root Cause**: Owner dashboard used `now_utc()` which doesn't exist — should be `datetime.now(timezone.utc)`.
+- **Pattern**: Always use `datetime.now(timezone.utc)` for UTC timestamps in Flask routes. The `now_utc()` helper doesn't exist in this codebase.
