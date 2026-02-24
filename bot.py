@@ -3924,8 +3924,10 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
     try:
         with db() as conn:
             # 1. Acquire an advisory lock keyed to the user_id to strongly serialize requests
-            conn.execute("SELECT pg_try_advisory_xact_lock(%s)", (user_id,))
-            lock_acquired = conn.fetchone()[0]
+            cursor = conn.execute("SELECT pg_try_advisory_xact_lock(%s)", (user_id,))
+            lock_row = cursor.fetchone()
+            # The query returns a RealDictRow where the key is 'pg_try_advisory_xact_lock', but we can just use list values
+            lock_acquired = list(lock_row.values())[0] if lock_row else False
             
             if not lock_acquired:
                 await interaction.followup.send(
