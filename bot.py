@@ -3144,7 +3144,7 @@ class TimeClockView(discord.ui.View):
             # Phase 5: The Review & Feedback Funnel (10% Micro-Prompt)
             import random
             if random.random() < 0.10:
-                out_msg += "\n\n*Having a good shift? ⭐ Leave us a 5-star review on top.gg/App Directory!*"
+                out_msg += "\n\n*Having a good shift? ⭐ [Leave us a 5-star review on top.gg!](https://top.gg/bot/1418446753379913809#reviews)*"
                 
             await interaction.followup.send(out_msg, ephemeral=True)
 
