@@ -6303,6 +6303,11 @@ def api_save_server_settings(user_session, guild_id):
                 
         if 'has_completed_onboarding' in data:
             updates['has_completed_onboarding'] = bool(data['has_completed_onboarding'])
+            
+        if 'report_name_format' in data:
+            valid_formats = ['full_name', 'discord_username', 'discord_nickname_or_username', 'user_id_only']
+            fmt = data['report_name_format']
+            updates['report_name_format'] = fmt if fmt in valid_formats else 'full_name'
                 
         # Legacy fallback
         if 'auto_prune_days' in data and 'auto_prune_logs_days' not in data:
@@ -6332,7 +6337,7 @@ def api_save_server_settings(user_session, guild_id):
                     # Filter out new columns and try again
                     safe_updates = {}
                     for k, v in updates.items():
-                        if k in ['discord_log_channel_id', 'has_completed_onboarding']:
+                        if k in ['discord_log_channel_id', 'has_completed_onboarding', 'report_name_format']:
                             safe_updates[k] = v
                     if not safe_updates:
                         return jsonify({'success': True, 'message': 'Schema not migrated, ignored new fields.'})

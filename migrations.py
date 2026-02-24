@@ -422,6 +422,13 @@ def run_migrations():
                     WHERE verification_status = 'pending' AND verified_at IS NULL
                 """)
                 
+                # 24. Report Name Formatting Option
+                print("   Checking for report_name_format column in guild_settings")
+                try:
+                    cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS report_name_format VARCHAR(50) DEFAULT 'full_name'")
+                except Exception as e:
+                    print(f"   Error adding report_name_format to guild_settings: {e}")
+                
                 # 19. Create email_outbox table for reliable email delivery
                 print("   Checking table: email_outbox")
                 cur.execute("""

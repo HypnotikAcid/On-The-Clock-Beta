@@ -2046,6 +2046,55 @@ def get_user_hours_info(guild_id: int, user_id: int, guild_tz_name: str = "Ameri
     
     return current_session_seconds, daily_seconds, weekly_seconds
 
+async def fetch_formatted_employee_name(bot, guild_id, user_id):
+    """
+    Fetch the appropriately formatted name for a user based on the guild's report_name_format setting.
+    This replaces raw Discord User IDs with clean, customizable names on exports.
+    """
+    with db() as conn:
+        # Get formatting preference
+        cursor = conn.execute("SELECT report_name_format FROM guild_settings WHERE guild_id = %s", (guild_id,))
+        row = cursor.fetchone()
+        name_format = row['report_name_format'] if row and row.get('report_name_format') else 'full_name'
+        
+        # Get profile data
+        cursor = conn.execute("SELECT full_name, display_name FROM employee_profiles WHERE guild_id = %s AND user_id = %s", (guild_id, user_id))
+        emp_row = cursor.fetchone()
+        
+    db_full_name = emp_row['full_name'] if emp_row and emp_row.get('full_name') else None
+    db_display_name = emp_row['display_name'] if emp_row and emp_row.get('display_name') else None
+    
+    # Format 1: Raw ID
+    if name_format == 'user_id_only':
+        return str(user_id)
+        
+    # Format 2: Strict Discord Username (@txclone)
+    if name_format == 'discord_username':
+        try:
+            discord_user = bot.get_user(user_id) or await bot.fetch_user(user_id)
+            return discord_user.name
+        except:
+            return db_display_name or f"User-{user_id}"
+            
+    # Format 3: Discord Server Nickname
+    if name_format == 'discord_nickname_or_username':
+        try:
+            guild = bot.get_guild(guild_id)
+            if guild:
+                member = guild.get_member(user_id) or await guild.fetch_member(user_id)
+                return member.display_name
+        except:
+            pass # fallback below
+        return db_display_name or f"User-{user_id}"
+        
+    # Format 4: Full Name (Default)
+    if name_format == 'full_name':
+        if db_full_name:
+            return db_full_name
+            
+    # Absolute Fallback (if they chose full_name but never typed it, or if all else failed)
+    return db_display_name or f"User-{user_id}"
+
 async def generate_csv_report(bot, sessions_data, guild_id, guild_tz="America/New_York"):
     """Generate organized CSV content from sessions data with usernames."""
     output = io.StringIO()
@@ -2064,12 +2113,8 @@ async def generate_csv_report(bot, sessions_data, guild_id, guild_tz="America/Ne
     
     # Generate organized format for each user
     for user_id, sessions in user_sessions.items():
-        # Fetch Discord user to get display name based on guild preference
-        try:
-            discord_user = await bot.fetch_user(user_id)
-            user_display_name = get_user_display_name(discord_user, guild_id)
-        except:
-            user_display_name = f"User-{user_id}"  # Fallback if user not found
+        # Fetch formatted name based on Guild Settings preference
+        user_display_name = await fetch_formatted_employee_name(bot, guild_id, user_id)
         
         # Calculate date range for this user
         all_dates = []
@@ -2112,12 +2157,8 @@ async def generate_individual_csv_report(bot, user_id, sessions, guild_id, guild
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Fetch Discord user to get display name based on guild preference
-    try:
-        discord_user = await bot.fetch_user(user_id)
-        user_display_name = get_user_display_name(discord_user, guild_id)
-    except:
-        user_display_name = f"User-{user_id}"  # Fallback if user not found
+    # Fetch formatted name based on Guild Settings preference
+    user_display_name = await fetch_formatted_employee_name(bot, guild_id, user_id)
     
     # Calculate date range for this user
     all_dates = []
@@ -2177,12 +2218,8 @@ async def generate_payroll_csv_report(bot, sessions_data, guild_id, guild_tz="Am
         user_daily_totals[user_id][date_formatted] += duration_seconds
         
     for user_id, daily_data in user_daily_totals.items():
-        # Fetch Discord user for display name
-        try:
-            discord_user = await bot.fetch_user(user_id)
-            user_display_name = get_user_display_name(discord_user, guild_id)
-        except:
-            user_display_name = f"User-{user_id}"
+        # Fetch formatted name based on Guild Settings preference
+        user_display_name = await fetch_formatted_employee_name(bot, guild_id, user_id)
             
         for date_str, total_seconds in sorted(daily_data.items()):
             total_hours = round(total_seconds / 3600, 2)
@@ -2243,11 +2280,8 @@ async def generate_pdf_report(bot, sessions_data, guild_id, guild_tz="America/Ne
         user_sessions[user_id].append((clock_in, clock_out, duration_seconds))
         
     for user_id, sessions in user_sessions.items():
-        try:
-            discord_user = await bot.fetch_user(user_id)
-            user_display_name = get_user_display_name(discord_user, guild_id)
-        except:
-            user_display_name = f"User-{user_id}"
+        # Fetch formatted name based on Guild Settings preference
+        user_display_name = await fetch_formatted_employee_name(bot, guild_id, user_id)
             
         elements.append(Paragraph(f"<b>Employee: {user_display_name}</b>", styles['Heading4']))
         elements.append(Spacer(1, 5))
