@@ -256,7 +256,7 @@
             border: 1px solid rgba(99, 91, 255, 0.3);
         }
 
-                .badge.manual {
+        .badge.manual {
             background: rgba(168, 85, 247, 0.2);
             color: #A855F7;
             border: 1px solid rgba(168, 85, 247, 0.3);
@@ -1645,127 +1645,134 @@
 
                     <div class="neon-box">
                         <div class="box-title"><span>📧</span> Email Infrastructure</div>
-                        // Toggle server card expand/collapse
-                        function toggleServerCard(element) {
-                        const card = element.closest('.server-card');
-                        card.classList.toggle('expanded');
-                        }
+                        <!-- Add diagnostic tools here -->
+                    </div>
+                </div>
 
-                        // Grant access API call
-                        async function grantAccess(guildId, accessType, button) {
-                        if (button.disabled) return;
+    </main>
 
-                        button.disabled = true;
-                        button.textContent = 'Granting...';
+    <script>
+        // Toggle server card expand/collapse
+        function toggleServerCard(element) {
+            const card = element.closest('.server-card');
+            card.classList.toggle('expanded');
+        }
 
-                        try {
-                        const response = await fetch('/api/owner/grant-access', {
-                        method: 'POST',
-                        headers: {
+        // Grant access API call
+        async function grantAccess(guildId, accessType, button) {
+            if (button.disabled) return;
+
+            button.disabled = true;
+            button.textContent = 'Granting...';
+
+            try {
+                const response = await fetch('/api/owner/grant-access', {
+                    method: 'POST',
+                    headers: {
                         'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
+                    },
+                    body: JSON.stringify({
                         guild_id: guildId,
                         access_type: accessType
-                        })
-                        });
+                    })
+                });
 
-                        const data = await response.json();
+                const data = await response.json();
 
-                        if (data.success) {
-                        button.classList.add('granted');
-                        if (accessType === 'bot_access') {
+                if (data.success) {
+                    button.classList.add('granted');
+                    if (accessType === 'bot_access') {
                         button.textContent = '✓ Bot Access';
-                        } else if (accessType === '7day') {
+                    } else if (accessType === '7day') {
                         button.textContent = '✓ 7-Day Active';
-                        } else if (accessType === '30day') {
+                    } else if (accessType === '30day') {
                         button.textContent = '✓ 30-Day Active';
-                        }
+                    }
 
-                        // Refresh the page after 1 second to update all badges
-                        setTimeout(() => location.reload(), 1000);
-                        } else {
-                        alert('Error: ' + data.error);
-                        button.disabled = false;
-                        button.textContent = 'Retry';
-                        }
-                        } catch (error) {
-                        console.error('Grant access error:', error);
-                        alert('Failed to grant access. Please try again.');
-                        button.disabled = false;
-                        button.textContent = 'Retry';
-                        }
-                        }
+                    // Refresh the page after 1 second to update all badges
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    alert('Error: ' + data.error);
+                    button.disabled = false;
+                    button.textContent = 'Retry';
+                }
+            } catch (error) {
+                console.error('Grant access error:', error);
+                alert('Failed to grant access. Please try again.');
+                button.disabled = false;
+                button.textContent = 'Retry';
+            }
+        }
 
-                        // Server dropdown functionality
-                        let serverCache = { active: [], historical: [] };
-                        let selectedServer = null;
-                        let dropdownDebounce = null;
+        // Server dropdown functionality
+        let serverCache = { active: [], historical: [] };
+        let selectedServer = null;
+        let dropdownDebounce = null;
 
-                        async function loadServerIndex(searchTerm = '') {
-                        try {
-                        const url = searchTerm ? `/api/owner/server-index?search=${encodeURIComponent(searchTerm)}` :
-                        '/api/owner/server-index';
-                        const response = await fetch(url);
-                        const data = await response.json();
-                        if (data.success) {
-                        serverCache = { active: data.active || [], historical: data.historical || [] };
-                        renderDropdown();
-                        }
-                        } catch (error) {
-                        console.error('Failed to load server index:', error);
-                        }
-                        }
+        async function loadServerIndex(searchTerm = '') {
+            try {
+                const url = searchTerm ? `/api/owner/server-index?search=${encodeURIComponent(searchTerm)}` :
+                    '/api/owner/server-index';
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.success) {
+                    serverCache = { active: data.active || [], historical: data.historical || [] };
+                    renderDropdown();
+                }
+            } catch (error) {
+                console.error('Failed to load server index:', error);
+            }
+        }
 
-                        function renderDropdown() {
-                        const dropdown = document.getElementById('serverDropdownContent');
-                        const searchTerm = document.getElementById('serverSearchInput').value.trim().toLowerCase();
+        function renderDropdown() {
+            const dropdown = document.getElementById('serverDropdownContent');
+            const searchTerm = document.getElementById('serverSearchInput').value.trim().toLowerCase();
 
-                        let html = '';
+            let html = '';
 
-                        // Filter and render active servers
-                        const activeFiltered = serverCache.active.filter(s =>
-                        !searchTerm || s.name.toLowerCase().includes(searchTerm) || s.guild_id.includes(searchTerm)
-                        );
+            // Filter and render active servers
+            const activeFiltered = serverCache.active.filter(s =>
+                !searchTerm || s.name.toLowerCase().includes(searchTerm) || s.guild_id.includes(searchTerm)
+            );
 
-                        if (activeFiltered.length > 0) {
-                        html += '<div style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D;">ACTIVE SERVERS</div>';
-                        activeFiltered.forEach(s => {
-                        html += renderServerOption(s, false);
-                        });
-                        }
+            if (activeFiltered.length > 0) {
+                html += '<div style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D;">ACTIVE SERVERS</div>';
+                activeFiltered.forEach(s => {
+                    html += renderServerOption(s, false);
+                });
+            }
 
-                        const historicalFiltered = serverCache.historical.filter(s =>
-                        !searchTerm || s.name.toLowerCase().includes(searchTerm) || s.guild_id.includes(searchTerm)
-                        );
+            const historicalFiltered = serverCache.historical.filter(s =>
+                !searchTerm || s.name.toLowerCase().includes(searchTerm) || s.guild_id.includes(searchTerm)
+            );
 
-                        if (historicalFiltered.length > 0) {
-                        html += '<div style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D; border-top: 1px solid #30363D;">HISTORICAL (Bot Left)</div>';
-                        historicalFiltered.forEach(s => {
-                        html += renderServerOption(s, true);
-                        });
-                        }
+            if (historicalFiltered.length > 0) {
+                html += '<div style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D; border-top: 1px solid #30363D;">HISTORICAL (Bot Left)</div>';
+                historicalFiltered.forEach(s => {
+                    html += renderServerOption(s, true);
+                });
+            }
 
-                        if (!html) {
-                        html = '<div style="padding: 12px; color: #8B949E; text-align: center;">No servers found</div>';
-                        }
+            if (!html) {
+                html = '<div style="padding: 12px; color: #8B949E; text-align: center;">No servers found</div>';
+            }
 
-                        dropdown.innerHTML = html;
-                        }
+            dropdown.innerHTML = html;
+        }
 
-                        function renderServerOption(server, isHistorical) {
-                        const badges = [];
-                        if (server.bot_access) badges.push('<span style="background: #238636; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">PAID</span>');
-                        if (server.granted) badges.push(`<span style="background: #6e40c9; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${server.source === 'stripe' ? 'STRIPE' : 'GRANTED'}</span>`);
-                        if (server.retention) badges.push(`<span style="background: #1f6feb; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${server.retention.toUpperCase()}</span>`);
-                        if (isHistorical) badges.push(`<span style="background: #484f58; color: #8B949E; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Left ${server.left_at || 'unknown'}</span>`);
+        function renderServerOption(server, isHistorical) {
+            const badges = [];
+            if (server.bot_access) badges.push('<span style="background: #238636; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">PAID</span>');
+            if (server.granted) badges.push(`<span style="background: #6e40c9; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${server.source === 'stripe' ? 'STRIPE' : 'GRANTED'}</span>`);
+            if (server.retention) badges.push(`<span style="background: #1f6feb; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${server.retention.toUpperCase()}</span>`);
+            if (isHistorical) badges.push(`<span style="background: #484f58; color: #8B949E; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Left ${server.left_at || 'unknown'}</span>`);
 
-                        const safeName = escapeHtml(server.name).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        const botAccessStr = server.bot_access ? 'true' : 'false';
-                        const grantedStr = server.granted ? 'true' : 'false';
-                        const onClickAction = `selectServer('${server.guild_id}', '${safeName}', ${botAccessStr}, '${server.retention || ''}', ${grantedStr}, '${server.source || ''}')`;
+            const safeName = escapeHtml(server.name).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const botAccessStr = server.bot_access ? 'true' : 'false';
+            const grantedStr = server.granted ? 'true' : 'false';
+            const onClickAction = `selectServer('${server.guild_id}', '${safeName}', ${botAccessStr}, '${server.retention || ''}', ${grantedStr}, '${server.source || ''}')`;
 
-                        return `
+            return `
                         <div onclick="${onClickAction}"
                             style="padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #21262D; transition: background 0.15s;"
                             onmouseover="this.style.background='#21262D'"
@@ -1777,883 +1784,881 @@
                             </div>
                         </div>
                         `;
-                        }
+        }
 
-                        function selectServer(guildId, name, botAccess, retention, granted, source) {
-                        selectedServer = { guildId, name, botAccess, retention, granted, source };
+        function selectServer(guildId, name, botAccess, retention, granted, source) {
+            selectedServer = { guildId, name, botAccess, retention, granted, source };
 
-                        // Update UI
-                        document.getElementById('serverSearchInput').value = '';
-                        document.getElementById('serverDropdown').style.display = 'none';
-                        document.getElementById('guildIdInputWrapper').style.display = 'none';
-                        document.getElementById('quickGrantGuildId').value = guildId;
+            // Update UI
+            document.getElementById('serverSearchInput').value = '';
+            document.getElementById('serverDropdown').style.display = 'none';
+            document.getElementById('guildIdInputWrapper').style.display = 'none';
+            document.getElementById('quickGrantGuildId').value = guildId;
 
-                        // Show selected server info
-                        const infoDiv = document.getElementById('selectedServerInfo');
-                        document.getElementById('selectedServerName').textContent = name;
+            // Show selected server info
+            const infoDiv = document.getElementById('selectedServerInfo');
+            document.getElementById('selectedServerName').textContent = name;
 
-                        const badges = [];
-                        if (botAccess) badges.push('<span style="background: #238636; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">PAID</span>');
-                        if (granted) badges.push(`<span style="background: #6e40c9; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${source === 'stripe' ? 'STRIPE' : 'GRANTED'}</span>`);
-                        if (retention) badges.push(`<span style="background: #1f6feb; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${retention.toUpperCase()}</span>`);
+            const badges = [];
+            if (botAccess) badges.push('<span style="background: #238636; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">PAID</span>');
+            if (granted) badges.push(`<span style="background: #6e40c9; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${source === 'stripe' ? 'STRIPE' : 'GRANTED'}</span>`);
+            if (retention) badges.push(`<span style="background: #1f6feb; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${retention.toUpperCase()}</span>`);
 
-                        document.getElementById('selectedServerBadges').innerHTML = `<span style="color: #6E7681; font-size: 11px; margin-right: 8px;">${guildId}</span>` + badges.join(' ');
+            document.getElementById('selectedServerBadges').innerHTML = `<span style="color: #6E7681; font-size: 11px; margin-right: 8px;">${guildId}</span>` + badges.join(' ');
 
-                        infoDiv.style.display = 'block';
-                        }
+            infoDiv.style.display = 'block';
+        }
 
-                        function clearServerSelection() {
-                        selectedServer = null;
-                        document.getElementById('selectedServerInfo').style.display = 'none';
-                        document.getElementById('guildIdInputWrapper').style.display = 'block';
-                        document.getElementById('quickGrantGuildId').value = '';
-                        }
+        function clearServerSelection() {
+            selectedServer = null;
+            document.getElementById('selectedServerInfo').style.display = 'none';
+            document.getElementById('guildIdInputWrapper').style.display = 'block';
+            document.getElementById('quickGrantGuildId').value = '';
+        }
 
-                        // Initialize dropdown on page load
-                        document.addEventListener('DOMContentLoaded', function () {
-                        const searchInput = document.getElementById('serverSearchInput');
-                        const dropdown = document.getElementById('serverDropdown');
+        // Initialize dropdown on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('serverSearchInput');
+            const dropdown = document.getElementById('serverDropdown');
 
-                        // Load initial server list
-                        loadServerIndex();
+            // Load initial server list
+            loadServerIndex();
 
-                        // Show dropdown on focus
-                        searchInput.addEventListener('focus', function () {
-                        dropdown.style.display = 'block';
-                        renderDropdown();
-                        });
+            // Show dropdown on focus
+            searchInput.addEventListener('focus', function () {
+                dropdown.style.display = 'block';
+                renderDropdown();
+            });
 
-                        // Filter on input with debounce
-                        searchInput.addEventListener('input', function () {
-                        clearTimeout(dropdownDebounce);
-                        dropdownDebounce = setTimeout(() => {
-                        renderDropdown();
-                        }, 150);
-                        });
+            // Filter on input with debounce
+            searchInput.addEventListener('input', function () {
+                clearTimeout(dropdownDebounce);
+                dropdownDebounce = setTimeout(() => {
+                    renderDropdown();
+                }, 150);
+            });
 
-                        // Hide dropdown when clicking outside
-                        document.addEventListener('click', function (e) {
-                        if (!e.target.closest('#serverSearchInput') && !e.target.closest('#serverDropdown')) {
-                        dropdown.style.display = 'none';
-                        }
-                        });
-                        });
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('#serverSearchInput') && !e.target.closest('#serverDropdown')) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        });
 
-                        // Quick grant function for header section
-                        async function quickGrant(accessType, source = 'granted') {
-                        const guildIdInput = document.getElementById('quickGrantGuildId');
-                        const resultDiv = document.getElementById('quickGrantResult');
-                        const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+        // Quick grant function for header section
+        async function quickGrant(accessType, source = 'granted') {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
 
-                        if (!guildId) {
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Please enter a Guild ID';
-                        return;
-                        }
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
 
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
-                        resultDiv.style.color = '#D4AF37';
-                        resultDiv.textContent = 'Processing...';
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Processing...';
 
-                        try {
-                        const response = await fetch('/api/owner/grant-access', {
-                        method: 'POST',
-                        headers: {
+            try {
+                const response = await fetch('/api/owner/grant-access', {
+                    method: 'POST',
+                    headers: {
                         'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
+                    },
+                    body: JSON.stringify({
                         guild_id: guildId,
                         access_type: accessType,
                         source: source
-                        })
-                        });
+                    })
+                });
 
-                        const data = await response.json();
+                const data = await response.json();
 
-                        if (data.success) {
-                        resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
-                        resultDiv.style.color = '#34D399';
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
 
-                        const accessLabel = accessType === 'premium' ? 'Premium Tier' :
+                    const accessLabel = accessType === 'premium' ? 'Premium Tier' :
                         accessType === 'pro' ? 'Pro Tier' :
-                        accessType === 'bot_access' ? 'Bot Access' :
-                        accessType === '7day' ? '7-Day Retention' : '30-Day Retention';
-                        const sourceLabel = source === 'stripe' ? ' (Stripe Fix)' : ' (Owner Grant)';
-                        const serverName = selectedServer ? selectedServer.name : guildId;
-                        resultDiv.textContent = `Successfully granted ${accessLabel}${sourceLabel} to ${serverName}`;
+                            accessType === 'bot_access' ? 'Bot Access' :
+                                accessType === '7day' ? '7-Day Retention' : '30-Day Retention';
+                    const sourceLabel = source === 'stripe' ? ' (Stripe Fix)' : ' (Owner Grant)';
+                    const serverName = selectedServer ? selectedServer.name : guildId;
+                    resultDiv.textContent = `Successfully granted ${accessLabel}${sourceLabel} to ${serverName}`;
 
-                        // Clear selection and refresh after 2 seconds
-                        clearServerSelection();
-                        guildIdInput.value = '';
-                        setTimeout(() => location.reload(), 2000);
-                        } else {
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Error: ' + data.error;
-                        }
-                        } catch (error) {
-                        console.error('Quick grant error:', error);
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Failed to grant access. Please try again.';
-                        }
-                        }
+                    // Clear selection and refresh after 2 seconds
+                    clearServerSelection();
+                    guildIdInput.value = '';
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Quick grant error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to grant access. Please try again.';
+            }
+        }
 
-                        // Trial management functions
-                        async function grantTrial() {
-                        const guildIdInput = document.getElementById('quickGrantGuildId');
-                        const resultDiv = document.getElementById('quickGrantResult');
-                        const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+        // Trial management functions
+        async function grantTrial() {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
 
-                        if (!guildId) {
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Please enter a Guild ID';
-                        return;
-                        }
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
 
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
-                        resultDiv.style.color = '#D4AF37';
-                        resultDiv.textContent = 'Granting trial...';
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Granting trial...';
 
-                        try {
-                        const response = await fetch('/api/owner/trial/grant', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ guild_id: guildId })
-                        });
+            try {
+                const response = await fetch('/api/owner/trial/grant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: guildId })
+                });
 
-                        const data = await response.json();
+                const data = await response.json();
 
-                        if (data.success) {
-                        resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
-                        resultDiv.style.color = '#34D399';
-                        resultDiv.textContent = data.message || 'Trial granted successfully!';
-                        clearServerSelection();
-                        guildIdInput.value = '';
-                        } else {
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Error: ' + data.error;
-                        }
-                        } catch (error) {
-                        console.error('Grant trial error:', error);
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Failed to grant trial. Please try again.';
-                        }
-                        }
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
+                    resultDiv.textContent = data.message || 'Trial granted successfully!';
+                    clearServerSelection();
+                    guildIdInput.value = '';
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Grant trial error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to grant trial. Please try again.';
+            }
+        }
 
-                        async function checkTrialStatus() {
-                        const guildIdInput = document.getElementById('quickGrantGuildId');
-                        const resultDiv = document.getElementById('quickGrantResult');
-                        const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+        async function checkTrialStatus() {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
 
-                        if (!guildId) {
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Please enter a Guild ID';
-                        return;
-                        }
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
 
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
-                        resultDiv.style.color = '#D4AF37';
-                        resultDiv.textContent = 'Checking trial status...';
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Checking trial status...';
 
-                        try {
-                        const response = await fetch(`/api/owner/trial/status/${guildId}`);
-                        const data = await response.json();
+            try {
+                const response = await fetch(`/api/owner/trial/status/${guildId}`);
+                const data = await response.json();
 
-                        if (data.success) {
-                        if (data.trial_used) {
+                if (data.success) {
+                    if (data.trial_used) {
                         resultDiv.style.background = 'rgba(255, 165, 0, 0.1)';
                         resultDiv.style.border = '1px solid rgba(255, 165, 0, 0.3)';
                         resultDiv.style.color = '#FFA500';
                         resultDiv.textContent = `Trial already used on ${data.used_at} (${data.grant_type})`;
-                        } else {
+                    } else {
                         resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
                         resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
                         resultDiv.style.color = '#34D399';
                         resultDiv.textContent = 'Trial available - server has not used their First Month Free yet';
-                        }
-                        } else {
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Error: ' + data.error;
-                        }
-                        } catch (error) {
-                        console.error('Check trial error:', error);
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Failed to check trial status.';
-                        }
-                        }
+                    }
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Check trial error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to check trial status.';
+            }
+        }
 
-                        async function resetTrial() {
-                        const guildIdInput = document.getElementById('quickGrantGuildId');
-                        const resultDiv = document.getElementById('quickGrantResult');
-                        const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+        async function resetTrial() {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
 
-                        if (!guildId) {
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Please enter a Guild ID';
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
+
+            if (!confirm('Are you sure you want to reset the trial for this server? This will allow them to use the First Month Free discount again.')) {
                         return;
+        }
+
+        resultDiv.style.display = 'block';
+        resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+        resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+        resultDiv.style.color = '#D4AF37';
+        resultDiv.textContent = 'Resetting trial...';
+
+        try {
+            const response = await fetch('/api/owner/trial/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ guild_id: guildId })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                resultDiv.style.color = '#34D399';
+                resultDiv.textContent = data.message || 'Trial reset successfully!';
+                clearServerSelection();
+                guildIdInput.value = '';
+            } else {
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Error: ' + data.error;
+            }
+        } catch (error) {
+            console.error('Reset trial error:', error);
+            resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+            resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+            resultDiv.style.color = '#FF6B6B';
+            resultDiv.textContent = 'Failed to reset trial.';
+        }
                         }
 
-                        if (!confirm('Are you sure you want to reset the trial for this server? This will allow them to
-                        use the First Month Free discount again.')) {
-                        return;
-                        }
+        async function seedDemoData() {
+            const btn = document.getElementById('seedDemoBtn');
+            const resultDiv = document.getElementById('seedDemoResult');
 
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
-                        resultDiv.style.color = '#D4AF37';
-                        resultDiv.textContent = 'Resetting trial...';
+            btn.disabled = true;
+            btn.textContent = 'Seeding...';
+            resultDiv.style.display = 'block';
+            resultDiv.style.padding = '10px';
+            resultDiv.style.borderRadius = '8px';
+            resultDiv.style.background = 'rgba(0, 255, 255, 0.1)';
+            resultDiv.style.border = '1px solid rgba(0, 255, 255, 0.3)';
+            resultDiv.style.color = '#00FFFF';
+            resultDiv.textContent = 'Populating demo server with sample data...';
 
-                        try {
-                        const response = await fetch('/api/owner/trial/reset', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ guild_id: guildId })
-                        });
+            try {
+                const response = await fetch('/debug/seed-demo-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
 
-                        const data = await response.json();
+                const data = await response.json();
 
-                        if (data.success) {
-                        resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
-                        resultDiv.style.color = '#34D399';
-                        resultDiv.textContent = data.message || 'Trial reset successfully!';
-                        clearServerSelection();
-                        guildIdInput.value = '';
-                        } else {
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Error: ' + data.error;
-                        }
-                        } catch (error) {
-                        console.error('Reset trial error:', error);
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Failed to reset trial.';
-                        }
-                        }
-
-                        async function seedDemoData() {
-                        const btn = document.getElementById('seedDemoBtn');
-                        const resultDiv = document.getElementById('seedDemoResult');
-
-                        btn.disabled = true;
-                        btn.textContent = 'Seeding...';
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.padding = '10px';
-                        resultDiv.style.borderRadius = '8px';
-                        resultDiv.style.background = 'rgba(0, 255, 255, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(0, 255, 255, 0.3)';
-                        resultDiv.style.color = '#00FFFF';
-                        resultDiv.textContent = 'Populating demo server with sample data...';
-
-                        try {
-                        const response = await fetch('/debug/seed-demo-data', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                        resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
-                        resultDiv.style.color = '#34D399';
-                        resultDiv.textContent = `Done! Created ${data.details.employees} employees,
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
+                    resultDiv.textContent = `Done! Created ${data.details.employees} employees,
                         ${data.details.sessions} time records, ${data.details.adjustment_requests} adjustment
                         requests.`;
-                        } else {
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Error: ' + data.error;
-                        }
-                        } catch (error) {
-                        console.error('Seed demo error:', error);
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Failed to seed demo data.';
-                        } finally {
-                        btn.disabled = false;
-                        btn.textContent = 'Seed Demo Data';
-                        }
-                        }
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Seed demo error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to seed demo data.';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Seed Demo Data';
+            }
+        }
 
-                        // Quick revoke function for header section
-                        async function quickRevoke() {
-                        const guildIdInput = document.getElementById('quickGrantGuildId');
-                        const resultDiv = document.getElementById('quickGrantResult');
-                        const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
+        // Quick revoke function for header section
+        async function quickRevoke() {
+            const guildIdInput = document.getElementById('quickGrantGuildId');
+            const resultDiv = document.getElementById('quickGrantResult');
+            const guildId = selectedServer ? selectedServer.guildId : guildIdInput.value.trim();
 
-                        if (!guildId) {
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Please enter a Guild ID';
-                        return;
-                        }
+            if (!guildId) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Please enter a Guild ID';
+                return;
+            }
 
-                        const serverName = selectedServer ? selectedServer.name : guildId;
-                        if (!confirm(`Are you sure you want to revoke ALL access for ${serverName}?`)) {
-                        return;
-                        }
+            const serverName = selectedServer ? selectedServer.name : guildId;
+            if (!confirm(`Are you sure you want to revoke ALL access for ${serverName}?`)) {
+                return;
+            }
 
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
-                        resultDiv.style.color = '#D4AF37';
-                        resultDiv.textContent = 'Revoking access...';
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = 'rgba(212, 175, 55, 0.1)';
+            resultDiv.style.border = '1px solid rgba(212, 175, 55, 0.3)';
+            resultDiv.style.color = '#D4AF37';
+            resultDiv.textContent = 'Revoking access...';
 
-                        try {
-                        const response = await fetch('/api/owner/revoke-access', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ guild_id: guildId, access_type: 'all' })
-                        });
+            try {
+                const response = await fetch('/api/owner/revoke-access', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: guildId, access_type: 'all' })
+                });
 
-                        const data = await response.json();
+                const data = await response.json();
 
-                        if (data.success) {
-                        resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
-                        resultDiv.style.color = '#34D399';
-                        resultDiv.textContent = `Successfully revoked access for ${serverName}`;
-                        clearServerSelection();
-                        guildIdInput.value = '';
-                        setTimeout(() => location.reload(), 2000);
-                        } else {
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Error: ' + data.error;
-                        }
-                        } catch (error) {
-                        console.error('Quick revoke error:', error);
-                        resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
-                        resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
-                        resultDiv.style.color = '#FF6B6B';
-                        resultDiv.textContent = 'Failed to revoke access.';
-                        }
-                        }
+                if (data.success) {
+                    resultDiv.style.background = 'rgba(52, 211, 153, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(52, 211, 153, 0.3)';
+                    resultDiv.style.color = '#34D399';
+                    resultDiv.textContent = `Successfully revoked access for ${serverName}`;
+                    clearServerSelection();
+                    guildIdInput.value = '';
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                    resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                    resultDiv.style.color = '#FF6B6B';
+                    resultDiv.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Quick revoke error:', error);
+                resultDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                resultDiv.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+                resultDiv.style.color = '#FF6B6B';
+                resultDiv.textContent = 'Failed to revoke access.';
+            }
+        }
 
-                        // Revoke access API call
-                        async function revokeAccess(guildId, accessType, button) {
-                        if (button.disabled) return;
+        // Revoke access API call
+        async function revokeAccess(guildId, accessType, button) {
+            if (button.disabled) return;
 
-                        const typeLabel = accessType === 'all' ? 'ALL access' : accessType === 'bot_access' ? 'Bot
-                        Access' : accessType.toUpperCase() + ' Retention';
-                        if (!confirm(`Are you sure you want to revoke ${typeLabel} for this server?`)) {
-                        return;
-                        }
+            const typeLabel = accessType === 'all' ? 'ALL access' : accessType === 'bot_access' ? 'Bot Access' : accessType.toUpperCase() + ' Retention';
+            if (!confirm(`Are you sure you want to revoke ${typeLabel} for this server?`)) {
+                return;
+            }
 
-                        button.disabled = true;
-                        button.textContent = 'Revoking...';
+            button.disabled = true;
+            button.textContent = 'Revoking...';
 
-                        try {
-                        const response = await fetch('/api/owner/revoke-access', {
-                        method: 'POST',
-                        headers: {
+            try {
+                const response = await fetch('/api/owner/revoke-access', {
+                    method: 'POST',
+                    headers: {
                         'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
+                    },
+                    body: JSON.stringify({
                         guild_id: guildId,
                         access_type: accessType
-                        })
-                        });
+                    })
+                });
 
-                        const data = await response.json();
+                const data = await response.json();
 
-                        if (data.success) {
-                        // Refresh the page immediately to update all badges and buttons
-                        location.reload();
-                        } else {
-                        alert('Error: ' + data.error);
-                        button.disabled = false;
-                        button.textContent = 'Retry';
-                        }
-                        } catch (error) {
-                        console.error('Revoke access error:', error);
-                        alert('Failed to revoke access. Please try again.');
-                        button.disabled = false;
-                        button.textContent = 'Retry';
-                        }
-                        }
+                if (data.success) {
+                    // Refresh the page immediately to update all badges and buttons
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                    button.disabled = false;
+                    button.textContent = 'Retry';
+                }
+            } catch (error) {
+                console.error('Revoke access error:', error);
+                alert('Failed to revoke access. Please try again.');
+                button.disabled = false;
+                button.textContent = 'Retry';
+            }
+        }
 
-                        // Employee list and time report functions
-                        function escapeHtml(text) {
-                        if (!text) return '';
-                        const div = document.createElement('div');
-                        div.textContent = text;
-                        return div.innerHTML;
-                        }
+        // Employee list and time report functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-                        async function viewEmployeeList(guildId, guildName) {
-                        const modal = document.getElementById('employeeListModal');
-                        const title = document.getElementById('employeeListTitle');
-                        const content = document.getElementById('employeeListContent');
+        async function viewEmployeeList(guildId, guildName) {
+            const modal = document.getElementById('employeeListModal');
+            const title = document.getElementById('employeeListTitle');
+            const content = document.getElementById('employeeListContent');
 
-                        title.textContent = 'Employee List - ' + escapeHtml(guildName);
-                        content.innerHTML = '<p style="color: #8B949E;">Loading employees...</p>';
-                        modal.classList.add('active');
+            title.textContent = 'Employee List - ' + escapeHtml(guildName);
+            content.innerHTML = '<p style="color: #8B949E;">Loading employees...</p>';
+            modal.classList.add('active');
 
-                        try {
-                        const response = await fetch('/api/owner/employee-list/' + guildId);
-                        const data = await response.json();
+            try {
+                const response = await fetch('/api/owner/employee-list/' + guildId);
+                const data = await response.json();
 
-                        if (data.success && data.employees.length > 0) {
-                        let html = `<table class="employee-table"><thead><tr>`;
-                                    html += `<th>User ID</th><th>Name</th><th>Role</th><th>Total Hours</th><th>Sessions</th><th>Status</th>`;
-                                    html += `</tr></thead><tbody>`;
+                if (data.success && data.employees.length > 0) {
+                    let html = `<table class="employee-table"><thead><tr>`;
+                    html += `<th>User ID</th><th>Name</th><th>Role</th><th>Total Hours</th><th>Sessions</th><th>Status</th>`;
+                    html += `</tr></thead><tbody>`;
 
-                                data.employees.forEach(emp => {
-                                const statusBadge = emp.is_clocked_in
-                                ? '<span style="color: #34D399;">Clocked In</span>'
-                                : '<span style="color: #8B949E;">Clocked Out</span>';
-                                html += '<tr>';
-                                    html += '<td><code>' + escapeHtml(emp.user_id) + '</code></td>';
-                                    html += '<td>' + escapeHtml(emp.display_name || 'Unknown') + '</td>';
-                                    html += '<td>' + escapeHtml(emp.role || '-') + '</td>';
-                                    html += '<td>' + (emp.total_hours || '0') + ' hrs</td>';
-                                    html += '<td>' + (emp.session_count || 0) + '</td>';
-                                    html += '<td>' + statusBadge + '</td>';
-                                    html += '</tr>';
-                                });
+                    data.employees.forEach(emp => {
+                        const statusBadge = emp.is_clocked_in
+                            ? '<span style="color: #34D399;">Clocked In</span>'
+                            : '<span style="color: #8B949E;">Clocked Out</span>';
+                        html += '<tr>';
+                        html += '<td><code>' + escapeHtml(emp.user_id) + '</code></td>';
+                        html += '<td>' + escapeHtml(emp.display_name || 'Unknown') + '</td>';
+                        html += '<td>' + escapeHtml(emp.role || '-') + '</td>';
+                        html += '<td>' + (emp.total_hours || '0') + ' hrs</td>';
+                        html += '<td>' + (emp.session_count || 0) + '</td>';
+                        html += '<td>' + statusBadge + '</td>';
+                        html += '</tr>';
+                    });
 
-                                html += `</tbody></table>`;
-                        html += '<p style="color: #8B949E; margin-top: 15px; font-size: 12px;">Total employees: ' +
-                            data.employees.length + '</p>';
-                        content.innerHTML = html;
-                        } else if (data.success && data.employees.length === 0) {
-                        content.innerHTML = '<p style="color: #8B949E;">No employees found for this server.</p>';
-                        } else {
-                        content.innerHTML = '<p style="color: #FF6B6B;">Error: ' + escapeHtml(data.error) + '</p>';
-                        }
-                        } catch (error) {
-                        console.error('Error loading employees:', error);
-                        content.innerHTML = '<p style="color: #FF6B6B;">Failed to load employees. Please try again.</p>
-                        ';
-                        }
-                        }
+                    html += `</tbody></table>`;
+                    html += '<p style="color: #8B949E; margin-top: 15px; font-size: 12px;">Total employees: ' +
+                        data.employees.length + '</p>';
+                    content.innerHTML = html;
+                } else if (data.success && data.employees.length === 0) {
+                    content.innerHTML = '<p style="color: #8B949E;">No employees found for this server.</p>';
+                } else {
+                    content.innerHTML = '<p style="color: #FF6B6B;">Error: ' + escapeHtml(data.error) + '</p>';
+                }
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                content.innerHTML = '<p style="color: #FF6B6B;">Failed to load employees. Please try again.</p>
+                ';
+            }
+        }
 
-                        function closeEmployeeModal() {
-                        document.getElementById('employeeListModal').classList.remove('active');
-                        }
+        function closeEmployeeModal() {
+            document.getElementById('employeeListModal').classList.remove('active');
+        }
 
-                        function toggleDatePicker(guildId) {
-                        const picker = document.getElementById('datePicker-' + guildId);
-                        picker.classList.toggle('active');
-                        }
+        function toggleDatePicker(guildId) {
+            const picker = document.getElementById('datePicker-' + guildId);
+            picker.classList.toggle('active');
+        }
 
-                        function setQuickRange(guildId, rangeType, evt) {
-                        const startInput = document.getElementById('startDate-' + guildId);
-                        const endInput = document.getElementById('endDate-' + guildId);
+        function setQuickRange(guildId, rangeType, evt) {
+            const startInput = document.getElementById('startDate-' + guildId);
+            const endInput = document.getElementById('endDate-' + guildId);
 
-                        if (!startInput || !endInput) {
-                        console.error('Date inputs not found for guild:', guildId);
-                        return;
-                        }
+            if (!startInput || !endInput) {
+                console.error('Date inputs not found for guild:', guildId);
+                return;
+            }
 
-                        const now = new Date();
-                        let startDate, endDate;
+            const now = new Date();
+            let startDate, endDate;
 
-                        if (rangeType === 'lastMonth') {
-                        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                        startDate = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
-                        endDate = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
-                        } else if (rangeType === 'thisMonth') {
-                        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                        } else if (rangeType === 'last7') {
-                        endDate = now;
-                        startDate = new Date(now);
-                        startDate.setDate(startDate.getDate() - 7);
-                        } else if (rangeType === 'last30') {
-                        endDate = now;
-                        startDate = new Date(now);
-                        startDate.setDate(startDate.getDate() - 30);
-                        }
+            if (rangeType === 'lastMonth') {
+                const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                startDate = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+                endDate = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+            } else if (rangeType === 'thisMonth') {
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            } else if (rangeType === 'last7') {
+                endDate = now;
+                startDate = new Date(now);
+                startDate.setDate(startDate.getDate() - 7);
+            } else if (rangeType === 'last30') {
+                endDate = now;
+                startDate = new Date(now);
+                startDate.setDate(startDate.getDate() - 30);
+            }
 
-                        startInput.value = startDate.toISOString().split('T')[0];
-                        endInput.value = endDate.toISOString().split('T')[0];
+            startInput.value = startDate.toISOString().split('T')[0];
+            endInput.value = endDate.toISOString().split('T')[0];
 
-                        const btns = document.querySelectorAll('#datePicker-' + guildId + ' .quick-range-btn');
-                        btns.forEach(btn => btn.classList.remove('active'));
-                        if (evt && evt.target) {
-                        evt.target.classList.add('active');
-                        }
-                        }
+            const btns = document.querySelectorAll('#datePicker-' + guildId + ' .quick-range-btn');
+            btns.forEach(btn => btn.classList.remove('active'));
+            if (evt && evt.target) {
+                evt.target.classList.add('active');
+            }
+        }
 
-                        async function downloadTimeReport(guildId, guildName) {
-                        const startDate = document.getElementById('startDate-' + guildId).value;
-                        const endDate = document.getElementById('endDate-' + guildId).value;
+        async function downloadTimeReport(guildId, guildName) {
+            const startDate = document.getElementById('startDate-' + guildId).value;
+            const endDate = document.getElementById('endDate-' + guildId).value;
 
-                        if (!startDate || !endDate) {
-                        alert('Please select both start and end dates');
-                        return;
-                        }
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
 
-                        try {
-                        const response = await fetch('/api/owner/time-report/' + guildId + '?start_date=' + startDate +
-                        '&end_date=' + endDate);
+            try {
+                const response = await fetch('/api/owner/time-report/' + guildId + '?start_date=' + startDate +
+                    '&end_date=' + endDate);
 
-                        if (response.ok) {
-                        const blob = await response.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = guildName.replace(/[^a-z0-9]/gi, '_') + '_time_report_' + startDate + '_to_' +
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = guildName.replace(/[^a-z0-9]/gi, '_') + '_time_report_' + startDate + '_to_' +
                         endDate + '.csv';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(url);
-                        } else {
-                        const data = await response.json();
-                        alert('Error: ' + (data.error || 'Failed to download report'));
-                        }
-                        } catch (error) {
-                        console.error('Download error:', error);
-                        alert('Failed to download report. Please try again.');
-                        }
-                        }
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const data = await response.json();
+                    alert('Error: ' + (data.error || 'Failed to download report'));
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Failed to download report. Please try again.');
+            }
+        }
 
-                        // Server search functionality
-                        document.getElementById('serverSearch').addEventListener('input', function (e) {
-                        const searchTerm = e.target.value.toLowerCase();
-                        const cards = document.querySelectorAll('.server-card');
+        // Server search functionality
+        document.getElementById('serverSearch').addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.server-card');
 
-                        cards.forEach(card => {
-                        const text = card.textContent.toLowerCase();
-                        card.style.display = text.includes(searchTerm) ? '' : 'none';
-                        });
-                        });
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
 
-                        // Default to showing only active servers on page load
-                        document.addEventListener('DOMContentLoaded', function () {
-                        // Apply active filter on page load
-                        const cards = document.querySelectorAll('.server-card');
-                        cards.forEach(card => {
-                        card.style.display = card.dataset.present === '1' ? '' : 'none';
-                        });
-                        });
+        // Default to showing only active servers on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            // Apply active filter on page load
+            const cards = document.querySelectorAll('.server-card');
+            cards.forEach(card => {
+                card.style.display = card.dataset.present === '1' ? '' : 'none';
+            });
+        });
 
-                        // Server filter functionality
-                        function filterServers(evt, filterType) {
-                        const tabs = document.querySelectorAll('.filter-tabs .filter-tab');
-                        tabs.forEach(tab => tab.classList.remove('active'));
-                        evt.target.classList.add('active');
+        // Server filter functionality
+        function filterServers(evt, filterType) {
+            const tabs = document.querySelectorAll('.filter-tabs .filter-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            evt.target.classList.add('active');
 
-                        const cards = document.querySelectorAll('.server-card');
-                        cards.forEach(card => {
-                        if (filterType === 'all') {
-                        card.style.display = '';
-                        } else if (filterType === 'active') {
-                        card.style.display = card.dataset.present === '1' ? '' : 'none';
-                        } else if (filterType === 'inactive') {
-                        card.style.display = card.dataset.present === '0' ? '' : 'none';
-                        } else if (filterType === 'paid') {
-                        card.style.display = card.dataset.paid === '1' ? '' : 'none';
-                        } else if (filterType === 'unpaid') {
-                        card.style.display = card.dataset.paid === '0' ? '' : 'none';
-                        } else if (filterType === 'free') {
-                        card.style.display = card.dataset.retention === 'free' ? '' : 'none';
-                        } else if (filterType === '7day') {
-                        card.style.display = card.dataset.retention === '7day' ? '' : 'none';
-                        } else if (filterType === '30day' || filterType === 'premium') {
-                        card.style.display = (card.dataset.tier === 'premium' || card.dataset.retention === '30day') ?
+            const cards = document.querySelectorAll('.server-card');
+            cards.forEach(card => {
+                if (filterType === 'all') {
+                    card.style.display = '';
+                } else if (filterType === 'active') {
+                    card.style.display = card.dataset.present === '1' ? '' : 'none';
+                } else if (filterType === 'inactive') {
+                    card.style.display = card.dataset.present === '0' ? '' : 'none';
+                } else if (filterType === 'paid') {
+                    card.style.display = card.dataset.paid === '1' ? '' : 'none';
+                } else if (filterType === 'unpaid') {
+                    card.style.display = card.dataset.paid === '0' ? '' : 'none';
+                } else if (filterType === 'free') {
+                    card.style.display = card.dataset.retention === 'free' ? '' : 'none';
+                } else if (filterType === '7day') {
+                    card.style.display = card.dataset.retention === '7day' ? '' : 'none';
+                } else if (filterType === '30day' || filterType === 'premium') {
+                    card.style.display = (card.dataset.tier === 'premium' || card.dataset.retention === '30day') ?
                         '' : 'none';
-                        } else if (filterType === 'pro') {
-                        card.style.display = (card.dataset.tier === 'pro' || card.dataset.retention === 'pro') ? '' :
+                } else if (filterType === 'pro') {
+                    card.style.display = (card.dataset.tier === 'pro' || card.dataset.retention === 'pro') ? '' :
                         'none';
-                        } else if (filterType === 'grandfathered') {
-                        card.style.display = (card.dataset.tier === 'grandfathered' || card.dataset.grandfathered ===
+                } else if (filterType === 'grandfathered') {
+                    card.style.display = (card.dataset.tier === 'grandfathered' || card.dataset.grandfathered ===
                         '1') ? '' : 'none';
-                        } else if (filterType === 'past_due') {
-                        card.style.display = card.dataset.status === 'past_due' ? '' : 'none';
-                        }
-                        });
-                        }
+                } else if (filterType === 'past_due') {
+                    card.style.display = card.dataset.status === 'past_due' ? '' : 'none';
+                }
+            });
+        }
 
-                        // Purchase history filter functionality
-                        function filterPurchases(evt, filterType) {
-                        const section = document.getElementById('purchaseHistorySection');
-                        const tabs = section.querySelectorAll('.filter-tabs .filter-tab');
-                        tabs.forEach(tab => tab.classList.remove('active'));
-                        evt.target.classList.add('active');
+        // Purchase history filter functionality
+        function filterPurchases(evt, filterType) {
+            const section = document.getElementById('purchaseHistorySection');
+            const tabs = section.querySelectorAll('.filter-tabs .filter-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            evt.target.classList.add('active');
 
-                        const rows = document.querySelectorAll('#purchasesTable tr');
-                        rows.forEach(row => {
-                        if (filterType === 'all') {
-                        row.style.display = '';
-                        } else {
-                        row.style.display = row.dataset.type === filterType ? '' : 'none';
-                        }
-                        });
-                        }
+            const rows = document.querySelectorAll('#purchasesTable tr');
+            rows.forEach(row => {
+                if (filterType === 'all') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = row.dataset.type === filterType ? '' : 'none';
+                }
+            });
+        }
 
-                        // Purchase search functionality
-                        document.addEventListener('DOMContentLoaded', function () {
-                        const purchaseSearch = document.getElementById('purchaseSearch');
-                        if (purchaseSearch) {
-                        purchaseSearch.addEventListener('input', function (e) {
-                        const searchTerm = e.target.value.toLowerCase();
-                        const rows = document.querySelectorAll('#purchasesTable tr');
-                        rows.forEach(row => {
+        // Purchase search functionality
+        document.addEventListener('DOMContentLoaded', function () {
+            const purchaseSearch = document.getElementById('purchaseSearch');
+            if (purchaseSearch) {
+                purchaseSearch.addEventListener('input', function (e) {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const rows = document.querySelectorAll('#purchasesTable tr');
+                    rows.forEach(row => {
                         const text = row.textContent.toLowerCase();
                         row.style.display = text.includes(searchTerm) ? '' : 'none';
-                        });
-                        });
-                        }
-                        });
+                    });
+                });
+            }
+        });
 
-                        // Broadcast message character counter
-                        document.getElementById('broadcastMessage').addEventListener('input', function (e) {
-                        document.getElementById('charCount').textContent = e.target.value.length;
-                        });
+        // Broadcast message character counter
+        document.getElementById('broadcastMessage').addEventListener('input', function (e) {
+            document.getElementById('charCount').textContent = e.target.value.length;
+        });
 
-                        // Toggle preview visibility
-                        function togglePreview() {
-                        const preview = document.getElementById('broadcastPreview');
-                        const title = document.getElementById('broadcastTitle').value || 'Announcement';
-                        const message = document.getElementById('broadcastMessage').value || 'No message content';
+        // Toggle preview visibility
+        function togglePreview() {
+            const preview = document.getElementById('broadcastPreview');
+            const title = document.getElementById('broadcastTitle').value || 'Announcement';
+            const message = document.getElementById('broadcastMessage').value || 'No message content';
 
-                        document.getElementById('previewTitle').textContent = title;
-                        document.getElementById('previewContent').textContent = message;
+            document.getElementById('previewTitle').textContent = title;
+            document.getElementById('previewContent').textContent = message;
 
-                        preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
-                        }
+            preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+        }
 
-                        // Send broadcast message
-                        async function sendBroadcast() {
-                        const title = document.getElementById('broadcastTitle').value.trim();
-                        const message = document.getElementById('broadcastMessage').value.trim();
-                        const target = document.querySelector('input[name="broadcastTarget"]:checked').value;
-                        const button = document.getElementById('broadcastBtn');
-                        const resultDiv = document.getElementById('broadcastResult');
+        // Send broadcast message
+        async function sendBroadcast() {
+            const title = document.getElementById('broadcastTitle').value.trim();
+            const message = document.getElementById('broadcastMessage').value.trim();
+            const target = document.querySelector('input[name="broadcastTarget"]:checked').value;
+            const button = document.getElementById('broadcastBtn');
+            const resultDiv = document.getElementById('broadcastResult');
 
-                        if (!title) {
-                        alert('Please enter a message title.');
-                        return;
-                        }
+            if (!title) {
+                alert('Please enter a message title.');
+                return;
+            }
 
-                        if (!message) {
-                        alert('Please enter a message to broadcast.');
-                        return;
-                        }
+            if (!message) {
+                alert('Please enter a message to broadcast.');
+                return;
+            }
 
-                        if (!confirm(`Are you sure you want to send this broadcast to ${target === 'all' ? 'ALL' :
-                        target.toUpperCase()} servers?`)) {
-                        return;
-                        }
+            if (!confirm(`Are you sure you want to send this broadcast to ${target === 'all' ? 'ALL' :
+                target.toUpperCase()} servers?`)) {
+                return;
+            }
 
-                        button.disabled = true;
-                        button.innerHTML = '<span class="btn-icon">⏳</span> Sending...';
-                        resultDiv.style.display = 'none';
+            button.disabled = true;
+            button.innerHTML = '<span class="btn-icon">⏳</span> Sending...';
+            resultDiv.style.display = 'none';
 
-                        try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 300000);
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 300000);
 
-                        const response = await fetch('/api/owner/broadcast', {
-                        method: 'POST',
-                        headers: {
+                const response = await fetch('/api/owner/broadcast', {
+                    method: 'POST',
+                    headers: {
                         'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
+                    },
+                    body: JSON.stringify({
                         title: title,
                         message: message,
                         target: target
-                        }),
-                        signal: controller.signal
-                        });
+                    }),
+                    signal: controller.signal
+                });
 
-                        clearTimeout(timeoutId);
+                clearTimeout(timeoutId);
 
-                        const data = await response.json();
+                const data = await response.json();
 
-                        if (data.success) {
-                        resultDiv.className = 'broadcast-result success';
-                        resultDiv.innerHTML = `✅ Broadcast sent successfully!<br>Sent to ${data.sent_count}
+                if (data.success) {
+                    resultDiv.className = 'broadcast-result success';
+                    resultDiv.innerHTML = `✅ Broadcast sent successfully!<br>Sent to ${data.sent_count}
                         servers${data.failed_count > 0 ? `, ${data.failed_count} failed` : ''}`;
-                        } else if (data.partial) {
-                        resultDiv.className = 'broadcast-result partial';
-                        resultDiv.innerHTML = `⚠️ Partial broadcast: ${data.sent_count} sent, ${data.failed_count}
+                } else if (data.partial) {
+                    resultDiv.className = 'broadcast-result partial';
+                    resultDiv.innerHTML = `⚠️ Partial broadcast: ${data.sent_count} sent, ${data.failed_count}
                         failed`;
-                        } else {
-                        resultDiv.className = 'broadcast-result error';
-                        resultDiv.innerHTML = `❌ Error: ${data.error || 'Unknown error'}`;
-                        }
+                } else {
+                    resultDiv.className = 'broadcast-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.error || 'Unknown error'}`;
+                }
 
-                        resultDiv.style.display = 'block';
-                        } catch (error) {
-                        console.error('Broadcast error:', error);
-                        resultDiv.className = 'broadcast-result error';
-                        resultDiv.innerHTML = `❌ Failed to send broadcast: ${error.message}`;
-                        resultDiv.style.display = 'block';
-                        } finally {
-                        button.disabled = false;
-                        button.innerHTML = '<span class="btn-icon">📢</span> Send Broadcast';
-                        }
-                        }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Broadcast error:', error);
+                resultDiv.className = 'broadcast-result error';
+                resultDiv.innerHTML = `❌ Failed to send broadcast: ${error.message}`;
+                resultDiv.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<span class="btn-icon">📢</span> Send Broadcast';
+            }
+        }
 
-                        // Load email audit logs
-                        async function loadEmailLogs() {
-                        const container = document.getElementById('emailLogsContainer');
-                        const resultDiv = document.getElementById('emailActionResult');
+        // Load email audit logs
+        async function loadEmailLogs() {
+            const container = document.getElementById('emailLogsContainer');
+            const resultDiv = document.getElementById('emailActionResult');
 
-                        container.innerHTML = '<div class="no-data">Loading logs...</div>';
-                        resultDiv.style.display = 'none';
+            container.innerHTML = '<div class="no-data">Loading logs...</div>';
+            resultDiv.style.display = 'none';
 
-                        try {
-                        const response = await fetch('/api/owner/email-logs');
-                        const data = await response.json();
+            try {
+                const response = await fetch('/api/owner/email-logs');
+                const data = await response.json();
 
-                        if (data.success && data.logs.length > 0) {
-                        let html = `<p style="color: #8B949E; margin-bottom: 15px;">Total entries: ${data.total_entries}
+                if (data.success && data.logs.length > 0) {
+                    let html = `<p style="color: #8B949E; margin-bottom: 15px;">Total entries: ${data.total_entries}
                             (showing last 100)</p>`;
-                        html += `<table class="table"><thead><tr>`;
-                                    html += `<th>Time</th><th>Event</th><th>Recipients</th><th>Subject</th><th>Status</th>`;
-                                    html += `</tr></thead><tbody>`;
+                    html += `<table class="table"><thead><tr>`;
+                    html += `<th>Time</th><th>Event</th><th>Recipients</th><th>Subject</th><th>Status</th>`;
+                    html += `</tr></thead><tbody>`;
 
-                                for (const log of data.logs) {
-                                const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown';
-                                const event = log.event || 'unknown';
-                                const recipients = Array.isArray(log.recipients) ? log.recipients.join(', ') :
-                                (log.recipients || 'N/A');
-                                const subject = log.subject || 'N/A';
-                                const success = log.success !== false;
-                                const error = log.error || '';
-                                const context = log.context || {};
+                    for (const log of data.logs) {
+                        const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown';
+                        const event = log.event || 'unknown';
+                        const recipients = Array.isArray(log.recipients) ? log.recipients.join(', ') :
+                            (log.recipients || 'N/A');
+                        const subject = log.subject || 'N/A';
+                        const success = log.success !== false;
+                        const error = log.error || '';
+                        const context = log.context || {};
 
-                                html += '<tr>';
-                                    html += `<td class="timestamp">${time}</td>`;
-                                    html += `<td><span
+                        html += '<tr>';
+                        html += `<td class="timestamp">${time}</td>`;
+                        html += `<td><span
                                             class="badge ${event.includes('success') ? 'success' : event.includes('fail') || event.includes('error') ? 'failed' : 'active'}">${event}</span>
                                     </td>`;
-                                    html += `<td style="max-width: 200px; word-break: break-all; font-size: 12px;">
+                        html += `<td style="max-width: 200px; word-break: break-all; font-size: 12px;">
                                         ${recipients}</td>`;
-                                    html += `<td style="max-width: 300px; font-size: 12px;">${subject}`;
-                                        if (context.guild_name) {
-                                        html += `<div class="event-details">Guild: ${context.guild_name}</div>`;
-                                        }
-                                        html += '</td>';
-                                    html += `<td><span class="badge ${success ? 'success' : 'failed'}">${success ? 'OK'
-                                            : 'Failed'}</span>`;
-                                        if (error) {
-                                        html += `<div class="event-details" style="color: #FF6B6B;">${error}</div>`;
-                                        }
-                                        html += '</td>';
-                                    html += '</tr>';
-                                }
-
-                                html += `</tbody></table>`;
-                        container.innerHTML = html;
-                        } else {
-                        container.innerHTML = '<div class="no-data">No email logs found yet. Logs will appear here after emails are sent.</div>';
+                        html += `<td style="max-width: 300px; font-size: 12px;">${subject}`;
+                        if (context.guild_name) {
+                            html += `<div class="event-details">Guild: ${context.guild_name}</div>`;
                         }
-                        } catch (error) {
-                        console.error('Load email logs error:', error);
-                        container.innerHTML = `<div class="no-data" style="color: #FF6B6B;">Failed to load logs: ${error.message}</div>`;
+                        html += '</td>';
+                        html += `<td><span class="badge ${success ? 'success' : 'failed'}">${success ? 'OK'
+                            : 'Failed'}</span>`;
+                        if (error) {
+                            html += `<div class="event-details" style="color: #FF6B6B;">${error}</div>`;
                         }
-                        }
+                        html += '</td>';
+                        html += '</tr>';
+                    }
 
-                        // Trigger deletion warning check
-                        async function triggerDeletionCheck() {
-                        const button = document.getElementById('deletionCheckBtn');
-                        const resultDiv = document.getElementById('emailActionResult');
+                    html += `</tbody></table>`;
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="no-data">No email logs found yet. Logs will appear here after emails are sent.</div>';
+                }
+            } catch (error) {
+                console.error('Load email logs error:', error);
+                container.innerHTML = `<div class="no-data" style="color: #FF6B6B;">Failed to load logs: ${error.message}</div>`;
+            }
+        }
 
-                        if (!confirm('This will run the deletion warning check for all guilds. Emails may be sent if sessions are near expiry. Continue?')) {
-                        return;
-                        }
+        // Trigger deletion warning check
+        async function triggerDeletionCheck() {
+            const button = document.getElementById('deletionCheckBtn');
+            const resultDiv = document.getElementById('emailActionResult');
 
-                        button.disabled = true;
-                        button.innerHTML = '<span class="btn-icon">⏳</span> Running...';
-                        resultDiv.style.display = 'none';
+            if (!confirm('This will run the deletion warning check for all guilds. Emails may be sent if sessions are near expiry. Continue?')) {
+                return;
+            }
 
-                        try {
-                        const response = await fetch('/api/owner/trigger-deletion-check', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                        });
+            button.disabled = true;
+            button.innerHTML = '<span class="btn-icon">⏳</span> Running...';
+            resultDiv.style.display = 'none';
 
-                        const data = await response.json();
+            try {
+                const response = await fetch('/api/owner/trigger-deletion-check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
 
-                        if (data.success) {
-                        resultDiv.className = 'broadcast-result success';
-                        resultDiv.innerHTML = `✅ ${data.message}`;
-                        // Auto-refresh logs after check
-                        setTimeout(() => loadEmailLogs(), 1000);
-                        } else {
-                        resultDiv.className = 'broadcast-result error';
-                        resultDiv.innerHTML = `❌ Error: ${data.error}`;
-                        }
-                        resultDiv.style.display = 'block';
-                        } catch (error) {
-                        console.error('Deletion check error:', error);
-                        resultDiv.className = 'broadcast-result error';
-                        resultDiv.innerHTML = `❌ Failed: ${error.message}`;
-                        resultDiv.style.display = 'block';
-                        } finally {
-                        button.disabled = false;
-                        button.innerHTML = '<span class="btn-icon">⚡</span> Trigger Deletion Check';
-                        }
-                        }
+                const data = await response.json();
 
-                        async function loadAllEmailRecipients() {
-                        const button = document.getElementById('loadRecipientsBtn');
-                        const container = document.getElementById('emailRecipientsContainer');
+                if (data.success) {
+                    resultDiv.className = 'broadcast-result success';
+                    resultDiv.innerHTML = `✅ ${data.message}`;
+                    // Auto-refresh logs after check
+                    setTimeout(() => loadEmailLogs(), 1000);
+                } else {
+                    resultDiv.className = 'broadcast-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.error}`;
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Deletion check error:', error);
+                resultDiv.className = 'broadcast-result error';
+                resultDiv.innerHTML = `❌ Failed: ${error.message}`;
+                resultDiv.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<span class="btn-icon">⚡</span> Trigger Deletion Check';
+            }
+        }
 
-                        button.disabled = true;
-                        button.textContent = 'Loading...';
+        async function loadAllEmailRecipients() {
+            const button = document.getElementById('loadRecipientsBtn');
+            const container = document.getElementById('emailRecipientsContainer');
 
-                        try {
-                        const response = await fetch('/api/owner/list-all-email-recipients');
-                        const data = await response.json();
+            button.disabled = true;
+            button.textContent = 'Loading...';
 
-                        if (data.success && data.recipients.length > 0) {
-                        let html = '<table class="log-table" style="width: 100%; border-collapse: collapse;">';
-                            html += `<thead><tr style="background: #21262D;"><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Guild</th><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Email</th><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Action</th></tr></thead>`;
-                            html += '<tbody>';
+            try {
+                const response = await fetch('/api/owner/list-all-email-recipients');
+                const data = await response.json();
 
-                                data.recipients.forEach(r => {
-                                const guildName = escapeHtml(r.guild_name);
-                                const email = escapeHtml(r.email);
-                                html += `<tr style="border-bottom: 1px solid #30363D;">
+                if (data.success && data.recipients.length > 0) {
+                    let html = '<table class="log-table" style="width: 100%; border-collapse: collapse;">';
+                    html += `<thead><tr style="background: #21262D;"><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Guild</th><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Email</th><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Action</th></tr></thead>`;
+                    html += '<tbody>';
+
+                    data.recipients.forEach(r => {
+                        const guildName = escapeHtml(r.guild_name);
+                        const email = escapeHtml(r.email);
+                        html += `<tr style="border-bottom: 1px solid #30363D;">
                                     <td style="padding: 10px;">${guildName}<br><span
                                             style="color: #8B949E; font-size: 0.8em;">${r.guild_id}</span></td>
                                     <td style="padding: 10px;">${email}</td>
@@ -2662,175 +2667,176 @@
                                             style="background: #DA3633; padding: 5px 10px; font-size: 0.9em;">Remove</button>
                                     </td>
                                 </tr>`;
-                                });
+                    });
 
-                                html += `</tbody></table>`;
-                        container.innerHTML = html;
-                        } else if (data.success) {
-                        container.innerHTML = '<div class="no-data">No email recipients configured in any guild</div>';
-                        } else {
-                        container.innerHTML = `<div class="no-data" style="color: #F85149;">Error: ${data.error}</div>`;
-                        }
-                        } catch (error) {
-                        console.error('Load recipients error:', error);
-                        container.innerHTML = `<div class="no-data" style="color: #F85149;">Failed to load:
+                    html += `</tbody></table>`;
+                    container.innerHTML = html;
+                } else if (data.success) {
+                    container.innerHTML = '<div class="no-data">No email recipients configured in any guild</div>';
+                } else {
+                    container.innerHTML = `<div class="no-data" style="color: #F85149;">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                console.error('Load recipients error:', error);
+                container.innerHTML = `<div class="no-data" style="color: #F85149;">Failed to load:
                             ${error.message}</div>`;
-                        } finally {
-                        button.disabled = false;
-                        button.textContent = '📋 Load All Recipients';
-                        }
-                        }
+            } finally {
+                button.disabled = false;
+                button.textContent = '📋 Load All Recipients';
+            }
+        }
 
-                        async function purgeRecipient(guildId, email) {
-                        if (!confirm(`Remove ${email} from guild ${guildId}?`)) {
+        async function purgeRecipient(guildId, email) {
+            if (!confirm(`Remove ${email} from guild ${guildId}?`)) {
+                return;
+            }
+
+            const resultDiv = document.getElementById('recipientActionResult');
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/owner/purge-email-recipient', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: guildId, email: email })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'broadcast-result success';
+                    resultDiv.innerHTML = `✅ ${data.message}`;
+                    setTimeout(() => loadAllEmailRecipients(), 500);
+                } else {
+                    resultDiv.className = 'broadcast-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.error}`;
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Purge error:', error);
+                resultDiv.className = 'broadcast-result error';
+                resultDiv.innerHTML = `❌ Failed: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function auditEmailSettings(button) {
+            if (!confirm('This will find and disable email automation for guilds with no recipients
+                        configured.Continue ? ')) {
                         return;
-                        }
+        }
 
-                        const resultDiv = document.getElementById('recipientActionResult');
-                        resultDiv.style.display = 'none';
+        button.disabled = true;
+        button.textContent = 'Auditing...';
 
-                        try {
-                        const response = await fetch('/api/owner/purge-email-recipient', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ guild_id: guildId, email: email })
-                        });
+        const resultDiv = document.getElementById('emailAuditResult');
+        resultDiv.style.display = 'none';
 
-                        const data = await response.json();
+        try {
+            const response = await fetch('/api/owner/audit-email-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
 
-                        if (data.success) {
-                        resultDiv.className = 'broadcast-result success';
-                        resultDiv.innerHTML = `✅ ${data.message}`;
-                        setTimeout(() => loadAllEmailRecipients(), 500);
-                        } else {
-                        resultDiv.className = 'broadcast-result error';
-                        resultDiv.innerHTML = `❌ Error: ${data.error}`;
-                        }
-                        resultDiv.style.display = 'block';
-                        } catch (error) {
-                        console.error('Purge error:', error);
-                        resultDiv.className = 'broadcast-result error';
-                        resultDiv.innerHTML = `❌ Failed: ${error.message}`;
-                        resultDiv.style.display = 'block';
-                        }
-                        }
+            const data = await response.json();
 
-                        async function auditEmailSettings(button) {
-                        if (!confirm('This will find and disable email automation for guilds with no recipients
-                        configured. Continue?')) {
-                        return;
-                        }
-
-                        button.disabled = true;
-                        button.textContent = 'Auditing...';
-
-                        const resultDiv = document.getElementById('emailAuditResult');
-                        resultDiv.style.display = 'none';
-
-                        try {
-                        const response = await fetch('/api/owner/audit-email-settings', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                        });
-
-                        const data = await response.json();
-
-                        resultDiv.style.display = 'block';
-                        if (data.success) {
-                        if (data.fixed_count > 0) {
-                        let orphanedList = data.orphaned_guilds.map(g =>
+            resultDiv.style.display = 'block';
+            if (data.success) {
+                if (data.fixed_count > 0) {
+                    let orphanedList = data.orphaned_guilds.map(g =>
                         `<li>${escapeHtml(g.guild_name)} (${g.guild_id}) - clockout: ${g.auto_send_on_clockout}, delete:
                             ${g.auto_email_before_delete}</li>`
-                        ).join('');
-                        resultDiv.className = 'tool-result success';
-                        resultDiv.innerHTML = `<strong>✅ Fixed ${data.fixed_count} guilds:</strong>
+                    ).join('');
+                    resultDiv.className = 'tool-result success';
+                    resultDiv.innerHTML = `<strong>✅ Fixed ${data.fixed_count} guilds:</strong>
                         <ul style="margin: 10px 0; padding-left: 20px; font-size: 12px;">${orphanedList}</ul>`;
-                        } else {
-                        resultDiv.className = 'tool-result success';
-                        resultDiv.innerHTML = '✅ No orphaned email settings found - all guilds with automation have
+                } else {
+                    resultDiv.className = 'tool-result success';
+                    resultDiv.innerHTML = '✅ No orphaned email settings found - all guilds with automation have
                         recipients configured.';
-                        }
-                        } else {
-                        resultDiv.className = 'tool-result error';
-                        resultDiv.innerHTML = `<strong>❌ Error:</strong> ${data.error}`;
-                        }
-                        } catch (error) {
-                        console.error('Audit error:', error);
-                        resultDiv.style.display = 'block';
-                        resultDiv.className = 'tool-result error';
-                        resultDiv.innerHTML = `❌ Failed: ${error.message}`;
-                        } finally {
-                        button.disabled = false;
-                        button.textContent = 'Run Email Settings Audit';
-                        }
+                }
+            } else {
+                resultDiv.className = 'tool-result error';
+                resultDiv.innerHTML = `<strong>❌ Error:</strong> ${data.error}`;
+            }
+        } catch (error) {
+            console.error('Audit error:', error);
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'tool-result error';
+            resultDiv.innerHTML = `❌ Failed: ${error.message}`;
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Run Email Settings Audit';
+        }
                         }
 
-                        async function purgeStrayEmail() {
-                        if (!confirm('This will remove txclone@gmail.com from Corvynexis Studios (guild
-                        1420225996405342301). Continue?')) {
+        async function purgeStrayEmail() {
+            if (!confirm('This will remove txclone@gmail.com from Corvynexis Studios (guild
+                        1420225996405342301).Continue ? ')) {
                         return;
+        }
+
+        const button = document.getElementById('purgeBtn');
+        const resultDiv = document.getElementById('recipientActionResult');
+
+        button.disabled = true;
+        button.innerHTML = '<span class="btn-icon">⏳</span> Removing...';
+        resultDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/owner/purge-email-recipient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    guild_id: '1420225996405342301',
+                    email: 'txclone@gmail.com'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.className = 'broadcast-result success';
+                resultDiv.innerHTML = `✅ ${data.message}`;
+                setTimeout(() => loadAllEmailRecipients(), 500);
+            } else {
+                resultDiv.className = 'broadcast-result error';
+                resultDiv.innerHTML = `❌ ${data.error}`;
+            }
+            resultDiv.style.display = 'block';
+        } catch (error) {
+            console.error('Purge stray email error:', error);
+            resultDiv.className = 'broadcast-result error';
+            resultDiv.innerHTML = `❌ Failed: ${error.message}`;
+            resultDiv.style.display = 'block';
+        } finally {
+            button.disabled = false;
+            button.innerHTML = '<span class="btn-icon">🗑️</span> Remove Stray Email Now';
+        }
                         }
 
-                        const button = document.getElementById('purgeBtn');
-                        const resultDiv = document.getElementById('recipientActionResult');
+        // ==========================================
+        // TAB NAVIGATION LOGIC
+        // ==========================================
+        function switchOwnerTab(tabId) {
+            // Update Sidebar Links
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const clickedNav = document.querySelector(`.nav-item[onclick*="${tabId}"]`);
+            if (clickedNav) clickedNav.classList.add('active');
 
-                        button.disabled = true;
-                        button.innerHTML = '<span class="btn-icon">⏳</span> Removing...';
-                        resultDiv.style.display = 'none';
-
-                        try {
-                        const response = await fetch('/api/owner/purge-email-recipient', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                        guild_id: '1420225996405342301',
-                        email: 'txclone@gmail.com'
-                        })
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                        resultDiv.className = 'broadcast-result success';
-                        resultDiv.innerHTML = `✅ ${data.message}`;
-                        setTimeout(() => loadAllEmailRecipients(), 500);
-                        } else {
-                        resultDiv.className = 'broadcast-result error';
-                        resultDiv.innerHTML = `❌ ${data.error}`;
-                        }
-                        resultDiv.style.display = 'block';
-                        } catch (error) {
-                        console.error('Purge stray email error:', error);
-                        resultDiv.className = 'broadcast-result error';
-                        resultDiv.innerHTML = `❌ Failed: ${error.message}`;
-                        resultDiv.style.display = 'block';
-                        } finally {
-                        button.disabled = false;
-                        button.innerHTML = '<span class="btn-icon">🗑️</span> Remove Stray Email Now';
-                        }
-                        }
-
-                        // ==========================================
-                        // TAB NAVIGATION LOGIC
-                        // ==========================================
-                        function switchOwnerTab(tabId) {
-                        // Update Sidebar Links
-                        document.querySelectorAll('.nav-item').forEach(item => {
-                        item.classList.remove('active');
-                        });
-                        const clickedNav = document.querySelector(`.nav-item[onclick*="${tabId}"]`);
-                        if (clickedNav) clickedNav.classList.add('active');
-
-                        // Update Content Panes
-                        document.querySelectorAll('.tab-pane').forEach(pane => {
-                        pane.classList.remove('active');
-                        });
-                        const targetPane = document.getElementById('tab-' + tabId);
-                        if (targetPane) targetPane.classList.add('active');
-                        }
-                        </script>
+            // Update Content Panes
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            const targetPane = document.getElementById('tab-' + tabId);
+            if (targetPane) targetPane.classList.add('active');
+        }
+    </script>
 </body>
 
 </html>
+
 
 
