@@ -127,10 +127,10 @@
 - **Root Cause**: Owner dashboard used `now_utc()` which doesn't exist — should be `datetime.now(timezone.utc)`.
 - **Pattern**: Always use `datetime.now(timezone.utc)` for UTC timestamps in Flask routes. The `now_utc()` helper doesn't exist in this codebase.
 
-## Multi-line Single-Quoted Strings in Inline JS (2026-02-24)
-- **Root Cause**: `owner_dashboard.html` contained JavaScript string literals using single quotes (`'...'`) that spanned multiple lines. Single-quoted strings cannot span multiple lines in JavaScript — this causes `SyntaxError: Unexpected identifier` which breaks the entire `<script>` block.
-- **Fix**: Collapsed multi-line single-quoted strings to single lines, or converted to template literals (backticks) which support multi-line.
-- **Pattern**: When building HTML in JavaScript, always use template literals (backticks) for multi-line content. Never use single-quoted or double-quoted strings across line breaks. Also avoid defining the same function twice (`escapeHtml` was defined twice).
+## Multi-line Strings in Inline JS Failing Due To Auto-Formatters (2026-02-24)
+- **Root Cause**: `owner_dashboard.html` contained JavaScript string literals (single quotes `'...'` and template literals `` `...` ``) that were forcefully split across multiple lines by IDE auto-formatters during a Git merge. This causes `SyntaxError: Unterminated string literal` which crashes the entire `<script>` block and disables all downstream UI functions.
+- **Fix**: Collapsed multi-line strings to single lines. For template literals that use `${}`, ensure the variable interpolations do not contain raw unescaped line breaks.
+- **Pattern**: When building HTML or `confirm()` dialogs in inline JavaScript (`<script>` inside `.html`), **DISABLE auto-formatting** for that block, or aggressively verify that the formatter did not break string literals. Never use single quotes across line breaks, and be highly suspicious of backtick strings after a Git merge.
 
 ## ON CONFLICT Requires UNIQUE Constraint (2026-02-24)
 - **Root Cause**: `archive_employee()` in bot.py uses `ON CONFLICT (guild_id, user_id) DO UPDATE` but `employee_archive` only had a regular (non-unique) index on `(guild_id, user_id)`. PostgreSQL requires a UNIQUE index or constraint for ON CONFLICT to work.
