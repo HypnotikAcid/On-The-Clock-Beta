@@ -2048,7 +2048,7 @@ def get_server_page_context(user_session, guild_id, active_page):
             pending_adjustments = result['count'] if result else 0
             
             cursor = conn.execute("""
-                SELECT COUNT(*) as count FROM work_sessions 
+                SELECT COUNT(*) as count FROM timeclock_sessions 
                 WHERE guild_id = %s
             """, (int(guild_id),))
             result = cursor.fetchone()
@@ -6654,17 +6654,18 @@ def api_preview_reports(user_session, guild_id):
             
         query = '''
             SELECT 
-                user_id,
-                display_name,
-                clock_in_time,
-                clock_out_time,
-                duration_minutes
-            FROM work_sessions
-            WHERE guild_id = %s 
-              AND clock_in_time >= %s 
-              AND clock_in_time <= %s
-              AND clock_out_time IS NOT NULL
-            ORDER BY clock_in_time DESC
+                ts.user_id,
+                COALESCE(ep.display_name, ep.full_name) as display_name,
+                ts.clock_in_time,
+                ts.clock_out_time,
+                EXTRACT(EPOCH FROM (ts.clock_out_time - ts.clock_in_time)) / 60.0 as duration_minutes
+            FROM timeclock_sessions ts
+            LEFT JOIN employee_profiles ep ON ts.guild_id = ep.guild_id AND ts.user_id = ep.user_id
+            WHERE ts.guild_id = %s 
+              AND ts.clock_in_time >= %s 
+              AND ts.clock_in_time <= %s
+              AND ts.clock_out_time IS NOT NULL
+            ORDER BY ts.clock_in_time DESC
         '''
         
         results = []
@@ -6678,7 +6679,7 @@ def api_preview_reports(user_session, guild_id):
                     'display_name': row[1] or str(row[0]),
                     'clock_in_time': row[2].isoformat() if row[2] else None,
                     'clock_out_time': row[3].isoformat() if row[3] else None,
-                    'duration_minutes': float(row[4]) if row[4] is not None else 0
+                    'duration_minutes': round(float(row[4]), 2) if row[4] is not None else 0
                 })
                 
         return jsonify({
