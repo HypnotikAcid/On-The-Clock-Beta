@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: linear-gradient(135deg, #0A0F1F 0%, #151B2E 50%, #1E2750 100%);
@@ -20,14 +22,17 @@
             justify-content: center;
             padding: 2rem;
         }
+
         .container {
             max-width: 900px;
             width: 100%;
         }
+
         .header {
             text-align: center;
             margin-bottom: 2.5rem;
         }
+
         .header h1 {
             font-size: 2.5rem;
             font-weight: 700;
@@ -36,10 +41,12 @@
             -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
         }
+
         .header p {
             font-size: 1.1rem;
             color: #8B949E;
         }
+
         .trial-status {
             text-align: center;
             padding: 1rem;
@@ -47,21 +54,25 @@
             margin-bottom: 2rem;
             font-weight: 500;
         }
+
         .trial-active {
             background-color: rgba(0, 255, 255, 0.1);
             border: 1px solid #00FFFF;
             color: #00FFFF;
         }
+
         .trial-expired {
             background-color: rgba(255, 82, 82, 0.1);
             border: 1px solid #FF5252;
             color: #FF5252;
         }
+
         .pricing-comparison {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
         }
+
         .pricing-card {
             background: rgba(30, 35, 45, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -71,30 +82,36 @@
             flex-direction: column;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
+
         .pricing-card:hover {
             transform: translateY(-5px);
         }
+
         .pricing-card h3 {
             font-size: 1.5rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
             color: #C9D1D9;
         }
+
         .price {
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 0.25rem;
         }
+
         .price-period {
             font-size: 0.9rem;
             color: #8B949E;
             margin-bottom: 1.5rem;
         }
+
         .features {
             list-style: none;
             margin-bottom: 2rem;
             flex-grow: 1;
         }
+
         .features li {
             display: flex;
             align-items: center;
@@ -102,23 +119,29 @@
             margin-bottom: 0.75rem;
             color: #8B949E;
         }
+
         .features li.included {
             color: #C9D1D9;
         }
+
         .features .icon {
             font-size: 1.2rem;
         }
+
         .premium-tier {
             border-color: #00FFFF;
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
         }
+
         .premium-tier .price {
             color: #00FFFF;
         }
+
         .pro-tier {
             opacity: 0.6;
             border-color: #555;
         }
+
         .badge {
             display: inline-block;
             background: linear-gradient(135deg, #00FFFF, #0099FF);
@@ -131,6 +154,7 @@
             margin-bottom: 1rem;
             align-self: center;
         }
+
         .upgrade-btn {
             display: block;
             width: 100%;
@@ -145,15 +169,18 @@
             border: none;
             cursor: pointer;
         }
+
         .upgrade-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 20px rgba(0, 255, 255, 0.3);
         }
+
         .upgrade-btn.disabled {
             background: #333;
             cursor: not-allowed;
             color: #777;
         }
+
         .spinner {
             display: inline-block;
             width: 16px;
@@ -165,20 +192,29 @@
             margin-right: 8px;
             vertical-align: middle;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         .back-link {
             text-align: center;
             margin-top: 2rem;
         }
+
         .back-link a {
             color: #8B949E;
             text-decoration: none;
             font-size: 0.9rem;
             transition: color 0.3s ease;
         }
+
         .back-link a:hover {
             color: #00FFFF;
         }
+
         @media (max-width: 768px) {
             .pricing-comparison {
                 grid-template-columns: 1fr;
@@ -186,6 +222,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -196,9 +233,9 @@
         {% if access %}
         <div class="trial-status {% if access.trial_active %}trial-active{% else %}trial-expired{% endif %}">
             {% if access.trial_active %}
-                You have {{ access.days_remaining }} days left on your free trial.
+            You have {{ access.days_remaining }} days left on your free trial.
             {% else %}
-                Your trial has expired — upgrade now to restore access.
+            Your trial has expired — upgrade now to restore access.
             {% endif %}
         </div>
         {% endif %}
@@ -208,7 +245,7 @@
                 <div class="badge">Premium</div>
                 <h3>Premium</h3>
                 <p class="price">$8</p>
-                <p class="price-period">per month (First month FREE!)</span></p>
+                <p class="price-period">per month (First month FREE!)</p>
                 <ul class="features">
                     <li class="included"><span class="icon">✅</span> Full team clock in/out</li>
                     <li class="included"><span class="icon">✅</span> Web dashboard access</li>
@@ -248,4 +285,5 @@
         }
     </script>
 </body>
+
 </html>
