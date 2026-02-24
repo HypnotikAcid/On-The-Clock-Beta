@@ -1791,6 +1791,16 @@ def set_guild_setting(guild_id: int, key: str, value):
         conn.execute("INSERT INTO guild_settings(guild_id) VALUES (%s) ON CONFLICT (guild_id) DO NOTHING", (guild_id,))
         conn.execute(update_queries[key], (value, guild_id))
 
+def get_guild_settings(guild_id: int) -> dict:
+    """Fetch guild settings from database. Returns dict with all guild_settings columns."""
+    with db() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM guild_settings WHERE guild_id = %s",
+            (guild_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else {}
+
 def get_user_display_name(user: discord.Member, guild_id: int) -> str:
     """Get user display name based on guild preference: 'username' or 'nickname' or 'custom_name'"""
     # 1. Phase 1: Check for custom report name if the server format is set to custom
@@ -6819,7 +6829,7 @@ async def handle_reports_export(request: web.Request):
         
         print(f"📥 API: Generating {export_type} report for guild {guild_id} from {start_date_str} to {end_date_str}")
         
-        # Get guild settings for timezone
+        # Get guild timezone
         guild_settings = get_guild_settings(guild_id)
         guild_tz = guild_settings.get('timezone') or 'America/Chicago'
         

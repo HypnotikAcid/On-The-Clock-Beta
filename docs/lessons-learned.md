@@ -127,6 +127,16 @@
 - **Root Cause**: Owner dashboard used `now_utc()` which doesn't exist — should be `datetime.now(timezone.utc)`.
 - **Pattern**: Always use `datetime.now(timezone.utc)` for UTC timestamps in Flask routes. The `now_utc()` helper doesn't exist in this codebase.
 
+## Missing `get_guild_settings` in bot.py (2026-02-24)
+- **Root Cause**: `bot.py` called `get_guild_settings()` (defined in app.py) in 4 places: report export, PDF generation, clock-in log, clock-out log. Function didn't exist in bot.py → `NameError` on any code path that hit it.
+- **Fix**: Added `get_guild_settings()` function to bot.py that queries `guild_settings` table directly using the bot's `db()` context manager.
+- **Pattern**: Never assume Flask-side utility functions are available in bot.py — they're separate modules. When bot.py needs guild settings, use its own `db()` + direct SQL query.
+
+## Preview Query Using Tuple Indexing on Dict Cursor (2026-02-24)
+- **Root Cause**: Preview endpoint used `conn.cursor()` then accessed rows via `row[0]`, `row[1]` — but `FlaskConnectionWrapper.cursor()` returns a `RealDictCursor`, so integer indexing doesn't work as expected.
+- **Fix**: Changed to `conn.execute()` with dict-key access (`row['user_id']`, `row['display_name']`, etc.).
+- **Pattern**: Always use `conn.execute()` + dict-style access in Flask routes. Never use raw `conn.cursor()` with positional indexing.
+
 ## Missing `access` Variable in Reports Template (2026-02-24)
 - **Root Cause**: `dashboard_reports.html` references `access.tier`, `access.trial_active`, etc. but `get_server_page_context()` never included an `access` object. Jinja2 throws `'access' is undefined`, caught by `require_auth` as an auth failure → auth loop.
 - **Fix**: Added `access = get_flask_guild_access(guild_id)` and `'access': access` into `get_server_page_context()` so ALL server sub-pages automatically receive the tier/trial info.

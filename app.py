@@ -6673,16 +6673,15 @@ def api_preview_reports(user_session, guild_id):
         
         results = []
         with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, (guild_id, start_dt, end_dt))
+            cursor = conn.execute(query, (int(guild_id), start_dt, end_dt))
             
             for row in cursor.fetchall():
                 results.append({
-                    'user_id': str(row[0]),
-                    'display_name': row[1] or str(row[0]),
-                    'clock_in_time': row[2].isoformat() if row[2] else None,
-                    'clock_out_time': row[3].isoformat() if row[3] else None,
-                    'duration_minutes': round(float(row[4]), 2) if row[4] is not None else 0
+                    'user_id': str(row['user_id']),
+                    'display_name': row['display_name'] or str(row['user_id']),
+                    'clock_in_time': row['clock_in_time'].isoformat() if row['clock_in_time'] else None,
+                    'clock_out_time': row['clock_out_time'].isoformat() if row['clock_out_time'] else None,
+                    'duration_minutes': round(float(row['duration_minutes']), 2) if row['duration_minutes'] is not None else 0
                 })
                 
         return jsonify({
