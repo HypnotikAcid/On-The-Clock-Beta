@@ -431,8 +431,7 @@
             }
 
             // Phase 9: Interactive Tour
-            const hasCompletedOnboarding = {{ 'true' if has_completed_onboarding else 'false' }
-        };
+            const hasCompletedOnboarding = {{ 'true' if has_completed_onboarding else 'false' }};
         if (!hasCompletedOnboarding && GUILD_ID && window.location.pathname !== '/setup-wizard') {
             setTimeout(() => {
                 if (typeof DashboardTour !== 'undefined') {
