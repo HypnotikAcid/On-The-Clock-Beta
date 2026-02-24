@@ -1735,8 +1735,13 @@
                             style="background: #484f58; color: #8B949E; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Left
                             ${server.left_at || 'unknown'}</span>`);
 
+                        const safeName = escapeHtml(server.name).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        const onClickAction = "selectServer('" + server.guild_id + "', '" + safeName + "', " +
+                        server.bot_access + ", '" + (server.retention || '') + "', " + server.granted + ", '" +
+                        (server.source || '') + "')";
+
                         return `
-                        <div onclick="selectServer('${server.guild_id}', '${escapeHtml(server.name)}', ${server.bot_access}, '${server.retention || ''}', ${server.granted}, '${server.source || ''}')"
+                        <div onclick="${onClickAction}"
                             style="padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #21262D; transition: background 0.15s;"
                             onmouseover="this.style.background='#21262D'"
                             onmouseout="this.style.background='transparent'">
@@ -2824,6 +2829,25 @@
                         const div = document.createElement('div');
                         div.textContent = text;
                         return div.innerHTML;
+                        }
+
+                        // ==========================================
+                        // TAB NAVIGATION LOGIC
+                        // ==========================================
+                        function switchOwnerTab(tabId) {
+                        // Update Sidebar Links
+                        document.querySelectorAll('.nav-item').forEach(item => {
+                        item.classList.remove('active');
+                        });
+                        const clickedNav = document.querySelector(`.nav-item[onclick*="${tabId}"]`);
+                        if (clickedNav) clickedNav.classList.add('active');
+
+                        // Update Content Panes
+                        document.querySelectorAll('.tab-pane').forEach(pane => {
+                        pane.classList.remove('active');
+                        });
+                        const targetPane = document.getElementById(tabId);
+                        if (targetPane) targetPane.classList.add('active');
                         }
                         </script>
 </body>
