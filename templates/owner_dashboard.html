@@ -1729,9 +1729,7 @@
                         );
 
                         if (activeFiltered.length > 0) {
-                        html += '<div
-                            style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D;">
-                            ACTIVE SERVERS</div>';
+                        html += '<div style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D;">ACTIVE SERVERS</div>';
                         activeFiltered.forEach(s => {
                         html += renderServerOption(s, false);
                         });
@@ -1742,9 +1740,7 @@
                         );
 
                         if (historicalFiltered.length > 0) {
-                        html += '<div
-                            style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D; border-top: 1px solid #30363D;">
-                            HISTORICAL (Bot Left)</div>';
+                        html += '<div style="padding: 8px 12px; color: #8B949E; font-size: 11px; font-weight: 600; border-bottom: 1px solid #30363D; border-top: 1px solid #30363D;">HISTORICAL (Bot Left)</div>';
                         historicalFiltered.forEach(s => {
                         html += renderServerOption(s, true);
                         });
@@ -2240,19 +2236,9 @@
                         const data = await response.json();
 
                         if (data.success && data.employees.length > 0) {
-                        let html = '<table class="employee-table">
-                            <thead>
-                                <tr>';
-                                    html += '<th>User ID</th>
-                                    <th>Name</th>
-                                    <th>Role</th>
-                                    <th>Total Hours</th>
-                                    <th>Sessions</th>
-                                    <th>Status</th>';
-                                    html += '
-                                </tr>
-                            </thead>
-                            <tbody>';
+                        let html = `<table class="employee-table"><thead><tr>`;
+                                    html += `<th>User ID</th><th>Name</th><th>Role</th><th>Total Hours</th><th>Sessions</th><th>Status</th>`;
+                                    html += `</tr></thead><tbody>`;
 
                                 data.employees.forEach(emp => {
                                 const statusBadge = emp.is_clocked_in
@@ -2268,8 +2254,7 @@
                                     html += '</tr>';
                                 });
 
-                                html += '</tbody>
-                        </table>';
+                                html += `</tbody></table>`;
                         html += '<p style="color: #8B949E; margin-top: 15px; font-size: 12px;">Total employees: ' +
                             data.employees.length + '</p>';
                         content.innerHTML = html;
@@ -2561,18 +2546,9 @@
                         if (data.success && data.logs.length > 0) {
                         let html = `<p style="color: #8B949E; margin-bottom: 15px;">Total entries: ${data.total_entries}
                             (showing last 100)</p>`;
-                        html += '<table class="table">
-                            <thead>
-                                <tr>';
-                                    html += '<th>Time</th>
-                                    <th>Event</th>
-                                    <th>Recipients</th>
-                                    <th>Subject</th>
-                                    <th>Status</th>';
-                                    html += '
-                                </tr>
-                            </thead>
-                            <tbody>';
+                        html += `<table class="table"><thead><tr>`;
+                                    html += `<th>Time</th><th>Event</th><th>Recipients</th><th>Subject</th><th>Status</th>`;
+                                    html += `</tr></thead><tbody>`;
 
                                 for (const log of data.logs) {
                                 const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown';
@@ -2605,17 +2581,14 @@
                                     html += '</tr>';
                                 }
 
-                                html += '</tbody>
-                        </table>';
+                                html += `</tbody></table>`;
                         container.innerHTML = html;
                         } else {
-                        container.innerHTML = '<div class="no-data">No email logs found yet. Logs will appear here after
-                            emails are sent.</div>';
+                        container.innerHTML = '<div class="no-data">No email logs found yet. Logs will appear here after emails are sent.</div>';
                         }
                         } catch (error) {
                         console.error('Load email logs error:', error);
-                        container.innerHTML = `<div class="no-data" style="color: #FF6B6B;">Failed to load logs:
-                            ${error.message}</div>`;
+                        container.innerHTML = `<div class="no-data" style="color: #FF6B6B;">Failed to load logs: ${error.message}</div>`;
                         }
                         }
 
@@ -2624,8 +2597,7 @@
                         const button = document.getElementById('deletionCheckBtn');
                         const resultDiv = document.getElementById('emailActionResult');
 
-                        if (!confirm('This will run the deletion warning check for all guilds. Emails may be sent if
-                        sessions are near expiry. Continue?')) {
+                        if (!confirm('This will run the deletion warning check for all guilds. Emails may be sent if sessions are near expiry. Continue?')) {
                         return;
                         }
 
@@ -2675,16 +2647,7 @@
 
                         if (data.success && data.recipients.length > 0) {
                         let html = '<table class="log-table" style="width: 100%; border-collapse: collapse;">';
-                            html += '<thead>
-                                <tr style="background: #21262D;">
-                                    <th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Guild
-                                    </th>
-                                    <th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Email
-                                    </th>
-                                    <th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">
-                                        Action</th>
-                                </tr>
-                            </thead>';
+                            html += `<thead><tr style="background: #21262D;"><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Guild</th><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Email</th><th style="padding: 10px; text-align: left; border-bottom: 1px solid #30363D;">Action</th></tr></thead>`;
                             html += '<tbody>';
 
                                 data.recipients.forEach(r => {
@@ -2701,8 +2664,7 @@
                                 </tr>`;
                                 });
 
-                                html += '</tbody>
-                        </table>';
+                                html += `</tbody></table>`;
                         container.innerHTML = html;
                         } else if (data.success) {
                         container.innerHTML = '<div class="no-data">No email recipients configured in any guild</div>';
@@ -2846,13 +2808,6 @@
                         button.disabled = false;
                         button.innerHTML = '<span class="btn-icon">🗑️</span> Remove Stray Email Now';
                         }
-                        }
-
-                        function escapeHtml(text) {
-                        if (!text) return '';
-                        const div = document.createElement('div');
-                        div.textContent = text;
-                        return div.innerHTML;
                         }
 
                         // ==========================================

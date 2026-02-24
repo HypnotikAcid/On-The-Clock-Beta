@@ -127,6 +127,11 @@
 - **Root Cause**: Owner dashboard used `now_utc()` which doesn't exist — should be `datetime.now(timezone.utc)`.
 - **Pattern**: Always use `datetime.now(timezone.utc)` for UTC timestamps in Flask routes. The `now_utc()` helper doesn't exist in this codebase.
 
+## Multi-line Single-Quoted Strings in Inline JS (2026-02-24)
+- **Root Cause**: `owner_dashboard.html` contained JavaScript string literals using single quotes (`'...'`) that spanned multiple lines. Single-quoted strings cannot span multiple lines in JavaScript — this causes `SyntaxError: Unexpected identifier` which breaks the entire `<script>` block.
+- **Fix**: Collapsed multi-line single-quoted strings to single lines, or converted to template literals (backticks) which support multi-line.
+- **Pattern**: When building HTML in JavaScript, always use template literals (backticks) for multi-line content. Never use single-quoted or double-quoted strings across line breaks. Also avoid defining the same function twice (`escapeHtml` was defined twice).
+
 ## Missing `get_guild_settings` in bot.py (2026-02-24)
 - **Root Cause**: `bot.py` called `get_guild_settings()` (defined in app.py) in 4 places: report export, PDF generation, clock-in log, clock-out log. Function didn't exist in bot.py → `NameError` on any code path that hit it.
 - **Fix**: Added `get_guild_settings()` function to bot.py that queries `guild_settings` table directly using the bot's `db()` context manager.
