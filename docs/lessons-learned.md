@@ -132,6 +132,11 @@
 - **Fix**: Collapsed multi-line single-quoted strings to single lines, or converted to template literals (backticks) which support multi-line.
 - **Pattern**: When building HTML in JavaScript, always use template literals (backticks) for multi-line content. Never use single-quoted or double-quoted strings across line breaks. Also avoid defining the same function twice (`escapeHtml` was defined twice).
 
+## ON CONFLICT Requires UNIQUE Constraint (2026-02-24)
+- **Root Cause**: `archive_employee()` in bot.py uses `ON CONFLICT (guild_id, user_id) DO UPDATE` but `employee_archive` only had a regular (non-unique) index on `(guild_id, user_id)`. PostgreSQL requires a UNIQUE index or constraint for ON CONFLICT to work.
+- **Fix**: Added `CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_archive_guild_user_unique ON employee_archive(guild_id, user_id)` to migrations.py.
+- **Pattern**: Whenever using `ON CONFLICT (columns)` in an INSERT, always verify there's a UNIQUE constraint or UNIQUE index on those exact columns. A regular index is not sufficient.
+
 ## Missing `get_guild_settings` in bot.py (2026-02-24)
 - **Root Cause**: `bot.py` called `get_guild_settings()` (defined in app.py) in 4 places: report export, PDF generation, clock-in log, clock-out log. Function didn't exist in bot.py → `NameError` on any code path that hit it.
 - **Fix**: Added `get_guild_settings()` function to bot.py that queries `guild_settings` table directly using the bot's `db()` context manager.

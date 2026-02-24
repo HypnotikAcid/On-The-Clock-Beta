@@ -531,6 +531,11 @@ def run_migrations():
                 print("   Checking for archived_at column in employee_archive")
                 cur.execute("ALTER TABLE employee_archive ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ DEFAULT NOW()")
 
+                # 24c. Add unique constraint on employee_archive(guild_id, user_id) for ON CONFLICT upsert
+                print("   Checking for unique constraint on employee_archive(guild_id, user_id)")
+                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_archive_guild_user_unique ON employee_archive(guild_id, user_id)")
+                cur.execute("DROP INDEX IF EXISTS idx_employee_archive_guild_user")
+
                 # 25. Add Stripe cancellation columns to server_subscriptions
                 print("   Checking for cancellation columns in server_subscriptions")
                 cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE")
