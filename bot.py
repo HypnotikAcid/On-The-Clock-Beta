@@ -510,7 +510,7 @@ def get_guild_access_info(guild_id: int) -> dict:
         cursor = conn.execute("SELECT grandfathered, grant_source FROM server_subscriptions WHERE guild_id = %s", (guild_id,))
         ss_row = cursor.fetchone()
         grandfathered = ss_row['grandfathered'] if ss_row else False
-        owner_granted = ss_row['grant_source'] == 'manual' if ss_row else False
+        owner_granted = ss_row['grant_source'] == 'granted' if ss_row else False
 
     trial_active = Entitlements.is_trial_active(trial_start_date)
     days_remaining = Entitlements.get_trial_days_remaining(trial_start_date)

@@ -189,6 +189,37 @@ def run_migrations():
                     """)
                 except Exception:
                     pass  # Column may already exist
+                    
+                # Dynamically add all the new profile fields to ensure existing databases are updated
+                columns_to_add = {
+                    'role_tier': "VARCHAR(20) DEFAULT 'employee'",
+                    'first_name': "VARCHAR(100)",
+                    'last_name': "VARCHAR(100)",
+                    'date_of_birth': "DATE",
+                    'email': "VARCHAR(255)",
+                    'bio': "TEXT",
+                    'avatar_choice': "VARCHAR(50) DEFAULT 'random'",
+                    'custom_avatar_url': "TEXT",
+                    'company_role': "VARCHAR(100)",
+                    'show_last_seen': "BOOLEAN DEFAULT TRUE",
+                    'show_discord_status': "BOOLEAN DEFAULT TRUE",
+                    'email_timesheets': "BOOLEAN DEFAULT FALSE",
+                    'timesheet_email': "VARCHAR(255)",
+                    'hire_date': "TIMESTAMPTZ DEFAULT NOW()",
+                    'last_seen_discord': "TIMESTAMPTZ",
+                    'profile_setup_completed': "BOOLEAN DEFAULT FALSE",
+                    'profile_sent_on_first_clockin': "BOOLEAN DEFAULT FALSE",
+                    'is_active': "BOOLEAN DEFAULT TRUE",
+                    'updated_at': "TIMESTAMPTZ DEFAULT NOW()",
+                    'accent_color': "VARCHAR(20) DEFAULT '#00FFFF'",
+                    'profile_background': "TEXT"
+                }
+
+                for col_name, col_type in columns_to_add.items():
+                    try:
+                        cur.execute(f"ALTER TABLE employee_profiles ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
+                    except Exception as e:
+                        print(f"Migration soft error adding {col_name}: {e}")
                 
                 # 5. Create employee_profile_tokens table
                 print("   Checking table: employee_profile_tokens")
