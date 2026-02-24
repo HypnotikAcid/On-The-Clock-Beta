@@ -2092,6 +2092,8 @@ def get_server_page_context(user_session, guild_id, active_page):
             if demo_row and demo_row.get('last_demo_reset'):
                 last_demo_reset = demo_row['last_demo_reset']
     
+    access = get_flask_guild_access(guild_id)
+
     context = {
         'user': user_session,
         'server': {
@@ -2109,7 +2111,8 @@ def get_server_page_context(user_session, guild_id, active_page):
         'is_demo_server': is_demo_server_flag,
         'view_as_employee': view_as_employee,
         'last_demo_reset': last_demo_reset,
-        'has_completed_onboarding': has_completed_onboarding
+        'has_completed_onboarding': has_completed_onboarding,
+        'access': access
     }
     
     return context, None

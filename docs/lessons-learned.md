@@ -126,3 +126,8 @@
 ## Undefined `now_utc()` in Owner Dashboard (2026-02-24)
 - **Root Cause**: Owner dashboard used `now_utc()` which doesn't exist — should be `datetime.now(timezone.utc)`.
 - **Pattern**: Always use `datetime.now(timezone.utc)` for UTC timestamps in Flask routes. The `now_utc()` helper doesn't exist in this codebase.
+
+## Missing `access` Variable in Reports Template (2026-02-24)
+- **Root Cause**: `dashboard_reports.html` references `access.tier`, `access.trial_active`, etc. but `get_server_page_context()` never included an `access` object. Jinja2 throws `'access' is undefined`, caught by `require_auth` as an auth failure → auth loop.
+- **Fix**: Added `access = get_flask_guild_access(guild_id)` and `'access': access` into `get_server_page_context()` so ALL server sub-pages automatically receive the tier/trial info.
+- **Pattern**: When adding new template variables, add them to `get_server_page_context()` — not individual route handlers — so every server page gets them. Always verify new templates have all required context variables before deploying.
