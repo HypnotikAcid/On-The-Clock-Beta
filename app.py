@@ -1331,6 +1331,40 @@ def require_kiosk_access(f):
 
     return decorated_function
 
+def require_kiosk_session(f):
+    """
+    Decorator for sensitive Kiosk actions (clocking, emailing).
+    Requires the ephemeral `session['active_kiosk_user']` token issued by verify-pin.
+    """
+    from functools import wraps
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        guild_id = kwargs.get('guild_id')
+        user_id = kwargs.get('user_id') or request.get_json(silent=True).get('user_id') if request.is_json else None
+        
+        # Pull token from session
+        kiosk_token = session.get('active_kiosk_user')
+        
+        if not kiosk_token:
+            return jsonify({'success': False, 'error': 'Unauthorized: No active kiosk session.'}), 401
+            
+        import time
+        now = time.time()
+        
+        # Validate Session Expiry
+        if now > kiosk_token.get('expires', 0):
+            session.pop('active_kiosk_user', None)
+            return jsonify({'success': False, 'error': 'Session expired. Please enter PIN again.'}), 401
+            
+        # Hard-gate: Target guild/user must match the token's authority
+        if str(kiosk_token.get('guild_id')) != str(guild_id) or str(kiosk_token.get('user_id')) != str(user_id):
+            return jsonify({'success': False, 'error': 'Token mismatch. Unauthorized.'}), 403
+            
+        return f(*args, **kwargs)
+
+    return decorated_function
+
 def filter_user_guilds(user_session):
     """
     Filter user's guilds to show only those where:
@@ -1522,8 +1556,15 @@ Time Warden Bot - Purchase Notification
         app.logger.error(traceback.format_exc())
 
 def notify_owner_webhook_failure(event_type, error_message, guild_id=None):
-    """Send email alert to owner when a Stripe webhook fails."""
+    """Send email/discord alert to owner when a Stripe webhook fails."""
     try:
+        # Respect Owner Toggles
+        with get_db() as conn:
+            cursor = conn.execute("SELECT alert_stripe_failures FROM owner_settings LIMIT 1")
+            row = cursor.fetchone()
+            if row and not row['alert_stripe_failures']:
+                return
+                
         owner_email = os.getenv('OWNER_EMAIL')
         if not owner_email:
             return
@@ -1937,6 +1978,18 @@ def handle_deeplink(page):
     else:
         return redirect(url_for('dashboard', guild=guild_id))
 
+@app.route("/upgrade")
+def upgrade_vanity():
+    """Vanity URL for bot commands pointing to server upgrade flow"""
+    return redirect(url_for('purchase_init', product_type='premium'))
+
+@app.route("/wiki")
+def wiki():
+    """Render the official web wiki."""
+    return render_template("wiki.html",
+                           domain=get_domain(),
+                           client_id=DISCORD_CLIENT_ID)
+
 
 @app.route("/")
 def index():
@@ -2156,6 +2209,14 @@ def get_server_page_context(user_session, guild_id, active_page):
         else:
             has_completed_onboarding = False
         
+        # Get error_count for the server
+        cursor = conn.execute("""
+            SELECT COUNT(*) as error_count FROM error_logs
+            WHERE guild_id = %s AND resolved = FALSE
+        """, (int(guild_id),))
+        error_row = cursor.fetchone()
+        error_count = error_row['error_count'] if error_row else 0
+        
         cursor = conn.execute("""
             SELECT bot_access_paid, retention_tier, tier, COALESCE(grandfathered, FALSE) as grandfathered
             FROM server_subscriptions WHERE guild_id = %s
@@ -2198,7 +2259,9 @@ def get_server_page_context(user_session, guild_id, active_page):
         'view_as_employee': view_as_employee,
         'last_demo_reset': last_demo_reset,
         'has_completed_onboarding': has_completed_onboarding,
-        'access': access
+        'access': access,
+        'is_bot_owner': user_id == os.getenv("BOT_OWNER_ID", "107103438139056128"),
+        'error_count': error_count
     }
     
     return context, None
@@ -3953,6 +4016,60 @@ def api_owner_grant_access(user_session):
         app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
+@app.route("/api/owner/settings", methods=["GET", "POST"])
+@require_api_auth
+def api_owner_settings(user_session):
+    """Owner-only API endpoint to get or set global system alert toggles."""
+    try:
+        bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+        if user_session['user_id'] != bot_owner_id:
+            return jsonify({'success': False, 'error': 'Forbidden'}), 403
+            
+        owner_id = int(user_session['user_id'])
+        
+        if request.method == "GET":
+            with get_db() as conn:
+                cursor = conn.execute("SELECT alert_stripe_failures, alert_db_timeouts, alert_high_errors FROM owner_settings WHERE owner_id = %s", (owner_id,))
+                row = cursor.fetchone()
+                if row:
+                    return jsonify({
+                        'success': True,
+                        'alert_stripe_failures': bool(row['alert_stripe_failures']),
+                        'alert_db_timeouts': bool(row['alert_db_timeouts']),
+                        'alert_high_errors': bool(row['alert_high_errors'])
+                    })
+                return jsonify({
+                    'success': True,
+                    'alert_stripe_failures': True,
+                    'alert_db_timeouts': True,
+                    'alert_high_errors': True
+                })
+        else:
+            data = request.get_json() or {}
+            alert_stripe = bool(data.get('alert_stripe_failures', True))
+            alert_db = bool(data.get('alert_db_timeouts', True))
+            alert_errors = bool(data.get('alert_high_errors', True))
+            
+            with get_db() as conn:
+                cursor = conn.execute("SELECT owner_id FROM owner_settings WHERE owner_id = %s", (owner_id,))
+                if cursor.fetchone():
+                    conn.execute("""
+                        UPDATE owner_settings 
+                        SET alert_stripe_failures = %s, alert_db_timeouts = %s, alert_high_errors = %s 
+                        WHERE owner_id = %s
+                    """, (alert_stripe, alert_db, alert_errors, owner_id))
+                else:
+                    conn.execute("""
+                        INSERT INTO owner_settings (owner_id, alert_stripe_failures, alert_db_timeouts, alert_high_errors)
+                        VALUES (%s, %s, %s, %s)
+                    """, (owner_id, alert_stripe, alert_db, alert_errors))
+                    
+            return jsonify({'success': True})
+            
+    except Exception as e:
+        app.logger.error(f"Owner settings error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 @app.route("/api/owner/server-index", methods=["GET"])
 @require_api_auth
 def api_owner_server_index(user_session):
@@ -5032,7 +5149,7 @@ def get_guild_settings(guild_id):
         # Get email settings
         try:
             email_settings_cursor = conn.execute(
-                "SELECT auto_send_on_clockout, auto_email_before_delete FROM email_settings WHERE guild_id = %s",
+                "SELECT auto_send_on_clockout, auto_email_before_delete, subject_line, reply_to_address, cc_addresses FROM email_settings WHERE guild_id = %s",
                 (guild_id,)
             )
             email_settings_row = email_settings_cursor.fetchone()
@@ -5075,6 +5192,9 @@ def get_guild_settings(guild_id):
             'broadcast_channel_id': str(settings_row['broadcast_channel_id']) if settings_row and settings_row['broadcast_channel_id'] else None,
             'auto_send_on_clockout': bool(email_settings_row['auto_send_on_clockout']) if email_settings_row else False,
             'auto_email_before_delete': bool(email_settings_row['auto_email_before_delete']) if email_settings_row else False,
+            'subject_line': email_settings_row['subject_line'] if email_settings_row else None,
+            'reply_to_address': email_settings_row['reply_to_address'] if email_settings_row else None,
+            'cc_addresses': email_settings_row['cc_addresses'] if email_settings_row else None,
             'restrict_mobile_clockin': bool(subscription_row['restrict_mobile_clockin']) if subscription_row else False,
             'email_recipient_count': email_recipient_count,
             'emails': [],
@@ -5687,6 +5807,9 @@ def api_update_email_settings(user_session, guild_id):
         
         auto_send_on_clockout = bool(data.get('auto_send_on_clockout', False))
         auto_email_before_delete = bool(data.get('auto_email_before_delete', False))
+        subject_line = data.get('subject_line')
+        reply_to_address = data.get('reply_to_address')
+        cc_addresses = data.get('cc_addresses')
         
         # FAIL-SAFE: Check if any email recipients are configured before enabling email features
         if auto_send_on_clockout or auto_email_before_delete:
@@ -5713,15 +5836,15 @@ def api_update_email_settings(user_session, guild_id):
             if exists:
                 conn.execute(
                     """UPDATE email_settings 
-                       SET auto_send_on_clockout = %s, auto_email_before_delete = %s 
+                       SET auto_send_on_clockout = %s, auto_email_before_delete = %s, subject_line = %s, reply_to_address = %s, cc_addresses = %s
                        WHERE guild_id = %s""",
-                    (auto_send_on_clockout, auto_email_before_delete, guild_id)
+                    (auto_send_on_clockout, auto_email_before_delete, subject_line, reply_to_address, cc_addresses, guild_id)
                 )
             else:
                 conn.execute(
-                    """INSERT INTO email_settings (guild_id, auto_send_on_clockout, auto_email_before_delete) 
-                       VALUES (%s, %s, %s)""",
-                    (guild_id, auto_send_on_clockout, auto_email_before_delete)
+                    """INSERT INTO email_settings (guild_id, auto_send_on_clockout, auto_email_before_delete, subject_line, reply_to_address, cc_addresses) 
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (guild_id, auto_send_on_clockout, auto_email_before_delete, subject_line, reply_to_address, cc_addresses)
                 )
             
             app.logger.info(f"[OK] Email settings committed for guild {guild_id} by user {user_session.get('username')}")
@@ -5730,7 +5853,10 @@ def api_update_email_settings(user_session, guild_id):
                 'success': True, 
                 'message': 'Email settings updated successfully',
                 'auto_send_on_clockout': auto_send_on_clockout,
-                'auto_email_before_delete': auto_email_before_delete
+                'auto_email_before_delete': auto_email_before_delete,
+                'subject_line': subject_line,
+                'reply_to_address': reply_to_address,
+                'cc_addresses': cc_addresses
             })
     except Exception as e:
         app.logger.error(f"Error updating email settings: {str(e)}")
@@ -5750,7 +5876,7 @@ def api_get_email_settings_status(user_session, guild_id):
         # Fetch email settings
         with get_db() as conn:
             cursor = conn.execute(
-                "SELECT auto_send_on_clockout, auto_email_before_delete FROM email_settings WHERE guild_id = %s",
+                "SELECT auto_send_on_clockout, auto_email_before_delete, subject_line, reply_to_address, cc_addresses FROM email_settings WHERE guild_id = %s",
                 (guild_id,)
             )
             settings = cursor.fetchone()
@@ -5759,7 +5885,10 @@ def api_get_email_settings_status(user_session, guild_id):
             return jsonify({
                 'success': True,
                 'auto_send_on_clockout': settings['auto_send_on_clockout'],
-                'auto_email_before_delete': settings['auto_email_before_delete']
+                'auto_email_before_delete': settings['auto_email_before_delete'],
+                'subject_line': settings['subject_line'],
+                'reply_to_address': settings['reply_to_address'],
+                'cc_addresses': settings['cc_addresses']
             })
         else:
             return jsonify({
@@ -7753,15 +7882,17 @@ def api_get_monthly_summary(user_session, guild_id):
         with get_db() as conn:
             cursor = conn.execute("""
                 SELECT 
-                    DATE(clock_in_time) as work_date,
-                    COUNT(DISTINCT user_id) as employee_count,
-                    COUNT(*) as session_count,
-                    COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time))), 0) as total_seconds
-                FROM timeclock_sessions
-                WHERE guild_id = %s 
-                  AND clock_in_time >= %s
-                  AND clock_in_time < %s::date + interval '1 day'
-                GROUP BY DATE(clock_in_time)
+                    DATE(s.clock_in_time) as work_date,
+                    COUNT(DISTINCT s.user_id) as employee_count,
+                    COUNT(s.session_id) as session_count,
+                    COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(s.clock_out_time, NOW()) - s.clock_in_time))), 0) as total_seconds,
+                    COUNT(a.adjustment_id) as pending_adjustments
+                FROM timeclock_sessions s
+                LEFT JOIN time_adjustments a ON s.session_id = a.session_id AND a.status = 'pending'
+                WHERE s.guild_id = %s 
+                  AND s.clock_in_time >= %s
+                  AND s.clock_in_time < %s::date + interval '1 day'
+                GROUP BY DATE(s.clock_in_time)
                 ORDER BY work_date
             """, (str(guild_id), start_date, end_date))
             
@@ -7772,7 +7903,8 @@ def api_get_monthly_summary(user_session, guild_id):
                     'date': date_str,
                     'employee_count': row['employee_count'],
                     'session_count': row['session_count'],
-                    'total_hours': round(row['total_seconds'] / 3600, 2)
+                    'total_hours': round(row['total_seconds'] / 3600, 2),
+                    'has_pending_adjustments': row['pending_adjustments'] > 0
                 }
         
         return jsonify({
@@ -7822,9 +7954,11 @@ def api_get_day_detail(user_session, guild_id):
                     ep.display_name,
                     ep.username,
                     ep.avatar_url,
-                    ep.position
+                    ep.position,
+                    a.status as adjustment_status
                 FROM timeclock_sessions s
                 LEFT JOIN employee_profiles ep ON s.guild_id::text = ep.guild_id::text AND s.user_id::text = ep.user_id::text
+                LEFT JOIN time_adjustments a ON s.session_id = a.session_id AND a.status = 'pending'
                 WHERE s.guild_id = %s 
                   AND DATE(s.clock_in_time) = %s
                 ORDER BY s.clock_in_time ASC
@@ -7842,7 +7976,8 @@ def api_get_day_detail(user_session, guild_id):
                     'display_name': row['display_name'] or row['username'] or 'Unknown',
                     'username': row['username'],
                     'avatar_url': row['avatar_url'],
-                    'position': row['position']
+                    'position': row['position'],
+                    'has_pending_adjustment': True if row['adjustment_status'] == 'pending' else False
                 })
         
         return jsonify({
@@ -9986,6 +10121,35 @@ def api_kiosk_verify_pin(guild_id):
         if not user_id or not pin:
             return jsonify({'success': False, 'error': 'Missing credentials'}), 400
         
+        # Brute Force Protection
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if client_ip:
+            client_ip = client_ip.split(',')[0].strip()
+        else:
+            client_ip = 'unknown'
+            
+        rate_limit_key = f"kiosk_pin_attempts_{guild_id}_{user_id}_{client_ip}"
+        
+        # Simple memory-based rate limiting (in a real app, use Redis)
+        if not hasattr(app, 'pin_attempts'):
+            app.pin_attempts = {}
+            
+        import time
+        now = time.time()
+        
+        # Cleanup old attempts (older than 15 minutes)
+        app.pin_attempts = {k: v for k, v in app.pin_attempts.items() if now - v['time'] < 900}
+        
+        if rate_limit_key in app.pin_attempts:
+            if app.pin_attempts[rate_limit_key]['count'] >= 5:
+                # 15 minute lockout
+                time_left = int(900 - (now - app.pin_attempts[rate_limit_key]['time']))
+                return jsonify({
+                    'success': False, 
+                    'error': f'Too many failed attempts. Try again in {time_left // 60} minutes.',
+                    'locked_out': True
+                }), 429
+
         # Hash the PIN to compare
         pin_hash = hashlib.sha256(f"{guild_id}:{user_id}:{pin}".encode()).hexdigest()
         
@@ -9997,7 +10161,26 @@ def api_kiosk_verify_pin(guild_id):
             result = cursor.fetchone()
         
         if not result or result['pin_hash'] != pin_hash:
-            return jsonify({'success': False, 'error': 'Incorrect PIN'}), 401
+            # Record failed attempt
+            if rate_limit_key not in app.pin_attempts:
+                app.pin_attempts[rate_limit_key] = {'count': 1, 'time': now}
+            else:
+                app.pin_attempts[rate_limit_key]['count'] += 1
+                app.pin_attempts[rate_limit_key]['time'] = now
+                
+            attempts_left = 5 - app.pin_attempts[rate_limit_key]['count']
+            return jsonify({'success': False, 'error': f'Incorrect PIN. {attempts_left} attempts remaining.'}), 401
+        
+        # Reset attempts on success
+        if rate_limit_key in app.pin_attempts:
+            del app.pin_attempts[rate_limit_key]
+            
+        # Issue Session Shield Token
+        session['active_kiosk_user'] = {
+            'guild_id': guild_id,
+            'user_id': user_id,
+            'expires': now + 300 # 5 minute validity
+        }
         
         return jsonify({'success': True})
     except Exception as e:
@@ -10006,6 +10189,7 @@ def api_kiosk_verify_pin(guild_id):
 
 @app.route("/api/kiosk/<guild_id>/employee/<user_id>/info")
 @require_kiosk_access
+@require_kiosk_session
 def api_kiosk_employee_info(guild_id, user_id):
     """Get employee info for the kiosk action screen"""
     try:
@@ -10325,6 +10509,7 @@ Please assist this employee in resetting their kiosk PIN.
 
 @app.route("/api/kiosk/<guild_id>/clock", methods=["POST"])
 @require_kiosk_access
+@require_kiosk_session
 def api_kiosk_clock(guild_id):
     """Handle clock in/out from kiosk - uses timeclock_sessions for dashboard sync"""
     try:
@@ -10484,6 +10669,7 @@ def api_kiosk_employee_email(guild_id, user_id):
 
 @app.route("/api/kiosk/<guild_id>/send-shift-email", methods=["POST"])
 @require_kiosk_access
+@require_kiosk_session
 def api_kiosk_send_shift_email(guild_id):
     """Send shift summary email to employee after clock-out"""
     try:
@@ -10681,13 +10867,13 @@ def api_get_kiosk_mode(user_session, guild_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT kiosk_mode_only FROM server_subscriptions WHERE guild_id = %s
+                SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = %s
             """, (int(guild_id),))
             result = cursor.fetchone()
         
         return jsonify({
             'success': True,
-            'kiosk_mode_only': bool(result.get('kiosk_mode_only', False)) if result else False
+            'kiosk_mode_only': bool(result.get('kiosk_only_mode', False)) if result else False
         })
     except Exception as e:
         app.logger.error(f"Error fetching kiosk mode: {e}")
@@ -10706,14 +10892,14 @@ def api_set_kiosk_mode(user_session, guild_id):
         kiosk_mode_only = bool(data.get('kiosk_mode_only', False))
         
         with get_db() as conn:
-            cursor = conn.execute("SELECT guild_id FROM server_subscriptions WHERE guild_id = %s", (int(guild_id),))
+            cursor = conn.execute("SELECT guild_id FROM guild_settings WHERE guild_id = %s", (int(guild_id),))
             if cursor.fetchone():
                 conn.execute("""
-                    UPDATE server_subscriptions SET kiosk_mode_only = %s WHERE guild_id = %s
+                    UPDATE guild_settings SET kiosk_only_mode = %s WHERE guild_id = %s
                 """, (kiosk_mode_only, int(guild_id)))
             else:
                 conn.execute("""
-                    INSERT INTO server_subscriptions (guild_id, kiosk_mode_only) VALUES (%s, %s)
+                    INSERT INTO guild_settings (guild_id, kiosk_only_mode) VALUES (%s, %s)
                 """, (int(guild_id), kiosk_mode_only))
         
         app.logger.info(f"Kiosk mode set to {kiosk_mode_only} for guild {guild_id}")
@@ -10724,6 +10910,7 @@ def api_set_kiosk_mode(user_session, guild_id):
 
 @app.route("/api/kiosk/<guild_id>/employee/<user_id>/today-sessions")
 @require_kiosk_access
+@require_kiosk_session
 def api_kiosk_today_sessions(guild_id, user_id):
     """Get today's sessions for a kiosk employee - used for time adjustment modal"""
     try:
@@ -10813,6 +11000,7 @@ def api_kiosk_today_sessions(guild_id, user_id):
 
 @app.route("/api/kiosk/<guild_id>/adjustment", methods=["POST"])
 @require_kiosk_access
+@require_kiosk_session
 def api_kiosk_submit_adjustment(guild_id):
     """
     Submit a time adjustment request from the kiosk.

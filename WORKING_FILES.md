@@ -7,6 +7,12 @@
 
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
+- `templates/dashboard_pages/server_overview.html` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
+- `templates/dashboard_base.html` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
+- `templates/kiosk.html` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
+- `templates/dashboard_pages/admin_calendar.html` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
+- `templates/dashboard_employee_profile.html` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
+- `app.py` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
 
 ---
 

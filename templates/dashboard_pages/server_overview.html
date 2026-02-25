@@ -3,9 +3,34 @@
 {% block title %}{{ server.name }} - Overview{% endblock %}
 
 {% block content %}
-<div class="content-header">
-    <h1 class="content-title">Server Overview</h1>
-    <p class="content-subtitle">{{ server.name }}</p>
+<div class="content-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+    <div>
+        <h1 class="content-title">Server Overview</h1>
+        <p class="content-subtitle">{{ server.name }}</p>
+    </div>
+    <div class="hierarchy-badge"
+        style="margin-bottom: 2rem; background: rgba(30,30,40,0.7); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+        <span
+            style="font-size: 0.85rem; color: #8B949E; margin-right: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Hierarchy
+            Level:</span>
+        {% if is_bot_owner %}
+        <span class="badge"
+            style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 4px 10px; border-radius: 20px; font-weight: bold;">🤖
+            Bot Developer</span>
+        {% elif user_role == 'owner' %}
+        <span class="badge"
+            style="background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid #F59E0B; padding: 4px 10px; border-radius: 20px; font-weight: bold;">👑
+            Server Owner</span>
+        {% elif user_role == 'admin' %}
+        <span class="badge"
+            style="background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid #10B981; padding: 4px 10px; border-radius: 20px; font-weight: bold;">🛡️
+            Admin</span>
+        {% else %}
+        <span class="badge"
+            style="background: rgba(59, 130, 246, 0.2); color: #3B82F6; border: 1px solid #3B82F6; padding: 4px 10px; border-radius: 20px; font-weight: bold;">👷
+            Employee</span>
+        {% endif %}
+    </div>
 </div>
 
 <div class="tiles-grid">
@@ -33,6 +58,19 @@
         </div>
     </div>
 
+    <div class="tile" id="kiosk-access-tile">
+        <h2><span class="tile-icon">🖥️</span>Kiosk Access</h2>
+        <p class="tile-description">Tablet-friendly clock-in station.</p>
+        {% if server_settings.tier in ['pro', 'premium', 'grandfathered'] or is_demo_server %}
+        <a href="/kiosk/{{ server.id }}" target="_blank" class="btn btn-primary"
+            style="display: block; text-align: center; margin-top: 15px; text-decoration: none;">Launch Kiosk 🚀</a>
+        {% else %}
+        <a href="/dashboard/purchase?guild_id={{ server.id }}" class="btn btn-secondary"
+            style="display: block; text-align: center; margin-top: 15px; text-decoration: none; opacity: 0.7;"
+            title="Requires Pro Tier">Launch Kiosk 🔒</a>
+        {% endif %}
+    </div>
+
     <div class="tile" id="quick-stats-tile">
         <h2><span class="tile-icon">📊</span>Quick Stats</h2>
         <div class="stat-row">
@@ -47,6 +85,38 @@
             <span class="stat-label">Pending Adjustments:</span>
             <span class="stat-value" id="pending-adjustments">{{ pending_adjustments }}</span>
         </div>
+    </div>
+
+    <div class="tile" id="system-health-tile"
+        style="border: 1px solid {% if error_count > 0 %}rgba(239,68,68,0.3){% else %}rgba(16,185,129,0.2){% endif %};">
+        <h2><span class="tile-icon">🩺</span>System Health</h2>
+        <div class="stat-row">
+            <span class="stat-label">Unresolved Errors:</span>
+            <span class="stat-value"
+                style="color: {% if error_count > 0 %}#ef4444{% else %}#10B981{% endif %}; font-weight: bold;">{{
+                error_count }}</span>
+        </div>
+        {% if error_count > 0 %}
+        <a href="#" class="tile-link" style="color: #ef4444; margin-top: 10px; display: inline-block;">Resolve Errors
+            &rarr;</a>
+        {% else %}
+        <p class="tile-description" style="color: #10B981; font-size: 0.85rem; margin-top: 10px;">All systems
+            operational.</p>
+        {% endif %}
+    </div>
+
+    <div class="tile" id="data-pruning-tile">
+        <h2><span class="tile-icon">🧹</span>Auto-Pruning</h2>
+        <div class="stat-row">
+            <span class="stat-label">Shift Logs:</span>
+            <span class="stat-value" id="prune-logs-status">Loading...</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Generated Reports:</span>
+            <span class="stat-value" id="prune-reports-status">Loading...</span>
+        </div>
+        <a href="/dashboard/server/{{ server.id }}/integrations" class="tile-link"
+            style="margin-top: 10px; display: inline-block;">Configure Pruning &rarr;</a>
     </div>
 
     {% if user_role == 'admin' %}
@@ -92,6 +162,11 @@
 
                 const retentionText = retentionDays >= 30 ? '30 days' : (retentionDays >= 7 ? '7 days' : '24 hours');
                 document.getElementById('retention-days').textContent = retentionText;
+
+                const pruneLogs = settings.auto_prune_logs_days || 0;
+                const pruneReports = settings.auto_prune_reports_days || 0;
+                document.getElementById('prune-logs-status').textContent = pruneLogs > 0 ? `Every ${pruneLogs} Days` : 'Disabled';
+                document.getElementById('prune-reports-status').textContent = pruneReports > 0 ? `Every ${pruneReports} Days` : 'Disabled';
 
                 // Cancellation logic
                 if (settings.cancel_at_period_end) {

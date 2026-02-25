@@ -604,6 +604,23 @@ def run_migrations():
 
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_error_logs_guild ON error_logs(guild_id)")
 
+                # 30. Layer 6: Email Customization
+                print("   Checking for email customization columns in email_settings")
+                cur.execute("ALTER TABLE email_settings ADD COLUMN IF NOT EXISTS subject_line VARCHAR(255)")
+                cur.execute("ALTER TABLE email_settings ADD COLUMN IF NOT EXISTS reply_to_address VARCHAR(255)")
+                cur.execute("ALTER TABLE email_settings ADD COLUMN IF NOT EXISTS cc_addresses TEXT")
+
+                # 31. Layer 6: Owner Settings
+                print("   Checking table: owner_settings")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS owner_settings (
+                        owner_id BIGINT PRIMARY KEY,
+                        alert_stripe_failures BOOLEAN DEFAULT TRUE,
+                        alert_db_timeouts BOOLEAN DEFAULT TRUE,
+                        alert_high_errors BOOLEAN DEFAULT TRUE
+                    )
+                """)
+
         _migrations_run = True
         print("✅ Database schema is up to date")
         return True

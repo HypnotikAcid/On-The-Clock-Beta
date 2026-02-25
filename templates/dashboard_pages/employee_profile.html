@@ -5,9 +5,11 @@
 {% block content %}
 <div class="content-header">
     <h1 class="content-title">Employee Profile</h1>
-    <p class="content-subtitle">{% if is_own_profile %}Your personal profile and stats{% else %}View employee details{% endif %}</p>
+    <p class="content-subtitle">{% if is_own_profile %}Your personal profile and stats{% else %}View employee details{%
+        endif %}</p>
     {% if is_own_profile %}
-    <button onclick="DashboardTour.reset('employee')" class="btn-secondary" style="margin-top: 10px; font-size: 0.8rem;">
+    <button onclick="DashboardTour.reset('employee')" class="btn-secondary"
+        style="margin-top: 10px; font-size: 0.8rem;">
         🔄 Restart My Tour
     </button>
     {% endif %}
@@ -42,952 +44,1019 @@
 
 {% block page_scripts %}
 <style>
-.profile-header {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    padding: 1.5rem;
-    background: var(--card-bg, #161b22);
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
-}
-
-.profile-avatar {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 2.5rem;
-    font-weight: 600;
-    flex-shrink: 0;
-    overflow: hidden;
-}
-
-.profile-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.profile-info {
-    flex: 1;
-}
-
-.profile-name {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 0.25rem;
-}
-
-.profile-role {
-    color: #8b949e;
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.profile-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 500;
-}
-
-.profile-status.clocked-in {
-    background: rgba(16, 185, 129, 0.2);
-    color: #10B981;
-}
-
-.profile-status.clocked-out {
-    background: rgba(139, 148, 158, 0.2);
-    color: #8b949e;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.stat-card {
-    background: var(--card-bg, #161b22);
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 12px;
-    padding: 1.25rem;
-    text-align: center;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.stat-icon {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 0.25rem;
-}
-
-.stat-label {
-    color: #8b949e;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.stat-sublabel {
-    color: #6e7681;
-    font-size: 0.75rem;
-    margin-top: 0.25rem;
-}
-
-.profile-sections {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 1.5rem;
-}
-
-.profile-section {
-    background: var(--card-bg, #161b22);
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 12px;
-    padding: 1.5rem;
-}
-
-.section-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #fff;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--border-color, #30363d);
-}
-
-.info-row:last-child {
-    border-bottom: none;
-}
-
-.info-label {
-    color: #8b949e;
-    font-size: 0.9rem;
-}
-
-.info-value {
-    color: #fff;
-    font-weight: 500;
-}
-
-.info-value.not-set {
-    color: #6e7681;
-    font-style: italic;
-}
-
-.contact-edit-form {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
-.contact-edit-form input {
-    flex: 1;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 6px;
-    background: var(--input-bg, #0d1117);
-    color: #fff;
-    font-size: 0.9rem;
-}
-
-.contact-edit-form input:focus {
-    outline: none;
-    border-color: #58a6ff;
-}
-
-.btn-save-contact {
-    padding: 0.5rem 1rem;
-    background: #238636;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.2s;
-}
-
-.btn-save-contact:hover {
-    background: #2ea043;
-}
-
-.btn-save-contact:disabled {
-    background: #484f58;
-    cursor: not-allowed;
-}
-
-.weekly-chart {
-    height: 120px;
-    display: flex;
-    align-items: flex-end;
-    gap: 0.5rem;
-    margin-top: 1rem;
-}
-
-.chart-bar {
-    flex: 1;
-    background: linear-gradient(to top, #238636, #2ea043);
-    border-radius: 4px 4px 0 0;
-    min-height: 4px;
-    transition: height 0.3s;
-}
-
-.chart-labels {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-.chart-label {
-    flex: 1;
-    text-align: center;
-    color: #6e7681;
-    font-size: 0.7rem;
-}
-
-.save-success {
-    color: #10B981;
-    font-size: 0.85rem;
-    margin-top: 0.5rem;
-}
-
-.save-error {
-    color: #f85149;
-    font-size: 0.85rem;
-    margin-top: 0.5rem;
-}
-
-@media (max-width: 768px) {
     .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        background: var(--card-bg, #161b22);
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2.5rem;
+        font-weight: 600;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .profile-info {
+        flex: 1;
+    }
+
+    .profile-name {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 0.25rem;
+    }
+
+    .profile-role {
+        color: #8b949e;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .profile-status.clocked-in {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10B981;
+    }
+
+    .profile-status.clocked-out {
+        background: rgba(139, 148, 158, 0.2);
+        color: #8b949e;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: var(--card-bg, #161b22);
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        color: #8b949e;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-sublabel {
+        color: #6e7681;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    .profile-sections {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .profile-section {
+        background: var(--card-bg, #161b22);
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color, #30363d);
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: #8b949e;
+        font-size: 0.9rem;
+    }
+
+    .info-value {
+        color: #fff;
+        font-weight: 500;
+    }
+
+    .info-value.not-set {
+        color: #6e7681;
+        font-style: italic;
+    }
+
+    .contact-edit-form {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .contact-edit-form input {
+        flex: 1;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 6px;
+        background: var(--input-bg, #0d1117);
+        color: #fff;
+        font-size: 0.9rem;
+    }
+
+    .contact-edit-form input:focus {
+        outline: none;
+        border-color: #58a6ff;
+    }
+
+    .btn-save-contact {
+        padding: 0.5rem 1rem;
+        background: #238636;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .btn-save-contact:hover {
+        background: #2ea043;
+    }
+
+    .btn-save-contact:disabled {
+        background: #484f58;
+        cursor: not-allowed;
+    }
+
+    .weekly-chart {
+        height: 120px;
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .chart-bar {
+        flex: 1;
+        background: linear-gradient(to top, #238636, #2ea043);
+        border-radius: 4px 4px 0 0;
+        min-height: 4px;
+        transition: height 0.3s;
+    }
+
+    .chart-labels {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .chart-label {
+        flex: 1;
+        text-align: center;
+        color: #6e7681;
+        font-size: 0.7rem;
+    }
+
+    .save-success {
+        color: #10B981;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+
+    .save-error {
+        color: #f85149;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .profile-sections {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .profile-avatar.clickable {
+        cursor: pointer;
+        position: relative;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .profile-avatar.clickable:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .profile-avatar.clickable::after {
+        content: 'Change';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        font-size: 0.7rem;
+        padding: 4px;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .profile-avatar.clickable:hover::after {
+        opacity: 1;
+    }
+
+    .profile-catchphrase {
+        color: #8b949e;
+        font-style: italic;
+        font-size: 0.95rem;
+        margin-top: 0.5rem;
+    }
+
+    .avatar-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .avatar-modal-content {
+        background: var(--card-bg, #161b22);
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 16px;
+        max-width: 600px;
+        width: 100%;
+        max-height: 80vh;
+        overflow: hidden;
+        display: flex;
         flex-direction: column;
+    }
+
+    .avatar-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-color, #30363d);
+    }
+
+    .avatar-modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: #fff;
+    }
+
+    .avatar-modal-close {
+        background: none;
+        border: none;
+        color: #8b949e;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0.25rem;
+        line-height: 1;
+    }
+
+    .avatar-modal-close:hover {
+        color: #fff;
+    }
+
+    .avatar-categories {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-color, #30363d);
+    }
+
+    .category-btn {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 20px;
+        background: transparent;
+        color: #8b949e;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+
+    .category-btn:hover {
+        border-color: #58a6ff;
+        color: #58a6ff;
+    }
+
+    .category-btn.active {
+        background: #58a6ff;
+        border-color: #58a6ff;
+        color: #fff;
+    }
+
+    .avatar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 1rem;
+        padding: 1.5rem;
+        overflow-y: auto;
+        max-height: 400px;
+    }
+
+    .avatar-option {
+        aspect-ratio: 1;
+        border-radius: 50%;
+        overflow: hidden;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.2s;
+        background: var(--input-bg, #0d1117);
+    }
+
+    .avatar-option:hover {
+        transform: scale(1.1);
+        border-color: #58a6ff;
+    }
+
+    .avatar-option.selected {
+        border-color: #238636;
+        box-shadow: 0 0 15px rgba(35, 134, 54, 0.5);
+    }
+
+    .avatar-option img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .avatar-modal-footer {
+        display: flex;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        border-top: 1px solid var(--border-color, #30363d);
+        justify-content: flex-end;
+    }
+
+    .btn-cancel {
+        padding: 0.75rem 1.5rem;
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 8px;
+        background: transparent;
+        color: #8b949e;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .btn-cancel:hover {
+        border-color: #8b949e;
+        color: #fff;
+    }
+
+    .btn-save-avatar {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        background: #238636;
+        color: white;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .btn-save-avatar:hover {
+        background: #2ea043;
+    }
+
+    .btn-save-avatar:disabled {
+        background: #484f58;
+        cursor: not-allowed;
+    }
+
+    .customization-section {
+        background: var(--card-bg, #161b22);
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .customization-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .customization-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .customization-label {
+        color: #8b949e;
+        font-size: 0.9rem;
+    }
+
+    .catchphrase-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 8px;
+        background: var(--input-bg, #0d1117);
+        color: #fff;
+        font-size: 0.95rem;
+    }
+
+    .catchphrase-input:focus {
+        outline: none;
+        border-color: #58a6ff;
+    }
+
+    .char-count {
+        color: #6e7681;
+        font-size: 0.75rem;
+        text-align: right;
+    }
+
+    .background-picker {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .bg-option {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .bg-option:hover {
+        transform: scale(1.1);
+        border-color: #58a6ff;
+    }
+
+    .bg-option.selected {
+        border-color: #238636;
+        box-shadow: 0 0 12px rgba(35, 134, 54, 0.5);
+    }
+
+    .bg-option.selected::after {
+        content: '✓';
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        background: #238636;
+        color: white;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+    }
+
+    .bg-default {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+
+    .bg-sunset {
+        background: linear-gradient(135deg, #f093fb, #f5576c);
+    }
+
+    .bg-ocean {
+        background: linear-gradient(135deg, #4facfe, #00f2fe);
+    }
+
+    .bg-forest {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+    }
+
+    .bg-fire {
+        background: linear-gradient(135deg, #f12711, #f5af19);
+    }
+
+    .bg-midnight {
+        background: linear-gradient(135deg, #232526, #414345);
+    }
+
+    .bg-candy {
+        background: linear-gradient(135deg, #ff9a9e, #fecfef);
+    }
+
+    .bg-aurora {
+        background: linear-gradient(135deg, #a8edea, #fed6e3);
+    }
+
+    .bg-cosmic {
+        background: linear-gradient(135deg, #8e2de2, #4a00e0);
+    }
+
+    .bg-golden {
+        background: linear-gradient(135deg, #f7971e, #ffd200);
+    }
+
+    .bg-mint {
+        background: linear-gradient(135deg, #00b09b, #96c93d);
+    }
+
+    .bg-cherry {
+        background: linear-gradient(135deg, #eb3349, #f45c43);
+    }
+
+    .accent-picker {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .accent-option {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.2s;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .accent-option:hover {
+        transform: scale(1.15);
+    }
+
+    .accent-option.selected {
+        border-color: #fff;
+        transform: scale(1.1);
+    }
+
+    .accent-option.selected::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #000;
+        font-weight: bold;
+        font-size: 0.9rem;
+        text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .profile-header.bg-sunset {
+        background: linear-gradient(135deg, #f093fb, #f5576c) !important;
+    }
+
+    .profile-header.bg-ocean {
+        background: linear-gradient(135deg, #4facfe, #00f2fe) !important;
+    }
+
+    .profile-header.bg-forest {
+        background: linear-gradient(135deg, #11998e, #38ef7d) !important;
+    }
+
+    .profile-header.bg-fire {
+        background: linear-gradient(135deg, #f12711, #f5af19) !important;
+    }
+
+    .profile-header.bg-midnight {
+        background: linear-gradient(135deg, #232526, #414345) !important;
+    }
+
+    .profile-header.bg-candy {
+        background: linear-gradient(135deg, #ff9a9e, #fecfef) !important;
+    }
+
+    .profile-header.bg-aurora {
+        background: linear-gradient(135deg, #a8edea, #fed6e3) !important;
+    }
+
+    .profile-header.bg-cosmic {
+        background: linear-gradient(135deg, #8e2de2, #4a00e0) !important;
+    }
+
+    .profile-header.bg-golden {
+        background: linear-gradient(135deg, #f7971e, #ffd200) !important;
+    }
+
+    .profile-header.bg-mint {
+        background: linear-gradient(135deg, #00b09b, #96c93d) !important;
+    }
+
+    .profile-header.bg-cherry {
+        background: linear-gradient(135deg, #eb3349, #f45c43) !important;
+    }
+
+    .sticker-picker {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .sticker-option {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s;
+        background: var(--input-bg, #0d1117);
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sticker-option:hover {
+        transform: scale(1.1);
+        border-color: #58a6ff;
+    }
+
+    .sticker-option.selected {
+        border-color: #238636;
+        background: rgba(35, 134, 54, 0.2);
+    }
+
+    .sticker-option img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .profile-stickers {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .profile-sticker {
+        width: 36px;
+        height: 36px;
+    }
+
+    .profile-sticker img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    }
+
+    .sticker-count {
+        color: #6e7681;
+        font-size: 0.75rem;
+        text-align: right;
+    }
+
+    .personalize-section {
+        grid-column: 1 / -1;
+    }
+
+    .pro-locked-section {
+        position: relative;
+    }
+
+    .pro-locked-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        border-radius: 8px;
+        z-index: 5;
+        backdrop-filter: blur(2px);
+    }
+
+    .pro-locked-icon {
+        font-size: 2rem;
+    }
+
+    .pro-locked-text {
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.95rem;
         text-align: center;
     }
-    
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+
+    .pro-upgrade-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #fff;
+        border: none;
+        padding: 0.5rem 1.25rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
     }
-    
-    .profile-sections {
-        grid-template-columns: 1fr;
+
+    .pro-upgrade-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
-}
 
-.profile-avatar.clickable {
-    cursor: pointer;
-    position: relative;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
+    .pro-teaser-wrapper {
+        position: relative;
+        opacity: 0.5;
+        pointer-events: none;
+    }
 
-.profile-avatar.clickable:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
-}
-
-.profile-avatar.clickable::after {
-    content: 'Change';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(0,0,0,0.7);
-    color: white;
-    font-size: 0.7rem;
-    padding: 4px;
-    text-align: center;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.profile-avatar.clickable:hover::after {
-    opacity: 1;
-}
-
-.profile-catchphrase {
-    color: #8b949e;
-    font-style: italic;
-    font-size: 0.95rem;
-    margin-top: 0.5rem;
-}
-
-.avatar-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.8);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
-
-.avatar-modal-content {
-    background: var(--card-bg, #161b22);
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 16px;
-    max-width: 600px;
-    width: 100%;
-    max-height: 80vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.avatar-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--border-color, #30363d);
-}
-
-.avatar-modal-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #fff;
-}
-
-.avatar-modal-close {
-    background: none;
-    border: none;
-    color: #8b949e;
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 0.25rem;
-    line-height: 1;
-}
-
-.avatar-modal-close:hover {
-    color: #fff;
-}
-
-.avatar-categories {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border-color, #30363d);
-}
-
-.category-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 20px;
-    background: transparent;
-    color: #8b949e;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: all 0.2s;
-}
-
-.category-btn:hover {
-    border-color: #58a6ff;
-    color: #58a6ff;
-}
-
-.category-btn.active {
-    background: #58a6ff;
-    border-color: #58a6ff;
-    color: #fff;
-}
-
-.avatar-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 1rem;
-    padding: 1.5rem;
-    overflow-y: auto;
-    max-height: 400px;
-}
-
-.avatar-option {
-    aspect-ratio: 1;
-    border-radius: 50%;
-    overflow: hidden;
-    cursor: pointer;
-    border: 3px solid transparent;
-    transition: all 0.2s;
-    background: var(--input-bg, #0d1117);
-}
-
-.avatar-option:hover {
-    transform: scale(1.1);
-    border-color: #58a6ff;
-}
-
-.avatar-option.selected {
-    border-color: #238636;
-    box-shadow: 0 0 15px rgba(35, 134, 54, 0.5);
-}
-
-.avatar-option img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.avatar-modal-footer {
-    display: flex;
-    gap: 1rem;
-    padding: 1.25rem 1.5rem;
-    border-top: 1px solid var(--border-color, #30363d);
-    justify-content: flex-end;
-}
-
-.btn-cancel {
-    padding: 0.75rem 1.5rem;
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 8px;
-    background: transparent;
-    color: #8b949e;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.btn-cancel:hover {
-    border-color: #8b949e;
-    color: #fff;
-}
-
-.btn-save-avatar {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    background: #238636;
-    color: white;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.2s;
-}
-
-.btn-save-avatar:hover {
-    background: #2ea043;
-}
-
-.btn-save-avatar:disabled {
-    background: #484f58;
-    cursor: not-allowed;
-}
-
-.customization-section {
-    background: var(--card-bg, #161b22);
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-.customization-row {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.customization-row:last-child {
-    margin-bottom: 0;
-}
-
-.customization-label {
-    color: #8b949e;
-    font-size: 0.9rem;
-}
-
-.catchphrase-input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 8px;
-    background: var(--input-bg, #0d1117);
-    color: #fff;
-    font-size: 0.95rem;
-}
-
-.catchphrase-input:focus {
-    outline: none;
-    border-color: #58a6ff;
-}
-
-.char-count {
-    color: #6e7681;
-    font-size: 0.75rem;
-    text-align: right;
-}
-
-.background-picker {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-}
-
-.bg-option {
-    width: 60px;
-    height: 60px;
-    border-radius: 12px;
-    cursor: pointer;
-    border: 3px solid transparent;
-    transition: all 0.2s;
-    position: relative;
-}
-
-.bg-option:hover {
-    transform: scale(1.1);
-    border-color: #58a6ff;
-}
-
-.bg-option.selected {
-    border-color: #238636;
-    box-shadow: 0 0 12px rgba(35, 134, 54, 0.5);
-}
-
-.bg-option.selected::after {
-    content: '✓';
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    background: #238636;
-    color: white;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-}
-
-.bg-default { background: linear-gradient(135deg, #667eea, #764ba2); }
-.bg-sunset { background: linear-gradient(135deg, #f093fb, #f5576c); }
-.bg-ocean { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-.bg-forest { background: linear-gradient(135deg, #11998e, #38ef7d); }
-.bg-fire { background: linear-gradient(135deg, #f12711, #f5af19); }
-.bg-midnight { background: linear-gradient(135deg, #232526, #414345); }
-.bg-candy { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
-.bg-aurora { background: linear-gradient(135deg, #a8edea, #fed6e3); }
-.bg-cosmic { background: linear-gradient(135deg, #8e2de2, #4a00e0); }
-.bg-golden { background: linear-gradient(135deg, #f7971e, #ffd200); }
-.bg-mint { background: linear-gradient(135deg, #00b09b, #96c93d); }
-.bg-cherry { background: linear-gradient(135deg, #eb3349, #f45c43); }
-
-.accent-picker {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-}
-
-.accent-option {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 3px solid transparent;
-    transition: all 0.2s;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.accent-option:hover {
-    transform: scale(1.15);
-}
-
-.accent-option.selected {
-    border-color: #fff;
-    transform: scale(1.1);
-}
-
-.accent-option.selected::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #000;
-    font-weight: bold;
-    font-size: 0.9rem;
-    text-shadow: 0 0 2px rgba(255,255,255,0.8);
-}
-
-.profile-header.bg-sunset { background: linear-gradient(135deg, #f093fb, #f5576c) !important; }
-.profile-header.bg-ocean { background: linear-gradient(135deg, #4facfe, #00f2fe) !important; }
-.profile-header.bg-forest { background: linear-gradient(135deg, #11998e, #38ef7d) !important; }
-.profile-header.bg-fire { background: linear-gradient(135deg, #f12711, #f5af19) !important; }
-.profile-header.bg-midnight { background: linear-gradient(135deg, #232526, #414345) !important; }
-.profile-header.bg-candy { background: linear-gradient(135deg, #ff9a9e, #fecfef) !important; }
-.profile-header.bg-aurora { background: linear-gradient(135deg, #a8edea, #fed6e3) !important; }
-.profile-header.bg-cosmic { background: linear-gradient(135deg, #8e2de2, #4a00e0) !important; }
-.profile-header.bg-golden { background: linear-gradient(135deg, #f7971e, #ffd200) !important; }
-.profile-header.bg-mint { background: linear-gradient(135deg, #00b09b, #96c93d) !important; }
-.profile-header.bg-cherry { background: linear-gradient(135deg, #eb3349, #f45c43) !important; }
-
-.sticker-picker {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-.sticker-option {
-    width: 48px;
-    height: 48px;
-    border-radius: 8px;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: all 0.2s;
-    background: var(--input-bg, #0d1117);
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.sticker-option:hover {
-    transform: scale(1.1);
-    border-color: #58a6ff;
-}
-
-.sticker-option.selected {
-    border-color: #238636;
-    background: rgba(35, 134, 54, 0.2);
-}
-
-.sticker-option img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.profile-stickers {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.profile-sticker {
-    width: 36px;
-    height: 36px;
-}
-
-.profile-sticker img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-}
-
-.sticker-count {
-    color: #6e7681;
-    font-size: 0.75rem;
-    text-align: right;
-}
-
-.personalize-section {
-    grid-column: 1 / -1;
-}
-
-.pro-locked-section {
-    position: relative;
-}
-
-.pro-locked-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    border-radius: 8px;
-    z-index: 5;
-    backdrop-filter: blur(2px);
-}
-
-.pro-locked-icon {
-    font-size: 2rem;
-}
-
-.pro-locked-text {
-    color: #fff;
-    font-weight: 600;
-    font-size: 0.95rem;
-    text-align: center;
-}
-
-.pro-upgrade-btn {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: #fff;
-    border: none;
-    padding: 0.5rem 1.25rem;
-    border-radius: 20px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.pro-upgrade-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.pro-teaser-wrapper {
-    position: relative;
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-.pro-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: #fff;
-    padding: 0.15rem 0.5rem;
-    border-radius: 10px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    margin-left: 0.5rem;
-}
+    .pro-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #fff;
+        padding: 0.15rem 0.5rem;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
 </style>
 
 <script>
-const guildId = '{{ server.id }}';
-const profileUserId = '{{ profile_user_id }}';
-const isOwnProfile = {{ 'true' if is_own_profile else 'false' }};
+    const guildId = '{{ server.id }}';
+    const profileUserId = '{{ profile_user_id }}';
+    const isOwnProfile = {{ 'true' if is_own_profile else 'false' }};
 
-const AVATAR_OPTIONS = [
-    { id: 'superhero', name: 'Superhero', category: 'adventure', url: '/static/avatars/superhero_clock_cartoon_avatar.png' },
-    { id: 'ninja', name: 'Ninja', category: 'adventure', url: '/static/avatars/ninja_clock_cartoon_avatar.png' },
-    { id: 'pirate', name: 'Pirate', category: 'adventure', url: '/static/avatars/pirate_clock_cartoon_avatar.png' },
-    { id: 'astronaut', name: 'Astronaut', category: 'adventure', url: '/static/avatars/astronaut_clock_cartoon_avatar.png' },
-    { id: 'wizard', name: 'Wizard', category: 'fantasy', url: '/static/avatars/wizard_clock_cartoon_avatar.png' },
-    { id: 'unicorn', name: 'Unicorn', category: 'fantasy', url: '/static/avatars/unicorn_clock_cartoon_avatar.png' },
-    { id: 'dinosaur', name: 'Dinosaur', category: 'fun', url: '/static/avatars/dinosaur_clock_cartoon_avatar.png' },
-    { id: 'robot', name: 'Robot', category: 'fun', url: '/static/avatars/robot_clock_cartoon_avatar.png' },
-    { id: 'skater', name: 'Skater', category: 'fun', url: '/static/avatars/skater_clock_cartoon_avatar.png' },
-    { id: 'beach', name: 'Beach Vibes', category: 'fun', url: '/static/avatars/beach_vacation_clock_avatar.png' },
-    { id: 'pumpkin', name: 'Pumpkin', category: 'halloween', url: '/static/avatars/halloween_pumpkin_clock_avatar.png' },
-    { id: 'vampire', name: 'Vampire', category: 'halloween', url: '/static/avatars/vampire_clock_cartoon_avatar.png' },
-    { id: 'ghost', name: 'Ghost', category: 'halloween', url: '/static/avatars/ghost_clock_cartoon_avatar.png' },
-    { id: 'santa', name: 'Santa', category: 'holiday', url: '/static/avatars/christmas_santa_clock_avatar.png' },
-    { id: 'snowman', name: 'Snowman', category: 'holiday', url: '/static/avatars/snowman_clock_cartoon_avatar.png' },
-    { id: 'cupid', name: 'Cupid', category: 'holiday', url: '/static/avatars/valentine_cupid_clock_avatar.png' },
-    { id: 'leprechaun', name: 'Leprechaun', category: 'holiday', url: '/static/avatars/st_patricks_leprechaun_avatar.png' },
-    { id: 'bunny', name: 'Easter Bunny', category: 'holiday', url: '/static/avatars/easter_bunny_clock_avatar.png' }
-];
+    const AVATAR_OPTIONS = [
+        { id: 'superhero', name: 'Superhero', category: 'adventure', url: '/static/avatars/superhero_clock_cartoon_avatar.png' },
+        { id: 'ninja', name: 'Ninja', category: 'adventure', url: '/static/avatars/ninja_clock_cartoon_avatar.png' },
+        { id: 'pirate', name: 'Pirate', category: 'adventure', url: '/static/avatars/pirate_clock_cartoon_avatar.png' },
+        { id: 'astronaut', name: 'Astronaut', category: 'adventure', url: '/static/avatars/astronaut_clock_cartoon_avatar.png' },
+        { id: 'wizard', name: 'Wizard', category: 'fantasy', url: '/static/avatars/wizard_clock_cartoon_avatar.png' },
+        { id: 'unicorn', name: 'Unicorn', category: 'fantasy', url: '/static/avatars/unicorn_clock_cartoon_avatar.png' },
+        { id: 'dinosaur', name: 'Dinosaur', category: 'fun', url: '/static/avatars/dinosaur_clock_cartoon_avatar.png' },
+        { id: 'robot', name: 'Robot', category: 'fun', url: '/static/avatars/robot_clock_cartoon_avatar.png' },
+        { id: 'skater', name: 'Skater', category: 'fun', url: '/static/avatars/skater_clock_cartoon_avatar.png' },
+        { id: 'beach', name: 'Beach Vibes', category: 'fun', url: '/static/avatars/beach_vacation_clock_avatar.png' },
+        { id: 'pumpkin', name: 'Pumpkin', category: 'halloween', url: '/static/avatars/halloween_pumpkin_clock_avatar.png' },
+        { id: 'vampire', name: 'Vampire', category: 'halloween', url: '/static/avatars/vampire_clock_cartoon_avatar.png' },
+        { id: 'ghost', name: 'Ghost', category: 'halloween', url: '/static/avatars/ghost_clock_cartoon_avatar.png' },
+        { id: 'santa', name: 'Santa', category: 'holiday', url: '/static/avatars/christmas_santa_clock_avatar.png' },
+        { id: 'snowman', name: 'Snowman', category: 'holiday', url: '/static/avatars/snowman_clock_cartoon_avatar.png' },
+        { id: 'cupid', name: 'Cupid', category: 'holiday', url: '/static/avatars/valentine_cupid_clock_avatar.png' },
+        { id: 'leprechaun', name: 'Leprechaun', category: 'holiday', url: '/static/avatars/st_patricks_leprechaun_avatar.png' },
+        { id: 'bunny', name: 'Easter Bunny', category: 'holiday', url: '/static/avatars/easter_bunny_clock_avatar.png' }
+    ];
 
-let currentProfile = null;
-let selectedAvatarId = null;
-let selectedBackground = 'default';
-let selectedAccentColor = 'cyan';
-let selectedStickers = [];
-let hasPremiumCustomization = false;
+    let currentProfile = null;
+    let selectedAvatarId = null;
+    let selectedBackground = 'default';
+    let selectedAccentColor = 'cyan';
+    let selectedStickers = [];
+    let hasPremiumCustomization = false;
 
-const ACCENT_COLOR_OPTIONS = [
-    { id: 'cyan', name: 'Neon Cyan', color: '#00FFFF' },
-    { id: 'magenta', name: 'Neon Pink', color: '#FF00FF' },
-    { id: 'gold', name: 'Cyber Gold', color: '#D4AF37' },
-    { id: 'green', name: 'Matrix Green', color: '#00FF41' },
-    { id: 'blue', name: 'Deep Ocean', color: '#0077FF' },
-    { id: 'red', name: 'Lava Red', color: '#FF4444' },
-    { id: 'purple', name: 'Violet Vibe', color: '#9D00FF' },
-    { id: 'teal', name: 'Electric Ice', color: '#00F5FF' }
-];
+    const ACCENT_COLOR_OPTIONS = [
+        { id: 'cyan', name: 'Neon Cyan', color: '#00FFFF' },
+        { id: 'magenta', name: 'Neon Pink', color: '#FF00FF' },
+        { id: 'gold', name: 'Cyber Gold', color: '#D4AF37' },
+        { id: 'green', name: 'Matrix Green', color: '#00FF41' },
+        { id: 'blue', name: 'Deep Ocean', color: '#0077FF' },
+        { id: 'red', name: 'Lava Red', color: '#FF4444' },
+        { id: 'purple', name: 'Violet Vibe', color: '#9D00FF' },
+        { id: 'teal', name: 'Electric Ice', color: '#00F5FF' }
+    ];
 
-function renderAccentColorOptions(currentColor) {
-    return ACCENT_COLOR_OPTIONS.map(c => 
-        `<div class="accent-option ${(currentColor || 'cyan') === c.id ? 'selected' : ''}" 
+    function renderAccentColorOptions(currentColor) {
+        return ACCENT_COLOR_OPTIONS.map(c =>
+            `<div class="accent-option ${(currentColor || 'cyan') === c.id ? 'selected' : ''}" 
               style="background-color: ${c.color}; box-shadow: 0 0 10px ${c.color};"
               onclick="selectAccentColor('${c.id}')" title="${c.name}"></div>`
-    ).join('');
-}
+        ).join('');
+    }
 
-function selectAccentColor(colorId) {
-    selectedAccentColor = colorId;
-    document.querySelectorAll('.accent-option').forEach(opt => opt.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
-}
+    function selectAccentColor(colorId) {
+        selectedAccentColor = colorId;
+        document.querySelectorAll('.accent-option').forEach(opt => opt.classList.remove('selected'));
+        event.currentTarget.classList.add('selected');
+    }
 
-const STICKER_OPTIONS = [
-    { id: 'star', name: 'Gold Star', url: '/static/stickers/gold_star_sticker.png' },
-    { id: 'coffee', name: 'Coffee', url: '/static/stickers/coffee_cup_sticker.png' },
-    { id: 'fire', name: 'Fire', url: '/static/stickers/fire_flame_sticker.png' },
-    { id: 'heart', name: 'Heart Wings', url: '/static/stickers/winged_heart_sticker.png' },
-    { id: 'lightning', name: 'Lightning', url: '/static/stickers/lightning_bolt_sticker.png' },
-    { id: 'rainbow', name: 'Rainbow', url: '/static/stickers/rainbow_sticker.png' },
-    { id: 'pizza', name: 'Pizza', url: '/static/stickers/pizza_slice_sticker.png' },
-    { id: 'music', name: 'Music', url: '/static/stickers/music_notes_sticker.png' },
-    { id: 'diamond', name: 'Diamond', url: '/static/stickers/diamond_gem_sticker.png' },
-    { id: 'crown', name: 'Crown', url: '/static/stickers/crown_sticker.png' }
-];
+    const STICKER_OPTIONS = [
+        { id: 'star', name: 'Gold Star', url: '/static/stickers/gold_star_sticker.png' },
+        { id: 'coffee', name: 'Coffee', url: '/static/stickers/coffee_cup_sticker.png' },
+        { id: 'fire', name: 'Fire', url: '/static/stickers/fire_flame_sticker.png' },
+        { id: 'heart', name: 'Heart Wings', url: '/static/stickers/winged_heart_sticker.png' },
+        { id: 'lightning', name: 'Lightning', url: '/static/stickers/lightning_bolt_sticker.png' },
+        { id: 'rainbow', name: 'Rainbow', url: '/static/stickers/rainbow_sticker.png' },
+        { id: 'pizza', name: 'Pizza', url: '/static/stickers/pizza_slice_sticker.png' },
+        { id: 'music', name: 'Music', url: '/static/stickers/music_notes_sticker.png' },
+        { id: 'diamond', name: 'Diamond', url: '/static/stickers/diamond_gem_sticker.png' },
+        { id: 'crown', name: 'Crown', url: '/static/stickers/crown_sticker.png' }
+    ];
 
-const BACKGROUND_OPTIONS = [
-    { id: 'default', name: 'Purple Haze' },
-    { id: 'sunset', name: 'Sunset' },
-    { id: 'ocean', name: 'Ocean Wave' },
-    { id: 'forest', name: 'Forest' },
-    { id: 'fire', name: 'Fire' },
-    { id: 'midnight', name: 'Midnight' },
-    { id: 'candy', name: 'Candy' },
-    { id: 'aurora', name: 'Aurora' },
-    { id: 'cosmic', name: 'Cosmic' },
-    { id: 'golden', name: 'Golden' },
-    { id: 'mint', name: 'Mint' },
-    { id: 'cherry', name: 'Cherry' }
-];
+    const BACKGROUND_OPTIONS = [
+        { id: 'default', name: 'Purple Haze' },
+        { id: 'sunset', name: 'Sunset' },
+        { id: 'ocean', name: 'Ocean Wave' },
+        { id: 'forest', name: 'Forest' },
+        { id: 'fire', name: 'Fire' },
+        { id: 'midnight', name: 'Midnight' },
+        { id: 'candy', name: 'Candy' },
+        { id: 'aurora', name: 'Aurora' },
+        { id: 'cosmic', name: 'Cosmic' },
+        { id: 'golden', name: 'Golden' },
+        { id: 'mint', name: 'Mint' },
+        { id: 'cherry', name: 'Cherry' }
+    ];
 
-function renderBackgroundOptions(currentBg) {
-    return BACKGROUND_OPTIONS.map(bg => 
-        `<div class="bg-option bg-${bg.id} ${(currentBg || 'default') === bg.id ? 'selected' : ''}" 
+    function renderBackgroundOptions(currentBg) {
+        return BACKGROUND_OPTIONS.map(bg =>
+            `<div class="bg-option bg-${bg.id} ${(currentBg || 'default') === bg.id ? 'selected' : ''}" 
               onclick="selectBackground('${bg.id}')" title="${bg.name}"></div>`
-    ).join('');
-}
+        ).join('');
+    }
 
-function selectBackground(bgId) {
-    selectedBackground = bgId;
-    document.querySelectorAll('.bg-option').forEach(opt => opt.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
-}
+    function selectBackground(bgId) {
+        selectedBackground = bgId;
+        document.querySelectorAll('.bg-option').forEach(opt => opt.classList.remove('selected'));
+        event.currentTarget.classList.add('selected');
+    }
 
-function renderStickerOptions() {
-    return STICKER_OPTIONS.map(sticker => 
-        `<div class="sticker-option ${selectedStickers.includes(sticker.id) ? 'selected' : ''}" 
+    function renderStickerOptions() {
+        return STICKER_OPTIONS.map(sticker =>
+            `<div class="sticker-option ${selectedStickers.includes(sticker.id) ? 'selected' : ''}" 
               onclick="toggleSticker('${sticker.id}')" title="${sticker.name}">
             <img src="${sticker.url}" alt="${sticker.name}">
         </div>`
-    ).join('');
-}
-
-function toggleSticker(stickerId) {
-    const idx = selectedStickers.indexOf(stickerId);
-    if (idx > -1) {
-        selectedStickers.splice(idx, 1);
-    } else if (selectedStickers.length < 5) {
-        selectedStickers.push(stickerId);
+        ).join('');
     }
-    document.querySelectorAll('.sticker-option').forEach(opt => opt.classList.remove('selected'));
-    selectedStickers.forEach(id => {
-        const sticker = STICKER_OPTIONS.find(s => s.id === id);
-        if (sticker) {
-            const opts = document.querySelectorAll('.sticker-option');
-            opts.forEach(o => {
-                if (o.title === sticker.name) o.classList.add('selected');
-            });
-        }
-    });
-    const countEl = document.getElementById('sticker-count');
-    if (countEl) countEl.textContent = `${selectedStickers.length}/5`;
-}
 
-function renderProfileStickers(stickers) {
-    if (!stickers || stickers.length === 0) return '';
-    return `<div class="profile-stickers">
+    function toggleSticker(stickerId) {
+        const idx = selectedStickers.indexOf(stickerId);
+        if (idx > -1) {
+            selectedStickers.splice(idx, 1);
+        } else if (selectedStickers.length < 5) {
+            selectedStickers.push(stickerId);
+        }
+        document.querySelectorAll('.sticker-option').forEach(opt => opt.classList.remove('selected'));
+        selectedStickers.forEach(id => {
+            const sticker = STICKER_OPTIONS.find(s => s.id === id);
+            if (sticker) {
+                const opts = document.querySelectorAll('.sticker-option');
+                opts.forEach(o => {
+                    if (o.title === sticker.name) o.classList.add('selected');
+                });
+            }
+        });
+        const countEl = document.getElementById('sticker-count');
+        if (countEl) countEl.textContent = `${selectedStickers.length}/5`;
+    }
+
+    function renderProfileStickers(stickers) {
+        if (!stickers || stickers.length === 0) return '';
+        return `<div class="profile-stickers">
         ${stickers.map(id => {
             const sticker = STICKER_OPTIONS.find(s => s.id === id);
             return sticker ? `<div class="profile-sticker"><img src="${sticker.url}" alt="${sticker.name}"></div>` : '';
         }).join('')}
     </div>`;
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function formatHours(hours) {
-    if (!hours || hours === 0) return '0h';
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
-}
-
-function getAvatarUrl(avatarChoice, discordAvatarUrl) {
-    if (!avatarChoice || avatarChoice === 'random' || avatarChoice === 'discord') {
-        return discordAvatarUrl;
     }
-    const avatar = AVATAR_OPTIONS.find(a => a.id === avatarChoice);
-    return avatar ? avatar.url : discordAvatarUrl;
-}
 
-async function loadProfile() {
-    const container = document.getElementById('profile-container');
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
-            credentials: 'include'
-        });
-        const data = await response.json();
-        
-        if (!data.success) {
-            container.innerHTML = `<div class="error-message">Failed to load profile: ${escapeHtml(data.error)}</div>`;
-            return;
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatHours(hours) {
+        if (!hours || hours === 0) return '0h';
+        const h = Math.floor(hours);
+        const m = Math.round((hours - h) * 60);
+        if (m === 0) return `${h}h`;
+        return `${h}h ${m}m`;
+    }
+
+    function getAvatarUrl(avatarChoice, discordAvatarUrl) {
+        if (!avatarChoice || avatarChoice === 'random' || avatarChoice === 'discord') {
+            return discordAvatarUrl;
         }
-        
-        const profile = data.profile;
-        currentProfile = profile;
-        const stats = profile.stats;
-        hasPremiumCustomization = data.has_premium_customization || false;
-        
-        const avatarUrl = getAvatarUrl(profile.avatar_choice, profile.avatar_url);
-        const hasCustomAvatar = profile.avatar_choice && profile.avatar_choice !== 'random' && profile.avatar_choice !== 'discord';
-        const bgClass = profile.profile_background && profile.profile_background !== 'default' ? `bg-${profile.profile_background}` : '';
-        selectedBackground = profile.profile_background || 'default';
-        selectedAccentColor = profile.accent_color || 'cyan';
-        selectedStickers = profile.selected_stickers || [];
-        
-        container.innerHTML = `
+        const avatar = AVATAR_OPTIONS.find(a => a.id === avatarChoice);
+        return avatar ? avatar.url : discordAvatarUrl;
+    }
+
+    async function loadProfile() {
+        const container = document.getElementById('profile-container');
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
+                credentials: 'include'
+            });
+            const data = await response.json();
+
+            if (!data.success) {
+                container.innerHTML = `<div class="error-message">Failed to load profile: ${escapeHtml(data.error)}</div>`;
+                return;
+            }
+
+            const profile = data.profile;
+            currentProfile = profile;
+            const stats = profile.stats;
+            hasPremiumCustomization = data.has_premium_customization || false;
+
+            const avatarUrl = getAvatarUrl(profile.avatar_choice, profile.avatar_url);
+            const hasCustomAvatar = profile.avatar_choice && profile.avatar_choice !== 'random' && profile.avatar_choice !== 'discord';
+            const bgClass = profile.profile_background && profile.profile_background !== 'default' ? `bg-${profile.profile_background}` : '';
+            selectedBackground = profile.profile_background || 'default';
+            selectedAccentColor = profile.accent_color || 'cyan';
+            selectedStickers = profile.selected_stickers || [];
+
+            container.innerHTML = `
             <div class="profile-header ${bgClass}">
                 <div class="profile-avatar ${isOwnProfile && hasPremiumCustomization ? 'clickable' : ''}" ${isOwnProfile && hasPremiumCustomization ? 'onclick="openAvatarModal()"' : ''} title="${isOwnProfile && hasPremiumCustomization ? 'Click to change avatar' : (isOwnProfile ? 'Upgrade to Premium to customize avatar' : '')}">
-                    ${avatarUrl 
-                        ? `<img src="${escapeHtml(avatarUrl)}" alt="Avatar">`
-                        : escapeHtml(profile.display_name.charAt(0).toUpperCase())
-                    }
+                    ${avatarUrl
+                    ? `<img src="${escapeHtml(avatarUrl)}" alt="Avatar">`
+                    : escapeHtml(profile.display_name.charAt(0).toUpperCase())
+                }
                 </div>
                 <div class="profile-info">
                     <div class="profile-name">${escapeHtml(profile.display_name)}</div>
@@ -1097,6 +1166,71 @@ async function loadProfile() {
                 <div class="profile-section personalize-section">
                     <div class="section-title">🎨 Personalize</div>
                     
+                    <div class="customization-row" style="margin-bottom: 2rem;">
+                        <span class="customization-label" style="display: block; margin-bottom: 1rem; text-align: center;">Kiosk Card Preview</span>
+                        <div id="kiosk-preview-card" style="
+                            background: rgba(30, 35, 45, 0.7);
+                            border: 2px solid rgba(212, 175, 55, 0.3);
+                            border-radius: 16px;
+                            padding: 20px;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            gap: 10px;
+                            width: 220px;
+                            margin: 0 auto;
+                            position: relative;
+                            overflow: hidden;
+                            transition: all 0.3s ease;
+                        ">
+                            <div id="preview-avatar" style="
+                                width: 80px;
+                                height: 80px;
+                                border-radius: 50%;
+                                background: linear-gradient(135deg, #D4AF37, #F4E5A1);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 32px;
+                                font-weight: bold;
+                                color: #0D1117;
+                                overflow: hidden;
+                            ">
+                                ${profile.avatar_url ? `<img src="${getAvatarUrl(profile.avatar_url, profile.discord_avatar_url)}" style="width: 100%; height: 100%; object-fit: cover;">` : profile.display_name.charAt(0).toUpperCase()}
+                            </div>
+                            <div id="preview-name" style="
+                                font-size: 18px;
+                                font-weight: 600;
+                                color: #C9D1D9;
+                                text-align: center;
+                            ">${escapeHtml(profile.display_name)}</div>
+                            <div id="preview-catchphrase" style="
+                                font-size: 12px;
+                                font-style: italic;
+                                color: #8B949E;
+                                text-align: center;
+                                min-height: 16px;
+                            ">${escapeHtml(profile.catchphrase || 'Your catchphrase here...')}</div>
+                            <div id="preview-stickers" style="
+                                display: flex;
+                                gap: 5px;
+                                min-height: 24px;
+                                margin-top: 5px;
+                            ">
+                                <!-- Stickers injected here -->
+                            </div>
+                            <div style="
+                                font-size: 12px;
+                                padding: 4px 12px;
+                                border-radius: 20px;
+                                font-weight: 600;
+                                background: rgba(16, 185, 129, 0.2);
+                                color: #10B981;
+                                margin-top: 5px;
+                            ">Clocked In</div>
+                        </div>
+                    </div>
+
                     <div class="customization-row">
                         <span class="customization-label">Your Catchphrase</span>
                         <input type="text" class="catchphrase-input" id="catchphrase-input" 
@@ -1154,199 +1288,282 @@ async function loadProfile() {
                 ` : ''}
             </div>
         `;
-        
-    } catch (error) {
-        console.error('Error loading profile:', error);
-        container.innerHTML = `<div class="error-message">Failed to load profile. Please try again.</div>`;
-    }
-}
 
-async function saveContact() {
-    const emailInput = document.getElementById('email-input');
-    const phoneInput = document.getElementById('phone-input');
-    const statusDiv = document.getElementById('contact-status');
-    const btn = document.querySelector('.btn-save-contact');
-    
-    const email = emailInput ? emailInput.value.trim() : null;
-    const phone = phoneInput ? phoneInput.value.trim() : null;
-    
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
-    statusDiv.innerHTML = '';
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ 
-                email: email || null,
-                phone: phone || null
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            statusDiv.innerHTML = '<span class="save-success">✓ Contact info saved successfully</span>';
-            setTimeout(() => { statusDiv.innerHTML = ''; }, 3000);
-        } else {
-            statusDiv.innerHTML = `<span class="save-error">✗ ${escapeHtml(data.error)}</span>`;
+            setupCatchphraseCounter();
+            updatePreviewCard();
+            attachPreviewListeners();
+
+        } catch (error) {
+            console.error('Error loading profile:', error);
+            container.innerHTML = `<div class="error-message">Failed to load profile. Please try again.</div>`;
         }
-    } catch (error) {
-        statusDiv.innerHTML = '<span class="save-error">✗ Failed to save contact info</span>';
     }
-    
-    btn.disabled = false;
-    btn.textContent = 'Save Contact Info';
-}
 
-function openAvatarModal() {
-    if (!isOwnProfile || !hasPremiumCustomization) return;
-    
-    selectedAvatarId = currentProfile?.avatar_choice || null;
-    const modal = document.getElementById('avatar-modal');
-    modal.style.display = 'flex';
-    
-    renderAvatarGrid('all');
-    
-    document.querySelectorAll('.category-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            renderAvatarGrid(e.target.dataset.category);
+    async function saveContact() {
+        const emailInput = document.getElementById('email-input');
+        const phoneInput = document.getElementById('phone-input');
+        const statusDiv = document.getElementById('contact-status');
+        const btn = document.querySelector('.btn-save-contact');
+
+        const email = emailInput ? emailInput.value.trim() : null;
+        const phone = phoneInput ? phoneInput.value.trim() : null;
+
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        statusDiv.innerHTML = '';
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: email || null,
+                    phone: phone || null
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                statusDiv.innerHTML = '<span class="save-success">✓ Contact info saved successfully</span>';
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 3000);
+            } else {
+                statusDiv.innerHTML = `<span class="save-error">✗ ${escapeHtml(data.error)}</span>`;
+            }
+        } catch (error) {
+            statusDiv.innerHTML = '<span class="save-error">✗ Failed to save contact info</span>';
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Save Contact Info';
+    }
+
+    function openAvatarModal() {
+        if (!isOwnProfile || !hasPremiumCustomization) return;
+
+        selectedAvatarId = currentProfile?.avatar_choice || null;
+        const modal = document.getElementById('avatar-modal');
+        modal.style.display = 'flex';
+
+        renderAvatarGrid('all');
+
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                renderAvatarGrid(e.target.dataset.category);
+            });
         });
-    });
-}
+    }
 
-function closeAvatarModal() {
-    document.getElementById('avatar-modal').style.display = 'none';
-}
+    function closeAvatarModal() {
+        document.getElementById('avatar-modal').style.display = 'none';
+    }
 
-function renderAvatarGrid(category) {
-    const grid = document.getElementById('avatar-grid');
-    const filtered = category === 'all' ? AVATAR_OPTIONS : AVATAR_OPTIONS.filter(a => a.category === category);
-    
-    let html = `
+    function renderAvatarGrid(category) {
+        const grid = document.getElementById('avatar-grid');
+        const filtered = category === 'all' ? AVATAR_OPTIONS : AVATAR_OPTIONS.filter(a => a.category === category);
+
+        let html = `
         <div class="avatar-option ${!selectedAvatarId || selectedAvatarId === 'discord' ? 'selected' : ''}" 
              onclick="selectAvatar('discord')" title="Use Discord Avatar">
-            ${currentProfile?.avatar_url 
+            ${currentProfile?.avatar_url
                 ? `<img src="${escapeHtml(currentProfile.avatar_url)}" alt="Discord">`
                 : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:1.5rem;color:#8b949e;">D</div>`
             }
         </div>
     `;
-    
-    filtered.forEach(avatar => {
-        html += `
+
+        filtered.forEach(avatar => {
+            html += `
             <div class="avatar-option ${selectedAvatarId === avatar.id ? 'selected' : ''}" 
                  onclick="selectAvatar('${avatar.id}')" title="${escapeHtml(avatar.name)}">
                 <img src="${avatar.url}" alt="${escapeHtml(avatar.name)}">
             </div>
         `;
-    });
-    
-    grid.innerHTML = html;
-}
-
-function selectAvatar(avatarId) {
-    selectedAvatarId = avatarId;
-    document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
-}
-
-async function saveAvatarChoice() {
-    const btn = document.querySelector('.btn-save-avatar');
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ 
-                avatar_choice: selectedAvatarId || 'discord'
-            })
         });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            closeAvatarModal();
-            loadProfile();
-        } else {
-            alert('Failed to save avatar: ' + (data.error || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Error saving avatar:', error);
-        alert('Failed to save avatar');
+
+        grid.innerHTML = html;
     }
-    
-    btn.disabled = false;
-    btn.textContent = 'Save Avatar';
-}
 
-async function saveCustomization() {
-    const catchphraseInput = document.getElementById('catchphrase-input');
-    const statusDiv = document.getElementById('customization-status');
-    const btn = document.querySelector('.personalize-section .btn-save-contact');
-    
-    const catchphrase = catchphraseInput ? catchphraseInput.value.trim() : '';
-    
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
-    statusDiv.innerHTML = '';
-    
-    try {
-        const payload = { catchphrase: catchphrase || null };
-        
-        if (hasPremiumCustomization) {
-            payload.profile_background = selectedBackground || 'default';
-            payload.accent_color = selectedAccentColor || 'cyan';
-            payload.selected_stickers = selectedStickers;
-        }
-        
-        const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(payload)
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            statusDiv.innerHTML = '<span class="save-success">✓ Personalization saved!</span>';
-            setTimeout(() => { 
-                statusDiv.innerHTML = ''; 
+    function selectAvatar(avatarId) {
+        selectedAvatarId = avatarId;
+        document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+        event.currentTarget.classList.add('selected');
+    }
+
+    async function saveAvatarChoice() {
+        const btn = document.querySelector('.btn-save-avatar');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    avatar_choice: selectedAvatarId || 'discord'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                closeAvatarModal();
                 loadProfile();
-            }, 1500);
-        } else {
-            statusDiv.innerHTML = `<span class="save-error">✗ ${escapeHtml(data.error)}</span>`;
+            } else {
+                alert('Failed to save avatar: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error saving avatar:', error);
+            alert('Failed to save avatar');
         }
-    } catch (error) {
-        statusDiv.innerHTML = '<span class="save-error">✗ Failed to save personalization</span>';
-    }
-    
-    btn.disabled = false;
-    btn.textContent = hasPremiumCustomization ? 'Save Personalization' : 'Save Catchphrase';
-}
 
-function setupCatchphraseCounter() {
-    const input = document.getElementById('catchphrase-input');
-    const counter = document.getElementById('catchphrase-count');
-    if (input && counter) {
-        input.addEventListener('input', () => {
-            counter.textContent = input.value.length;
+        btn.disabled = false;
+        btn.textContent = 'Save Avatar';
+    }
+
+    async function saveCustomization() {
+        const catchphraseInput = document.getElementById('catchphrase-input');
+        const statusDiv = document.getElementById('customization-status');
+        const btn = document.querySelector('.personalize-section .btn-save-contact');
+
+        const catchphrase = catchphraseInput ? catchphraseInput.value.trim() : '';
+
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        statusDiv.innerHTML = '';
+
+        try {
+            const payload = { catchphrase: catchphrase || null };
+
+            if (hasPremiumCustomization) {
+                payload.profile_background = selectedBackground || 'default';
+                payload.accent_color = selectedAccentColor || 'cyan';
+                payload.selected_stickers = selectedStickers;
+            }
+
+            const response = await fetch(`/api/server/${guildId}/employee/${profileUserId}/profile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                statusDiv.innerHTML = '<span class="save-success">✓ Personalization saved!</span>';
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                    loadProfile();
+                }, 1500);
+            } else {
+                statusDiv.innerHTML = `<span class="save-error">✗ ${escapeHtml(data.error)}</span>`;
+            }
+        } catch (error) {
+            statusDiv.innerHTML = '<span class="save-error">✗ Failed to save personalization</span>';
+        }
+
+        btn.disabled = false;
+        btn.textContent = hasPremiumCustomization ? 'Save Personalization' : 'Save Catchphrase';
+    }
+
+    function setupCatchphraseCounter() {
+        const input = document.getElementById('catchphrase-input');
+        const counter = document.getElementById('catchphrase-count');
+        if (input && counter) {
+            input.addEventListener('input', () => {
+                counter.textContent = input.value.length;
+                updatePreviewCard();
+            });
+        }
+    }
+
+    function updatePreviewCard() {
+        const previewCard = document.getElementById('kiosk-preview-card');
+        const previewCatchphrase = document.getElementById('preview-catchphrase');
+        const previewStickers = document.getElementById('preview-stickers');
+        const input = document.getElementById('catchphrase-input');
+
+        if (!previewCard) return;
+
+        // Catchphrase
+        if (input && previewCatchphrase) {
+            previewCatchphrase.textContent = input.value || 'Your catchphrase here...';
+        }
+
+        // Background
+        previewCard.className = ''; // Reset classes
+        if (typeof selectedBackground !== 'undefined' && selectedBackground !== 'default') {
+            previewCard.classList.add(`bg-${selectedBackground}`);
+            // Apply gradient mapping
+            const gradientMap = {
+                'sunset': 'linear-gradient(135deg, rgba(255, 100, 50, 0.25) 0%, rgba(255, 50, 100, 0.25) 50%, rgba(150, 50, 255, 0.25) 100%)',
+                'ocean': 'linear-gradient(135deg, rgba(0, 100, 200, 0.25) 0%, rgba(0, 200, 200, 0.25) 50%, rgba(0, 150, 255, 0.25) 100%)',
+                'forest': 'linear-gradient(135deg, rgba(34, 139, 34, 0.25) 0%, rgba(50, 205, 50, 0.25) 50%, rgba(0, 100, 0, 0.25) 100%)',
+                'midnight': 'linear-gradient(135deg, rgba(25, 25, 112, 0.25) 0%, rgba(75, 0, 130, 0.25) 50%, rgba(0, 0, 50, 0.25) 100%)',
+                'candy': 'linear-gradient(135deg, rgba(255, 154, 158, 0.2) 0%, rgba(254, 207, 239, 0.2) 100%)',
+                'aurora': 'linear-gradient(135deg, rgba(0, 255, 100, 0.2) 0%, rgba(0, 200, 255, 0.2) 50%, rgba(100, 0, 255, 0.2) 100%)',
+                'cosmic': 'linear-gradient(135deg, rgba(142, 45, 226, 0.2) 0%, rgba(74, 0, 224, 0.2) 100%)',
+                'golden': 'linear-gradient(135deg, rgba(247, 151, 30, 0.2) 0%, rgba(255, 210, 0, 0.2) 100%)',
+                'mint': 'linear-gradient(135deg, rgba(0, 176, 155, 0.2) 0%, rgba(150, 201, 61, 0.2) 100%)',
+                'cherry': 'linear-gradient(135deg, rgba(235, 51, 73, 0.2) 0%, rgba(244, 92, 67, 0.2) 100%)',
+                'fire': 'linear-gradient(135deg, rgba(241, 39, 17, 0.2) 0%, rgba(245, 175, 25, 0.2) 100%)'
+            };
+            if (gradientMap[selectedBackground]) {
+                previewCard.style.background = gradientMap[selectedBackground];
+            }
+        } else {
+            previewCard.style.background = 'rgba(30, 35, 45, 0.7)';
+        }
+
+        // Stickers
+        if (previewStickers && typeof selectedStickers !== 'undefined') {
+            previewStickers.innerHTML = selectedStickers.map(s =>
+                `<span style="font-size: 20px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">${s === 'star' ? '⭐' :
+                    s === 'fire' ? '🔥' :
+                        s === 'heart' ? '❤️' :
+                            s === 'rocket' ? '🚀' :
+                                s === 'crown' ? '👑' :
+                                    s === 'diamond' ? '💎' :
+                                        s === 'coffee' ? '☕' :
+                                            s === 'game' ? '🎮' :
+                                                s === 'music' ? '🎵' :
+                                                    s === 'code' ? '💻' :
+                                                        s === 'ninja' ? '🥷' :
+                                                            s === 'ghost' ? '👻' : '✨'
+                }</span>`
+            ).join('');
+        }
+    }
+
+    function attachPreviewListeners() {
+        // Intercept background selection
+        if (typeof selectBackground === 'function') {
+            const originalSelectBackground = selectBackground;
+            selectBackground = function (bgId) {
+                originalSelectBackground(bgId);
+                updatePreviewCard();
+            };
+        }
+
+        // Intercept sticker toggles
+        if (typeof toggleSticker === 'function') {
+            const originalToggleSticker = toggleSticker;
+            toggleSticker = function (stickerId) {
+                originalToggleSticker(stickerId);
+                updatePreviewCard();
+            };
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadProfile().then(() => {
+            setTimeout(setupCatchphraseCounter, 100);
         });
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    loadProfile().then(() => {
-        setTimeout(setupCatchphraseCounter, 100);
     });
-});
 </script>
 {% endblock %}

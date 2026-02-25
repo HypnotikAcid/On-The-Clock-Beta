@@ -4,26 +4,30 @@
 
 {% block content %}
 <div class="content-header">
-    <h1 class="content-title">Admin Calendar <button class="help-btn" onclick="showPageHelp('calendar-help-content')">?</button></h1>
+    <h1 class="content-title">Admin Calendar <button class="help-btn"
+            onclick="showPageHelp('calendar-help-content')">?</button></h1>
     <p class="content-subtitle">View and manage all employee time entries</p>
 </div>
 
 <template id="calendar-help-content">
     <div class="help-modal-title">📅 Admin Calendar Help</div>
-    
+
     <div class="help-modal-section">
         <h4>Overview</h4>
-        <p>The Admin Calendar gives you a complete view of all employee time entries across your team. Use it to review hours, make adjustments, and add missing entries.</p>
+        <p>The Admin Calendar gives you a complete view of all employee time entries across your team. Use it to review
+            hours, make adjustments, and add missing entries.</p>
     </div>
-    
+
     <div class="help-modal-section">
         <h4>Calendar Views</h4>
         <ul>
-            <li><strong>Master View:</strong> Shows all employees at once. Each day displays total hours and employee count.</li>
-            <li><strong>Single Employee:</strong> Focus on one employee's calendar. Select them from the dropdown above.</li>
+            <li><strong>Master View:</strong> Shows all employees at once. Each day displays total hours and employee
+                count.</li>
+            <li><strong>Single Employee:</strong> Focus on one employee's calendar. Select them from the dropdown above.
+            </li>
         </ul>
     </div>
-    
+
     <div class="help-modal-section">
         <h4>Viewing Day Details</h4>
         <p>Click any day on the calendar to see who worked and their exact clock times. From this view you can:</p>
@@ -33,13 +37,15 @@
             <li>Add a new session for any employee</li>
         </ul>
     </div>
-    
+
     <div class="help-modal-section">
         <h4>Editing Sessions</h4>
-        <p>When editing a session, you can change the clock in and clock out times. All changes are logged for audit purposes.</p>
+        <p>When editing a session, you can change the clock in and clock out times. All changes are logged for audit
+            purposes.</p>
     </div>
-    
-    <div class="help-tip">Click on an employee's name in the day details to view their full profile and timecard history.</div>
+
+    <div class="help-tip">Click on an employee's name in the day details to view their full profile and timecard
+        history.</div>
 </template>
 
 <div class="calendar-controls">
@@ -47,7 +53,7 @@
         <button class="view-btn active" data-view="master">Master View</button>
         <button class="view-btn" data-view="employee">Single Employee</button>
     </div>
-    
+
     <div class="employee-select-wrapper" id="employee-select-container" style="display: none;">
         <label for="employee-select">Select Employee:</label>
         <select id="employee-select" class="form-select">
@@ -72,8 +78,10 @@
         <h2 id="day-modal-title">Day Details</h2>
         <div id="day-modal-body">
             <div class="employee-filter-wrapper" style="margin-bottom: 15px;">
-                <label for="day-employee-filter" style="color: #8B949E; font-size: 13px; margin-right: 8px;">Filter by Employee:</label>
-                <select id="day-employee-filter" class="form-select" style="max-width: 250px; display: inline-block;" onchange="filterDaySessions()">
+                <label for="day-employee-filter" style="color: #8B949E; font-size: 13px; margin-right: 8px;">Filter by
+                    Employee:</label>
+                <select id="day-employee-filter" class="form-select" style="max-width: 250px; display: inline-block;"
+                    onchange="filterDaySessions()">
                     <option value="">All Employees</option>
                 </select>
             </div>
@@ -127,858 +135,867 @@
 
 {% block page_scripts %}
 <script>
-const guildId = '{{ server.id }}';
-let employees = [];
-let currentEmployee = null;
-let currentYear = new Date().getFullYear();
-let currentMonth = new Date().getMonth();
-let currentEntries = [];
-let selectedEntry = null;
-let currentView = 'master';
-let monthlyData = {};
-let selectedDate = null;
-let currentDaySessions = [];
+    const guildId = '{{ server.id }}';
+    let employees = [];
+    let currentEmployee = null;
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+    let currentEntries = [];
+    let selectedEntry = null;
+    let currentView = 'master';
+    let monthlyData = {};
+    let selectedDate = null;
+    let currentDaySessions = [];
 
-async function loadEmployees() {
-    try {
-        const response = await fetch(`/api/server/${guildId}/employees`, { credentials: 'include' });
-        const data = await response.json();
-        
-        if (data.success) {
-            employees = data.employees || [];
-            populateEmployeeSelect();
-            populateNewSessionEmployeeSelect();
+    async function loadEmployees() {
+        try {
+            const response = await fetch(`/api/server/${guildId}/employees`, { credentials: 'include' });
+            const data = await response.json();
+
+            if (data.success) {
+                employees = data.employees || [];
+                populateEmployeeSelect();
+                populateNewSessionEmployeeSelect();
+            }
+        } catch (error) {
+            console.error('Failed to load employees:', error);
         }
-    } catch (error) {
-        console.error('Failed to load employees:', error);
     }
-}
 
-function populateEmployeeSelect() {
-    const select = document.getElementById('employee-select');
-    select.innerHTML = '<option value="">-- Select an employee --</option>' +
-        employees.map(e => 
+    function populateEmployeeSelect() {
+        const select = document.getElementById('employee-select');
+        select.innerHTML = '<option value="">-- Select an employee --</option>' +
+            employees.map(e =>
+                `<option value="${e.user_id}">${DashboardUtils.escapeHtml(e.display_name || e.username)}</option>`
+            ).join('');
+    }
+
+    function populateNewSessionEmployeeSelect() {
+        const select = document.getElementById('new-session-employee');
+        select.innerHTML = employees.map(e =>
             `<option value="${e.user_id}">${DashboardUtils.escapeHtml(e.display_name || e.username)}</option>`
         ).join('');
-}
-
-function populateNewSessionEmployeeSelect() {
-    const select = document.getElementById('new-session-employee');
-    select.innerHTML = employees.map(e => 
-        `<option value="${e.user_id}">${DashboardUtils.escapeHtml(e.display_name || e.username)}</option>`
-    ).join('');
-}
-
-document.querySelectorAll('.view-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        
-        currentView = this.dataset.view;
-        const employeeSelect = document.getElementById('employee-select-container');
-        
-        if (currentView === 'employee') {
-            employeeSelect.style.display = 'block';
-            if (currentEmployee) {
-                loadEmployeeCalendar();
-            } else {
-                document.getElementById('calendar-container').innerHTML = 
-                    '<p class="empty-state-text">Select an employee above to view their calendar</p>';
-            }
-        } else {
-            employeeSelect.style.display = 'none';
-            loadMasterCalendar();
-        }
-    });
-});
-
-document.getElementById('employee-select').addEventListener('change', function() {
-    currentEmployee = this.value;
-    if (currentEmployee && currentView === 'employee') {
-        loadEmployeeCalendar();
     }
-});
 
-function updateMonthDisplay() {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December'];
-    document.getElementById('current-month').textContent = `${months[currentMonth]} ${currentYear}`;
-}
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
 
-document.getElementById('prev-month').addEventListener('click', () => {
-    currentMonth--;
-    if (currentMonth < 0) {
-        currentMonth = 11;
-        currentYear--;
-    }
-    updateMonthDisplay();
-    loadCurrentView();
-});
+            currentView = this.dataset.view;
+            const employeeSelect = document.getElementById('employee-select-container');
 
-document.getElementById('next-month').addEventListener('click', () => {
-    currentMonth++;
-    if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-    }
-    updateMonthDisplay();
-    loadCurrentView();
-});
-
-function loadCurrentView() {
-    if (currentView === 'master') {
-        loadMasterCalendar();
-    } else if (currentEmployee) {
-        loadEmployeeCalendar();
-    }
-}
-
-async function loadMasterCalendar() {
-    DashboardUtils.showLoading('Loading calendar...');
-    
-    try {
-        const response = await fetch(
-            `/api/server/${guildId}/calendar/monthly-summary?year=${currentYear}&month=${currentMonth + 1}`,
-            { credentials: 'include' }
-        );
-        const data = await response.json();
-        
-        if (data.success) {
-            monthlyData = data.days || {};
-            renderMasterCalendar();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to load calendar', 'error');
-        }
-    } catch (error) {
-        console.error('Failed to load calendar:', error);
-        DashboardUtils.showNotification('Failed to load calendar data', 'error');
-    }
-    
-    DashboardUtils.hideLoading();
-}
-
-function renderMasterCalendar() {
-    const container = document.getElementById('calendar-container');
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay();
-    
-    let html = '<div class="calendar-grid">';
-    html += '<div class="calendar-header">Sun</div>';
-    html += '<div class="calendar-header">Mon</div>';
-    html += '<div class="calendar-header">Tue</div>';
-    html += '<div class="calendar-header">Wed</div>';
-    html += '<div class="calendar-header">Thu</div>';
-    html += '<div class="calendar-header">Fri</div>';
-    html += '<div class="calendar-header">Sat</div>';
-    
-    for (let i = 0; i < startingDay; i++) {
-        html += '<div class="calendar-day empty"></div>';
-    }
-    
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    
-    for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayData = monthlyData[dateStr];
-        const hasData = dayData && dayData.session_count > 0;
-        const isToday = dateStr === todayStr;
-        
-        html += `<div class="calendar-day clickable ${hasData ? 'has-entries' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">`;
-        html += `<span class="day-number">${day}</span>`;
-        
-        if (hasData) {
-            html += `<div class="day-stats">`;
-            html += `<div class="day-employees">${dayData.employee_count} employee${dayData.employee_count > 1 ? 's' : ''}</div>`;
-            html += `<div class="day-hours">${dayData.total_hours}h</div>`;
-            html += `<div class="day-sessions">${dayData.session_count} shift${dayData.session_count > 1 ? 's' : ''}</div>`;
-            html += `</div>`;
-        }
-        
-        html += '</div>';
-    }
-    
-    html += '</div>';
-    container.innerHTML = html;
-    
-    container.querySelectorAll('.calendar-day.clickable').forEach(day => {
-        day.addEventListener('click', () => openDayDetail(day.dataset.date));
-    });
-}
-
-async function openDayDetail(date) {
-    selectedDate = date;
-    currentDaySessions = [];
-    const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { 
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-    });
-    
-    document.getElementById('day-modal-title').textContent = formattedDate;
-    document.getElementById('day-detail-modal').style.display = 'flex';
-    document.getElementById('day-sessions-list').innerHTML = '<p>Loading sessions...</p>';
-    document.getElementById('day-employee-filter').value = '';
-    
-    const clockInDefault = `${date}T09:00`;
-    const clockOutDefault = `${date}T17:00`;
-    document.getElementById('new-session-clock-in').value = clockInDefault;
-    document.getElementById('new-session-clock-out').value = clockOutDefault;
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/calendar/day-detail?date=${date}`, {
-            credentials: 'include'
-        });
-        const data = await response.json();
-        
-        if (data.success) {
-            currentDaySessions = data.sessions || [];
-            populateDayEmployeeFilter();
-            renderDaySessions();
-        } else {
-            console.error('API error:', data.error);
-            document.getElementById('day-sessions-list').innerHTML = `<p>Failed to load sessions: ${DashboardUtils.escapeHtml(data.error || 'Unknown error')}</p>`;
-        }
-    } catch (error) {
-        console.error('Failed to load day detail:', error);
-        document.getElementById('day-sessions-list').innerHTML = '<p>Failed to load sessions: Network error</p>';
-    }
-}
-
-function populateDayEmployeeFilter() {
-    const filterSelect = document.getElementById('day-employee-filter');
-    const uniqueEmployees = {};
-    
-    currentDaySessions.forEach(s => {
-        if (!uniqueEmployees[s.user_id]) {
-            uniqueEmployees[s.user_id] = s.display_name || 'Unknown';
-        }
-    });
-    
-    filterSelect.innerHTML = '<option value="">All Employees</option>' +
-        Object.entries(uniqueEmployees).map(([userId, name]) => 
-            `<option value="${userId}">${DashboardUtils.escapeHtml(name)}</option>`
-        ).join('');
-}
-
-function filterDaySessions() {
-    renderDaySessions();
-}
-
-function renderDaySessions() {
-    const container = document.getElementById('day-sessions-list');
-    const filterUserId = document.getElementById('day-employee-filter').value;
-    
-    const sessions = filterUserId 
-        ? currentDaySessions.filter(s => s.user_id === filterUserId)
-        : currentDaySessions;
-    
-    if (sessions.length === 0) {
-        container.innerHTML = filterUserId 
-            ? '<p class="empty-state-text">No sessions for selected employee</p>'
-            : '<p class="empty-state-text">No sessions for this day</p>';
-        return;
-    }
-    
-    const employeeGroups = {};
-    sessions.forEach(s => {
-        if (!employeeGroups[s.user_id]) {
-            employeeGroups[s.user_id] = {
-                user_id: s.user_id,
-                display_name: s.display_name,
-                avatar_url: s.avatar_url,
-                position: s.position,
-                sessions: []
-            };
-        }
-        employeeGroups[s.user_id].sessions.push(s);
-    });
-    
-    let html = '';
-    Object.values(employeeGroups).forEach(emp => {
-        const totalSeconds = emp.sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
-        const totalHours = (totalSeconds / 3600).toFixed(2);
-        
-        html += `<div class="employee-day-card">`;
-        html += `<div class="employee-day-header">`;
-        if (emp.avatar_url) {
-            html += `<img src="${DashboardUtils.escapeHtml(emp.avatar_url)}" alt="" class="employee-avatar-small">`;
-        }
-        html += `<div class="employee-day-info">`;
-        html += `<a href="/dashboard/server/${guildId}/employees?user=${emp.user_id}" class="employee-name-link">${DashboardUtils.escapeHtml(emp.display_name)}</a>`;
-        if (emp.position) {
-            html += `<span class="employee-position">${DashboardUtils.escapeHtml(emp.position)}</span>`;
-        }
-        html += `</div>`;
-        html += `<div class="employee-day-total">${totalHours}h total</div>`;
-        html += `</div>`;
-        
-        html += `<div class="employee-sessions">`;
-        emp.sessions.forEach(s => {
-            const clockIn = new Date(s.clock_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            const clockOut = s.clock_out_time ? 
-                new Date(s.clock_out_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 
-                '<span class="active-badge">Active</span>';
-            const duration = s.clock_out_time ? 
-                `${(s.duration_seconds / 3600).toFixed(2)}h` : 
-                'In progress';
-            
-            html += `<div class="session-row" data-session-id="${s.session_id}">`;
-            html += `<span class="session-times">${clockIn} - ${clockOut}</span>`;
-            html += `<span class="session-duration">${duration}</span>`;
-            html += `<button class="btn btn-sm btn-secondary" onclick="editSession(${s.session_id}, '${s.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">Edit</button>`;
-            html += `</div>`;
-        });
-        html += `</div>`;
-        html += `</div>`;
-    });
-    
-    container.innerHTML = html;
-}
-
-function closeDayDetailModal() {
-    document.getElementById('day-detail-modal').style.display = 'none';
-    selectedDate = null;
-}
-
-function editSession(sessionId, userId, displayName) {
-    closeDayDetailModal();
-    
-    const sessions = Array.from(document.querySelectorAll(`[data-session-id="${sessionId}"]`));
-    
-    fetch(`/api/server/${guildId}/employee/${userId}/entries?start=${selectedDate}&end=${selectedDate}`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                const entry = data.entries.find(e => e.id === sessionId);
-                if (entry) {
-                    entry.display_name = displayName;
-                    entry.user_id = userId;
-                    openEntryModal(entry);
+            if (currentView === 'employee') {
+                employeeSelect.style.display = 'block';
+                if (currentEmployee) {
+                    loadEmployeeCalendar();
+                } else {
+                    document.getElementById('calendar-container').innerHTML =
+                        '<p class="empty-state-text">Select an employee above to view their calendar</p>';
                 }
+            } else {
+                employeeSelect.style.display = 'none';
+                loadMasterCalendar();
             }
         });
-}
-
-function openEntryModal(entry) {
-    selectedEntry = entry;
-    
-    document.getElementById('modal-title').textContent = 'Edit Entry';
-    document.getElementById('edit-employee-info').innerHTML = 
-        `<strong>Employee:</strong> ${DashboardUtils.escapeHtml(entry.display_name || 'Unknown')}`;
-    
-    const clockIn = entry.clock_in_time.replace('Z', '').substring(0, 16);
-    const clockOut = entry.clock_out_time ? entry.clock_out_time.replace('Z', '').substring(0, 16) : '';
-    
-    document.getElementById('entry-clock-in').value = clockIn;
-    document.getElementById('entry-clock-out').value = clockOut;
-    
-    document.getElementById('entry-modal').style.display = 'flex';
-}
-
-function closeEntryModal() {
-    document.getElementById('entry-modal').style.display = 'none';
-    selectedEntry = null;
-    if (selectedDate) {
-        openDayDetail(selectedDate);
-    }
-}
-
-document.getElementById('save-entry-btn').addEventListener('click', async function() {
-    if (!selectedEntry) return;
-    
-    const clockIn = document.getElementById('entry-clock-in').value;
-    const clockOut = document.getElementById('entry-clock-out').value;
-    
-    this.disabled = true;
-    this.textContent = 'Saving...';
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/entries/${selectedEntry.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                clock_in_time: clockIn,
-                clock_out_time: clockOut || null
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            DashboardUtils.showNotification('Entry updated', 'success');
-            closeEntryModal();
-            loadMasterCalendar();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
-        }
-    } catch (error) {
-        DashboardUtils.showNotification('Failed to save entry', 'error');
-    }
-    
-    this.disabled = false;
-    this.textContent = 'Save Changes';
-});
-
-document.getElementById('delete-entry-btn').addEventListener('click', async function() {
-    if (!selectedEntry) return;
-    if (!confirm('Are you sure you want to delete this entry? This cannot be undone.')) return;
-    
-    this.disabled = true;
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/entries/${selectedEntry.id}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            DashboardUtils.showNotification('Entry deleted', 'success');
-            closeEntryModal();
-            loadMasterCalendar();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to delete', 'error');
-        }
-    } catch (error) {
-        DashboardUtils.showNotification('Failed to delete entry', 'error');
-    }
-    
-    this.disabled = false;
-});
-
-document.getElementById('add-session-btn').addEventListener('click', async function() {
-    const userId = document.getElementById('new-session-employee').value;
-    const clockIn = document.getElementById('new-session-clock-in').value;
-    const clockOut = document.getElementById('new-session-clock-out').value;
-    
-    if (!userId) {
-        DashboardUtils.showNotification('Please select an employee', 'error');
-        return;
-    }
-    if (!clockIn) {
-        DashboardUtils.showNotification('Please enter a clock in time', 'error');
-        return;
-    }
-    
-    this.disabled = true;
-    this.textContent = 'Adding...';
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/sessions/admin-create`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                user_id: userId,
-                clock_in_time: clockIn,
-                clock_out_time: clockOut || null
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            DashboardUtils.showNotification('Session added successfully', 'success');
-            openDayDetail(selectedDate);
-            loadMasterCalendar();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to add session', 'error');
-        }
-    } catch (error) {
-        DashboardUtils.showNotification('Failed to add session', 'error');
-    }
-    
-    this.disabled = false;
-    this.textContent = 'Add Session';
-});
-
-async function loadEmployeeCalendar() {
-    if (!currentEmployee) return;
-    
-    DashboardUtils.showLoading('Loading calendar...');
-    
-    try {
-        const startDate = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
-        const endDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
-        
-        const response = await fetch(
-            `/api/server/${guildId}/employee/${currentEmployee}/entries?start=${startDate}&end=${endDate}`,
-            { credentials: 'include' }
-        );
-        const data = await response.json();
-        
-        if (data.success) {
-            currentEntries = data.entries || [];
-            renderEmployeeCalendar();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to load calendar', 'error');
-        }
-    } catch (error) {
-        console.error('Failed to load calendar:', error);
-        DashboardUtils.showNotification('Failed to load calendar data', 'error');
-    }
-    
-    DashboardUtils.hideLoading();
-}
-
-function renderEmployeeCalendar() {
-    const container = document.getElementById('calendar-container');
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay();
-    
-    const entriesByDate = {};
-    currentEntries.forEach(entry => {
-        const date = entry.clock_in_time.split('T')[0];
-        if (!entriesByDate[date]) entriesByDate[date] = [];
-        entriesByDate[date].push(entry);
     });
-    
-    let html = '<div class="calendar-grid">';
-    html += '<div class="calendar-header">Sun</div>';
-    html += '<div class="calendar-header">Mon</div>';
-    html += '<div class="calendar-header">Tue</div>';
-    html += '<div class="calendar-header">Wed</div>';
-    html += '<div class="calendar-header">Thu</div>';
-    html += '<div class="calendar-header">Fri</div>';
-    html += '<div class="calendar-header">Sat</div>';
-    
-    for (let i = 0; i < startingDay; i++) {
-        html += '<div class="calendar-day empty"></div>';
-    }
-    
-    for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayEntries = entriesByDate[dateStr] || [];
-        const hasEntries = dayEntries.length > 0;
-        
-        html += `<div class="calendar-day clickable ${hasEntries ? 'has-entries' : ''}" data-date="${dateStr}">`;
-        html += `<span class="day-number">${day}</span>`;
-        
-        if (hasEntries) {
-            const totalSeconds = dayEntries.reduce((sum, e) => sum + (e.duration_seconds || 0), 0);
-            const hours = (totalSeconds / 3600).toFixed(1);
-            html += `<div class="day-hours">${hours}h</div>`;
-            html += `<div class="day-sessions">${dayEntries.length} session${dayEntries.length > 1 ? 's' : ''}</div>`;
+
+    document.getElementById('employee-select').addEventListener('change', function () {
+        currentEmployee = this.value;
+        if (currentEmployee && currentView === 'employee') {
+            loadEmployeeCalendar();
         }
-        
+    });
+
+    function updateMonthDisplay() {
+        const months = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        document.getElementById('current-month').textContent = `${months[currentMonth]} ${currentYear}`;
+    }
+
+    document.getElementById('prev-month').addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        }
+        updateMonthDisplay();
+        loadCurrentView();
+    });
+
+    document.getElementById('next-month').addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+        updateMonthDisplay();
+        loadCurrentView();
+    });
+
+    function loadCurrentView() {
+        if (currentView === 'master') {
+            loadMasterCalendar();
+        } else if (currentEmployee) {
+            loadEmployeeCalendar();
+        }
+    }
+
+    async function loadMasterCalendar() {
+        DashboardUtils.showLoading('Loading calendar...');
+
+        try {
+            const response = await fetch(
+                `/api/server/${guildId}/calendar/monthly-summary?year=${currentYear}&month=${currentMonth + 1}`,
+                { credentials: 'include' }
+            );
+            const data = await response.json();
+
+            if (data.success) {
+                monthlyData = data.days || {};
+                renderMasterCalendar();
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to load calendar', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to load calendar:', error);
+            DashboardUtils.showNotification('Failed to load calendar data', 'error');
+        }
+
+        DashboardUtils.hideLoading();
+    }
+
+    function renderMasterCalendar() {
+        const container = document.getElementById('calendar-container');
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        const lastDay = new Date(currentYear, currentMonth + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDay = firstDay.getDay();
+
+        let html = '<div class="calendar-grid">';
+        html += '<div class="calendar-header">Sun</div>';
+        html += '<div class="calendar-header">Mon</div>';
+        html += '<div class="calendar-header">Tue</div>';
+        html += '<div class="calendar-header">Wed</div>';
+        html += '<div class="calendar-header">Thu</div>';
+        html += '<div class="calendar-header">Fri</div>';
+        html += '<div class="calendar-header">Sat</div>';
+
+        for (let i = 0; i < startingDay; i++) {
+            html += '<div class="calendar-day empty"></div>';
+        }
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayData = monthlyData[dateStr];
+            const hasData = dayData && dayData.session_count > 0;
+            const isToday = dateStr === todayStr;
+
+            html += `<div class="calendar-day clickable ${hasData ? 'has-entries' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">`;
+            html += `<span class="day-number">${day}</span>`;
+
+            if (hasData) {
+                html += `<div class="day-stats">`;
+                html += `<div class="day-employees">${dayData.employee_count} employee${dayData.employee_count > 1 ? 's' : ''}</div>`;
+                html += `<div class="day-hours">${dayData.total_hours}h</div>`;
+                html += `<div class="day-sessions">${dayData.session_count} shift${dayData.session_count > 1 ? 's' : ''}</div>`;
+                if (dayData.has_pending_adjustments) {
+                    html += `<div class="day-alerts" style="color: #ff9800; font-weight: bold; font-size: 0.8em; margin-top: 2px;">⚠️ Pending Adjustments</div>`;
+                }
+                html += `</div>`;
+            }
+
+            html += '</div>';
+        }
+
         html += '</div>';
+        container.innerHTML = html;
+
+        container.querySelectorAll('.calendar-day.clickable').forEach(day => {
+            day.addEventListener('click', () => openDayDetail(day.dataset.date));
+        });
     }
-    
-    html += '</div>';
-    container.innerHTML = html;
-    
-    container.querySelectorAll('.calendar-day.clickable').forEach(day => {
-        day.addEventListener('click', () => {
-            const date = day.dataset.date;
-            const entries = currentEntries.filter(e => e.clock_in_time.startsWith(date));
-            if (entries.length === 1) {
-                const emp = employees.find(e => e.user_id === currentEmployee);
-                entries[0].display_name = emp ? (emp.display_name || emp.username) : 'Unknown';
-                entries[0].user_id = currentEmployee;
-                openEntryModal(entries[0]);
-            } else if (entries.length > 1) {
-                selectedDate = date;
-                openDayDetail(date);
+
+    async function openDayDetail(date) {
+        selectedDate = date;
+        currentDaySessions = [];
+        const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        document.getElementById('day-modal-title').textContent = formattedDate;
+        document.getElementById('day-detail-modal').style.display = 'flex';
+        document.getElementById('day-sessions-list').innerHTML = '<p>Loading sessions...</p>';
+        document.getElementById('day-employee-filter').value = '';
+
+        const clockInDefault = `${date}T09:00`;
+        const clockOutDefault = `${date}T17:00`;
+        document.getElementById('new-session-clock-in').value = clockInDefault;
+        document.getElementById('new-session-clock-out').value = clockOutDefault;
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/calendar/day-detail?date=${date}`, {
+                credentials: 'include'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                currentDaySessions = data.sessions || [];
+                populateDayEmployeeFilter();
+                renderDaySessions();
+            } else {
+                console.error('API error:', data.error);
+                document.getElementById('day-sessions-list').innerHTML = `<p>Failed to load sessions: ${DashboardUtils.escapeHtml(data.error || 'Unknown error')}</p>`;
+            }
+        } catch (error) {
+            console.error('Failed to load day detail:', error);
+            document.getElementById('day-sessions-list').innerHTML = '<p>Failed to load sessions: Network error</p>';
+        }
+    }
+
+    function populateDayEmployeeFilter() {
+        const filterSelect = document.getElementById('day-employee-filter');
+        const uniqueEmployees = {};
+
+        currentDaySessions.forEach(s => {
+            if (!uniqueEmployees[s.user_id]) {
+                uniqueEmployees[s.user_id] = s.display_name || 'Unknown';
             }
         });
-    });
-}
 
-document.addEventListener('DOMContentLoaded', () => {
-    updateMonthDisplay();
-    loadEmployees();
-    loadMasterCalendar();
-});
+        filterSelect.innerHTML = '<option value="">All Employees</option>' +
+            Object.entries(uniqueEmployees).map(([userId, name]) =>
+                `<option value="${userId}">${DashboardUtils.escapeHtml(name)}</option>`
+            ).join('');
+    }
+
+    function filterDaySessions() {
+        renderDaySessions();
+    }
+
+    function renderDaySessions() {
+        const container = document.getElementById('day-sessions-list');
+        const filterUserId = document.getElementById('day-employee-filter').value;
+
+        const sessions = filterUserId
+            ? currentDaySessions.filter(s => s.user_id === filterUserId)
+            : currentDaySessions;
+
+        if (sessions.length === 0) {
+            container.innerHTML = filterUserId
+                ? '<p class="empty-state-text">No sessions for selected employee</p>'
+                : '<p class="empty-state-text">No sessions for this day</p>';
+            return;
+        }
+
+        const employeeGroups = {};
+        sessions.forEach(s => {
+            if (!employeeGroups[s.user_id]) {
+                employeeGroups[s.user_id] = {
+                    user_id: s.user_id,
+                    display_name: s.display_name,
+                    avatar_url: s.avatar_url,
+                    position: s.position,
+                    sessions: []
+                };
+            }
+            employeeGroups[s.user_id].sessions.push(s);
+        });
+
+        let html = '';
+        Object.values(employeeGroups).forEach(emp => {
+            const totalSeconds = emp.sessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
+            const totalHours = (totalSeconds / 3600).toFixed(2);
+
+            html += `<div class="employee-day-card">`;
+            html += `<div class="employee-day-header">`;
+            if (emp.avatar_url) {
+                html += `<img src="${DashboardUtils.escapeHtml(emp.avatar_url)}" alt="" class="employee-avatar-small">`;
+            }
+            html += `<div class="employee-day-info">`;
+            html += `<a href="/dashboard/server/${guildId}/employees?user=${emp.user_id}" class="employee-name-link">${DashboardUtils.escapeHtml(emp.display_name)}</a>`;
+            if (emp.position) {
+                html += `<span class="employee-position">${DashboardUtils.escapeHtml(emp.position)}</span>`;
+            }
+            html += `</div>`;
+            html += `<div class="employee-day-total">${totalHours}h total</div>`;
+            html += `</div>`;
+
+            html += `<div class="employee-sessions">`;
+            emp.sessions.forEach(s => {
+                const clockIn = new Date(s.clock_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const clockOut = s.clock_out_time ?
+                    new Date(s.clock_out_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) :
+                    '<span class="active-badge">Active</span>';
+                const duration = s.clock_out_time ?
+                    `${(s.duration_seconds / 3600).toFixed(2)}h` :
+                    'In progress';
+
+                html += `<div class="session-row" data-session-id="${s.session_id}">`;
+
+                let timeSpan = `${clockIn} - ${clockOut}`;
+                if (s.has_pending_adjustment) {
+                    timeSpan += ` <span style="color: #ff9800; font-weight: bold; font-size: 0.9em; margin-left: 8px;" title="Pending Adjustment Request">⚠️</span>`;
+                }
+
+                html += `<span class="session-times">${timeSpan}</span>`;
+                html += `<span class="session-duration">${duration}</span>`;
+                html += `<button class="btn btn-sm btn-secondary" onclick="editSession(${s.session_id}, '${s.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">Edit</button>`;
+                html += `</div>`;
+            });
+            html += `</div>`;
+            html += `</div>`;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function closeDayDetailModal() {
+        document.getElementById('day-detail-modal').style.display = 'none';
+        selectedDate = null;
+    }
+
+    function editSession(sessionId, userId, displayName) {
+        closeDayDetailModal();
+
+        const sessions = Array.from(document.querySelectorAll(`[data-session-id="${sessionId}"]`));
+
+        fetch(`/api/server/${guildId}/employee/${userId}/entries?start=${selectedDate}&end=${selectedDate}`, { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const entry = data.entries.find(e => e.id === sessionId);
+                    if (entry) {
+                        entry.display_name = displayName;
+                        entry.user_id = userId;
+                        openEntryModal(entry);
+                    }
+                }
+            });
+    }
+
+    function openEntryModal(entry) {
+        selectedEntry = entry;
+
+        document.getElementById('modal-title').textContent = 'Edit Entry';
+        document.getElementById('edit-employee-info').innerHTML =
+            `<strong>Employee:</strong> ${DashboardUtils.escapeHtml(entry.display_name || 'Unknown')}`;
+
+        const clockIn = entry.clock_in_time.replace('Z', '').substring(0, 16);
+        const clockOut = entry.clock_out_time ? entry.clock_out_time.replace('Z', '').substring(0, 16) : '';
+
+        document.getElementById('entry-clock-in').value = clockIn;
+        document.getElementById('entry-clock-out').value = clockOut;
+
+        document.getElementById('entry-modal').style.display = 'flex';
+    }
+
+    function closeEntryModal() {
+        document.getElementById('entry-modal').style.display = 'none';
+        selectedEntry = null;
+        if (selectedDate) {
+            openDayDetail(selectedDate);
+        }
+    }
+
+    document.getElementById('save-entry-btn').addEventListener('click', async function () {
+        if (!selectedEntry) return;
+
+        const clockIn = document.getElementById('entry-clock-in').value;
+        const clockOut = document.getElementById('entry-clock-out').value;
+
+        this.disabled = true;
+        this.textContent = 'Saving...';
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/entries/${selectedEntry.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    clock_in_time: clockIn,
+                    clock_out_time: clockOut || null
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                DashboardUtils.showNotification('Entry updated', 'success');
+                closeEntryModal();
+                loadMasterCalendar();
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to save', 'error');
+            }
+        } catch (error) {
+            DashboardUtils.showNotification('Failed to save entry', 'error');
+        }
+
+        this.disabled = false;
+        this.textContent = 'Save Changes';
+    });
+
+    document.getElementById('delete-entry-btn').addEventListener('click', async function () {
+        if (!selectedEntry) return;
+        if (!confirm('Are you sure you want to delete this entry? This cannot be undone.')) return;
+
+        this.disabled = true;
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/entries/${selectedEntry.id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                DashboardUtils.showNotification('Entry deleted', 'success');
+                closeEntryModal();
+                loadMasterCalendar();
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to delete', 'error');
+            }
+        } catch (error) {
+            DashboardUtils.showNotification('Failed to delete entry', 'error');
+        }
+
+        this.disabled = false;
+    });
+
+    document.getElementById('add-session-btn').addEventListener('click', async function () {
+        const userId = document.getElementById('new-session-employee').value;
+        const clockIn = document.getElementById('new-session-clock-in').value;
+        const clockOut = document.getElementById('new-session-clock-out').value;
+
+        if (!userId) {
+            DashboardUtils.showNotification('Please select an employee', 'error');
+            return;
+        }
+        if (!clockIn) {
+            DashboardUtils.showNotification('Please enter a clock in time', 'error');
+            return;
+        }
+
+        this.disabled = true;
+        this.textContent = 'Adding...';
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/sessions/admin-create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    user_id: userId,
+                    clock_in_time: clockIn,
+                    clock_out_time: clockOut || null
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                DashboardUtils.showNotification('Session added successfully', 'success');
+                openDayDetail(selectedDate);
+                loadMasterCalendar();
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to add session', 'error');
+            }
+        } catch (error) {
+            DashboardUtils.showNotification('Failed to add session', 'error');
+        }
+
+        this.disabled = false;
+        this.textContent = 'Add Session';
+    });
+
+    async function loadEmployeeCalendar() {
+        if (!currentEmployee) return;
+
+        DashboardUtils.showLoading('Loading calendar...');
+
+        try {
+            const startDate = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
+            const endDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
+
+            const response = await fetch(
+                `/api/server/${guildId}/employee/${currentEmployee}/entries?start=${startDate}&end=${endDate}`,
+                { credentials: 'include' }
+            );
+            const data = await response.json();
+
+            if (data.success) {
+                currentEntries = data.entries || [];
+                renderEmployeeCalendar();
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to load calendar', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to load calendar:', error);
+            DashboardUtils.showNotification('Failed to load calendar data', 'error');
+        }
+
+        DashboardUtils.hideLoading();
+    }
+
+    function renderEmployeeCalendar() {
+        const container = document.getElementById('calendar-container');
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        const lastDay = new Date(currentYear, currentMonth + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDay = firstDay.getDay();
+
+        const entriesByDate = {};
+        currentEntries.forEach(entry => {
+            const date = entry.clock_in_time.split('T')[0];
+            if (!entriesByDate[date]) entriesByDate[date] = [];
+            entriesByDate[date].push(entry);
+        });
+
+        let html = '<div class="calendar-grid">';
+        html += '<div class="calendar-header">Sun</div>';
+        html += '<div class="calendar-header">Mon</div>';
+        html += '<div class="calendar-header">Tue</div>';
+        html += '<div class="calendar-header">Wed</div>';
+        html += '<div class="calendar-header">Thu</div>';
+        html += '<div class="calendar-header">Fri</div>';
+        html += '<div class="calendar-header">Sat</div>';
+
+        for (let i = 0; i < startingDay; i++) {
+            html += '<div class="calendar-day empty"></div>';
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayEntries = entriesByDate[dateStr] || [];
+            const hasEntries = dayEntries.length > 0;
+
+            html += `<div class="calendar-day clickable ${hasEntries ? 'has-entries' : ''}" data-date="${dateStr}">`;
+            html += `<span class="day-number">${day}</span>`;
+
+            if (hasEntries) {
+                const totalSeconds = dayEntries.reduce((sum, e) => sum + (e.duration_seconds || 0), 0);
+                const hours = (totalSeconds / 3600).toFixed(1);
+                html += `<div class="day-hours">${hours}h</div>`;
+                html += `<div class="day-sessions">${dayEntries.length} session${dayEntries.length > 1 ? 's' : ''}</div>`;
+            }
+
+            html += '</div>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+
+        container.querySelectorAll('.calendar-day.clickable').forEach(day => {
+            day.addEventListener('click', () => {
+                const date = day.dataset.date;
+                const entries = currentEntries.filter(e => e.clock_in_time.startsWith(date));
+                if (entries.length === 1) {
+                    const emp = employees.find(e => e.user_id === currentEmployee);
+                    entries[0].display_name = emp ? (emp.display_name || emp.username) : 'Unknown';
+                    entries[0].user_id = currentEmployee;
+                    openEntryModal(entries[0]);
+                } else if (entries.length > 1) {
+                    selectedDate = date;
+                    openDayDetail(date);
+                }
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateMonthDisplay();
+        loadEmployees();
+        loadMasterCalendar();
+    });
 </script>
 
 <style>
-.calendar-controls {
-    display: flex;
-    gap: 20px;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-}
+    .calendar-controls {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
 
-.view-toggle {
-    display: flex;
-    gap: 8px;
-}
+    .view-toggle {
+        display: flex;
+        gap: 8px;
+    }
 
-.view-btn {
-    padding: 8px 16px;
-    background: rgba(30, 35, 50, 0.8);
-    border: 1px solid rgba(75, 85, 99, 0.4);
-    color: #C9D1D9;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
+    .view-btn {
+        padding: 8px 16px;
+        background: rgba(30, 35, 50, 0.8);
+        border: 1px solid rgba(75, 85, 99, 0.4);
+        color: #C9D1D9;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
 
-.view-btn.active {
-    background: rgba(212, 175, 55, 0.2);
-    border-color: #D4AF37;
-    color: #D4AF37;
-}
+    .view-btn.active {
+        background: rgba(212, 175, 55, 0.2);
+        border-color: #D4AF37;
+        color: #D4AF37;
+    }
 
-.calendar-navigation {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-    margin-bottom: 20px;
-}
+    .calendar-navigation {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
 
-.month-display {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #D4AF37;
-    min-width: 200px;
-    text-align: center;
-}
+    .month-display {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #D4AF37;
+        min-width: 200px;
+        text-align: center;
+    }
 
-.calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-}
-
-.calendar-header {
-    padding: 10px;
-    text-align: center;
-    font-weight: 600;
-    color: #8B949E;
-    background: rgba(30, 35, 50, 0.5);
-    border-radius: 4px;
-}
-
-.calendar-day {
-    min-height: 80px;
-    padding: 8px;
-    background: rgba(30, 35, 50, 0.5);
-    border: 1px solid rgba(75, 85, 99, 0.3);
-    border-radius: 6px;
-    position: relative;
-}
-
-.calendar-day.empty {
-    background: transparent;
-    border: none;
-}
-
-.calendar-day.clickable {
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.calendar-day.clickable:hover {
-    border-color: #D4AF37;
-    background: rgba(212, 175, 55, 0.1);
-}
-
-.calendar-day.has-entries {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: rgba(16, 185, 129, 0.4);
-}
-
-.calendar-day.today {
-    border-color: #D4AF37;
-    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.3);
-}
-
-.day-number {
-    font-weight: 600;
-    color: #C9D1D9;
-}
-
-.day-stats {
-    margin-top: 8px;
-    font-size: 11px;
-}
-
-.day-employees {
-    color: #D4AF37;
-    font-weight: 500;
-}
-
-.day-hours {
-    color: #10B981;
-    font-weight: 600;
-}
-
-.day-sessions {
-    color: #8B949E;
-}
-
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: #151B2E;
-    border: 1px solid rgba(75, 85, 99, 0.4);
-    border-radius: 12px;
-    padding: 24px;
-    max-width: 500px;
-    width: 90%;
-    max-height: 85vh;
-    overflow-y: auto;
-    position: relative;
-}
-
-.modal-content.modal-large {
-    max-width: 700px;
-}
-
-.modal-close {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: none;
-    border: none;
-    color: #8B949E;
-    font-size: 24px;
-    cursor: pointer;
-}
-
-.employee-day-card {
-    background: rgba(30, 35, 50, 0.8);
-    border: 1px solid rgba(75, 85, 99, 0.4);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
-}
-
-.employee-day-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.employee-avatar-small {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-}
-
-.employee-day-info {
-    flex: 1;
-}
-
-.employee-name-link {
-    color: #D4AF37;
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.employee-name-link:hover {
-    text-decoration: underline;
-}
-
-.employee-position {
-    display: block;
-    font-size: 12px;
-    color: #8B949E;
-}
-
-.employee-day-total {
-    font-weight: 600;
-    color: #10B981;
-}
-
-.session-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 0;
-    border-top: 1px solid rgba(75, 85, 99, 0.3);
-}
-
-.session-times {
-    flex: 1;
-    color: #C9D1D9;
-}
-
-.session-duration {
-    color: #8B949E;
-}
-
-.active-badge {
-    background: rgba(16, 185, 129, 0.2);
-    color: #10B981;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-}
-
-.add-session-section {
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid rgba(75, 85, 99, 0.4);
-}
-
-.add-session-section h3 {
-    margin-bottom: 16px;
-    color: #D4AF37;
-}
-
-.form-row {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
-}
-
-.form-row .form-group {
-    flex: 1;
-}
-
-.employee-info-header {
-    margin-bottom: 16px;
-    padding: 12px;
-    background: rgba(30, 35, 50, 0.5);
-    border-radius: 6px;
-    color: #C9D1D9;
-}
-
-.btn-sm {
-    padding: 4px 12px;
-    font-size: 12px;
-}
-
-@media (max-width: 768px) {
     .calendar-grid {
-        gap: 2px;
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
     }
-    
+
+    .calendar-header {
+        padding: 10px;
+        text-align: center;
+        font-weight: 600;
+        color: #8B949E;
+        background: rgba(30, 35, 50, 0.5);
+        border-radius: 4px;
+    }
+
     .calendar-day {
-        min-height: 60px;
-        padding: 4px;
+        min-height: 80px;
+        padding: 8px;
+        background: rgba(30, 35, 50, 0.5);
+        border: 1px solid rgba(75, 85, 99, 0.3);
+        border-radius: 6px;
+        position: relative;
     }
-    
+
+    .calendar-day.empty {
+        background: transparent;
+        border: none;
+    }
+
+    .calendar-day.clickable {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .calendar-day.clickable:hover {
+        border-color: #D4AF37;
+        background: rgba(212, 175, 55, 0.1);
+    }
+
+    .calendar-day.has-entries {
+        background: rgba(16, 185, 129, 0.1);
+        border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .calendar-day.today {
+        border-color: #D4AF37;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.3);
+    }
+
+    .day-number {
+        font-weight: 600;
+        color: #C9D1D9;
+    }
+
     .day-stats {
-        font-size: 9px;
+        margin-top: 8px;
+        font-size: 11px;
     }
-    
-    .form-row {
-        flex-direction: column;
+
+    .day-employees {
+        color: #D4AF37;
+        font-weight: 500;
+    }
+
+    .day-hours {
+        color: #10B981;
+        font-weight: 600;
+    }
+
+    .day-sessions {
+        color: #8B949E;
+    }
+
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: #151B2E;
+        border: 1px solid rgba(75, 85, 99, 0.4);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    .modal-content.modal-large {
+        max-width: 700px;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: none;
+        border: none;
+        color: #8B949E;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .employee-day-card {
+        background: rgba(30, 35, 50, 0.8);
+        border: 1px solid rgba(75, 85, 99, 0.4);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+
+    .employee-day-header {
+        display: flex;
+        align-items: center;
         gap: 12px;
+        margin-bottom: 12px;
     }
-}
+
+    .employee-avatar-small {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+    }
+
+    .employee-day-info {
+        flex: 1;
+    }
+
+    .employee-name-link {
+        color: #D4AF37;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .employee-name-link:hover {
+        text-decoration: underline;
+    }
+
+    .employee-position {
+        display: block;
+        font-size: 12px;
+        color: #8B949E;
+    }
+
+    .employee-day-total {
+        font-weight: 600;
+        color: #10B981;
+    }
+
+    .session-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+        border-top: 1px solid rgba(75, 85, 99, 0.3);
+    }
+
+    .session-times {
+        flex: 1;
+        color: #C9D1D9;
+    }
+
+    .session-duration {
+        color: #8B949E;
+    }
+
+    .active-badge {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10B981;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+    }
+
+    .add-session-section {
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid rgba(75, 85, 99, 0.4);
+    }
+
+    .add-session-section h3 {
+        margin-bottom: 16px;
+        color: #D4AF37;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .form-row .form-group {
+        flex: 1;
+    }
+
+    .employee-info-header {
+        margin-bottom: 16px;
+        padding: 12px;
+        background: rgba(30, 35, 50, 0.5);
+        border-radius: 6px;
+        color: #C9D1D9;
+    }
+
+    .btn-sm {
+        padding: 4px 12px;
+        font-size: 12px;
+    }
+
+    @media (max-width: 768px) {
+        .calendar-grid {
+            gap: 2px;
+        }
+
+        .calendar-day {
+            min-height: 60px;
+            padding: 4px;
+        }
+
+        .day-stats {
+            font-size: 9px;
+        }
+
+        .form-row {
+            flex-direction: column;
+            gap: 12px;
+        }
+    }
 </style>
 {% endblock %}

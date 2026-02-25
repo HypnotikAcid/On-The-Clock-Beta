@@ -313,6 +313,82 @@
         </form>
     </div>
 
+    <!-- Email Delivery Configurator -->
+    <div class="report-card">
+        <div class="report-header">
+            <div class="report-title">
+                <span class="icon">✉️</span> Automated Email Delivery
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span id="emailSaveStatusIndicator"
+                    style="opacity: 0; transition: opacity 0.3s; color: #10B981; font-size: 0.85rem;">✓ Saved</span>
+                <label class="switch" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <span style="color:#C9D1D9;font-size:0.95rem;font-weight:600;">Auto-Send EOD</span>
+                    <div
+                        style="position:relative; width:44px; height:24px; background:rgba(255,255,255,0.1); border-radius:12px; display:inline-block;">
+                        <input type="checkbox" id="emailAutoSendToggle" onchange="saveEmailSettings()"
+                            style="opacity:0; width:0; height:0; position:absolute;">
+                        <span id="emailToggleSlider"
+                            style="position:absolute; top:2px; left:2px; width:20px; height:20px; background:#8B949E; border-radius:50%; transition:all 0.3s;"></span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="date-range-container form-group">
+            <div>
+                <label class="form-label">Custom Subject Line</label>
+                <input type="text" class="form-control" id="emailSubject"
+                    placeholder="Time Warden Report - {server} - {date}" oninput="updateEmailPreview()"
+                    onblur="saveEmailSettings()">
+                <p style="font-size:0.8rem;color:#8B949E;margin-top:6px;">Variables: <code>{date}</code>,
+                    <code>{server}</code>
+                </p>
+            </div>
+            <div>
+                <label class="form-label">Reply-To Address</label>
+                <input type="email" class="form-control" id="emailReplyTo" placeholder="payroll@yourcompany.com"
+                    onblur="saveEmailSettings()">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">CC Addresses (Comma Separated)</label>
+            <input type="text" class="form-control" id="emailCCs" placeholder="manager1@company.com, ceo@company.com"
+                onblur="saveEmailSettings()">
+        </div>
+
+        <div class="form-label" style="margin-top:2rem;">Live Inbox Preview</div>
+        <div class="preview-pane"
+            style="display:block; background:#0D1117; padding: 1.5rem; border-radius:8px; border:1px solid rgba(255,255,255,0.1); margin-top:0.5rem;">
+            <div style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom:1rem; margin-bottom:1.5rem;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.75rem; font-size:0.95rem;">
+                    <div><strong style="color:#8B949E;width:70px;display:inline-block;">From:</strong> <span
+                            style="color:#C9D1D9;">Time Warden &lt;reports@timewarden.app&gt;</span></div>
+                    <div style="color:#8B949E;">Just now</div>
+                </div>
+                <div style="display:flex; justify-content:flex-start; margin-bottom:0.75rem; font-size:0.95rem;">
+                    <strong style="color:#8B949E;width:70px;display:inline-block;">Subject:</strong>
+                    <span id="previewSubjectText" style="color:#D4AF37; font-weight:600; font-size:1.05rem;">Time Warden
+                        Report - {{ server.name }} - Today</span>
+                </div>
+            </div>
+            <div
+                style="color:#C9D1D9; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height:1.6;">
+                <p style="margin-top:0;">Hello,</p>
+                <p>Attached is the exported timeclock report for <strong>{{ server.name }}</strong> covering the recent
+                    period.</p>
+                <div
+                    style="background:linear-gradient(90deg, rgba(212, 175, 55, 0.1), transparent); border-left:4px solid #D4AF37; padding:1.25rem; margin:1.5rem 0; border-radius:0 8px 8px 0;">
+                    <p style="margin:0; font-family:'Fira Code', monospace; color:#E6EDF3;">
+                        <span style="color:#8B949E;">Sessions Logged:</span> 14<br>
+                        <span style="color:#8B949E;">Total Duration:</span> 112h 30m
+                    </p>
+                </div>
+                <p>A CSV file is attached to this email.</p>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
@@ -478,6 +554,92 @@
                 btn.innerHTML = originalText;
             }
         });
+
+        // Initialize Email Settings
+        loadEmailSettings();
     });
+
+    async function loadEmailSettings() {
+        try {
+            const resp = await fetch(`/api/server/{{ server.id }}/email-settings-status`);
+            const data = await resp.json();
+            if (data.success) {
+                document.getElementById('emailAutoSendToggle').checked = data.auto_send_on_clockout || data.auto_email_before_delete;
+                document.getElementById('emailSubject').value = data.subject_line || '';
+                document.getElementById('emailReplyTo').value = data.reply_to_address || '';
+                document.getElementById('emailCCs').value = data.cc_addresses || '';
+                updateToggleUI();
+                updateEmailPreview();
+            }
+        } catch (e) {
+            console.error('Error loading email settings:', e);
+        }
+    }
+
+    function updateToggleUI() {
+        const isChecked = document.getElementById('emailAutoSendToggle').checked;
+        const slider = document.getElementById('emailToggleSlider');
+        if (isChecked) {
+            slider.style.transform = 'translateX(20px)';
+            slider.style.background = '#10B981';
+        } else {
+            slider.style.transform = 'translateX(0)';
+            slider.style.background = '#8B949E';
+        }
+    }
+
+    function updateEmailPreview() {
+        const customSubject = document.getElementById('emailSubject').value.trim();
+        const previewElement = document.getElementById('previewSubjectText');
+        const defaultSubject = `Time Warden Report - {{ server.name }} - Today`;
+
+        if (customSubject === '') {
+            previewElement.textContent = defaultSubject;
+            return;
+        }
+
+        // Extremely basic variable replacement for the live preview
+        let previewText = customSubject
+            .replace('{server}', '{{ server.name }}')
+            .replace('{date}', 'Today');
+
+        previewElement.textContent = previewText;
+    }
+
+    async function saveEmailSettings() {
+        updateToggleUI();
+        const indicator = document.getElementById('emailSaveStatusIndicator');
+        const isEnabled = document.getElementById('emailAutoSendToggle').checked;
+
+        try {
+            const resp = await fetch(`/api/server/{{ server.id }}/email-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    auto_send_on_clockout: isEnabled,
+                    auto_email_before_delete: isEnabled, // Keeping these linked for now as per original design
+                    subject_line: document.getElementById('emailSubject').value.trim(),
+                    reply_to_address: document.getElementById('emailReplyTo').value.trim(),
+                    cc_addresses: document.getElementById('emailCCs').value.trim()
+                })
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                indicator.style.opacity = '1';
+                setTimeout(() => { indicator.style.opacity = '0'; }, 2000);
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to save email settings', 'error');
+                // Revert toggle if it failed due to missing recipients
+                if (data.requires_recipients) {
+                    document.getElementById('emailAutoSendToggle').checked = false;
+                    updateToggleUI();
+                }
+            }
+        } catch (e) {
+            console.error('Error saving email settings:', e);
+            DashboardUtils.showNotification('Network error saving settings', 'error');
+        }
+    }
 </script>
 {% endblock %}

@@ -182,11 +182,17 @@
                 <span>Ban Management</span>
             </a>
 
-            {% if server.id|string == '1419894879894507661' %}
+            {% if server_settings.tier in ['pro', 'premium', 'grandfathered'] or is_demo_server %}
             <a href="/dashboard/server/{{ server.id }}/kiosk"
                 class="nav-item {% if active_page == 'kiosk' %}active{% endif %}">
                 <span class="nav-item-icon">🖥️</span>
                 <span>Kiosk Settings</span>
+            </a>
+            {% else %}
+            <a href="/dashboard/purchase?guild_id={{ server.id }}" class="nav-item locked-item"
+                title="Requires Pro Tier">
+                <span class="nav-item-icon">🖥️</span>
+                <span style="color: #6e7681;">Kiosk Settings 🔒</span>
             </a>
             {% endif %}
 
@@ -431,7 +437,8 @@
             }
 
             // Phase 9: Interactive Tour
-            const hasCompletedOnboarding = {{ 'true' if has_completed_onboarding else 'false' }};
+            const hasCompletedOnboarding = {{ 'true' if has_completed_onboarding else 'false' }
+        };
         if (!hasCompletedOnboarding && GUILD_ID && window.location.pathname !== '/setup-wizard') {
             setTimeout(() => {
                 if (typeof DashboardTour !== 'undefined') {

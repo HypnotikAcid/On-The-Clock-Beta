@@ -1014,22 +1014,19 @@ def is_mobile_restricted(guild_id: int) -> bool:
         return bool(result['restrict_mobile_clockin'])
 
 def is_kiosk_mode_only(guild_id: int) -> bool:
-    """
-    Check if kiosk mode is enabled for a server.
-    When enabled, Discord clock buttons are disabled and employees must use the kiosk.
-    Returns True if kiosk mode is enabled, False otherwise.
-    Defaults to False (Discord clock allowed) if no record exists.
-    """
-    with db() as conn:
-        cursor = conn.execute(
-            "SELECT kiosk_mode_only FROM server_subscriptions WHERE guild_id = %s",
-            (guild_id,)
-        )
-        result = cursor.fetchone()
-        if not result:
-            return False  # Default to allowing Discord clock
-        
-        return bool(result.get('kiosk_mode_only', False))
+    """Check if the server has enabled Kiosk-Only Mode"""
+    try:
+        with db() as conn: # Changed get_db() to db() to match existing code style
+            cursor = conn.execute(
+                "SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = %s",
+                (guild_id,)
+            )
+            result = cursor.fetchone()
+            
+        return bool(result.get('kiosk_only_mode', False)) if result else False
+    except Exception as e:
+        logger.error(f"Error checking kiosk_only_mode for guild {guild_id}: {e}")
+        return False
 
 async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purchase"):
     """
@@ -5044,56 +5041,58 @@ async def setup(interaction: discord.Interaction):
         )
         
         embed.add_field(
-            name="🌐 Step 1: Set Up via Dashboard",
+            name="📚 Step 1: Quick Start Wiki",
             value=(
-                f"Visit **{dashboard_url}** and log in with Discord:\n"
-                "• **Admin Roles** - Add roles that can view reports & manage settings\n"
-                "• **Employee Roles** - Add roles that can use the timeclock\n"
-                "• **Timezone** - Set your server's display timezone\n"
-                "• **Email** - Configure report delivery\n\n"
-                "💡 Discord server administrators always have full access"
+                f"Read the **[Official Wiki]({dashboard_url}/wiki)** for a step-by-step guide on setting up your server, kiosk mode, and generating reports."
             ),
             inline=False
         )
         
         embed.add_field(
-            name="🚀 Step 2: Start Using the Bot",
+            name="🌐 Step 2: Dashboard Setup",
             value=(
-                "**For Employees:**\n"
-                "• Type `/clock` to open your personal timeclock\n"
-                "• Use the buttons to clock in/out and view hours\n\n"
-                "**For Admins:**\n"
-                "• Type `/help` for available commands\n"
-                "• Use the Dashboard for reports, employee management & settings"
+                f"Visit **[Your Dashboard]({dashboard_url})** and log in with Discord:\n"
+                "• **Admin / Employee Roles** - Define who can manage vs clock-in\n"
+                "• **Timezone** - Set your server's local display time\n"
+                "• **Email Reports** - Automate PDF timesheets"
             ),
             inline=False
         )
         
-        embed.add_field(
-            name="💰 Step 3: Understand Pricing",
-            value=(
-                "**Premium** - $8/month (First month FREE!)\n"
-                "• Unlocks full bot functionality for your entire team\n"
-                "• Includes 30-day data retention\n\n"
-                "**Pro** - $15/month (Coming Soon!)\n"
-                "• All premium features, plus Kiosk mode and ad-free dashboard\n\n"
-                "💡 Your server starts with a 30-day free trial of all features!\n"
-                f"🛒 Purchase: {payment_url}"
-            ),
-            inline=False
-        )
-        
+        if guild_id == DEMO_SERVER_ID:
+            embed.add_field(
+                name="🚧 Demo Server Notice",
+                value=(
+                    "You are currently exploring the **Live Demo**.\n"
+                    "• **PINs:** Kiosk PINs for Demo Employees are auto-generated.\n"
+                    "• **Data:** Dummy data is automatically seeded for testing.\n"
+                    "• **Reset:** Data is pruned periodically."
+                ),
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="💰 Step 3: Pricing & Tiers",
+                value=(
+                    "**Your server starts with a generous 1-Month Free Trial!**\n\n"
+                    "**Premium** - $8/month\n"
+                    "• Full timeclock functionality & 30-day data retention\n\n"
+                    "**Pro** - $15/month\n"
+                    "• Premium + Kiosk Mode & Ad-Free Dashboard\n\n"
+                    f"🛒 [Manage Subscription]({payment_url})"
+                ),
+                inline=False
+            )
+            
         embed.add_field(
             name="🆘 Need Help?",
             value=(
-                "Join our Discord support server:\n"
-                "https://discord.gg/tMGssTjkUt\n\n"
-                "Get assistance with setup, billing, and troubleshooting"
+                "Join our [Support Discord](https://discord.gg/tMGssTjkUt) for help with setup, billing, or custom requests."
             ),
             inline=False
         )
         
-        embed.set_footer(text="On the Clock • Professional Time Tracking for Discord")
+        embed.set_footer(text="Time Warden • Professional Time Tracking for Discord")
         
         await interaction.edit_original_response(embed=embed)
         print(f"✅ Displayed setup information for guild {guild_id}")

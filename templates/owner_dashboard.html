@@ -1646,6 +1646,51 @@
                 <div class="box-title"><span>📧</span> Email Infrastructure</div>
                 <!-- Add diagnostic tools here -->
             </div>
+
+            <div class="neon-box">
+                <div class="box-title"><span>🔔</span> System Alerts</div>
+                <div class="collapsible-content" style="padding: 0;">
+                    <p style="color: #8B949E; margin-bottom: 20px;">Configure which system events trigger a Discord DM
+                        from the bot to your Owner account.</p>
+
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <label class="radio-option" style="justify-content: space-between;">
+                            <div>
+                                <div style="color: #C9D1D9; font-weight: 600; font-size: 14px;">Stripe Webhook Failures
+                                </div>
+                                <div style="color: #8B949E; font-size: 12px; margin-top: 4px;">Alert when Stripe
+                                    payments fail to process or webhooks drop.</div>
+                            </div>
+                            <input type="checkbox" id="alertStripe" onchange="saveOwnerAlerts()"
+                                style="width: 20px; height: 20px; accent-color: #D4AF37; cursor: pointer;">
+                        </label>
+
+                        <label class="radio-option" style="justify-content: space-between;">
+                            <div>
+                                <div style="color: #C9D1D9; font-weight: 600; font-size: 14px;">Database Timeouts</div>
+                                <div style="color: #8B949E; font-size: 12px; margin-top: 4px;">Alert when the PostgreSQL
+                                    connection pool is exhausted or queries hang.</div>
+                            </div>
+                            <input type="checkbox" id="alertDB" onchange="saveOwnerAlerts()"
+                                style="width: 20px; height: 20px; accent-color: #D4AF37; cursor: pointer;">
+                        </label>
+
+                        <label class="radio-option" style="justify-content: space-between;">
+                            <div>
+                                <div style="color: #C9D1D9; font-weight: 600; font-size: 14px;">High Volume Error Spikes
+                                </div>
+                                <div style="color: #8B949E; font-size: 12px; margin-top: 4px;">Alert when the bot logs
+                                    more than 50 exceptions in a 5-minute window.</div>
+                            </div>
+                            <input type="checkbox" id="alertErrors" onchange="saveOwnerAlerts()"
+                                style="width: 20px; height: 20px; accent-color: #D4AF37; cursor: pointer;">
+                        </label>
+                    </div>
+                    <div id="alertSaveStatus"
+                        style="color: #34D399; font-size: 12px; margin-top: 15px; display: none; text-align: right;">
+                        Settings saved safely.</div>
+                </div>
+            </div>
         </div>
 
     </main>
@@ -2809,6 +2854,57 @@
                 button.innerHTML = '<span class="btn-icon">🗑️</span> Remove Stray Email Now';
             }
         }
+
+        async function loadOwnerAlerts() {
+            try {
+                const response = await fetch('/api/owner/settings');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('alertStripe').checked = data.alert_stripe_failures;
+                    document.getElementById('alertDB').checked = data.alert_db_timeouts;
+                    document.getElementById('alertErrors').checked = data.alert_high_errors;
+                }
+            } catch (error) {
+                console.error('Error loading owner alerts:', error);
+            }
+        }
+
+        async function saveOwnerAlerts() {
+            const statusDiv = document.getElementById('alertSaveStatus');
+            try {
+                const response = await fetch('/api/owner/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        alert_stripe_failures: document.getElementById('alertStripe').checked,
+                        alert_db_timeouts: document.getElementById('alertDB').checked,
+                        alert_high_errors: document.getElementById('alertErrors').checked
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    statusDiv.textContent = 'Settings saved safely.';
+                    statusDiv.style.color = '#34D399';
+                    statusDiv.style.display = 'block';
+                    setTimeout(() => statusDiv.style.display = 'none', 3000);
+                } else {
+                    statusDiv.textContent = 'Failed to save settings.';
+                    statusDiv.style.color = '#FF6B6B';
+                    statusDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error saving owner alerts:', error);
+                statusDiv.textContent = 'Error saving settings.';
+                statusDiv.style.color = '#FF6B6B';
+                statusDiv.style.display = 'block';
+            }
+        }
+
+        // Initialize alerts when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            loadOwnerAlerts();
+        });
 
         // ==========================================
         // TAB NAVIGATION LOGIC
