@@ -156,3 +156,20 @@
 - **Root Cause**: New columns (e.g. `role_tier`, `profile_setup_completed`) were added to the `CREATE TABLE employee_profiles` definition in `migrations.py`, but were never provisioned via `ALTER TABLE` for existing production databases. When the bot tried to `INSERT` into the table during clock-in, it crashed because the expected columns didn't exist in the remote database.
 - **Fix**: Wrote a dynamic loop in `migrations.py` that executes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for every new schema column, allowing the script to safely patch existing live databases.
 - **Pattern**: Whenever modifying a database schema, updating the `CREATE TABLE` statement is **not enough**. You MUST also provide `ALTER TABLE ADD COLUMN IF NOT EXISTS` statements so that existing legacy databases are successfully patched during the boot migration sequence. Failure to do this will immediately break production on Replit when existing rows are modified or new rows are inserted.
+
+## Atomic Layering vs Monolithic Feature Phases (Architectural Standard)
+- **The Problem**: Building an entire vertical feature (Database + Backend + Webhooks + Discord Commands + Javascript UI) in a single massive "Phase" introduces extreme regression risk. If one layer fails, it masks bugs in the others.
+- **The Solution (Atomic Slicing)**: Break large feature sets down into horizontal, atomic layers. Build Layer 1 (Security Hooks), test it. Build Layer 2 (Database Migrations), test it. Build Layer 3 (Backend API), test it. Build Layer 4 (Javascript UI), test it.
+- **Pattern**: Do not try to execute visual DOM work in the same phase as core SQL schema migrations. Slice the work horizontally to minimize blast radius during coding.
+
+## The 4-Tier Security Hierarchy (Architectural Standard)
+- **The Problem**: Previously, code used Discord's `Administrator` permission bitmask to authorize Stripe purchases and server destruction. This allowed rogue managers to hijack or delete the server.
+- **The Solution**: Enforce a strict mathematically isolated 4-Tier Hierarchy:
+  1. **Bot Owner**: The Developer. (`interaction.user.id == BOT_OWNER_ID`). Unrestricted access to `/owner` global dashboard.
+  2. **Server Owner**: The Customer. (`guild.owner == True` via OAuth). **Only** tier allowed to manage Stripe subscriptions or execute destructive DB purges (`/setup_demo_roles`, Reset Data).
+  3. **Server Admin**: The Managers. Has the `Administrator` Discord role. Allowed to edit shifts, approve time adjustments, and pull reports. Cannot access billing or destroy the server.
+  4. **Employee**: Standard Users. Can only access their own profiles and clock records.
+
+## AI Pre-Flight Architecture Audit
+- **The Problem**: Future AIs might start building Javascript UI components or Python `/cogs` without realizing the database is fundamentally broken, or that IDOR exploits exist on the API they are hooking into.
+- **The Solution**: Before building ANY new feature, the AI Agent must physically read `docs/ai_pre_flight_audit.md` and complete the 5 Pillar integrity sweeps against the existing backend.
