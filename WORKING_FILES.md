@@ -7,14 +7,14 @@
 
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
-- `scheduler.py` - Gemini - 2026-02-25 - Layer 4: Backend API & Webhook Integration
-- `app.py` - Gemini - 2026-02-25 - Layer 4: Backend API & Webhook Integration
-- `bot.py` - Gemini - 2026-02-25 - Layer 4: Backend API & Webhook Integration
 
 ---
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `scheduler.py` - 2026-02-25 - Gemini (Layer 4: Backend API & Webhook Integration)
+- `app.py` - 2026-02-25 - Gemini (Layer 4: Backend API & Webhook Integration)
+- `bot.py` - 2026-02-25 - Gemini (Layer 4: Backend API & Webhook Integration)
 - `templates/dashboard_purchase.html` - 2026-02-25 - Gemini (Layer 3: Legal & Privacy)
 - `bot.py` - 2026-02-25 - Gemini (Layer 3: Legal & Privacy)
 - `app.py` - 2026-02-25 - Gemini (Layer 3: Legal & Privacy)
