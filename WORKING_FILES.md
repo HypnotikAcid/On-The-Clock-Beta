@@ -12,6 +12,9 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `templates/dashboard_purchase.html` - 2026-02-25 - Gemini (Layer 3: Legal & Privacy)
+- `bot.py` - 2026-02-25 - Gemini (Layer 3: Legal & Privacy)
+- `app.py` - 2026-02-25 - Gemini (Layer 3: Legal & Privacy)
 - `migrations.py` - 2026-02-25 - Gemini (Layer 2: The Database Foundation)
 - `app.py` - 2026-02-25 - Gemini (Layer 2: The Database Foundation)
 - `app.py` - 2026-02-25 - Gemini (Layer 1: Security & Hierarchy Core)

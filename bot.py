@@ -5955,6 +5955,124 @@ async def owner_grant_server_by_id(interaction: discord.Interaction, server_id: 
     except Exception as e:
         await interaction.followup.send(f"❌ Error granting remote server subscription: {str(e)}", ephemeral=True)
 
+# ---------------------------------------------------------
+# LAYER 3: LEGAL, PRIVACY, & COMPLIANCE TOOLS
+# ---------------------------------------------------------
+
+@bot.event
+async def on_guild_remove(guild):
+    """Fires when the bot is kicked from a server. Instantly terminates subscriptions and sets presence flag to False."""
+    try:
+        print(f"[{datetime.now()}] Bot removed from server: {guild.name} ({guild.id})")
+        with get_db() as conn:
+            # 1. Mark bot as not present
+            conn.execute("""
+                UPDATE bot_guilds 
+                SET is_present = FALSE, left_at = NOW() 
+                WHERE guild_id = %s
+            """, (str(guild.id),))
+            
+            # 2. Cancel active Stripe subscriptions to prevent phantom billing
+            cursor = conn.execute("""
+                SELECT subscription_id FROM server_subscriptions 
+                WHERE guild_id = %s AND status = 'active' AND subscription_id IS NOT NULL
+            """, (str(guild.id),))
+            sub = cursor.fetchone()
+            
+            if sub and sub['subscription_id']:
+                import stripe
+                try:
+                    stripe.Subscription.modify(
+                        sub['subscription_id'],
+                        cancel_at_period_end=True
+                    )
+                    conn.execute("""
+                        UPDATE server_subscriptions 
+                        SET cancel_at_period_end = TRUE 
+                        WHERE guild_id = %s
+                    """, (str(guild.id),))
+                    print(f"  -> Successfully issued Stripe cancellation for severed guild {guild.id}")
+                except Exception as stripe_error:
+                    print(f"  -> Stripe cancellation failed for severed guild {guild.id}: {stripe_error}")
+    except Exception as e:
+        print(f"Error handling guild removal for {guild.id}: {e}")
+
+@app_commands.command(name="my_data", description="[PRIVACY] View or delete your personal data (GDPR/CCPA Compliance)")
+@app_commands.choices(action=[
+    app_commands.Choice(name="View My Data", value="view"),
+    app_commands.Choice(name="Delete My Data (Irreversible)", value="delete")
+])
+async def my_data_command(interaction: discord.Interaction, action: app_commands.Choice[str]):
+    """Allow users to view or wipe their dataset from our servers."""
+    user_id = str(interaction.user.id)
+    guild_id = str(interaction.guild_id)
+    
+    if action.value == "view":
+        await interaction.response.send_message(
+            "🗄️ **Your Data Summary:**\n"
+            "We store your Discord ID, Username, configured Timezone, and Clock-In timestamps required for payroll generation.\n"
+            "To request a full JSON export, please email privacy@ontheclock.bot.",
+            ephemeral=True
+        )
+        return
+        
+    elif action.value == "delete":
+        try:
+            with get_db() as conn:
+                # Scramble profile, delete pins, and drop active sessions
+                conn.execute("""
+                    UPDATE employee_profiles 
+                    SET first_name = 'Deleted', 
+                        last_name = 'User', 
+                        email = NULL,
+                        timesheet_email = NULL,
+                        phone = NULL,
+                        is_active = FALSE
+                    WHERE user_id = %s
+                """, (user_id,))
+                
+                conn.execute("DELETE FROM employee_pins WHERE user_id = %s", (user_id,))
+                conn.execute("DELETE FROM timeclock_sessions WHERE user_id = %s", (user_id,))
+                
+                await interaction.response.send_message(
+                    "⚠️ **DATA ERASED**\n"
+                    "Your personal information (Name, Email, Phone, PINs, and Time Logs) has been wiped from this server's database.\n"
+                    "You will no longer appear on payroll exports.", 
+                    ephemeral=True
+                )
+        except Exception as e:
+            await interaction.response.send_message("❌ Database error during data removal request.", ephemeral=True)
+
+bot.tree.add_command(my_data_command)
+
+@app_commands.command(name="timezone", description="Set your personal dashboard and reporting timezone")
+async def timezone_command(interaction: discord.Interaction, tz_string: str):
+    """Allow employees to set their personal timezone"""
+    import pytz
+    if tz_string not in pytz.all_timezones:
+        await interaction.response.send_message(
+            f"❌ Invalid timezone: `{tz_string}`.\n"
+            "Example valid formats: `America/New_York`, `America/Los_Angeles`, `Europe/London`.", 
+            ephemeral=True
+        )
+        return
+        
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                INSERT INTO user_preferences (user_id, dashboard_timezone, timezone_configured)
+                VALUES (%s, %s, TRUE)
+                ON CONFLICT (user_id) DO UPDATE SET 
+                dashboard_timezone = EXCLUDED.dashboard_timezone,
+                timezone_configured = TRUE
+            """, (str(interaction.user.id), tz_string))
+            
+            await interaction.response.send_message(f"✅ Your personal timezone is now locked to **{tz_string}**.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message("❌ Failed to save timezone preference.", ephemeral=True)
+
+bot.tree.add_command(timezone_command)
+
 @tree.command(name="owner_server_listings", description="[OWNER] View all servers with employee/admin headcounts")
 async def owner_server_listings(interaction: discord.Interaction):
     """Owner-only command to list all servers with employee/admin headcounts"""

@@ -254,7 +254,17 @@
                     <li class="included"><span class="icon">✅</span> Email reports</li>
                     <li class="included"><span class="icon">✅</span> Time adjustments</li>
                 </ul>
-                <a href="/purchase/premium" class="upgrade-btn" onclick="handleUpgrade(this)">
+                <div class="liability-wrapper" style="margin-bottom: 1.5rem; text-align: left;">
+                    <label
+                        style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; color: #8B949E; font-size: 0.85rem; line-height: 1.4;">
+                        <input type="checkbox" id="liability-check" style="margin-top: 3px; cursor: pointer;">
+                        <span>I understand that Time Warden is currently in <strong>BETA</strong>. I agree that the
+                            developers are not liable for any lost wages, data discrepancies, or legal disputes arising
+                            from use of this software.</span>
+                    </label>
+                </div>
+
+                <a href="#" class="upgrade-btn disabled" id="upgrade-button" onclick="handleUpgrade(event)">
                     Start Free Month
                 </a>
             </div>
@@ -279,7 +289,27 @@
         </div>
     </div>
     <script>
-        function handleUpgrade(btn) {
+        // Liability Blocker Logic
+        const liabilityCheck = document.getElementById('liability-check');
+        const upgradeBtn = document.getElementById('upgrade-button');
+
+        liabilityCheck.addEventListener('change', function () {
+            if (this.checked) {
+                upgradeBtn.classList.remove('disabled');
+                upgradeBtn.href = '/purchase/premium';
+            } else {
+                upgradeBtn.classList.add('disabled');
+                upgradeBtn.href = '#';
+            }
+        });
+
+        function handleUpgrade(event) {
+            if (!liabilityCheck.checked) {
+                event.preventDefault();
+                alert("You must agree to the BETA liability terms before proceeding.");
+                return;
+            }
+            const btn = event.target || event.currentTarget;
             btn.innerHTML = '<span class="spinner"></span> Redirecting...';
             btn.style.pointerEvents = 'none';
         }

@@ -396,14 +396,24 @@ def has_permission(permissions, permission_flag):
         return int(permissions) & permission_flag != 0
     except (ValueError, TypeError):
         return False
-_session_secret = os.environ.get('SESSION_SECRET') or os.environ.get('SECRET_KEY')
+# Ensure persistent sessions by requiring a static SECRET_KEY
+_session_secret = os.environ.get('SECRET_KEY') or os.environ.get('SESSION_SECRET')
 if not _session_secret:
-    print("[WARNING] Neither SESSION_SECRET nor SECRET_KEY is set - using random key (sessions will reset on restart)")
+    print("[CRITICAL] SECRET_KEY is not set in environment. Generating fallback key.")
+    print("         Sessions will invalidate if the server restarts. PLEASE add SECRET_KEY to .env!")
     _session_secret = secrets.token_hex(32)
+
 app.secret_key = _session_secret
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Security Middleware: Prevent Clickjacking via iframes
+@app.after_request
+def apply_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 # Fix for Replit reverse proxy - ensures correct scheme/host detection and client IP
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)  # type: ignore[method-assign]
@@ -10515,48 +10525,34 @@ This is an automated message from Time Warden.
         # Send email
         mail_sender = ReplitMailSender()
         
-        # Run async send in sync context
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(
-                mail_sender.send_email(
-                    to=email,
-                    subject=subject,
-                    html=html_content,
-                    text=text_content
+        # Detach into a background thread so the HTTP request completes instantaneously 
+        # (Fixes "Sluggish UX" from synchronous SendGrid calls)
+        def send_async_email(email_to, sub, ht, tx):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(
+                    mail_sender.send_email(
+                        to=email_to,
+                        subject=sub,
+                        html=ht,
+                        text=tx
+                    )
                 )
-            )
-            app.logger.info(f"Shift summary email sent to {email} for user {user_id}")
-            return jsonify({'success': True})
-        except ValueError as val_err:
-            # Missing auth token or invalid email
-            app.logger.error(f"Email validation error: {val_err}")
-            return jsonify({
-                'success': False,
-                'error': 'Email service not configured. Please contact support.',
-                'code': 'EMAIL_CONFIG_ERROR'
-            }), 500
-        except asyncio.TimeoutError:
-            app.logger.error("Email send timeout")
-            return jsonify({
-                'success': False,
-                'error': 'Email service timeout. Please try again.',
-                'code': 'EMAIL_TIMEOUT'
-            }), 500
-        except Exception as email_err:
-            app.logger.error(f"Failed to send shift email: {email_err}")
-            return jsonify({
-                'success': False,
-                'error': 'Failed to send email. Please check email address.',
-                'code': 'EMAIL_SEND_FAILED'
-            }), 500
-        finally:
-            loop.close()
+                app.logger.info(f"Background shift summary sent to {email_to}")
+            except Exception as e:
+                app.logger.error(f"Background email failed: {e}")
+            finally:
+                loop.close()
+
+        threading.Thread(target=send_async_email, args=(email, subject, html_content, text_content), daemon=True).start()
+        
+        app.logger.info(f"Shift email queued for {email} for user {user_id}")
+        return jsonify({'success': True})
             
     except Exception as e:
         app.logger.error(f"Error sending shift email: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': "An internal error occurred."}), 500
 
 @app.route("/api/server/<guild_id>/kiosk-mode", methods=["GET"])
 @require_paid_api_access
