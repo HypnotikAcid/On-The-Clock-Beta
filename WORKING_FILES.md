@@ -7,6 +7,9 @@
 
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
+- `scheduler.py` - Gemini - 2026-02-25 - Layer 4: Backend API & Webhook Integration
+- `app.py` - Gemini - 2026-02-25 - Layer 4: Backend API & Webhook Integration
+- `bot.py` - Gemini - 2026-02-25 - Layer 4: Backend API & Webhook Integration
 
 ---
 

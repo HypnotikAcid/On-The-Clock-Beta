@@ -236,6 +236,18 @@ def bot_db():
     """Lazy access to bot database context manager - returns the callable that produces the context manager."""
     return _get_bot_func('db')()
 
+def sanitize_csv_string(value) -> str:
+    """
+    Prevents CSV Macro Injection (Formula Injection) in Excel/Sheets.
+    If a string starts with =, +, -, @, \t, or \r, it prepends a single quote.
+    """
+    if value is None:
+        return ""
+    val_str = str(value)
+    if val_str and val_str[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return f"'{val_str}"
+    return val_str
+
 # Flask-side database functions that use get_db() for production compatibility
 # These are used by webhook handlers and dashboard to write to the correct database
 def flask_check_bot_access(guild_id: int) -> bool:
@@ -4825,6 +4837,8 @@ def api_owner_time_report(user_session, guild_id):
         total_hours = 0
         for session in sessions:
             name = session['display_name'] or session['full_name'] or f"{session['first_name'] or ''} {session['last_name'] or ''}".strip() or f"User {session['user_id']}"
+            name = sanitize_csv_string(name)
+            
             clock_in = session['clock_in'].strftime('%Y-%m-%d %H:%M:%S') if session['clock_in'] else ''
             clock_out = session['clock_out'].strftime('%Y-%m-%d %H:%M:%S') if session['clock_out'] else 'Still clocked in'
             hours = round(float(session['hours_worked']), 2) if session['hours_worked'] else 'N/A'
@@ -5281,10 +5295,23 @@ def api_add_admin_role(user_session, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
+        # Cryptographic Signature for Replay Defense
+        import time, hmac, hashlib
+        timestamp_str = str(time.time())
+        signature = hmac.new(
+            bot_api_secret.encode('utf-8'),
+            timestamp_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers={
+                'Authorization': f'Bearer {bot_api_secret}',
+                'X-Timestamp': timestamp_str,
+                'X-Signature': signature
+            },
             timeout=5
         )
         
@@ -5349,10 +5376,23 @@ def api_remove_admin_role(user_session, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
+        # Cryptographic Signature for Replay Defense
+        import time, hmac, hashlib
+        timestamp_str = str(time.time())
+        signature = hmac.new(
+            bot_api_secret.encode('utf-8'),
+            timestamp_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers={
+                'Authorization': f'Bearer {bot_api_secret}',
+                'X-Timestamp': timestamp_str,
+                'X-Signature': signature
+            },
             timeout=5
         )
         
@@ -5417,12 +5457,25 @@ def api_add_employee_role(user_session, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
+        # Cryptographic Signature for Replay Defense
+        import time, hmac, hashlib
+        timestamp_str = str(time.time())
+        signature = hmac.new(
+            bot_api_secret.encode('utf-8'),
+            timestamp_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
         app.logger.info(f"≡ƒou Flask calling bot API: {bot_api_url} with role_id={role_id}")
         
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers={
+                'Authorization': f'Bearer {bot_api_secret}',
+                'X-Timestamp': timestamp_str,
+                'X-Signature': signature
+            },
             timeout=5
         )
         
@@ -5489,10 +5542,23 @@ def api_remove_employee_role(user_session, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
+        # Cryptographic Signature for Replay Defense
+        import time, hmac, hashlib
+        timestamp_str = str(time.time())
+        signature = hmac.new(
+            bot_api_secret.encode('utf-8'),
+            timestamp_str.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+
         response = requests.post(
             bot_api_url,
-            json={'role_id': role_id},
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            json={'role_id': role_id, 'user_id': user_session.get('user_id')},
+            headers={
+                'Authorization': f'Bearer {bot_api_secret}',
+                'X-Timestamp': timestamp_str,
+                'X-Signature': signature
+            },
             timeout=5
         )
         
@@ -6802,9 +6868,9 @@ def api_export_reports(user_session, guild_id):
         start_date = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
         end_date = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
         
-        # Enforce 365-day max range to prevent OOM
-        if (end_date - start_date).days > 365:
-            return jsonify({'success': False, 'error': 'Report date range cannot exceed 365 days.'}), 400
+        # Enforce 90-day max range to prevent OOM
+        if (end_date - start_date).days > 90:
+            return jsonify({'success': False, 'error': 'Report date range cannot exceed 90 days.'}), 400
             
         # Check tier restrictions
         is_pro = access['tier'] == 'pro' or access['is_exempt']
@@ -8907,14 +8973,22 @@ def api_get_admin_master_calendar(user_session, guild_id):
                     s.clock_out_time as clock_out,
                     EXTRACT(EPOCH FROM (s.clock_out_time - s.clock_in_time)) as duration_seconds,
                     DATE(s.clock_in_time AT TIME ZONE 'UTC' AT TIME ZONE %s) as work_date,
-                    COALESCE(p.display_name, p.full_name, s.user_id) as employee_name
+                    COALESCE(p.display_name, p.full_name, s.user_id) as employee_name,
+                    (
+                        SELECT COUNT(tar.id)
+                        FROM time_adjustment_requests tar
+                        WHERE tar.guild_id = s.guild_id 
+                          AND tar.user_id = s.user_id 
+                          AND tar.status = 'pending'
+                          AND DATE(tar.created_at AT TIME ZONE 'UTC' AT TIME ZONE %s) = DATE(s.clock_in_time AT TIME ZONE 'UTC' AT TIME ZONE %s)
+                    ) as pending_adjustments
                 FROM timeclock_sessions s
                 LEFT JOIN employee_profiles p ON s.user_id = p.user_id::text AND s.guild_id = p.guild_id::text
                 WHERE s.guild_id = %s
                   AND s.clock_in_time >= %s
                   AND s.clock_in_time <= %s
                 ORDER BY s.clock_in_time ASC
-            """, (guild_tz_str, str(guild_id), first_day_utc, last_day_utc))
+            """, (guild_tz_str, guild_tz_str, guild_tz_str, str(guild_id), first_day_utc, last_day_utc))
             
             sessions = cursor.fetchall()
             
@@ -8947,7 +9021,8 @@ def api_get_admin_master_calendar(user_session, guild_id):
                     'user_id': user_id,
                     'name': session['employee_name'],
                     'sessions': [],
-                    'total_seconds': 0
+                    'total_seconds': 0,
+                    'pending_adjustments': 0
                 }
             
             # Convert timestamps to guild timezone
@@ -8963,6 +9038,10 @@ def api_get_admin_master_calendar(user_session, guild_id):
             
             days_data[date_key]['employees'][user_id]['sessions'].append(session_data)
             days_data[date_key]['employees'][user_id]['total_seconds'] += session['duration_seconds'] or 0
+            
+            # Use max to avoid duplicating the count if a user has multiple sessions in one day
+            current_adjustments = days_data[date_key]['employees'][user_id]['pending_adjustments']
+            days_data[date_key]['employees'][user_id]['pending_adjustments'] = max(current_adjustments, session['pending_adjustments'] or 0)
             days_data[date_key]['total_sessions'] += 1
             days_data[date_key]['total_hours'] += (session['duration_seconds'] or 0) / 3600
         
@@ -10258,52 +10337,89 @@ def api_kiosk_clock(guild_id):
 
         now = datetime.now()
         
-        with get_db() as conn:
-            if action == 'in':
-                # Check not already clocked in (using timeclock_sessions)
-                cursor = conn.execute("""
-                    SELECT session_id FROM timeclock_sessions
-                    WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
-                """, (str(guild_id), str(user_id)))
-                if cursor.fetchone():
-                    return jsonify({'success': False, 'error': 'Already clocked in'}), 400
-                
-                # Create new session in timeclock_sessions
-                conn.execute("""
-                    INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time)
-                    VALUES (%s, %s, %s)
-                """, (str(guild_id), str(user_id), now))
-                
-                app.logger.info(f"Kiosk clock IN: user {user_id} in guild {guild_id}")
-                
-            else:  # action == 'out'
-                # Find active session in timeclock_sessions
-                cursor = conn.execute("""
-                    SELECT session_id, clock_in_time FROM timeclock_sessions
-                    WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
-                    ORDER BY clock_in_time DESC LIMIT 1
-                """, (str(guild_id), str(user_id)))
-                session = cursor.fetchone()
-                
-                if not session:
-                    return jsonify({'success': False, 'error': 'Not clocked in'}), 400
-                
-                # Update session with clock out time
-                conn.execute("""
-                    UPDATE timeclock_sessions 
-                    SET clock_out_time = %s
-                    WHERE session_id = %s
-                """, (now, session['session_id']))
-                
-                app.logger.info(f"Kiosk clock OUT: user {user_id} in guild {guild_id}")
-                
-                # Return session_id for email functionality
-                return jsonify({'success': True, 'action': action, 'session_id': session['session_id']})
+        # Guild-based locks to prevent double-tap DB spawns on slow Kiosk tablets
+        import threading
+        if not hasattr(app, 'guild_kiosk_locks'):
+            app.guild_kiosk_locks = {}
+        if guild_id not in app.guild_kiosk_locks:
+            app.guild_kiosk_locks[guild_id] = threading.Lock()
+            
+        with app.guild_kiosk_locks[guild_id]:
+            with get_db() as conn:
+                if action == 'in':
+                    # Check not already clocked in (using timeclock_sessions)
+                    cursor = conn.execute("""
+                        SELECT session_id FROM timeclock_sessions
+                        WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                    """, (str(guild_id), str(user_id)))
+                    if cursor.fetchone():
+                        return jsonify({'success': False, 'message': 'Already clocked in'}), 400
+                    
+                    # Create new session in timeclock_sessions
+                    conn.execute("""
+                        INSERT INTO timeclock_sessions (guild_id, user_id, clock_in_time)
+                        VALUES (%s, %s, %s)
+                    """, (str(guild_id), str(user_id), now))
+                    
+                    app.logger.info(f"Kiosk clock IN: user {user_id} in guild {guild_id}")
+                    
+                    # Fire and forget role mutation and webhooks
+                    from scheduler import discord_bot
+                    if discord_bot:
+                        import asyncio
+                        from bot import mutate_employee_roles, dispatch_webhook_event
+                        app.logger.info(f"Triggering asynchronous role sync and webhooks for {user_id} in {guild_id}")
+                        asyncio.run_coroutine_threadsafe(mutate_employee_roles(int(guild_id), int(user_id), 'in'), discord_bot.loop)
+                        asyncio.run_coroutine_threadsafe(
+                            dispatch_webhook_event(int(guild_id), int(user_id), 'clock_in', {'timestamp': now.isoformat()}),
+                            discord_bot.loop
+                        )
+                        
+                else:  # action == 'out'
+                    # Find active session in timeclock_sessions
+                    cursor = conn.execute("""
+                        SELECT session_id, clock_in_time FROM timeclock_sessions
+                        WHERE guild_id = %s AND user_id = %s AND clock_out_time IS NULL
+                        ORDER BY clock_in_time DESC LIMIT 1
+                    """, (str(guild_id), str(user_id)))
+                    session = cursor.fetchone()
+                    
+                    if not session:
+                        return jsonify({'success': False, 'message': 'Not clocked in'}), 400
+                    
+                    # Update session with clock out time
+                    conn.execute("""
+                        UPDATE timeclock_sessions 
+                        SET clock_out_time = %s
+                        WHERE session_id = %s
+                    """, (now, session['session_id']))
+                    
+                    app.logger.info(f"Kiosk clock OUT: user {user_id} in guild {guild_id}")
+                    
+                    # Fire and forget role mutation and webhooks
+                    from scheduler import discord_bot
+                    if discord_bot:
+                        import asyncio
+                        from bot import mutate_employee_roles, dispatch_webhook_event
+                        app.logger.info(f"Triggering asynchronous role sync and webhooks for {user_id} in {guild_id}")
+                        asyncio.run_coroutine_threadsafe(mutate_employee_roles(int(guild_id), int(user_id), 'out'), discord_bot.loop)
+                        
+                        duration_seconds = (now - session['clock_in_time']).total_seconds()
+                        asyncio.run_coroutine_threadsafe(
+                            dispatch_webhook_event(int(guild_id), int(user_id), 'clock_out', {
+                                'timestamp': now.isoformat(),
+                                'duration_minutes': round(duration_seconds / 60.0, 2)
+                            }),
+                            discord_bot.loop
+                        )
+                    
+                    # Return session_id for email functionality
+                    return jsonify({'success': True, 'action': action, 'session_id': session['session_id']})
         
         return jsonify({'success': True, 'action': action})
     except Exception as e:
         app.logger.error(f"Error with kiosk clock action: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': "An internal error occurred."}), 500
 
 @app.route("/api/kiosk/<guild_id>/employee/<user_id>/email", methods=["GET", "POST"])
 @require_kiosk_access

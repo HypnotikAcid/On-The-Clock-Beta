@@ -1,17 +1,20 @@
-# Current Task: Layer 3: Legal, Privacy, & Architecture Reliability
+# Current Task: Layer 4: Backend API & Webhook Integration
 
 ## Objective
-Executing "Layer 3: Legal, Privacy, & Architecture Reliability" from the Master Plan.
-1. Async Emails (`app.py`)
-2. Session Lock (`app.py`, `.env`)
-3. Clickjacking Guard (`app.py`)
-4. Information Leakage Guard (`app.py`)
-5. Liability Blockers (`templates/dashboard_pages/purchase.html`)
-6. Data Scrambler (`bot.py`)
-7. Bot Removal Hook (`bot.py`)
-8. Timezone Mutator (`bot.py`)
+Executing "Layer 4: Backend API & Webhook Integration" from the Master Plan.
+1. Shift Abandonment (`scheduler.py`)
+2. Data Retention Reaper (`scheduler.py`)
+3. Kiosk Multi-Thread Lock (`app.py`)
+4. Discord Role Mutator (`bot.py`)
+5. Admin Calendar Math (`app.py`)
+6. Webhook Bridges (`bot.py`, `app.py`)
+7. Webhook Replay Defense (`bot.py`, `app.py`)
+8. Time Adjustment Alerts (`bot.py`, `app.py`)
+9. CSV Memory Guard (`bot.py`, `app.py`)
+10. Negative Time Guard (`app.py`)
+11. Transaction Concurrency Guard (`bot.py`)
+12. CSV Injection Guard (`bot.py`)
 
 ## Status
-- **COMPLETED**: Layer 3: Legal, Privacy, & Architecture Reliability
-- All 8 security and privacy tasks implemented.
-- Working files unlocked. Ready for Layer 4.
+- Locking `app.py`, `bot.py`, and `scheduler.py`.
+- Starting with Shift Abandonment and Data Retention Reaper.

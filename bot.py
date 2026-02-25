@@ -598,6 +598,162 @@ def get_user_warning_count(guild_id: int, user_id: int) -> int:
         result = cursor.fetchone()
         return result['warning_count'] if result else 0
 
+def sanitize_csv_string(value) -> str:
+    """
+    Prevents CSV Macro Injection (Formula Injection) in Excel/Sheets.
+    If a string starts with =, +, -, @, \t, or \r, it prepends a single quote.
+    """
+    if value is None:
+        return ""
+    val_str = str(value)
+    if val_str and val_str[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return f"'{val_str}"
+    return val_str
+
+async def dispatch_webhook_event(guild_id: int, user_id: int, event_type: str, event_data: dict = None):
+    """
+    Dispatch internal events to a Discord channel configured in the server's settings.
+    Used to bridge Kiosk button presses to Discord channels in real-time.
+    
+    Args:
+        guild_id: Discord Server ID
+        user_id: Employee's Discord ID
+        event_type: 'clock_in', 'clock_out', 'time_adjustment', etc.
+        event_data: Additional context dictionary (timestamp, duration, etc.)
+    """
+    try:
+        with db() as conn:
+            cursor = conn.execute(
+                "SELECT discord_log_channel_id FROM guild_settings WHERE guild_id = %s",
+                (str(guild_id),)
+            )
+            settings = cursor.fetchone()
+            
+        if not settings or not settings.get('discord_log_channel_id'):
+            return  # No logging channel configured
+            
+        channel_id = int(settings['discord_log_channel_id'])
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            return  
+            
+        channel = guild.get_channel(channel_id)
+        if not channel:
+            return
+            
+        member = guild.get_member(user_id)
+        user_mention = member.mention if member else f"<@{user_id}>"
+        
+        # Build embed based on event type
+        embed = discord.Embed(timestamp=discord.utils.utcnow())
+        
+        if event_type == 'clock_in':
+            embed.title = "🟢 Clock In via Kiosk"
+            embed.color = discord.Color.green()
+            embed.description = f"{user_mention} has started their shift."
+        elif event_type == 'clock_out':
+            embed.title = "🔴 Clock Out via Kiosk"
+            embed.color = discord.Color.red()
+            embed.description = f"{user_mention} has ended their shift."
+            if event_data and 'duration_minutes' in event_data:
+                mins = event_data['duration_minutes']
+                hours = mins / 60
+                embed.add_field(name="Duration", value=f"{hours:.2f} hours ({mins:.0f} mins)")
+        elif event_type == 'time_adjustment_approved':
+            embed.title = "✅ Time Adjustment Approved"
+            embed.color = discord.Color.green()
+            embed.description = f"The time adjustment request for {user_mention} has been approved."
+        elif event_type == 'time_adjustment_denied':
+            embed.title = "❌ Time Adjustment Denied"
+            embed.color = discord.Color.red()
+            embed.description = f"The time adjustment request for {user_mention} was denied by an admin."
+        elif event_type == 'employee_removed':
+            embed.title = "🗑️ Employee Removed"
+            embed.color = discord.Color.orange()
+            embed.description = f"{user_mention} has been manually removed from the Time Warden dashboard by an admin."
+        else:
+            embed.title = f"🔔 Event: {event_type}"
+            embed.color = discord.Color.blue()
+            embed.description = f"User: {user_mention}"
+            
+        await channel.send(embed=embed)
+        
+    except Exception as e:
+        print(f"❌ Failed to dispatch webhook event for {guild_id}: {e}")
+
+async def mutate_employee_roles(guild_id: int, user_id: int, action: str):
+    """
+    MATHEMATICALLY swap Active/Inactive roles during clocked states.
+    Fetches the `role_id_clocked_in` and `role_id_clocked_out` from guild_settings.
+    Includes explicit error handling for missing permissions or deleted roles.
+    
+    Args:
+        guild_id: The Discord Server ID
+        user_id: The Employee's Discord ID
+        action: 'in' to grant clocked_in role and strip clocked_out role.
+                'out' to grant clocked_out role and strip clocked_in role.
+    """
+    try:
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT enable_role_sync, role_id_clocked_in, role_id_clocked_out 
+                FROM guild_settings WHERE guild_id = %s
+            """, (str(guild_id),))
+            settings = cursor.fetchone()
+            
+        if not settings or not settings.get('enable_role_sync'):
+            return  # Role syncing is disabled for this server
+            
+        role_in_id = settings.get('role_id_clocked_in')
+        role_out_id = settings.get('role_id_clocked_out')
+        
+        if not role_in_id and not role_out_id:
+            return  # No roles configured
+            
+        guild = bot.get_guild(int(guild_id))
+        if not guild:
+            # Bot might be restarting or not fully loaded
+            return
+            
+        member = guild.get_member(int(user_id))
+        if not member:
+            return  # User left the server
+            
+        # Determine roles to add and remove based on the action
+        roles_to_add_ids = []
+        roles_to_remove_ids = []
+        
+        if action == 'in':
+            if role_in_id: roles_to_add_ids.append(role_in_id)
+            if role_out_id: roles_to_remove_ids.append(role_out_id)
+        elif action == 'out':
+            if role_out_id: roles_to_add_ids.append(role_out_id)
+            if role_in_id: roles_to_remove_ids.append(role_in_id)
+            
+        # Resolve objects safely
+        roles_to_add = [guild.get_role(int(rid)) for rid in roles_to_add_ids if guild.get_role(int(rid))]
+        roles_to_remove = [guild.get_role(int(rid)) for rid in roles_to_remove_ids if guild.get_role(int(rid))]
+        
+        # Execute mutations
+        if roles_to_remove:
+            try:
+                await member.remove_roles(*roles_to_remove, reason=f"TimeWarden: Auto-sync on clock {action}")
+            except discord.Forbidden:
+                print(f"❌ Missing Permissions to remove role in {guild_id}")
+            except discord.HTTPException as he:
+                print(f"❌ Discord API error removing role in {guild_id}: {he}")
+                
+        if roles_to_add:
+            try:
+                await member.add_roles(*roles_to_add, reason=f"TimeWarden: Auto-sync on clock {action}")
+            except discord.Forbidden:
+                print(f"❌ Missing Permissions to add role in {guild_id}")
+            except discord.HTTPException as he:
+                print(f"❌ Discord API error adding role in {guild_id}: {he}")
+                
+    except Exception as e:
+        print(f"Error mutating roles for user {user_id} in {guild_id}: {e}")
+
 def issue_warning(guild_id: int, user_id: int):
     """Issue a warning to a user (first offense)"""
     with db() as conn:
@@ -1397,6 +1553,16 @@ def create_adjustment_request(guild_id: int, user_id: int, request_type: str,
     Returns: request_id or None if failed
     """
     try:
+        # Negative Time Guard: Ensure clock_in is strictly before clock_out
+        req_in = requested_data.get('clock_in')
+        req_out = requested_data.get('clock_out')
+        if req_in and req_out:
+            dt_in = safe_parse_timestamp(req_in)
+            dt_out = safe_parse_timestamp(req_out)
+            if dt_out <= dt_in:
+                print("⚠️ Blocked Negative Time Adjustment: clock_out <= clock_in")
+                return None
+                
         with db() as conn:
             # If modifying existing session, get original data for audit trail
             original_clock_in = None
@@ -1460,10 +1626,11 @@ def approve_adjustment(request_id: int, guild_id: int, reviewer_user_id: int):
     """
     try:
         with db() as conn:
-            # Get request details
+            # Get request details with FOR UPDATE to block concurrent approvals
             cursor = conn.execute("""
                 SELECT * FROM time_adjustment_requests 
                 WHERE id = %s AND guild_id = %s AND status = 'pending'
+                FOR UPDATE
             """, (request_id, guild_id))
             request = cursor.fetchone()
             
@@ -1525,6 +1692,18 @@ def approve_adjustment(request_id: int, guild_id: int, reviewer_user_id: int):
                 WHERE id = %s
             """, (reviewer_user_id, request_id))
             
+            # Fire Webhook Notification to log channel
+            import asyncio
+            asyncio.run_coroutine_threadsafe(
+                dispatch_webhook_event(
+                    guild_id=guild_id,
+                    user_id=user_id,
+                    event_type='time_adjustment_approved',
+                    event_data={'request_id': request_id}
+                ),
+                bot.loop
+            )
+
             return True, "Adjustment approved and applied"
             
     except Exception as e:
@@ -1539,10 +1718,23 @@ def deny_adjustment(request_id: int, guild_id: int, reviewer_user_id: int):
                 UPDATE time_adjustment_requests 
                 SET status = 'denied', reviewed_by = %s, reviewed_at = NOW()
                 WHERE id = %s AND guild_id = %s AND status = 'pending'
-                RETURNING id
+                RETURNING user_id
             """, (reviewer_user_id, request_id, guild_id))
             
-            if cursor.fetchone():
+            row = cursor.fetchone()
+            if row:
+                user_id = row['user_id']
+                # Fire Webhook Notification to log channel
+                import asyncio
+                asyncio.run_coroutine_threadsafe(
+                    dispatch_webhook_event(
+                        guild_id=guild_id,
+                        user_id=user_id,
+                        event_type='time_adjustment_denied',
+                        event_data={'request_id': request_id}
+                    ),
+                    bot.loop
+                )
                 return True, "Request denied"
             return False, "Request not found or already processed"
     except Exception as e:
@@ -2125,7 +2317,8 @@ async def generate_csv_report(bot, sessions_data, guild_id, guild_tz="America/Ne
         date_range = f"{min(all_dates)} to {max(all_dates)}" if len(set(all_dates)) > 1 else min(all_dates)
         
         # Employee header with username
-        writer.writerow([f"Employee: {user_display_name} - Shift Report ({date_range})"])
+        sanitized_name = sanitize_csv_string(user_display_name)
+        writer.writerow([f"Employee: {sanitized_name} - Shift Report ({date_range})"])
         writer.writerow([])  # Empty row
         
         # Process each session for this user
@@ -2169,7 +2362,8 @@ async def generate_individual_csv_report(bot, user_id, sessions, guild_id, guild
     date_range = f"{min(all_dates)} to {max(all_dates)}" if len(set(all_dates)) > 1 else min(all_dates)
     
     # Employee header with username
-    writer.writerow([f"Employee: {user_display_name} - Shift Report ({date_range})"])
+    sanitized_name = sanitize_csv_string(user_display_name)
+    writer.writerow([f"Employee: {sanitized_name} - Shift Report ({date_range})"])
     writer.writerow([])  # Empty row
     
     # Process each session for this user
@@ -2229,7 +2423,7 @@ async def generate_payroll_csv_report(bot, sessions_data, guild_id, guild_tz="Am
             overtime_hours = max(0.0, total_hours - 8.0)
             
             writer.writerow([
-                user_display_name,
+                sanitize_csv_string(user_display_name),
                 date_str,
                 f"{regular_hours:.2f}",
                 f"{overtime_hours:.2f}",
@@ -5507,12 +5701,21 @@ async def notify_admins_of_adjustment(guild_id: int, request_id: int):
 
         view = AdjustmentReviewView(request_id, guild_id)
 
+        # Build ping string for mapped Admin Roles
+        admin_ping_str = ""
+        with db() as conn:
+            cursor = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id = %s", (guild_id,))
+            roles = cursor.fetchall()
+            if roles:
+                admin_ping_str = " ".join([f"<@&{r['role_id']}>" for r in roles])
+
         # Notify via Log Channel if configured
         log_channel_id = get_guild_setting(guild_id, "log_channel_id")
         if log_channel_id:
             channel = guild.get_channel(int(log_channel_id))
             if channel:
-                await channel.send(embed=embed, view=view)
+                msg_content = f"🔔 {admin_ping_str} New Time Adjustment Request!" if admin_ping_str else "🔔 New Time Adjustment Request!"
+                await channel.send(content=msg_content, embed=embed, view=view)
                 return
 
         # Fallback: Notify Owner DM
@@ -6453,12 +6656,52 @@ BOT_API_PORT = int(os.getenv("BOT_API_PORT", "8081"))
 BOT_API_SECRET = os.getenv("BOT_API_SECRET", secrets.token_hex(32))  # Shared secret for auth
 
 def verify_api_request(request: web.Request) -> bool:
-    """Verify request is from authorized dashboard using shared secret"""
+    """
+    Verify request is from authorized dashboard using shared secret
+    Includes Webhook Replay Defense matching Timestamp hashes. 
+    """
+    import hmac
+    import hashlib
+    import time
+    
+    # 1. Check basic bearer
     auth_header = request.headers.get('Authorization', '')
     if not auth_header.startswith('Bearer '):
         return False
     token = auth_header[7:]  # Remove 'Bearer ' prefix
-    return secrets.compare_digest(token, BOT_API_SECRET)
+    
+    if not secrets.compare_digest(token, BOT_API_SECRET):
+        return False
+        
+    # 2. Replay Defense: Enforce Timestamp freshness (< 30s old)
+    timestamp_str = request.headers.get('X-Timestamp')
+    signature = request.headers.get('X-Signature')
+    
+    if not timestamp_str or not signature:
+        print("⚠️ API Request blocked: Missing Replay Defense headers.")
+        return False
+        
+    try:
+        timestamp_float = float(timestamp_str)
+        if abs(time.time() - timestamp_float) > 30: # 30 second window
+            print(f"⚠️ API Request blocked: Timestamp {timestamp_float} is outside the 30s replay window.")
+            return False
+    except ValueError:
+        return False
+        
+    # 3. Cryptographic Signature Match
+    # Rebuild the expected signature: HMAC-SHA256(Secret, Timestamp)
+    expected_mac = hmac.new(
+        BOT_API_SECRET.encode('utf-8'),
+        timestamp_str.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    if not secrets.compare_digest(expected_mac, signature):
+        print("⚠️ API Request blocked: Cryptographic signature mismatch.")
+        return False
+        
+    return True
 
 async def handle_add_admin_role(request: web.Request):
     """HTTP endpoint: Add admin role"""
@@ -6600,6 +6843,7 @@ async def handle_remove_employee_role(request: web.Request):
         data = await request.json()
         guild_id = int(request.match_info['guild_id'])
         role_id = int(data.get('role_id'))
+        user_id = data.get('user_id') # Might be passed, might not be
         
         print(f"📥 API: Removing employee role {role_id} from guild {guild_id}")
         
@@ -6607,6 +6851,15 @@ async def handle_remove_employee_role(request: web.Request):
         remove_employee_role(guild_id, role_id)
         
         print(f"✅ API: Successfully removed employee role {role_id} from guild {guild_id}")
+        
+        # Dispatch webhook if user_id is provided
+        if user_id:
+            import asyncio
+            asyncio.create_task(dispatch_webhook_event(
+                guild_id=guild_id,
+                user_id=int(user_id),
+                event_type='employee_removed'
+            ))
         
         return web.json_response({
             'success': True,

@@ -544,6 +544,86 @@ async def reset_demo_data_job():
     except Exception as e:
         logger.error(f"❌ Error during demo data reset job: {e}")
 
+async def run_shift_abandonment():
+    """Chron job auto-clocks out users exceeding `max_shift_hours`."""
+    logger.info("🕒 Running Shift Abandonment check...")
+    try:
+        with db() as cursor:
+            # Join with guild_settings to get the custom max_shift_hours per guild
+            cursor.execute("""
+                SELECT s.id, s.guild_id, s.user_id, s.clock_in_time, COALESCE(gs.max_shift_hours, 16) as max_hours
+                FROM timeclock_sessions s
+                LEFT JOIN guild_settings gs ON s.guild_id = gs.guild_id
+                WHERE s.clock_out_time IS NULL
+                AND EXTRACT(EPOCH FROM (NOW() - s.clock_in_time))/3600 > COALESCE(gs.max_shift_hours, 16)
+            """)
+            abandoned_shifts = cursor.fetchall()
+
+            abandoned_count = 0
+            for shift in abandoned_shifts:
+                # Force clock out at exactly the max hours limit
+                max_hours = shift['max_hours']
+                auto_clock_out = shift['clock_in_time'] + timedelta(hours=max_hours)
+                
+                cursor.execute("""
+                    UPDATE timeclock_sessions
+                    SET clock_out_time = %s, duration_minutes = %s
+                    WHERE id = %s
+                """, (auto_clock_out, max_hours * 60, shift['id']))
+                
+                # Log the auto-clock out in error_logs as an audit trail
+                cursor.execute("""
+                    INSERT INTO error_logs (guild_id, user_id, component, error_type, error_message)
+                    VALUES (%s, %s, 'Scheduler', 'ShiftAbandonment', 'User automatically clocked out after exceeding max shift hours.')
+                """, (shift['guild_id'], shift['user_id']))
+                abandoned_count += 1
+
+            if abandoned_count > 0:
+                logger.info(f"🕒 Auto-clocked out {abandoned_count} abandoned shifts.")
+
+    except Exception as e:
+        logger.error(f"❌ Shift Abandonment job failed: {e}")
+
+async def run_data_retention_reaper():
+    """Actual DELETE FROM execution job that drops old data per server tier."""
+    logger.info("💀 Running Data Retention Reaper...")
+    try:
+        with db() as cursor:
+            # Fetch all guilds and their specific retention tiers
+            cursor.execute("""
+                SELECT guild_id, retention_tier, bot_access_paid, COALESCE(grandfathered, FALSE) as grandfathered
+                FROM server_subscriptions
+            """)
+            guilds = cursor.fetchall()
+            
+            reaped_count = 0
+            for guild in guilds:
+                guild_id = guild['guild_id']
+                tier = Entitlements.get_guild_tier(
+                    bool(guild.get('bot_access_paid', False)), 
+                    guild.get('retention_tier') or 'none',
+                    bool(guild.get('grandfathered', False))
+                )
+                
+                # Retrieve retention days based on tier
+                days = Entitlements.get_retention_days(tier)
+                cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
+                
+                # Execute deletion for all completed sessions older than cutoff
+                cursor.execute("""
+                    DELETE FROM timeclock_sessions
+                    WHERE guild_id = %s
+                    AND clock_out_time IS NOT NULL
+                    AND clock_out_time < %s
+                """, (guild_id, cutoff_time))
+                
+                reaped_count += cursor.rowcount
+
+            if reaped_count > 0:
+                logger.info(f"💀 Reaper deleted {reaped_count} expired timeclock sessions globally.")
+    except Exception as e:
+        logger.error(f"❌ Data Retention Reaper job failed: {e}")
+
 
 def start_scheduler(bot=None):
     """Initialize and start the scheduler
@@ -601,6 +681,24 @@ def start_scheduler(bot=None):
         trigger=CronTrigger(hour=3, minute=0),
         id='discord_auto_prune',
         name='Auto-prune old discord messages',
+        replace_existing=True
+    )
+    
+    # Run Shift Abandonment checks every 30 minutes
+    scheduler.add_job(
+        run_shift_abandonment,
+        trigger=CronTrigger(minute='0,30'),
+        id='shift_abandonment',
+        name='Auto-clock out abandoned shifts',
+        replace_existing=True
+    )
+
+    # Run Data Retention Reaper at 4 AM daily
+    scheduler.add_job(
+        run_data_retention_reaper,
+        trigger=CronTrigger(hour=4, minute=0),
+        id='data_retention_reaper',
+        name='Hard delete expired timeclock sessions',
         replace_existing=True
     )
     
