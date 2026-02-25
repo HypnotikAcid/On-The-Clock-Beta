@@ -7,14 +7,13 @@
 
 ## 🔒 Currently Locked
 (Format: `file_path` - Agent - Since - Task)
-## 🔒 Currently Locked
-(Format: `file_path` - Agent - Since - Task)
-- None
 
 ---
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `app.py` - 2026-02-25 - Gemini (Layer 1: Security & Hierarchy Core)
+- `bot.py` - 2026-02-25 - Gemini (Layer 1: Security & Hierarchy Core)
 - `app.py` - 2026-02-23 - Gemini (Completed Phases 1-10)
 - `bot.py` - 2026-02-23 - Gemini (Completed Phases 1-10)
 - `templates/` - 2026-02-23 - Gemini (Completed Phases 1-10)

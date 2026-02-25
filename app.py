@@ -714,21 +714,21 @@ def exchange_code_for_token(code, redirect_uri):
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     
-    response = requests.post(f'{DISCORD_API_BASE}/oauth2/token', data=data, headers=headers)
+    response = requests.post(f'{DISCORD_API_BASE}/oauth2/token', data=data, headers=headers, timeout=5)
     response.raise_for_status()
     return response.json()
 
 def get_user_info(access_token):
     """Get Discord user information"""
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = requests.get(f'{DISCORD_API_BASE}/users/@me', headers=headers)
+    response = requests.get(f'{DISCORD_API_BASE}/users/@me', headers=headers, timeout=5)
     response.raise_for_status()
     return response.json()
 
 def get_user_guilds(access_token):
     """Get user's Discord guilds"""
     headers = {'Authorization': f'Bearer {access_token}'}
-    response = requests.get(f'{DISCORD_API_BASE}/users/@me/guilds', headers=headers)
+    response = requests.get(f'{DISCORD_API_BASE}/users/@me/guilds', headers=headers, timeout=5)
     response.raise_for_status()
     return response.json()
 
@@ -834,6 +834,70 @@ def require_api_auth(f):
             app.logger.error(traceback.format_exc())
             return jsonify({'success': False, 'error': 'Authentication error'}), 500
     return decorated_function
+
+def require_server_owner(f):
+    """Decorator to require server owner access"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            session_id = session.get('session_id')
+            if not session_id:
+                app.logger.info("No session_id found, redirecting to login")
+                return redirect('/auth/login')
+            
+            user_session = get_user_session(session_id)
+            if not user_session:
+                app.logger.warning(f"Invalid or expired session: {session_id[:8]}...")
+                session.clear()
+                return redirect('/auth/login')
+            
+            # Determine guild_id from route (<guild_id>), query string (?guild_id=), or JSON body
+            guild_id = kwargs.get('guild_id') or request.view_args.get('guild_id') or request.args.get('guild_id')
+            if not guild_id and request.is_json:
+                guild_id = request.json.get('guild_id')
+                
+            if not guild_id:
+                if request.path.startswith('/api/'):
+                    return jsonify({'success': False, 'error': 'guild_id required'}), 400
+                return "<h1>Error</h1><p>No server selected.</p><a href='/'>Return Home</a>", 400
+                
+            guild, access_level = verify_guild_access(user_session, str(guild_id))
+            if access_level != 'owner':
+                app.logger.error(f"Unauthorized owner-only attempt for guild {guild_id} by user {user_session.get('user_id')}")
+                if request.path.startswith('/api/'):
+                    return jsonify({'success': False, 'error': 'Server Owner access required'}), 403
+                return "<h1>Access Denied</h1><p>Only the Server Owner can perform this action.</p><a href='/'>Return Home</a>", 403
+                
+            return f(user_session, *args, **kwargs)
+        except Exception as e:
+            app.logger.error(f"Authentication error: {str(e)}")
+            app.logger.error(traceback.format_exc())
+            session.clear()
+            return redirect('/auth/login')
+    return decorated_function
+
+_rate_limits = {}
+
+def rate_limit_check(endpoint, identifier, max_requests, per_seconds):
+    """
+    Generic in-memory rate limiter to prevent Denial of Wallet attacks.
+    Returns True if allowed, False if rate limited.
+    """
+    now = time_module.time()
+    key = (endpoint, identifier)
+    
+    if key not in _rate_limits:
+        _rate_limits[key] = []
+        
+    # Remove timestamps older than our window
+    _rate_limits[key] = [t for t in _rate_limits[key] if now - t < per_seconds]
+    
+    if len(_rate_limits[key]) >= max_requests:
+        return False
+        
+    _rate_limits[key].append(now)
+    return True
 
 def check_guild_paid_access(guild_id):
     """
@@ -3714,12 +3778,10 @@ def seed_demo_data_internal():
         return False
 
 @app.route("/debug/seed-demo-data", methods=["POST"])
-@require_auth
+@require_server_owner
 def debug_seed_demo_data(user_session):
     """Owner-only endpoint to manually seed demo data."""
-    bot_owner_id = str(os.getenv("BOT_OWNER_ID", "107103438139056128"))
-    if str(user_session['user_id']) != bot_owner_id:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    # @require_server_owner already verified owner tier (which on demo server is bot owner)
     
     success = seed_demo_data_internal()
     if success:
@@ -4795,7 +4857,7 @@ def verify_guild_access(user_session, guild_id, allow_employee=False):
     
     Returns:
         (guild_dict, access_level) or (None, None)
-        access_level is 'admin' or 'employee'
+        access_level is 'owner', 'admin' or 'employee'
     """
     all_guilds = user_session.get('guilds', [])
     
@@ -4817,8 +4879,10 @@ def verify_guild_access(user_session, guild_id, allow_employee=False):
     
     # First check admin access (from OAuth guilds)
     for guild in all_guilds:
-        if guild.get('id') == guild_id:
+        if guild.get('id') == str(guild_id) or guild.get('id') == guild_id:
             if user_has_admin_access(user_session['user_id'], guild_id, guild):
+                if guild.get('owner', False):
+                    return (guild, 'owner')
                 return (guild, 'admin')
     
     # If allow_employee and no admin access, check employee_profiles
@@ -4832,13 +4896,13 @@ def verify_guild_access(user_session, guild_id, allow_employee=False):
                 WHERE ep.user_id = %s 
                   AND ep.guild_id = %s 
                   AND ep.is_active = TRUE
-            """, (user_id, int(guild_id)))
+            """, (str(user_id), int(guild_id)))
             
             employee_guild = cursor.fetchone()
             if employee_guild:
                 # Return a guild-like dict with employee access
                 return ({
-                    'id': guild_id,
+                    'id': str(guild_id),
                     'name': employee_guild['guild_name'],
                     'owner': False,
                     'permissions': '0'
@@ -6214,7 +6278,7 @@ def api_get_server_data(user_session, guild_id):
 
 
 @app.route("/api/server/<guild_id>/settings", methods=["GET"])
-@require_api_auth
+@require_paid_api_access
 def api_get_server_settings(user_session, guild_id):
     """API endpoint to fetch server settings for dashboard pages"""
     access = get_flask_guild_access(guild_id)
@@ -6356,17 +6420,14 @@ def api_save_server_settings(user_session, guild_id):
 
 
 @app.route("/api/server/<guild_id>/subscription/cancel", methods=["POST"])
-@require_api_auth
+@require_server_owner
 def api_cancel_subscription(user_session, guild_id):
     """API endpoint to cancel a server's Stripe subscription at period end"""
     if is_demo_server(guild_id):
         return jsonify({'success': True, 'cancel_at_period_end': True, 'demo_note': 'Demo server subscriptions cannot be modified.'})
         
     try:
-        guild, access_level = verify_guild_access(user_session, guild_id)
-        if not guild or access_level != 'admin':
-            return jsonify({'success': False, 'error': 'Admin access required'}), 403
-            
+        # access_level verified by @require_server_owner
         with get_db() as conn:
             cursor = conn.execute("SELECT subscription_id FROM server_subscriptions WHERE guild_id = %s AND status IN ('active', 'trialing')", (int(guild_id),))
             sub_row = cursor.fetchone()
@@ -6403,17 +6464,14 @@ def api_cancel_subscription(user_session, guild_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 @app.route("/api/server/<guild_id>/subscription/resume", methods=["POST"])
-@require_api_auth
+@require_server_owner
 def api_resume_subscription(user_session, guild_id):
     """API endpoint to resume a canceled server's Stripe subscription"""
     if is_demo_server(guild_id):
         return jsonify({'success': True, 'cancel_at_period_end': False, 'demo_note': 'Demo server subscriptions cannot be modified.'})
         
     try:
-        guild, access_level = verify_guild_access(user_session, guild_id)
-        if not guild or access_level != 'admin':
-            return jsonify({'success': False, 'error': 'Admin access required'}), 403
-            
+        # access_level verified by @require_server_owner
         with get_db() as conn:
             cursor = conn.execute("SELECT subscription_id FROM server_subscriptions WHERE guild_id = %s AND status IN ('active', 'trialing') AND cancel_at_period_end = TRUE", (int(guild_id),))
             sub_row = cursor.fetchone()
@@ -7939,9 +7997,9 @@ def purchase_select_server(user_session):
         return "<h1>Error</h1><p>Unable to load servers. Please try again.</p><a href='/'>Return Home</a>", 500
 
 @app.route("/purchase/checkout")
-@require_auth
+@require_server_owner
 def purchase_checkout(user_session):
-    """Create Stripe checkout session - SECURITY: Verify admin access before proceeding"""
+    """Create Stripe checkout session - SECURITY: Verify owner access before proceeding"""
     try:
         # Check for purchase intent
         purchase_intent = session.get('purchase_intent')
@@ -7954,21 +8012,6 @@ def purchase_checkout(user_session):
         
         if not guild_id:
             return "<h1>Error</h1><p>No server selected.</p><a href='/purchase/select_server'>Go Back</a>", 400
-        
-        # CRITICAL SECURITY: Verify user has admin access to this guild
-        all_guilds = user_session.get('guilds', [])
-        authorized_guild = None
-        
-        for guild in all_guilds:
-            if guild.get('id') == guild_id:
-                # Check admin permissions
-                if user_has_admin_access(user_session['user_id'], guild_id, guild):
-                    authorized_guild = guild
-                    break
-        
-        if not authorized_guild:
-            app.logger.error(f"Unauthorized checkout attempt for guild {guild_id} by user {user_session.get('user_id')}")
-            return "<h1>Access Denied</h1><p>You do not have admin permissions for this server.</p><a href='/purchase/select_server'>Go Back</a>", 403
         
         # SECURITY: Verify bot is present in the guild
         bot_guild_ids = get_bot_guild_ids()

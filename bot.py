@@ -5601,7 +5601,7 @@ async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) ->
 # OWNER-ONLY SUPER ADMIN COMMANDS (Only visible to bot owner)
 # =============================================================================
 
-@tree.command(name="setup_demo_roles", description="[ADMIN] Post the demo role switcher message")
+@tree.command(name="setup_demo_roles", description="[OWNER] Post the demo role switcher message")
 @app_commands.default_permissions(administrator=True)
 @app_commands.guild_only()
 async def setup_demo_roles_command(interaction: discord.Interaction):
@@ -5609,6 +5609,9 @@ async def setup_demo_roles_command(interaction: discord.Interaction):
     Posts a persistent message with buttons for users to switch between Admin and Employee roles.
     Only works on the demo server. Admins use this to set up the role switcher.
     """
+    if interaction.user.id != interaction.guild.owner_id and interaction.user.id != BOT_OWNER_ID:
+        await interaction.response.send_message("❌ This command is strictly locked to the Server Owner.", ephemeral=True)
+        return
     import time
     execution_id = f"{interaction.user.id}-{int(time.time() * 1000)}"
     print(f"🎭 [SETUP_DEMO_ROLES] Execution ID: {execution_id} - Command invoked by {interaction.user} in guild {interaction.guild_id}")
