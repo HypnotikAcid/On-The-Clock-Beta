@@ -572,6 +572,38 @@ def run_migrations():
                 cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE")
                 cur.execute("ALTER TABLE server_subscriptions ADD COLUMN IF NOT EXISTS current_period_end BIGINT")
 
+                # 26. Layer 2: Role Syncing
+                print("   Checking for role sync columns in guild_settings")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS role_id_clocked_in BIGINT")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS role_id_clocked_out BIGINT")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS enable_role_sync BOOLEAN DEFAULT FALSE")
+
+                # 27. Layer 2: Limits - max_shift_hours
+                print("   Checking for max_shift_hours in guild_settings")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS max_shift_hours INTEGER DEFAULT 16")
+
+                # 28. Layer 2: Timezone Enforcement
+                print("   Checking for timezone in guild_settings")
+                cur.execute("ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'America/New_York'")
+                cur.execute("ALTER TABLE guild_settings ALTER COLUMN timezone SET DEFAULT 'America/New_York'")
+
+                # 29. Layer 2: Error Logs Table
+                print("   Checking table: error_logs")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS error_logs (
+                        id SERIAL PRIMARY KEY,
+                        guild_id BIGINT,
+                        user_id BIGINT,
+                        component VARCHAR(50),
+                        error_type VARCHAR(50),
+                        error_message TEXT,
+                        stack_trace TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_error_logs_guild ON error_logs(guild_id)")
+
         _migrations_run = True
         print("✅ Database schema is up to date")
         return True

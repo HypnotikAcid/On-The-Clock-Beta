@@ -12,6 +12,8 @@
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `migrations.py` - 2026-02-25 - Gemini (Layer 2: The Database Foundation)
+- `app.py` - 2026-02-25 - Gemini (Layer 2: The Database Foundation)
 - `app.py` - 2026-02-25 - Gemini (Layer 1: Security & Hierarchy Core)
 - `bot.py` - 2026-02-25 - Gemini (Layer 1: Security & Hierarchy Core)
 - `app.py` - 2026-02-23 - Gemini (Completed Phases 1-10)
