@@ -173,3 +173,8 @@
 ## AI Pre-Flight Architecture Audit
 - **The Problem**: Future AIs might start building Javascript UI components or Python `/cogs` without realizing the database is fundamentally broken, or that IDOR exploits exist on the API they are hooking into.
 - **The Solution**: Before building ANY new feature, the AI Agent must physically read `docs/ai_pre_flight_audit.md` and complete the 5 Pillar integrity sweeps against the existing backend.
+
+## Flask to Bot DB Bridge Anti-Pattern (2026-02-26)
+- **The Problem**: Flask routes calling `bot.py` functions that use `db()` (the bot's connection pool) cause deadlocks resulting in `[CRITICAL] WORKER TIMEOUT` in Gunicorn.
+- **The Solution**: Flask routes must NEVER call `bot.py` functions that use `db()`. Flask routes must use Flask's own DB connection directly via `with get_db() as conn:`.
+- **Pattern**: The `_get_bot_func()` bridge is ONLY safe for non-DB bot operations, such as Discord API calls, or simple tier checks that don't open a database connection.

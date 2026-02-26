@@ -8458,7 +8458,44 @@ def api_get_employees_for_calendar(user_session, guild_id):
     Returns employees from profiles and sessions tables.
     """
     try:
-        employees = get_employees_for_calendar(int(guild_id))
+        employees = []
+        seen_users = set()
+        
+        with get_db() as conn:
+            # First, get employees from employee_profiles for this guild
+            cursor = conn.execute("""
+                SELECT DISTINCT user_id, display_name, full_name
+                FROM employee_profiles
+                WHERE guild_id = %s
+                ORDER BY COALESCE(display_name, full_name, user_id::text)
+            """, (str(guild_id),))
+            
+            for row in cursor.fetchall():
+                user_id = str(row['user_id'])
+                if user_id not in seen_users:
+                    seen_users.add(user_id)
+                    employees.append({
+                        'user_id': user_id,
+                        'display_name': row['display_name'] or row['full_name'] or f"User {user_id}"
+                    })
+            
+            # Also get any users with sessions who might not be in employee_profiles
+            cursor = conn.execute("""
+                SELECT DISTINCT s.user_id, p.display_name, p.full_name
+                FROM timeclock_sessions s
+                LEFT JOIN employee_profiles p ON s.user_id = p.user_id AND s.guild_id = p.guild_id
+                WHERE s.guild_id = %s
+                ORDER BY COALESCE(p.display_name, p.full_name, s.user_id::text)
+            """, (str(guild_id),))
+            
+            for row in cursor.fetchall():
+                user_id = str(row['user_id'])
+                if user_id not in seen_users:
+                    seen_users.add(user_id)
+                    employees.append({
+                        'user_id': user_id,
+                        'display_name': row.get('display_name') or row.get('full_name') or f"User {user_id}"
+                    })
         
         return jsonify({
             'success': True,
@@ -8583,7 +8620,15 @@ def api_get_pending_adjustments(user_session, guild_id):
         # Verify admin access (already checked by decorator, but good to be explicit)
         # In a real app, we might want to restrict this further to specific roles
         
-        requests = get_pending_adjustments(int(guild_id))
+        with get_db() as conn:
+            cursor = conn.execute("""
+                SELECT r.*, u.display_name, u.full_name, u.avatar_url 
+                FROM time_adjustment_requests r 
+                LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id 
+                WHERE r.guild_id = %s AND r.status = 'pending' 
+                ORDER BY r.created_at DESC
+            """, (int(guild_id),))
+            requests = cursor.fetchall()
         
         # Convert datetime objects to ISO strings for JSON serialization
         serialized_requests = []
@@ -8826,12 +8871,27 @@ def api_get_adjustment_history(user_session, guild_id):
         if not is_admin and target_user_id != viewer_user_id:
             target_user_id = viewer_user_id
         
-        if is_admin and not requested_user_id:
-            # Admin viewing all - get all history
-            adjustment_requests = get_all_adjustment_history(int(guild_id))
-        else:
-            # Get specific user's history
-            adjustment_requests = get_user_adjustment_history(int(guild_id), target_user_id)
+        with get_db() as conn:
+            if is_admin and not requested_user_id:
+                # Admin viewing all - get all history
+                cursor = conn.execute("""
+                    SELECT r.*, u.display_name, u.full_name, u.avatar_url 
+                    FROM time_adjustment_requests r 
+                    LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id 
+                    WHERE r.guild_id = %s 
+                    ORDER BY r.created_at DESC LIMIT 100
+                """, (int(guild_id),))
+            else:
+                # Get specific user's history
+                cursor = conn.execute("""
+                    SELECT r.*, u.display_name, u.full_name, u.avatar_url 
+                    FROM time_adjustment_requests r 
+                    LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id 
+                    WHERE r.guild_id = %s AND r.user_id = %s
+                    ORDER BY r.created_at DESC LIMIT 100
+                """, (int(guild_id), target_user_id))
+                
+            adjustment_requests = cursor.fetchall()
         
         serialized_requests = []
         for req in adjustment_requests:
