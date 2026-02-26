@@ -1633,6 +1633,33 @@
                 </div>
             </div>
 
+            <!-- FEATURE FLAGS PANEL -->
+            <div class="neon-box" style="margin-top: 24px;">
+                <div class="box-title"><span>🧪</span> Feature Flags</div>
+                <div class="collapsible-content" style="padding: 0;">
+                    <p style="color: #8B949E; margin-bottom: 20px;">Toggle experimental features globally.</p>
+                    
+                    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(30,35,45,0.4); border-radius: 8px;">
+                        <div>
+                            <strong style="color: #C9D1D9;">V2 UI (Neon Cyber)</strong>
+                            <p style="color: #8B949E; font-size: 12px; margin-top: 4px;">Enable the new user interface redesign across Landing, Dashboard, and Kiosk.</p>
+                        </div>
+                        
+                        <!-- Toggle Switch -->
+                        <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 24px;">
+                            <input type="checkbox" id="v2UiToggle" onchange="toggleFeatureFlag('v2_ui', this.checked)" {% if feature_flags and feature_flags.get('v2_ui') %}checked{% endif %} style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,107,107,0.3); transition: .4s; border-radius: 34px; border: 1px solid rgba(255,107,107,0.5);"></span>
+                        </label>
+                        <style>
+                            .switch input:checked + .slider { background-color: rgba(52,211,153,0.3); border-color: rgba(52,211,153,0.5); }
+                            .switch input:focus + .slider { box-shadow: 0 0 1px rgba(52,211,153,0.5); }
+                            .switch input + .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 3px; background-color: #C9D1D9; transition: .4s; border-radius: 50%; }
+                            .switch input:checked + .slider:before { transform: translateX(24px); background-color: #34D399; }
+                        </style>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- [TAB] DIAGNOSTICS -->
@@ -2923,6 +2950,31 @@
             });
             const targetPane = document.getElementById('tab-' + tabId);
             if (targetPane) targetPane.classList.add('active');
+        }
+    </script>
+
+    <script>
+        async function toggleFeatureFlag(flagName, isEnabled) {
+            try {
+                const response = await fetch('/api/owner/feature-flags/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ flag_name: flagName, is_enabled: isEnabled })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showNotification('Success', `Feature ${flagName} is now ${isEnabled ? 'ENABLED' : 'DISABLED'}. Reloading...`, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showNotification('Error', result.error, 'error');
+                    // Revert switch visually
+                    document.getElementById('v2UiToggle').checked = !isEnabled;
+                }
+            } catch (e) {
+                showNotification('Error', 'Failed to toggle feature flag.', 'error');
+                document.getElementById('v2UiToggle').checked = !isEnabled;
+            }
         }
     </script>
 </body>

@@ -64,6 +64,25 @@ def run_migrations():
                     ON time_adjustment_requests(guild_id, status)
                 """)
 
+                # 1.5 Create global_feature_flags table
+                print("   Checking table: global_feature_flags")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS global_feature_flags (
+                        flag_name VARCHAR(50) PRIMARY KEY,
+                        is_enabled BOOLEAN DEFAULT FALSE,
+                        description TEXT,
+                        updated_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_by BIGINT
+                    )
+                """)
+                
+                # Insert the v2_ui flag if it doesn't exist (default to OFF)
+                cur.execute("""
+                    INSERT INTO global_feature_flags (flag_name, is_enabled, description)
+                    VALUES ('v2_ui', FALSE, 'Enable the new V2 Neon Cyber UI globally (primarily for testing)')
+                    ON CONFLICT (flag_name) DO NOTHING
+                """)
+
                 # 2. Create user_preferences table
                 print("   Checking table: user_preferences")
                 cur.execute("""

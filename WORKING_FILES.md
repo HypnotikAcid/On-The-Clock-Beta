@@ -12,12 +12,14 @@
 - `templates/kiosk.html` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
 - `templates/dashboard_pages/admin_calendar.html` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
 - `templates/dashboard_employee_profile.html` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
-- `app.py` - Gemini - 2026-02-25 - Layer 5: Frontend Visuals
 
 ---
 
 ## 🔓 Recently Released
 (Format: `file_path` - Released - Agent)
+- `app.py` - 2026-02-26 - Gemini (V2 UI Feature Flag)
+- `migrations.py` - 2026-02-26 - Gemini (V2 UI Feature Flag)
+- `templates/owner_dashboard.html` - 2026-02-26 - Gemini (V2 UI Feature Flag)
 - `scheduler.py` - 2026-02-25 - Gemini (Layer 4: Backend API & Webhook Integration)
 - `app.py` - 2026-02-25 - Gemini (Layer 4: Backend API & Webhook Integration)
 - `bot.py` - 2026-02-25 - Gemini (Layer 4: Backend API & Webhook Integration)

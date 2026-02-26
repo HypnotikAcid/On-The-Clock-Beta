@@ -9965,9 +9965,78 @@ def docs_hub(page="getting-started"):
 # Application Entry Point
 # ============================================
 
+def is_v2_ui_enabled_for_user(user_session):
+    """Check if the V2 UI feature flag is enabled AND the user is the owner."""
+    if not user_session:
+        return False
+        
+    # 1. Verify user is the bot owner
+    owner_ids = [int(id.strip()) for id in os.environ.get("OWNER_IDS", "").split(",") if id.strip().isdigit()]
+    if int(user_session.get('user_id', 0)) not in owner_ids:
+        return False
+
+    # 2. Check if the global flag is turned on
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("SELECT is_enabled FROM global_feature_flags WHERE flag_name = 'v2_ui'")
+            row = cursor.fetchone()
+            return row['is_enabled'] if row else False
+    except Exception as e:
+        app.logger.error(f"Error checking v2_ui flag: {e}")
+        return False
+
 # ============================================
-# KIOSK CONTROL CENTER ROUTES
+# PUBLIC ROUTES
 # ============================================
+
+@app.route("/")
+def index():
+    user_session = get_user_session(request.cookies.get('session_id'))
+    if is_v2_ui_enabled_for_user(user_session):
+        # Fallback to the old landing page until the V2 files exist
+        pass # We will return render_template("v2/landing.html") when ready.
+
+    return render_template("landing.html")
+
+# ============================================
+# API ENDPOINTS & ROUTES
+# ============================================
+
+@app.route("/api/owner/feature-flags/toggle", methods=["POST"])
+@require_auth
+def api_toggle_feature_flag(user_session):
+    # Verify owner (must be bot owner ID from env or similar strict check)
+    owner_ids = [int(id.strip()) for id in os.environ.get("OWNER_IDS", "").split(",") if id.strip().isdigit()]
+    if int(user_session.get('user_id', 0)) not in owner_ids:
+         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    flag_name = data.get('flag_name')
+    is_enabled = bool(data.get('is_enabled', False))
+
+    if flag_name != 'v2_ui':
+        return jsonify({'success': False, 'error': 'Invalid flag'}), 400
+
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                UPDATE global_feature_flags 
+                SET is_enabled = %s, updated_at = NOW(), updated_by = %s
+                WHERE flag_name = %s
+            """, (is_enabled, user_session['user_id'], flag_name))
+            
+            # If the row doesn't exist for some reason, insert it
+            if conn.rowcount == 0:
+                 conn.execute("""
+                    INSERT INTO global_feature_flags (flag_name, is_enabled, updated_by)
+                    VALUES (%s, %s, %s)
+                """, (flag_name, is_enabled, user_session['user_id']))
+
+        app.logger.info(f"Owner {user_session['user_id']} set flag {flag_name} to {is_enabled}")
+        return jsonify({'success': True, 'flag_name': flag_name, 'is_enabled': is_enabled})
+    except Exception as e:
+        app.logger.error(f"Error toggling flag: {e}")
+        return jsonify({'success': False, 'error': 'Database error'}), 500
 
 @app.route("/kiosk/<guild_id>")
 @require_kiosk_access
