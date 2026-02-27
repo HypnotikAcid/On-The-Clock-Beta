@@ -2253,11 +2253,11 @@ async def fetch_formatted_employee_name(bot, guild_id, user_id):
         name_format = row['report_name_format'] if row and row.get('report_name_format') else 'full_name'
         
         # Get profile data
-        cursor = conn.execute("SELECT full_name, display_name FROM employee_profiles WHERE guild_id = %s AND user_id = %s", (guild_id, user_id))
+        cursor = conn.execute("SELECT first_name, last_name FROM employee_profiles WHERE guild_id = %s AND user_id = %s", (guild_id, user_id))
         emp_row = cursor.fetchone()
         
-    db_full_name = emp_row['full_name'] if emp_row and emp_row.get('full_name') else None
-    db_display_name = emp_row['display_name'] if emp_row and emp_row.get('display_name') else None
+    db_full_name = emp_row['last_name'] if emp_row and emp_row.get('last_name') else None
+    db_display_name = emp_row['first_name'] if emp_row and emp_row.get('first_name') else None
     
     # Format 1: Raw ID
     if name_format == 'user_id_only':
@@ -6928,7 +6928,7 @@ async def handle_prune_ghosts(request: web.Request):
         
         with db() as conn:
             # Only pull active employees
-            cursor = conn.execute("SELECT user_id, display_name FROM employee_profiles WHERE guild_id = %s AND is_active = TRUE", (guild_id,))
+            cursor = conn.execute("SELECT user_id, first_name AS display_name FROM employee_profiles WHERE guild_id = %s AND is_active = TRUE", (guild_id,))
             active_employees = cursor.fetchall()
             
             for emp in active_employees:
@@ -6979,7 +6979,7 @@ async def handle_send_onboarding(request: web.Request):
         # Get all employee profiles for this guild
         with db() as conn:
             cursor = conn.execute("""
-                SELECT user_id, display_name, full_name FROM employee_profiles
+                SELECT user_id, first_name AS display_name, last_name AS full_name FROM employee_profiles
                 WHERE guild_id = %s AND is_active = TRUE
             """, (guild_id,))
             employees = cursor.fetchall()

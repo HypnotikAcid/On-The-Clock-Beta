@@ -3791,11 +3791,9 @@ def seed_demo_data_internal():
             # 1. Seed Employees
             for emp in demo_employees:
                 conn.execute("""
-                    INSERT INTO employee_profiles (guild_id, user_id, display_name, full_name, first_name, last_name, email, position, department, company_role, bio, role_tier, is_active, profile_setup_completed, hire_date, accent_color, profile_background)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE, %s, %s, %s)
+                    INSERT INTO employee_profiles (guild_id, user_id, first_name, last_name, email, position, department, company_role, bio, role_tier, is_active, profile_setup_completed, hire_date, accent_color, profile_background)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE, %s, %s, %s)
                     ON CONFLICT (guild_id, user_id) DO UPDATE SET 
-                        display_name = EXCLUDED.display_name, 
-                        full_name = EXCLUDED.full_name, 
                         first_name = EXCLUDED.first_name, 
                         last_name = EXCLUDED.last_name, 
                         email = EXCLUDED.email, 
@@ -10844,11 +10842,11 @@ def api_kiosk_send_shift_email(guild_id):
             
             # Get employee name
             cursor = conn.execute("""
-                SELECT display_name, first_name FROM employee_profiles
+                SELECT first_name, last_name FROM employee_profiles
                 WHERE guild_id = %s AND user_id = %s
             """, (str(guild_id), str(user_id)))
             emp_row = cursor.fetchone()
-            emp_name = emp_row['first_name'] or emp_row['display_name'] if emp_row else 'Employee'
+            emp_name = emp_row['first_name'] or emp_row['last_name'] if emp_row else 'Employee'
             
             # Get the session details
             if session_id:
