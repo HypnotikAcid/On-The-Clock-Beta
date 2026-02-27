@@ -2975,13 +2975,16 @@ def owner_dashboard(user_session):
                     'amount_cents': row['amount_cents'],
                     'purchased_at': row['purchased_at']
                 })
+            cursor = conn.execute("SELECT flag_name, is_enabled FROM global_feature_flags")
+            feature_flags = {row['flag_name']: row['is_enabled'] for row in cursor.fetchall()}
         
         return render_template('owner_dashboard.html', 
                              user=user_session,
                              servers=servers,
                              webhook_events=webhook_events,
                              purchase_history=purchase_history,
-                             stats=stats)
+                             stats=stats,
+                             feature_flags=feature_flags)
     
     except Exception as e:
         app.logger.error(f"Owner dashboard error: {str(e)}")
@@ -3057,6 +3060,8 @@ def owner_dashboard_paid(user_session):
                 'total_active_sessions': sum(s['active_sessions'] for s in servers),
                 'departed_unpaid_servers': 0
             }
+            cursor = conn.execute("SELECT flag_name, is_enabled FROM global_feature_flags")
+            feature_flags = {row['flag_name']: row['is_enabled'] for row in cursor.fetchall()}
         
         return render_template('owner_dashboard.html', 
                              user=user_session,
@@ -3064,7 +3069,8 @@ def owner_dashboard_paid(user_session):
                              webhook_events=[],
                              purchase_history=[],
                              stats=stats,
-                             filter_mode='paid')
+                             filter_mode='paid',
+                             feature_flags=feature_flags)
     
     except Exception as e:
         app.logger.error(f"Owner paid dashboard error: {str(e)}")
@@ -3140,6 +3146,8 @@ def owner_dashboard_unpaid(user_session):
                 'total_active_sessions': sum(s['active_sessions'] for s in servers),
                 'departed_unpaid_servers': 0
             }
+            cursor = conn.execute("SELECT flag_name, is_enabled FROM global_feature_flags")
+            feature_flags = {row['flag_name']: row['is_enabled'] for row in cursor.fetchall()}
         
         return render_template('owner_dashboard.html', 
                              user=user_session,
@@ -3147,7 +3155,8 @@ def owner_dashboard_unpaid(user_session):
                              webhook_events=[],
                              purchase_history=[],
                              stats=stats,
-                             filter_mode='unpaid')
+                             filter_mode='unpaid',
+                             feature_flags=feature_flags)
     
     except Exception as e:
         app.logger.error(f"Owner unpaid dashboard error: {str(e)}")
@@ -8465,10 +8474,10 @@ def api_get_employees_for_calendar(user_session, guild_id):
         with get_db() as conn:
             # First, get employees from employee_profiles for this guild
             cursor = conn.execute("""
-                SELECT DISTINCT user_id, display_name, full_name
+                SELECT DISTINCT user_id, COALESCE(first_name, 'User ' || CAST(user_id AS text)) AS display_name, last_name AS full_name
                 FROM employee_profiles
                 WHERE guild_id = %s
-                ORDER BY COALESCE(display_name, full_name, user_id::text)
+                ORDER BY display_name
             """, (str(guild_id),))
             
             for row in cursor.fetchall():
@@ -8482,11 +8491,11 @@ def api_get_employees_for_calendar(user_session, guild_id):
             
             # Also get any users with sessions who might not be in employee_profiles
             cursor = conn.execute("""
-                SELECT DISTINCT s.user_id, p.display_name, p.full_name
+                SELECT DISTINCT s.user_id, COALESCE(p.first_name, 'User ' || CAST(s.user_id AS text)) AS display_name, p.last_name AS full_name
                 FROM timeclock_sessions s
                 LEFT JOIN employee_profiles p ON s.user_id = p.user_id AND s.guild_id = p.guild_id
                 WHERE s.guild_id = %s
-                ORDER BY COALESCE(p.display_name, p.full_name, s.user_id::text)
+                ORDER BY display_name
             """, (str(guild_id),))
             
             for row in cursor.fetchall():
@@ -8623,7 +8632,7 @@ def api_get_pending_adjustments(user_session, guild_id):
         
         with get_db() as conn:
             cursor = conn.execute("""
-                SELECT r.*, u.display_name, u.full_name, u.avatar_url 
+                SELECT r.*, COALESCE(u.first_name, 'User ' || CAST(r.user_id AS text)) AS display_name, u.last_name AS full_name, u.custom_avatar_url AS avatar_url 
                 FROM time_adjustment_requests r 
                 LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id 
                 WHERE r.guild_id = %s AND r.status = 'pending' 
@@ -8876,7 +8885,7 @@ def api_get_adjustment_history(user_session, guild_id):
             if is_admin and not requested_user_id:
                 # Admin viewing all - get all history
                 cursor = conn.execute("""
-                    SELECT r.*, u.display_name, u.full_name, u.avatar_url 
+                    SELECT r.*, COALESCE(u.first_name, 'User ' || CAST(r.user_id AS text)) AS display_name, u.last_name AS full_name, u.custom_avatar_url AS avatar_url 
                     FROM time_adjustment_requests r 
                     LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id 
                     WHERE r.guild_id = %s 
@@ -8885,7 +8894,7 @@ def api_get_adjustment_history(user_session, guild_id):
             else:
                 # Get specific user's history
                 cursor = conn.execute("""
-                    SELECT r.*, u.display_name, u.full_name, u.avatar_url 
+                    SELECT r.*, COALESCE(u.first_name, 'User ' || CAST(r.user_id AS text)) AS display_name, u.last_name AS full_name, u.custom_avatar_url AS avatar_url 
                     FROM time_adjustment_requests r 
                     LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id 
                     WHERE r.guild_id = %s AND r.user_id = %s
@@ -10032,8 +10041,8 @@ def is_v2_ui_enabled_for_user(user_session):
         return False
         
     # 1. Verify user is the bot owner
-    owner_ids = [int(id.strip()) for id in os.environ.get("OWNER_IDS", "").split(",") if id.strip().isdigit()]
-    if int(user_session.get('user_id', 0)) not in owner_ids:
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if str(user_session.get('user_id', '')) != bot_owner_id:
         return False
 
     # 2. Check if the global flag is turned on
