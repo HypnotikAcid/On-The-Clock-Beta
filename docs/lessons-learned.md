@@ -157,6 +157,16 @@
 - **Fix**: Wrote a dynamic loop in `migrations.py` that executes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for every new schema column, allowing the script to safely patch existing live databases.
 - **Pattern**: Whenever modifying a database schema, updating the `CREATE TABLE` statement is **not enough**. You MUST also provide `ALTER TABLE ADD COLUMN IF NOT EXISTS` statements so that existing legacy databases are successfully patched during the boot migration sequence. Failure to do this will immediately break production on Replit when existing rows are modified or new rows are inserted.
 
+## Duplicate Flask Routes Cause Silent Production Crash Loop (2026-02-27)
+- **Root Cause**: Antigravity agent added new `/` and `/wiki` route handlers without removing the originals. Flask throws `AssertionError` at startup for any duplicate route path, which prevents gunicorn from loading the app entirely. This appears as `WORKER TIMEOUT` → crash loop → `crash loop detected` in deployment logs, with the actual Python exception hidden in truncated log output.
+- **Fix**: Removed the duplicate route definitions. Merged new behavior (V2 UI feature flag check) into the original `index()` function.
+- **Pattern**: Before deploying ANY multi-agent changes that touch `app.py`, always run: `grep "@app.route" app.py | awk -F'"' '{print $2}' | sort | uniq -d` to check for duplicates. The production crash gives no obvious indication of the cause — only raw gunicorn tracebacks ending at `self.callable = self.load()` with the actual Python error truncated by the log system.
+
+## Bot-Bridge DB Calls Cause Worker Timeout (2026-02-27)
+- **Root Cause**: Flask API routes that called bot.py functions (via `_get_bot_func()`) which used the bot's own `db()` connection pool caused Gunicorn worker timeouts. Flask's single sync worker blocks when calling into the bot's DB pool from a sync thread, eventually timing out after 120s.
+- **Fix**: Rewrote those routes to use Flask's own `get_db()` connection pool with direct SQL queries, bypassing the bot bridge entirely.
+- **Pattern**: Flask routes must NEVER call bot.py functions that use `db()`. Flask routes must always use Flask's own `get_db()` directly. The `_get_bot_func()` bridge is only safe for non-DB bot operations (Discord API calls, tier checks that don't open connections).
+
 ## Atomic Layering vs Monolithic Feature Phases (Architectural Standard)
 - **The Problem**: Building an entire vertical feature (Database + Backend + Webhooks + Discord Commands + Javascript UI) in a single massive "Phase" introduces extreme regression risk. If one layer fails, it masks bugs in the others.
 - **The Solution (Atomic Slicing)**: Break large feature sets down into horizontal, atomic layers. Build Layer 1 (Security Hooks), test it. Build Layer 2 (Database Migrations), test it. Build Layer 3 (Backend API), test it. Build Layer 4 (Javascript UI), test it.

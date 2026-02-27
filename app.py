@@ -1983,17 +1983,12 @@ def upgrade_vanity():
     """Vanity URL for bot commands pointing to server upgrade flow"""
     return redirect(url_for('purchase_init', product_type='premium'))
 
-@app.route("/wiki")
-def wiki():
-    """Render the official web wiki."""
-    return render_template("wiki.html",
-                           domain=get_domain(),
-                           client_id=DISCORD_CLIENT_ID)
-
-
 @app.route("/")
 def index():
     """Landing page with bot info, features, and upgrade links."""
+    user_session = get_user_session(request.cookies.get('session_id'))
+    if is_v2_ui_enabled_for_user(user_session):
+        pass  # return render_template("v2/landing.html") when V2 files exist
     try:
         with open('public_roadmap.json', 'r') as f:
             version_info = json.load(f)
@@ -10048,15 +10043,6 @@ def is_v2_ui_enabled_for_user(user_session):
 # ============================================
 # PUBLIC ROUTES
 # ============================================
-
-@app.route("/")
-def index():
-    user_session = get_user_session(request.cookies.get('session_id'))
-    if is_v2_ui_enabled_for_user(user_session):
-        # Fallback to the old landing page until the V2 files exist
-        pass # We will return render_template("v2/landing.html") when ready.
-
-    return render_template("landing.html")
 
 # ============================================
 # API ENDPOINTS & ROUTES
