@@ -167,6 +167,16 @@
 - **Fix**: Rewrote those routes to use Flask's own `get_db()` connection pool with direct SQL queries, bypassing the bot bridge entirely.
 - **Pattern**: Flask routes must NEVER call bot.py functions that use `db()`. Flask routes must always use Flask's own `get_db()` directly. The `_get_bot_func()` bridge is only safe for non-DB bot operations (Discord API calls, tier checks that don't open connections).
 
+## Template Errors Masquerade as Auth Loops (2026-02-27)
+- **Root Cause**: `require_auth` wraps protected routes and catches ALL exceptions — including Jinja2 template syntax errors. When a template fails to render, the exception is silently swallowed and the user is redirected to Discord login, producing a convincing but misleading "auth loop."
+- **Fix**: Check deployment logs for `Authentication error:` entries BEFORE assuming OAuth is broken. The actual exception type and traceback follow immediately in the log. In this case: `Authentication error: unexpected '}'` pointed directly to a missing `}}` in `dashboard_base.html`.
+- **Pattern**: After editing any template, validate it with `python3 -c "from jinja2 import Environment; env = Environment(); env.parse(open('templates/YOUR_TEMPLATE.html').read())"`. An exit with no output means the template is valid. Always run this before deploying template changes.
+- **Secondary Issue Found**: The same Antigravity commit had a broken `DOMContentLoaded` structure — the `hasCompletedOnboarding` const was declared inside the callback but the `if` block that used it was placed outside, putting a `const` variable out of scope. When adding code inside a `document.addEventListener('DOMContentLoaded', ...)` block, verify the closing `});` is at the very end of the logical block.
+
+## Committed-but-Undeployed Fixes Still Cause Production Outages (2026-02-27)
+- **Root Cause**: Antigravity correctly fixed the `resolved` column migration but never published the deployment. The git commit existed but the production environment never received it. A subsequent publish by another session pushed BOTH the column fix AND a new template bug together.
+- **Pattern**: After any agent commits a critical fix, explicitly verify a new deployment has been triggered. Compare the timestamp of the last git commit against the timestamp of the last "Published your App" checkpoint. If commit is newer than publish, the fix is not live.
+
 ## Atomic Layering vs Monolithic Feature Phases (Architectural Standard)
 - **The Problem**: Building an entire vertical feature (Database + Backend + Webhooks + Discord Commands + Javascript UI) in a single massive "Phase" introduces extreme regression risk. If one layer fails, it masks bugs in the others.
 - **The Solution (Atomic Slicing)**: Break large feature sets down into horizontal, atomic layers. Build Layer 1 (Security Hooks), test it. Build Layer 2 (Database Migrations), test it. Build Layer 3 (Backend API), test it. Build Layer 4 (Javascript UI), test it.
