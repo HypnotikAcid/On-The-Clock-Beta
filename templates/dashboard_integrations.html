@@ -137,9 +137,12 @@
                         testBtn.style.display = 'flex';
                     }
                 } else {
-                    logChannelSelect.innerHTML = '<option value="">Failed to load channels</option>';
-                    reportChannelSelect.innerHTML = '<option value="">Failed to load channels</option>';
+                    logChannelSelect.innerHTML = '<option value="">' + (data.error || 'Failed to load channels - Bot Offline') + '</option>';
+                    reportChannelSelect.innerHTML = '<option value="">' + (data.error || 'Failed to load channels - Bot Offline') + '</option>';
                 }
+            } else {
+                logChannelSelect.innerHTML = '<option value="">Error ' + response.status + ' - Backend Offline</option>';
+                reportChannelSelect.innerHTML = '<option value="">Error ' + response.status + ' - Backend Offline</option>';
             }
         } catch (error) {
             console.error('Error fetching channels:', error);
