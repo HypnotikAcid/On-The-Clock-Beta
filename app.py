@@ -6548,9 +6548,15 @@ def api_save_server_settings(user_session, guild_id):
         if 'discord_log_channel_id' in data:
             val = data['discord_log_channel_id']
             updates['discord_log_channel_id'] = str(val) if val else None
+        elif 'log_channel_id' in data:
+            val = data['log_channel_id']
+            updates['discord_log_channel_id'] = str(val) if val else None
 
         if 'discord_report_channel_id' in data:
             val = data['discord_report_channel_id']
+            updates['discord_report_channel_id'] = str(val) if val else None
+        elif 'report_channel_id' in data:
+            val = data['report_channel_id']
             updates['discord_report_channel_id'] = str(val) if val else None
                 
         if 'auto_prune_logs_days' in data:
