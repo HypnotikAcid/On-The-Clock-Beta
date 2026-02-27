@@ -23,7 +23,7 @@
 
 ## 📝 Rules
 - Follow "Neon Cyber" theme (Cyan #00FFFF, Matrix rain).
-- Check `docs/lessons-learned.md` before any code changes.
+- Check `docs/lessons-learned.md` and `docs/architecture_manifesto.md` before any code changes.
 - Always verify accessibility (`aria-hidden="true"` on decor).
 - Commit after significant changes (CLI doesn't auto-commit).
 
