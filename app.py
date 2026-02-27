@@ -10051,10 +10051,10 @@ def is_v2_ui_enabled_for_user(user_session):
 @app.route("/api/owner/feature-flags/toggle", methods=["POST"])
 @require_auth
 def api_toggle_feature_flag(user_session):
-    # Verify owner (must be bot owner ID from env or similar strict check)
-    owner_ids = [int(id.strip()) for id in os.environ.get("OWNER_IDS", "").split(",") if id.strip().isdigit()]
-    if int(user_session.get('user_id', 0)) not in owner_ids:
-         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    # Verify owner (must be bot owner ID from env)
+    bot_owner_id = os.getenv("BOT_OWNER_ID", "107103438139056128")
+    if str(user_session.get('user_id', '')) != bot_owner_id:
+         return jsonify({'success': False, 'error': 'Unauthorized - Bot owner access required'}), 403
 
     data = request.get_json()
     flag_name = data.get('flag_name')
