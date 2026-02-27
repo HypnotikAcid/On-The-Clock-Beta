@@ -1,0 +1,235 @@
+# Database Schema Reference
+
+**CRITICAL AI INSTRUCTION:** Before writing or modifying *any* raw SQL queries in this codebase, you MUST consult this document to verify the correct column names. Do not guess or assume column names (e.g., do not guess `display_name` if the table only has `first_name`).
+
+## Tables
+
+### `time_adjustment_requests`
+- `id` (SERIAL PRIMARY KEY)
+- `guild_id` (BIGINT NOT NULL)
+- `user_id` (BIGINT NOT NULL)
+- `request_type` (TEXT NOT NULL)
+- `original_session_id` (INTEGER)
+- `original_clock_in` (TIMESTAMPTZ)
+- `original_clock_out` (TIMESTAMPTZ)
+- `original_duration` (INTEGER)
+- `requested_clock_in` (TIMESTAMPTZ)
+- `requested_clock_out` (TIMESTAMPTZ)
+- `reason` (TEXT)
+- `status` (TEXT NOT NULL DEFAULT 'pending')
+- `reviewed_by` (BIGINT)
+- `reviewed_at` (TIMESTAMPTZ)
+- `created_at` (TIMESTAMPTZ DEFAULT NOW())
+- `session_date` (DATE)
+- `admin_notes` (TEXT)
+- `calculated_duration` (INTEGER)
+- `source` (VARCHAR(50) DEFAULT 'dashboard')
+
+### `global_feature_flags`
+- `flag_name` (VARCHAR(50) PRIMARY KEY)
+- `is_enabled` (BOOLEAN DEFAULT FALSE)
+- `description` (TEXT)
+- `updated_at` (TIMESTAMPTZ DEFAULT NOW())
+- `updated_by` (BIGINT)
+
+### `user_preferences`
+- `user_id` (BIGINT PRIMARY KEY)
+- `dashboard_timezone` (TEXT)
+- `timezone_configured` (BOOLEAN DEFAULT FALSE)
+- `created_at` (TIMESTAMPTZ DEFAULT NOW())
+- `updated_at` (TIMESTAMPTZ DEFAULT NOW())
+
+### `adjustment_audit_log`
+- `id` (SERIAL PRIMARY KEY)
+- `request_id` (INTEGER REFERENCES time_adjustment_requests(id))
+- `action` (TEXT NOT NULL)
+- `actor_id` (BIGINT NOT NULL)
+- `timestamp` (TIMESTAMPTZ DEFAULT NOW())
+- `details` (JSONB)
+
+### `employee_profiles`
+- `id` (SERIAL PRIMARY KEY)
+- `guild_id` (BIGINT NOT NULL)
+- `user_id` (BIGINT NOT NULL)
+- `role_tier` (VARCHAR(20) DEFAULT 'employee')
+- `first_name` (VARCHAR(100))
+- `last_name` (VARCHAR(100))
+- `date_of_birth` (DATE)
+- `email` (VARCHAR(255))
+- `bio` (TEXT)
+- `avatar_choice` (VARCHAR(50) DEFAULT 'random')
+- `custom_avatar_url` (TEXT)
+- `company_role` (VARCHAR(100))
+- `show_last_seen` (BOOLEAN DEFAULT TRUE)
+- `show_discord_status` (BOOLEAN DEFAULT TRUE)
+- `email_timesheets` (BOOLEAN DEFAULT FALSE)
+- `timesheet_email` (VARCHAR(255))
+- `hire_date` (TIMESTAMPTZ DEFAULT NOW())
+- `last_seen_discord` (TIMESTAMPTZ)
+- `profile_setup_completed` (BOOLEAN DEFAULT FALSE)
+- `profile_sent_on_first_clockin` (BOOLEAN DEFAULT FALSE)
+- `is_active` (BOOLEAN DEFAULT TRUE)
+- `updated_at` (TIMESTAMPTZ DEFAULT NOW())
+- `full_name` (VARCHAR(200)) # Note: Duplicate of first_name + last_name, use first_name/last_name preferred.
+- `display_name` (VARCHAR(100)) # Note: Highly deprecated in this codebase, use first_name preferred.
+- `avatar_url` (TEXT) # Note: Duplicate of custom_avatar_url
+- `position` (VARCHAR(100))
+- `department` (VARCHAR(100))
+- `discord_status` (VARCHAR(20) DEFAULT 'offline')
+- `phone` (VARCHAR(50))
+- `profile_background` (VARCHAR(50) DEFAULT 'default')
+- `accent_color` (VARCHAR(50) DEFAULT 'cyan')
+- `catchphrase` (VARCHAR(50))
+- `selected_stickers` (TEXT)
+- `welcome_dm_sent` (BOOLEAN DEFAULT FALSE)
+- `first_clock_used` (BOOLEAN DEFAULT FALSE)
+- `first_clock_at` (TIMESTAMPTZ)
+
+### `employee_profile_tokens`
+- `token` (UUID PRIMARY KEY)
+- `guild_id` (BIGINT NOT NULL)
+- `user_id` (BIGINT NOT NULL)
+- `delivery_method` (VARCHAR(20) DEFAULT 'ephemeral')
+- `created_at` (TIMESTAMPTZ)
+- `expires_at` (TIMESTAMPTZ)
+- `used_at` (TIMESTAMPTZ)
+- `draft_data` (JSONB)
+
+### `employee_archive`
+- `id` (SERIAL PRIMARY KEY)
+- `guild_id` (BIGINT NOT NULL)
+- `user_id` (BIGINT NOT NULL)
+- `profile_snapshot` (JSONB)
+- `hire_date` (TIMESTAMPTZ)
+- `termination_date` (TIMESTAMPTZ DEFAULT NOW())
+- `termination_reason` (VARCHAR(20))
+- `admin_notes` (TEXT)
+- `archived_by` (BIGINT)
+- `reactivated_at` (TIMESTAMPTZ)
+- `reactivated_by` (BIGINT)
+- `created_at` (TIMESTAMPTZ DEFAULT NOW())
+- `original_profile_data` (JSONB)
+- `archived_at` (TIMESTAMPTZ DEFAULT NOW())
+
+### `guild_transfers`
+- `id` (SERIAL PRIMARY KEY)
+- `from_guild_id` (BIGINT NOT NULL)
+- `to_guild_id` (BIGINT NOT NULL)
+- `requested_by` (BIGINT NOT NULL)
+- `fee_paid` (DECIMAL(10,2) DEFAULT 10.00)
+- `transfer_data` (JSONB)
+- `completed_at` (TIMESTAMPTZ)
+- `created_at` (TIMESTAMPTZ DEFAULT NOW())
+
+### `guild_settings`
+- (Multiple columns exist, primarily mapping to configuration properties. Including recent additions:)
+- `broadcast_channel_id` (BIGINT)
+- `kiosk_only_mode` (BOOLEAN DEFAULT FALSE)
+- `allow_kiosk_customization` (BOOLEAN DEFAULT TRUE)
+- `last_demo_reset` (TIMESTAMPTZ)
+- `trial_start_date` (TIMESTAMP DEFAULT NULL)
+- `trial_expired` (BOOLEAN DEFAULT FALSE)
+- `has_completed_onboarding` (BOOLEAN DEFAULT FALSE)
+- `csv_name_format` (VARCHAR(255) DEFAULT 'standard')
+- `discord_log_channel_id` (BIGINT)
+- `discord_report_channel_id` (BIGINT)
+- `auto_prune_logs_days` (INTEGER)
+- `auto_prune_reports_days` (INTEGER)
+- `role_id_clocked_in` (BIGINT)
+- `role_id_clocked_out` (BIGINT)
+- `enable_role_sync` (BOOLEAN DEFAULT FALSE)
+- `max_shift_hours` (INTEGER DEFAULT 16)
+- `timezone` (VARCHAR(50) DEFAULT 'America/New_York')
+- `report_name_format` (VARCHAR(50) DEFAULT 'full_name')
+
+### `server_subscriptions`
+- (Standard stripe columns, plus:)
+- `grant_source` (TEXT)
+- `kiosk_mode_only` (BOOLEAN DEFAULT FALSE)
+- `grandfathered` (BOOLEAN DEFAULT FALSE)
+- `cancel_at_period_end` (BOOLEAN DEFAULT FALSE)
+- `current_period_end` (BIGINT)
+
+### `email_recipients`
+- `id` (SERIAL PRIMARY KEY)
+- `guild_id` (BIGINT NOT NULL)
+- `email` (VARCHAR(255) NOT NULL)
+- `added_by` (BIGINT)
+- `added_at` (TIMESTAMPTZ DEFAULT NOW())
+
+### `employee_pins`
+- `id` (SERIAL PRIMARY KEY)
+- `guild_id` (BIGINT NOT NULL)
+- `user_id` (BIGINT NOT NULL)
+- `pin_hash` (VARCHAR(255) NOT NULL)
+- `created_at` (TIMESTAMPTZ)
+- `updated_at` (TIMESTAMPTZ)
+
+### `report_recipients`
+- `guild_id` (BIGINT)
+- `email` (VARCHAR(255))
+- `verification_status` (VARCHAR(20) DEFAULT 'pending')
+- `verification_code_hash` (VARCHAR(255))
+- `verification_code_sent_at` (TIMESTAMPTZ)
+- `verified_at` (TIMESTAMPTZ)
+- `verification_attempts` (INTEGER DEFAULT 0)
+
+### `email_outbox`
+- `id` (SERIAL PRIMARY KEY)
+- `guild_id` (BIGINT)
+- `email_type` (VARCHAR(50) NOT NULL)
+- `recipients` (TEXT NOT NULL)
+- `subject` (TEXT NOT NULL)
+- `text_content` (TEXT)
+- `html_content` (TEXT)
+- `attachments_json` (TEXT)
+- `context_json` (TEXT)
+- `status` (VARCHAR(20) NOT NULL DEFAULT 'pending')
+- `attempts` (INTEGER DEFAULT 0)
+- `max_attempts` (INTEGER DEFAULT 3)
+- `last_attempt_at` (TIMESTAMPTZ)
+- `last_error` (TEXT)
+- `created_at` (TIMESTAMPTZ DEFAULT NOW())
+- `sent_at` (TIMESTAMPTZ)
+- `next_retry_at` (TIMESTAMPTZ DEFAULT NOW())
+
+### `trial_usage`
+- `id` (SERIAL PRIMARY KEY)
+- `guild_id` (BIGINT NOT NULL UNIQUE)
+- `used_at` (TIMESTAMPTZ DEFAULT NOW())
+- `stripe_coupon_id` (VARCHAR(50))
+- `stripe_checkout_session_id` (VARCHAR(255))
+- `granted_by` (BIGINT)
+- `grant_type` (VARCHAR(20) DEFAULT 'checkout')
+
+### `error_logs`
+- `id` (SERIAL PRIMARY KEY)
+- `guild_id` (BIGINT)
+- `user_id` (BIGINT)
+- `component` (VARCHAR(50))
+- `error_type` (VARCHAR(50))
+- `error_message` (TEXT)
+- `stack_trace` (TEXT)
+- `created_at` (TIMESTAMPTZ DEFAULT NOW())
+- `resolved` (BOOLEAN DEFAULT FALSE)
+
+### `email_settings`
+- `guild_id` (BIGINT)
+- `auto_send_on_clockout` (BOOLEAN)
+- `auto_email_before_delete` (BOOLEAN)
+- `subject_line` (VARCHAR(255))
+- `reply_to_address` (VARCHAR(255))
+- `cc_addresses` (TEXT)
+
+### `owner_settings`
+- `owner_id` (BIGINT PRIMARY KEY)
+- `alert_stripe_failures` (BOOLEAN DEFAULT TRUE)
+- `alert_db_timeouts` (BOOLEAN DEFAULT TRUE)
+- `alert_high_errors` (BOOLEAN DEFAULT TRUE)
+
+### `bot_guilds`
+- `guild_id` (BIGINT PRIMARY KEY)
+- `guild_name` (VARCHAR(255))
+- `joined_at` (TIMESTAMPTZ)
+- `is_present` (BOOLEAN DEFAULT TRUE)
+- `left_at` (TIMESTAMPTZ)

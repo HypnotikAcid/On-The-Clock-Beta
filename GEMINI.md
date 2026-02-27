@@ -15,7 +15,7 @@
 ---
 
 ## 🚀 Agent Roles
-- **Gemini**: You are the primary **UI/Frontend Specialist**.
+- **Gemini**: You are the primary **UI/Frontend Specialist**.()
 - **Claude**: Handles Backend/Database/Logic.
 - **Replit Agent**: Handles Deployment/Publishing.
 
