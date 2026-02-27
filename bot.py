@@ -1016,14 +1016,20 @@ def is_mobile_restricted(guild_id: int) -> bool:
 def is_kiosk_mode_only(guild_id: int) -> bool:
     """Check if the server has enabled Kiosk-Only Mode"""
     try:
-        with db() as conn: # Changed get_db() to db() to match existing code style
-            cursor = conn.execute(
-                "SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = %s",
-                (guild_id,)
+        # Use async DB connection pool
+        return bot.loop.run_until_complete(_check_kiosk_mode(guild_id))
+    except Exception as e:
+        logger.error(f"Error checking kiosk_only_mode for guild {guild_id}: {e}")
+        return False
+
+async def _check_kiosk_mode(guild_id: int) -> bool:
+    try:
+        async with db() as conn:
+            row = await conn.fetchrow(
+                "SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = $1",
+                guild_id
             )
-            result = cursor.fetchone()
-            
-        return bool(result.get('kiosk_only_mode', False)) if result else False
+            return bool(row.get('kiosk_only_mode', False)) if row else False
     except Exception as e:
         logger.error(f"Error checking kiosk_only_mode for guild {guild_id}: {e}")
         return False
@@ -7167,22 +7173,26 @@ async def handle_check_user_admin(request: web.Request):
                 'reason': 'guild_not_found'
             })
         
-        # Fetch the member from Discord API (not just cache)
-        try:
-            member = await guild.fetch_member(user_id)
-        except discord.NotFound:
-            return web.json_response({
-                'success': True,
-                'is_member': False,
-                'is_admin': False,
-                'reason': 'not_member'
-            })
-        except discord.HTTPException as e:
-            print(f"❌ Discord API error fetching member {user_id} in guild {guild_id}: {e}")
-            return web.json_response({
-                'success': False,
-                'error': f'Discord API error: {str(e)}'
-            }, status=500)
+        # Try cache first to avoid Discord API rate limits
+        member = guild.get_member(user_id)
+        
+        # If not in cache, fetch from API
+        if not member:
+            try:
+                member = await guild.fetch_member(user_id)
+            except discord.NotFound:
+                return web.json_response({
+                    'success': True,
+                    'is_member': False,
+                    'is_admin': False,
+                    'reason': 'not_member'
+                })
+            except discord.HTTPException as e:
+                print(f"❌ Discord API error fetching member {user_id} in guild {guild_id}: {e}")
+                return web.json_response({
+                    'success': False,
+                    'error': f'Discord API error: {str(e)}'
+                }, status=500)
         
         # Check if user is owner
         if guild.owner_id == user_id:
