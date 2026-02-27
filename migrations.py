@@ -617,11 +617,15 @@ def run_migrations():
                         error_type VARCHAR(50),
                         error_message TEXT,
                         stack_trace TEXT,
-                        created_at TIMESTAMPTZ DEFAULT NOW()
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        resolved BOOLEAN DEFAULT FALSE
                     )
                 """)
 
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_error_logs_guild ON error_logs(guild_id)")
+                
+                print("   Checking for resolved column in error_logs")
+                cur.execute("ALTER TABLE error_logs ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE")
 
                 # 30. Layer 6: Email Customization
                 print("   Checking for email customization columns in email_settings")
