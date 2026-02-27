@@ -7,8 +7,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app import (
     require_auth, require_kiosk_access, require_kiosk_session, 
     get_flask_guild_access, get_all_user_guilds, is_demo_server, 
-    __version__, CHANGELOG, get_db, verify_guild_access, Entitlements, UserRole, _parse_stickers
+    __version__, CHANGELOG, verify_guild_access, Entitlements, UserRole, _parse_stickers,
+    get_bot, flask_check_bot_access
 )
+from web.utils.db import get_db
 
 kiosk_bp = Blueprint('api_kiosk', __name__)
 @kiosk_bp.route("/kiosk/<guild_id>")

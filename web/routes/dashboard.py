@@ -5,11 +5,12 @@ from flask import Blueprint, render_template, redirect, request, session, jsonif
 
 from app import (
     require_auth, get_flask_guild_access, get_all_user_guilds, is_demo_server, 
-    __version__, CHANGELOG, get_db, verify_guild_access, Entitlements, UserRole
+    __version__, CHANGELOG,  verify_guild_access, Entitlements, UserRole
 )
 
 dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route("/dashboard/invite")
+from web.utils.db import get_db
 def dashboard_invite():
     """Page shown when user tries to access dashboard but bot is not invited to their server."""
     discord_client_id = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")

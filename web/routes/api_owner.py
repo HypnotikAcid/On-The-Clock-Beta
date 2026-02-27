@@ -7,11 +7,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, render_template, redirect, request, session, jsonify, current_app as app, Response
 
 from app import (
-    require_api_auth, get_db, Entitlements, 
+    require_api_auth,  Entitlements, 
     sanitize_csv_string, send_manual_report_email,
     _get_bot_module, notify_server_owner_bot_access, validate_role_in_guild, verify_guild_access
 )
 
+from web.utils.db import get_db
 api_owner_bp = Blueprint('api_owner', __name__)
 @api_owner_bp.route("/api/owner/manual-grant", methods=["POST"])
 @require_api_auth

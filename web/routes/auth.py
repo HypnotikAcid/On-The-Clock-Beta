@@ -8,7 +8,8 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route("/login")
 def auth_login():
     """Redirect user to Discord OAuth"""
-    from app import create_oauth_state, get_redirect_uri, DISCORD_CLIENT_ID, DISCORD_OAUTH_SCOPES
+from web.utils.db import get_db
+    from web.utils.auth import create_oauth_state, get_redirect_uri, DISCORD_CLIENT_ID, DISCORD_OAUTH_SCOPES
     state = create_oauth_state()
     redirect_uri = get_redirect_uri()
     
@@ -28,7 +29,7 @@ def auth_login():
 def auth_callback():
     """Handle Discord OAuth callback"""
     try:
-        from app import (
+        from web.utils.auth import (
             verify_oauth_state, get_redirect_uri, exchange_code_for_token, 
             get_user_info, get_user_guilds, create_user_session
         )
@@ -85,7 +86,7 @@ def auth_callback():
 @auth_bp.route("/logout")
 def auth_logout():
     """Logout user"""
-    from app import delete_user_session
+    from web.utils.auth import delete_user_session
     session_id = session.get('session_id')
     if session_id:
         delete_user_session(session_id)

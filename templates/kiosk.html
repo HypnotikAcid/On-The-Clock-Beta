@@ -2793,6 +2793,41 @@
             return div.innerHTML;
         }
 
+        // --- Global Fetch Error Boundary (Phase 5 Failsafes) ---
+        const originalFetch = window.fetch;
+        window.fetch = async function () {
+            try {
+                const response = await originalFetch.apply(this, arguments);
+                if (response.status >= 500) {
+                    let errorMsg = `Server Error ${response.status}`;
+                    try {
+                        const clone = response.clone();
+                        const errData = await clone.json();
+                        if (errData.error) errorMsg = errData.error;
+                    } catch (e) { }
+
+                    if (typeof showMessage === 'function') {
+                        showMessage('error', '❌ Backend Crash: ' + errorMsg);
+                    } else {
+                        console.error('Backend Crash:', errorMsg);
+                    }
+                    showLoading(false);
+                }
+                return response;
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    const msg = '❌ UI Error: Connection to backend failed';
+                    if (typeof showMessage === 'function') {
+                        showMessage('error', msg);
+                    } else {
+                        console.error(msg, error);
+                    }
+                    showLoading(false);
+                }
+                throw error;
+            }
+        };
+
         // Initialize
         initializeHistoryState();
         loadEmployees();
