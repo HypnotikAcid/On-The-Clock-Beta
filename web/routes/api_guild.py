@@ -184,7 +184,7 @@ def api_create_adjustment(user_session, guild_id):
         
         if request_id:
             # Notify admins via Discord (async)
-            from bot import notify_admins_of_adjustment, bot
+            from bot_core import notify_admins_of_adjustment, bot
             if bot and bot.loop:
                 asyncio.run_coroutine_threadsafe(
                     notify_admins_of_adjustment(int(guild_id), request_id),
@@ -1413,7 +1413,7 @@ def api_rerun_employee_onboarding(user_session, guild_id, user_id):
                 return jsonify({'success': False, 'error': 'Employee not found'}), 404
         
         try:
-            from bot import trigger_welcome_dm
+            from bot_core import trigger_welcome_dm
             result = trigger_welcome_dm(int(guild_id), int(user_id))
             if result.get('success'):
                 app.logger.info(f"Admin {user_session.get('username')} reran onboarding for user {user_id} in guild {guild_id}")
@@ -1437,7 +1437,7 @@ def api_get_employee_detail(user_session, guild_id, user_id):
     Get comprehensive employee detail including profile, status, and statistics.
     """
     try:
-        from bot import get_active_employees_with_stats
+        from bot_core import get_active_employees_with_stats
         
         # Get employee data with stats
         timezone_name = request.args.get('timezone', 'America/New_York')

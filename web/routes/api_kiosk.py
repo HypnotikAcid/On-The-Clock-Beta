@@ -596,7 +596,7 @@ def api_kiosk_clock(guild_id):
                     from scheduler import discord_bot
                     if discord_bot:
                         import asyncio
-                        from bot import mutate_employee_roles, dispatch_webhook_event
+                        from bot_core import mutate_employee_roles, dispatch_webhook_event
                         app.logger.info(f"Triggering asynchronous role sync and webhooks for {user_id} in {guild_id}")
                         asyncio.run_coroutine_threadsafe(mutate_employee_roles(int(guild_id), int(user_id), 'in'), discord_bot.loop)
                         asyncio.run_coroutine_threadsafe(
@@ -629,7 +629,7 @@ def api_kiosk_clock(guild_id):
                     from scheduler import discord_bot
                     if discord_bot:
                         import asyncio
-                        from bot import mutate_employee_roles, dispatch_webhook_event
+                        from bot_core import mutate_employee_roles, dispatch_webhook_event
                         app.logger.info(f"Triggering asynchronous role sync and webhooks for {user_id} in {guild_id}")
                         asyncio.run_coroutine_threadsafe(mutate_employee_roles(int(guild_id), int(user_id), 'out'), discord_bot.loop)
                         

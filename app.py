@@ -274,7 +274,7 @@ def start_discord_bot():
         import asyncio
         print("[STARTUP] Discord bot thread starting...")
         print("[STARTUP] Importing bot module...")
-        from bot import run_bot_with_api
+        from discord_runner import run_bot_with_api
         print("[STARTUP] Bot module imported successfully")
         print("[STARTUP] Starting Discord bot event loop...")
         bot_status['initialized'] = True
@@ -1272,7 +1272,7 @@ def upgrade_info(user_session, guild_id):
         # Get bot access and retention tier status (using Flask-side function for production)
         has_bot_access = flask_check_bot_access(int(guild_id))
         # get_retention_tier is read-only so can use bot module
-        from bot import get_retention_tier
+        from bot_core import get_retention_tier
         retention_tier = get_retention_tier(int(guild_id))
         
         # Escape guild name for XSS protection
