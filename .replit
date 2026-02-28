@@ -2,7 +2,7 @@ modules = ["python-3.11", "nodejs-20", "postgresql-16"]
 run = "python3 bot.py"
 [nix]
 channel = "stable-25_05"
-packages = ["postgresql", "semgrep"]
+packages = ["freetype", "glibcLocales", "postgresql", "semgrep"]
 
 [workflows]
 runButton = "Project"
