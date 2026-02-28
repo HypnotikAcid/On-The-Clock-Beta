@@ -32,7 +32,7 @@ def validate_bot_api_url(url):
     except Exception:
         return False
 
-    Optionally stores metadata (e.g. purchase_intent) that survives cross-domain redirects."""
+        """Optionally stores metadata (e.g. purchase_intent) that survives cross-domain redirects."""
     state = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
     metadata_json = json.dumps(metadata) if metadata else None
@@ -830,3 +830,4 @@ def get_redirect_uri():
         return env_uri
     from flask import url_for
     return url_for('auth_callback', _external=True, _scheme='https')
+

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import psycopg2
 import psycopg2.pool
 from psycopg2.extras import RealDictCursor
@@ -242,20 +242,20 @@ async def robust_defer(interaction: discord.Interaction, ephemeral: bool = True)
         bool: True if defer was successful, False if interaction was already acknowledged
     """
     if interaction.response.is_done():
-        print(f"âš ï¸ Interaction already acknowledged for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
+        print(f"⚠️ Interaction already acknowledged for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
         return False
     
     try:
         await interaction.response.defer(ephemeral=ephemeral)
         return True
     except discord.errors.NotFound:
-        print(f"âŒ Interaction expired for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
+        print(f"❌ Interaction expired for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
         return False
     except discord.errors.HTTPException as e:
         if "already been acknowledged" in str(e):
-            print(f"âš ï¸ Interaction already acknowledged for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
+            print(f"⚠️ Interaction already acknowledged for guild {interaction.guild_id if interaction.guild else 'Unknown'}")
             return False
-        print(f"âŒ HTTP error during defer: {e}")
+        print(f"❌ HTTP error during defer: {e}")
         return False
 
 async def send_reply(interaction: discord.Interaction, content: Optional[str] = None, ephemeral: bool = True, **kwargs):
@@ -411,7 +411,7 @@ def init_db_pool():
         dsn=DATABASE_URL
     )
     _db_pool_initialized = True
-    print("âœ… PostgreSQL connection pool initialized")
+    print("✅ PostgreSQL connection pool initialized")
     
     # Run migrations on startup (guarded internally)
     run_migrations()
@@ -471,7 +471,7 @@ def db():
 
 def init_db():
     """PostgreSQL schema already exists - no initialization needed"""
-    print("âœ… Using existing PostgreSQL schema (tables already created during migration)")
+    print("✅ Using existing PostgreSQL schema (tables already created during migration)")
     pass
 
 def get_guild_tier_string(guild_id: int) -> str:
@@ -648,11 +648,11 @@ async def dispatch_webhook_event(guild_id: int, user_id: int, event_type: str, e
         embed = discord.Embed(timestamp=discord.utils.utcnow())
         
         if event_type == 'clock_in':
-            embed.title = "ðŸŸ¢ Clock In via Kiosk"
+            embed.title = "🟢 Clock In via Kiosk"
             embed.color = discord.Color.green()
             embed.description = f"{user_mention} has started their shift."
         elif event_type == 'clock_out':
-            embed.title = "ðŸ”´ Clock Out via Kiosk"
+            embed.title = "🔴 Clock Out via Kiosk"
             embed.color = discord.Color.red()
             embed.description = f"{user_mention} has ended their shift."
             if event_data and 'duration_minutes' in event_data:
@@ -660,26 +660,26 @@ async def dispatch_webhook_event(guild_id: int, user_id: int, event_type: str, e
                 hours = mins / 60
                 embed.add_field(name="Duration", value=f"{hours:.2f} hours ({mins:.0f} mins)")
         elif event_type == 'time_adjustment_approved':
-            embed.title = "âœ… Time Adjustment Approved"
+            embed.title = "✅ Time Adjustment Approved"
             embed.color = discord.Color.green()
             embed.description = f"The time adjustment request for {user_mention} has been approved."
         elif event_type == 'time_adjustment_denied':
-            embed.title = "âŒ Time Adjustment Denied"
+            embed.title = "❌ Time Adjustment Denied"
             embed.color = discord.Color.red()
             embed.description = f"The time adjustment request for {user_mention} was denied by an admin."
         elif event_type == 'employee_removed':
-            embed.title = "ðŸ—‘ï¸ Employee Removed"
+            embed.title = "🗑️ Employee Removed"
             embed.color = discord.Color.orange()
             embed.description = f"{user_mention} has been manually removed from the Time Warden dashboard by an admin."
         else:
-            embed.title = f"ðŸ”” Event: {event_type}"
+            embed.title = f"🔔 Event: {event_type}"
             embed.color = discord.Color.blue()
             embed.description = f"User: {user_mention}"
             
         await channel.send(embed=embed)
         
     except Exception as e:
-        print(f"âŒ Failed to dispatch webhook event for {guild_id}: {e}")
+        print(f"❌ Failed to dispatch webhook event for {guild_id}: {e}")
 
 async def mutate_employee_roles(guild_id: int, user_id: int, action: str):
     """
@@ -739,17 +739,17 @@ async def mutate_employee_roles(guild_id: int, user_id: int, action: str):
             try:
                 await member.remove_roles(*roles_to_remove, reason=f"TimeWarden: Auto-sync on clock {action}")
             except discord.Forbidden:
-                print(f"âŒ Missing Permissions to remove role in {guild_id}")
+                print(f"❌ Missing Permissions to remove role in {guild_id}")
             except discord.HTTPException as he:
-                print(f"âŒ Discord API error removing role in {guild_id}: {he}")
+                print(f"❌ Discord API error removing role in {guild_id}: {he}")
                 
         if roles_to_add:
             try:
                 await member.add_roles(*roles_to_add, reason=f"TimeWarden: Auto-sync on clock {action}")
             except discord.Forbidden:
-                print(f"âŒ Missing Permissions to add role in {guild_id}")
+                print(f"❌ Missing Permissions to add role in {guild_id}")
             except discord.HTTPException as he:
-                print(f"âŒ Discord API error adding role in {guild_id}: {he}")
+                print(f"❌ Discord API error adding role in {guild_id}: {he}")
                 
     except Exception as e:
         print(f"Error mutating roles for user {user_id} in {guild_id}: {e}")
@@ -764,7 +764,7 @@ def issue_warning(guild_id: int, user_id: int):
                DO UPDATE SET warning_count = warning_count + 1""",
             (guild_id, user_id)
         )
-    print(f"âš ï¸ Warning issued to user {user_id} in guild {guild_id}")
+    print(f"⚠️ Warning issued to user {user_id} in guild {guild_id}")
 
 def ban_user_24h(guild_id: int, user_id: int, reason: str = "rate_limit_exceeded"):
     """Ban a user for 24 hours"""
@@ -798,7 +798,7 @@ def ban_user_24h(guild_id: int, user_id: int, reason: str = "rate_limit_exceeded
             (guild_id, user_id)
         )
     
-    print(f"ðŸš« 24-hour ban issued to user {user_id} in guild {guild_id} - Expires: {ban_expires.isoformat()}")
+    print(f"🚫 24-hour ban issued to user {user_id} in guild {guild_id} - Expires: {ban_expires.isoformat()}")
 
 def check_server_abuse(guild_id: int) -> bool:
     """Check if server has excessive bans (5+ in last hour) = abuse"""
@@ -835,7 +835,7 @@ def check_rate_limit(guild_id: int, user_id: int, button_name: str = "unknown") 
             return (False, 999, "banned")
     except Exception as e:
         # FAIL-CLOSED for security: If ban check fails, treat as banned
-        print(f"âŒ Ban check failed for user {user_id} in guild {guild_id}: {e}")
+        print(f"❌ Ban check failed for user {user_id} in guild {guild_id}: {e}")
         print(f"   Blocking request (fail-closed security policy)")
         return (False, 999, "banned")
     
@@ -868,33 +868,33 @@ def check_rate_limit(guild_id: int, user_id: int, button_name: str = "unknown") 
                     # FIRST OFFENSE: Issue warning
                     try:
                         issue_warning(guild_id, user_id)
-                        print(f"âš ï¸ SPAM WARNING: User {user_id} in guild {guild_id} exceeded rate limit ({requests_in_window} requests in {RATE_LIMIT_WINDOW}s) - WARNING ISSUED")
+                        print(f"⚠️ SPAM WARNING: User {user_id} in guild {guild_id} exceeded rate limit ({requests_in_window} requests in {RATE_LIMIT_WINDOW}s) - WARNING ISSUED")
                         return (False, requests_in_window, "warning")
                     except Exception as e:
-                        print(f"âŒ Failed to issue warning for user {user_id} in guild {guild_id}: {e}")
+                        print(f"❌ Failed to issue warning for user {user_id} in guild {guild_id}: {e}")
                         # Still block the request even if warning fails
                         return (False, requests_in_window, "warning")
                 else:
                     # SECOND OFFENSE: 24-hour ban
                     try:
                         ban_user_24h(guild_id, user_id, reason="rate_limit_exceeded")
-                        print(f"ðŸš« SPAM BAN: User {user_id} in guild {guild_id} exceeded rate limit again - 24 HOUR BAN")
+                        print(f"🚫 SPAM BAN: User {user_id} in guild {guild_id} exceeded rate limit again - 24 HOUR BAN")
                         
                         # Check if this server is abusing the bot (too many bans)
                         try:
                             if check_server_abuse(guild_id):
-                                print(f"ðŸš¨ SERVER ABUSE DETECTED: Guild {guild_id} has 5+ bans in 1 hour - BOT WILL LEAVE")
+                                print(f"🚨 SERVER ABUSE DETECTED: Guild {guild_id} has 5+ bans in 1 hour - BOT WILL LEAVE")
                                 return (False, requests_in_window, "server_abuse")
                         except Exception as e:
-                            print(f"âŒ Server abuse check failed for guild {guild_id}: {e}")
+                            print(f"❌ Server abuse check failed for guild {guild_id}: {e}")
                         
                         return (False, requests_in_window, "banned")
                     except Exception as e:
-                        print(f"âŒ Failed to ban user {user_id} in guild {guild_id}: {e}")
+                        print(f"❌ Failed to ban user {user_id} in guild {guild_id}: {e}")
                         # Still block the request even if ban fails
                         return (False, requests_in_window, "banned")
             except Exception as e:
-                print(f"âŒ Warning count check failed for user {user_id} in guild {guild_id}: {e}")
+                print(f"❌ Warning count check failed for user {user_id} in guild {guild_id}: {e}")
                 # Block the rate-limited request even if warning check fails
                 return (False, requests_in_window, "warning")
         
@@ -907,7 +907,7 @@ def check_rate_limit(guild_id: int, user_id: int, button_name: str = "unknown") 
         # FAIL-OPEN: If rate limiting logic fails, allow the request to proceed
         # This prevents database errors from breaking all button interactions
         # But bans are still enforced (checked above with fail-closed)
-        print(f"âŒ Rate limit logic failed for user {user_id} in guild {guild_id}: {e}")
+        print(f"❌ Rate limit logic failed for user {user_id} in guild {guild_id}: {e}")
         print(f"   Allowing request to proceed (fail-open availability policy)")
         return (True, 0, "allowed")
 
@@ -919,29 +919,29 @@ async def handle_rate_limit_response(interaction: discord.Interaction, action: s
     try:
         if action == "warning":
             await interaction.followup.send(
-                "âš ï¸ **Spam Detection Warning**\n\n"
+                "⚠️ **Spam Detection Warning**\n\n"
                 "You're clicking the same button too quickly (5+ clicks in 30 seconds).\n"
                 "Please slow down.\n\n"
-                "**â›” Next violation will result in a 24-hour ban.**",
+                "**⛔ Next violation will result in a 24-hour ban.**",
                 ephemeral=True
             )
         elif action == "server_abuse":
             # Bot will leave server
             await interaction.followup.send(
-                "ðŸš¨ **Server Abuse Detected**\n\n"
+                "🚨 **Server Abuse Detected**\n\n"
                 "This server has excessive spam activity. The bot is leaving this server.",
                 ephemeral=True
             )
             if interaction.guild:
                 try:
                     await interaction.guild.leave()
-                    print(f"ðŸš¨ Bot left guild {interaction.guild.id} due to abuse (5+ bans in 1 hour)")
+                    print(f"🚨 Bot left guild {interaction.guild.id} due to abuse (5+ bans in 1 hour)")
                 except Exception as e:
-                    print(f"âŒ Failed to leave guild {interaction.guild.id}: {e}")
+                    print(f"❌ Failed to leave guild {interaction.guild.id}: {e}")
             return True
         else:  # banned
             await interaction.followup.send(
-                "ðŸš« **24-Hour Ban**\n\n"
+                "🚫 **24-Hour Ban**\n\n"
                 "Your access to this bot has been temporarily suspended due to spam/abuse.\n"
                 "You exceeded the rate limit (5 requests per 30 seconds on the same button) after receiving a warning.\n\n"
                 "**Ban Duration:** 24 hours\n"
@@ -950,7 +950,7 @@ async def handle_rate_limit_response(interaction: discord.Interaction, action: s
             )
     except Exception as e:
         # If sending rate limit message fails, log it but don't break the flow
-        print(f"âŒ Failed to send rate limit response: {e}")
+        print(f"❌ Failed to send rate limit response: {e}")
     
     return False
 
@@ -1047,43 +1047,43 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
     logger = logging.getLogger('bot.notify')
     
     try:
-        logger.info(f"ðŸ“§ [NOTIFY] Starting notification for guild {guild_id}, granted_by={granted_by}")
+        logger.info(f"📧 [NOTIFY] Starting notification for guild {guild_id}, granted_by={granted_by}")
         
         guild = bot.get_guild(guild_id)
         if not guild:
-            logger.error(f"âŒ [NOTIFY] Guild {guild_id} not found in bot cache")
+            logger.error(f"❌ [NOTIFY] Guild {guild_id} not found in bot cache")
             return
         
-        logger.info(f"âœ… [NOTIFY] Guild found: {guild.name} (ID: {guild_id})")
+        logger.info(f"✅ [NOTIFY] Guild found: {guild.name} (ID: {guild_id})")
         
         # Get owner ID (always available)
         owner_id = guild.owner_id
         if not owner_id:
-            logger.error(f"âŒ [NOTIFY] Guild {guild_id} has no owner_id (impossible - all Discord servers must have an owner)")
+            logger.error(f"❌ [NOTIFY] Guild {guild_id} has no owner_id (impossible - all Discord servers must have an owner)")
             return
         
-        logger.info(f"ðŸ“ [NOTIFY] Guild owner ID: {owner_id}")
+        logger.info(f"📍 [NOTIFY] Guild owner ID: {owner_id}")
         
         # Try to get the owner member object (may not be cached after restart)
         owner: discord.Member | discord.User | None = guild.get_member(owner_id)
 
         if not owner:
-            logger.warning(f"âš ï¸ [NOTIFY] Owner member not in cache, attempting to fetch...")
+            logger.warning(f"⚠️ [NOTIFY] Owner member not in cache, attempting to fetch...")
             try:
                 # Fetch the user object (not a full member, but has basic info)
                 owner = await bot.fetch_user(owner_id)
                 if owner:
-                    logger.info(f"âœ… [NOTIFY] Fetched owner user object: {owner.name} (ID: {owner.id})")
+                    logger.info(f"✅ [NOTIFY] Fetched owner user object: {owner.name} (ID: {owner.id})")
             except Exception as e:
-                logger.warning(f"âš ï¸ [NOTIFY] Could not fetch owner user {owner_id}: {e}")
-                logger.info(f"ðŸ“¤ [NOTIFY] Will send notification without owner mention")
+                logger.warning(f"⚠️ [NOTIFY] Could not fetch owner user {owner_id}: {e}")
+                logger.info(f"📤 [NOTIFY] Will send notification without owner mention")
                 owner = None
         else:
-            logger.info(f"âœ… [NOTIFY] Owner found in cache: {owner.name} (ID: {owner.id})")
+            logger.info(f"✅ [NOTIFY] Owner found in cache: {owner.name} (ID: {owner.id})")
         
         # Create a fancy embed
         embed = discord.Embed(
-            title="ðŸŽ‰ Bot Access Activated!",
+            title="🎉 Bot Access Activated!",
             description=f"**{guild.name}** now has full access to On the Clock!",
             color=discord.Color.green(),
             timestamp=datetime.now(timezone.utc)
@@ -1091,24 +1091,24 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         
         if granted_by == "purchase":
             embed.add_field(
-                name="âœ… Payment Confirmed",
+                name="✅ Payment Confirmed",
                 value="Thank you for your purchase! Your server is now activated.",
                 inline=False
             )
         else:
             embed.add_field(
-                name="âœ… Access Granted",
+                name="✅ Access Granted",
                 value="Your server has been granted full bot access + dashboard usage by the bot owner.",
                 inline=False
             )
         
         embed.add_field(
-            name="ðŸš€ What's Next?",
+            name="🚀 What's Next?",
             value=(
-                "â€¢ Use `/setup` to view setup instructions\n"
-                "â€¢ Use `/clock` to open the timeclock interface\n"
-                "â€¢ Use `/help` to see all available commands\n"
-                "â€¢ Configure roles and settings in the dashboard"
+                "• Use `/setup` to view setup instructions\n"
+                "• Use `/clock` to open the timeclock interface\n"
+                "• Use `/help` to see all available commands\n"
+                "• Configure roles and settings in the dashboard"
             ),
             inline=False
         )
@@ -1119,13 +1119,13 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
             dashboard_url = f"https://{dashboard_url}"
         
         embed.add_field(
-            name="ðŸ“Š Dashboard Access",
-            value=f"Visit your [server dashboard]({dashboard_url}/dashboard) to:\nâ€¢ Add admin and employee roles\nâ€¢ Configure email notifications\nâ€¢ Set timezone and schedule\nâ€¢ View time tracking reports",
+            name="📊 Dashboard Access",
+            value=f"Visit your [server dashboard]({dashboard_url}/dashboard) to:\n• Add admin and employee roles\n• Configure email notifications\n• Set timezone and schedule\n• View time tracking reports",
             inline=False
         )
         
         embed.add_field(
-            name="ðŸ’¾ Data Retention",
+            name="💾 Data Retention",
             value="With full access, your timeclock data is stored securely. Add the Pro Retention add-on for extended 7-day or 30-day data storage.",
             inline=False
         )
@@ -1139,51 +1139,51 @@ async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purch
         # Build list of candidate channels: system channel first, then all text channels
         candidate_channels = []
         if guild.system_channel:
-            logger.info(f"ðŸ“ [NOTIFY] System channel found: {guild.system_channel.name} (ID: {guild.system_channel.id})")
+            logger.info(f"📍 [NOTIFY] System channel found: {guild.system_channel.name} (ID: {guild.system_channel.id})")
             candidate_channels.append(guild.system_channel)
         
         candidate_channels.extend(guild.text_channels)
         
         # Find first channel where bot has required permissions
-        logger.info(f"ðŸ“ [NOTIFY] Searching {len(candidate_channels)} channels for suitable target...")
+        logger.info(f"📍 [NOTIFY] Searching {len(candidate_channels)} channels for suitable target...")
         for channel in candidate_channels:
             permissions = channel.permissions_for(guild.me)
             if permissions.send_messages and permissions.embed_links:
-                logger.info(f"âœ… [NOTIFY] Found suitable channel: #{channel.name} (ID: {channel.id})")
+                logger.info(f"✅ [NOTIFY] Found suitable channel: #{channel.name} (ID: {channel.id})")
                 logger.info(f"   Permissions: send_messages={permissions.send_messages}, embed_links={permissions.embed_links}")
                 target_channel = channel
                 break
             else:
-                logger.warning(f"âš ï¸ [NOTIFY] Skipping #{channel.name}: send_messages={permissions.send_messages}, embed_links={permissions.embed_links}")
+                logger.warning(f"⚠️ [NOTIFY] Skipping #{channel.name}: send_messages={permissions.send_messages}, embed_links={permissions.embed_links}")
         
         if not target_channel:
-            logger.error(f"âŒ [NOTIFY] No accessible text channels found in guild {guild_id}")
+            logger.error(f"❌ [NOTIFY] No accessible text channels found in guild {guild_id}")
             logger.error(f"   Bot needs 'Send Messages' and 'Embed Links' permissions in at least one channel")
             return
         
         # Send message with @owner mention (if available)
-        logger.info(f"ðŸ“¤ [NOTIFY] Sending message to #{target_channel.name}...")
+        logger.info(f"📤 [NOTIFY] Sending message to #{target_channel.name}...")
         try:
             # Include owner mention if we successfully fetched the owner
             if owner:
                 await target_channel.send(
-                    content=f"{owner.mention} ðŸ‘‹",
+                    content=f"{owner.mention} 👋",
                     embed=embed
                 )
-                logger.info(f"âœ… [NOTIFY] Successfully sent bot access notification to #{target_channel.name} in {guild.name} (ID: {guild_id})")
+                logger.info(f"✅ [NOTIFY] Successfully sent bot access notification to #{target_channel.name} in {guild.name} (ID: {guild_id})")
             else:
                 # Send without mention if owner couldn't be fetched
                 await target_channel.send(embed=embed)
-                logger.info(f"âœ… [NOTIFY] Successfully sent bot access notification (no mention) to #{target_channel.name} in {guild.name} (ID: {guild_id})")
+                logger.info(f"✅ [NOTIFY] Successfully sent bot access notification (no mention) to #{target_channel.name} in {guild.name} (ID: {guild_id})")
         except discord.Forbidden:
-            logger.error(f"âŒ [NOTIFY] Permission denied when sending to #{target_channel.name} (permissions may have changed)")
+            logger.error(f"❌ [NOTIFY] Permission denied when sending to #{target_channel.name} (permissions may have changed)")
             logger.error(f"   Bot needs 'Send Messages' and 'Embed Links' permissions in {guild.name}")
             raise
         
     except discord.Forbidden:
-        logger.error(f"âŒ [NOTIFY] Missing permissions to post in guild {guild_id}")
+        logger.error(f"❌ [NOTIFY] Missing permissions to post in guild {guild_id}")
     except Exception as e:
-        logger.error(f"âŒ [NOTIFY] Error notifying guild {guild_id}: {e}")
+        logger.error(f"❌ [NOTIFY] Error notifying guild {guild_id}: {e}")
         import traceback
         logger.error(traceback.format_exc())
 
@@ -1235,9 +1235,9 @@ def get_retention_days(guild_id: int) -> int:
     Get data retention days for a server based on bot_access_paid and retention tier.
     
     NEW PRICING MODEL:
-    - bot_access_paid = false AND no subscription â†’ 1 day (24 hours)
-    - bot_access_paid = true AND no subscription â†’ 7 days
-    - Active subscription (30day tier) â†’ 30 days
+    - bot_access_paid = false AND no subscription → 1 day (24 hours)
+    - bot_access_paid = true AND no subscription → 7 days
+    - Active subscription (30day tier) → 30 days
     
     The 7-day subscription tier is retired; 7-day retention is now granted
     automatically with bot_access_paid = true.
@@ -1306,7 +1306,7 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
             
         except psycopg2.OperationalError as e:
             if "database is locked" in str(e) and attempt < max_retries - 1:
-                print(f"ðŸ”„ Database locked, retrying cleanup attempt {attempt + 1}/{max_retries}")
+                print(f"🔄 Database locked, retrying cleanup attempt {attempt + 1}/{max_retries}")
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
                 continue
             else:
@@ -1339,7 +1339,7 @@ def cleanup_user_sessions(guild_id: int, user_id: int) -> int:
             
         except psycopg2.OperationalError as e:
             if "database is locked" in str(e) and attempt < max_retries - 1:
-                print(f"ðŸ”„ Database locked, retrying user cleanup attempt {attempt + 1}/{max_retries}")
+                print(f"🔄 Database locked, retrying user cleanup attempt {attempt + 1}/{max_retries}")
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
                 continue
             else:
@@ -1563,7 +1563,7 @@ def create_adjustment_request(guild_id: int, user_id: int, request_type: str,
             dt_in = safe_parse_timestamp(req_in)
             dt_out = safe_parse_timestamp(req_out)
             if dt_out <= dt_in:
-                print("âš ï¸ Blocked Negative Time Adjustment: clock_out <= clock_in")
+                print("⚠️ Blocked Negative Time Adjustment: clock_out <= clock_in")
                 return None
                 
         with db() as conn:
@@ -1879,7 +1879,7 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
     embed.add_field(name="Clock Out", value=fmt(end_dt, tz_name), inline=True)
     embed.add_field(name="Total", value=human_duration(elapsed), inline=False)
     guild_name = interaction.guild.name if interaction.guild else "Unknown Server"
-    embed.set_footer(text=f"Guild: {guild_name} â€¢ ID: {guild_id}")
+    embed.set_footer(text=f"Guild: {guild_name} • ID: {guild_id}")
     
     notification_sent = False
     errors = []
@@ -1946,16 +1946,16 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
                         user_name=user_name
                     )
                     notification_sent = True
-                    print(f"ðŸ“¬ Clock-out email queued #{outbox_id} for {len(email_addresses)} recipient(s)")
+                    print(f"📬 Clock-out email queued #{outbox_id} for {len(email_addresses)} recipient(s)")
             except Exception as e:
                 errors.append(f"Failed to queue clock-out email: {str(e)}")
-                print(f"âŒ Clock-out email queue failed: {str(e)}")
+                print(f"❌ Clock-out email queue failed: {str(e)}")
     
     # Report any errors to the user
     if errors and not notification_sent:
         try:
             await interaction.followup.send(
-                "âš ï¸ Could not send notifications to any recipients:\n" + "\n".join(f"â€¢ {error}" for error in errors[:3]),
+                "⚠️ Could not send notifications to any recipients:\n" + "\n".join(f"• {error}" for error in errors[:3]),
                 ephemeral=True
             )
         except Exception:
@@ -1963,7 +1963,7 @@ async def send_timeclock_notifications(guild_id: int, interaction: discord.Inter
     elif errors:
         try:
             await interaction.followup.send(
-                f"âš ï¸ Some notifications failed:\n" + "\n".join(f"â€¢ {error}" for error in errors[:3]),
+                f"⚠️ Some notifications failed:\n" + "\n".join(f"• {error}" for error in errors[:3]),
                 ephemeral=True
             )
         except Exception:
@@ -2122,9 +2122,9 @@ def add_employee_role(guild_id: int, role_id: int):
         cursor = conn.execute("INSERT INTO employee_roles (guild_id, role_id) VALUES (%s, %s) ON CONFLICT (guild_id, role_id) DO NOTHING", 
                      (str(guild_id), str(role_id)))
         if cursor.rowcount > 0:
-            print(f"âœ… Added employee role {role_id} to guild {guild_id}")
+            print(f"✅ Added employee role {role_id} to guild {guild_id}")
         else:
-            print(f"â„¹ï¸ Employee role {role_id} already exists for guild {guild_id}")
+            print(f"ℹ️ Employee role {role_id} already exists for guild {guild_id}")
 
 def remove_employee_role(guild_id: int, role_id: int):
     """Remove a role from timeclock functions access."""
@@ -2133,9 +2133,9 @@ def remove_employee_role(guild_id: int, role_id: int):
         cursor = conn.execute("DELETE FROM employee_roles WHERE guild_id=%s AND role_id=%s", 
                      (str(guild_id), str(role_id)))
         if cursor.rowcount > 0:
-            print(f"âœ… Removed employee role {role_id} from guild {guild_id}")
+            print(f"✅ Removed employee role {role_id} from guild {guild_id}")
         else:
-            print(f"âš ï¸ Employee role {role_id} not found for guild {guild_id}")
+            print(f"⚠️ Employee role {role_id} not found for guild {guild_id}")
 
 def get_employee_roles(guild_id: int):
     """Get all clock role IDs for a guild. Returns integers for Discord.py compatibility."""
@@ -2575,10 +2575,10 @@ def purge_timeclock_data_only(guild_id: int):
             sessions_cursor = conn.execute("DELETE FROM timeclock_sessions WHERE guild_id = %s", (guild_id,))
             sessions_deleted = sessions_cursor.rowcount
             
-            print(f"ðŸ—‘ï¸ Timeclock data purged for Guild {guild_id}: {sessions_deleted} sessions deleted (subscription preserved)")
+            print(f"🗑️ Timeclock data purged for Guild {guild_id}: {sessions_deleted} sessions deleted (subscription preserved)")
             
     except Exception as e:
-        print(f"âŒ Error purging timeclock data for {guild_id}: {e}")
+        print(f"❌ Error purging timeclock data for {guild_id}: {e}")
         raise e  # Re-raise so the error can be caught by the calling function
 
 def format_shift_duration(seconds: int) -> str:
@@ -2638,7 +2638,7 @@ def ensure_employee_profile(guild_id: int, user_id: int, username: str, display_
             cursor = conn.execute("SELECT COUNT(*) as count FROM employee_profiles WHERE guild_id = %s AND is_active = TRUE", (guild_id,))
             active_count = cursor.fetchone()['count']
             if active_count >= 3:
-                print(f"ðŸ”’ Lazy profile creation blocked for {username} in guild {guild_id}: Free tier limit (3) reached.")
+                print(f"🔒 Lazy profile creation blocked for {username} in guild {guild_id}: Free tier limit (3) reached.")
                 return False # Do not create the profile
             
         # Create default profile
@@ -2649,7 +2649,7 @@ def ensure_employee_profile(guild_id: int, user_id: int, username: str, display_
              show_last_seen, show_discord_status, profile_setup_completed)
             VALUES (%s, %s, %s, %s, %s, 'Employee', 'General', NOW(), TRUE, TRUE, TRUE, FALSE)
         """, (guild_id, user_id, username, display_name, avatar_url))
-        print(f"ðŸ‘¤ Created default employee profile for {username} ({user_id}) in guild {guild_id}")
+        print(f"👤 Created default employee profile for {username} ({user_id}) in guild {guild_id}")
         return True
 
 def generate_profile_setup_token(guild_id: int, user_id: int) -> str:
@@ -2700,7 +2700,7 @@ def archive_employee(guild_id: int, user_id: int, reason: str = "left_server"):
             WHERE guild_id = %s AND user_id = %s
         """, (guild_id, user_id))
         
-        print(f"ðŸ“¦ Archived employee {user_id} in guild {guild_id} (Reason: {reason})")
+        print(f"📦 Archived employee {user_id} in guild {guild_id} (Reason: {reason})")
 
 def reactivate_employee(guild_id: int, user_id: int):
     """Reactivate an archived employee profile."""
@@ -2727,7 +2727,7 @@ def reactivate_employee(guild_id: int, user_id: int):
             WHERE guild_id = %s AND user_id = %s
         """, (guild_id, user_id))
         
-        print(f"â™»ï¸ Reactivated employee {user_id} in guild {guild_id}")
+        print(f"♻️ Reactivated employee {user_id} in guild {guild_id}")
 
 # Debounce cache for presence updates
 presence_update_cache: dict[tuple[int, int], float] = {}
@@ -2766,28 +2766,28 @@ tree = bot.tree
 # Register persistent views at startup to handle interactions after bot restart
 async def setup_hook():
     """Setup hook to register persistent views when bot starts"""
-    print("ðŸ”§ Registering persistent views...")
+    print("🔧 Registering persistent views...")
     
     # Register TimeClockView with ALL button callbacks defined
     # This ensures buttons work after bot reboots (2025 Discord best practices)
     # All 7 buttons are registered here so Discord can match interactions to callbacks
     bot.add_view(TimeClockView())
-    print("âœ… TimeClockView registered with all 7 persistent buttons")
+    print("✅ TimeClockView registered with all 7 persistent buttons")
     
     # Register SetupInstructionsView for welcome messages
     bot.add_view(SetupInstructionsView())
-    print("âœ… SetupInstructionsView registered")
+    print("✅ SetupInstructionsView registered")
     
     # Register TimeclockHubView for bulletproof button persistence
     # Uses stable "tc:" prefixed custom_ids for maximum reliability
     bot.add_view(TimeclockHubView())
-    print("âœ… TimeclockHubView registered with bulletproof persistence")
+    print("✅ TimeclockHubView registered with bulletproof persistence")
 
     # Register DemoRoleSwitcherView for demo server role switching
     bot.add_view(DemoRoleSwitcherView())
-    print("âœ… DemoRoleSwitcherView registered for demo server")
+    print("✅ DemoRoleSwitcherView registered for demo server")
 
-    print("âœ… Persistent view setup complete - ephemeral interface mode")
+    print("✅ Persistent view setup complete - ephemeral interface mode")
 
 bot.setup_hook = setup_hook  # type: ignore[method-assign]
 
@@ -2930,7 +2930,7 @@ class TimeClockView(discord.ui.View):
         label="Dashboard",
         style=discord.ButtonStyle.primary,
         custom_id="timeclock:dashboard",
-        emoji="ðŸ“Š",
+        emoji="📊",
         row=1
     )
     async def dashboard_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2951,7 +2951,7 @@ class TimeClockView(discord.ui.View):
         label="Upgrade",
         style=discord.ButtonStyle.secondary,
         custom_id="timeclock:upgrade",
-        emoji="ðŸš€",
+        emoji="🚀",
         row=1
     )
     async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2984,14 +2984,14 @@ class TimeClockView(discord.ui.View):
         # Type guard: ensure we have a Member for guild-specific functions
         if not isinstance(interaction.user, discord.Member):
             await interaction.followup.send(
-                "âŒ Unable to verify access permissions. Please try again.",
+                "❌ Unable to verify access permissions. Please try again.",
                 ephemeral=True
             )
             return
         
         if not user_has_clock_access(interaction.user, server_tier):
             await interaction.followup.send(
-                "ðŸ”’ **Access Restricted**\n"
+                "🔒 **Access Restricted**\n"
                 "You need an employee role to use the timeclock.\n"
                 "Ask an administrator to add your role with `/add_employee_role @yourrole`",
                 ephemeral=True
@@ -3011,7 +3011,7 @@ class TimeClockView(discord.ui.View):
             
             if not active_sessions:
                 embed = discord.Embed(
-                    title="â° On the Clock",
+                    title="⏰ On the Clock",
                     description="No one is currently clocked in.",
                     color=discord.Color.gold()
                 )
@@ -3036,8 +3036,8 @@ class TimeClockView(discord.ui.View):
                     tz_name = "UTC"
             
             embed = discord.Embed(
-                title="ðŸ•’ Team Currently On the Clock",
-                description=f"ðŸ“Š **{len(active_sessions)} active team member{'s' if len(active_sessions) != 1 else ''}**",
+                title="🕒 Team Currently On the Clock",
+                description=f"📊 **{len(active_sessions)} active team member{'s' if len(active_sessions) != 1 else ''}**",
                 color=discord.Color.blurple()
             )
             
@@ -3118,11 +3118,11 @@ class TimeClockView(discord.ui.View):
                     
                     # Create fancy formatted entry
                     user_entry = (
-                        f"**#{i}** {user_mention} â€¢ **{display_name}**\n"
-                        f"ðŸŸ¢ **Clocked In:** {clock_in_time}\n"
-                        f"ðŸ“… **Today's Total:** {total_day_time}\n"
-                        f"â±ï¸ **Current Shift:** {shift_time}\n"
-                        f"{'â”€' * 35}"
+                        f"**#{i}** {user_mention} • **{display_name}**\n"
+                        f"🟢 **Clocked In:** {clock_in_time}\n"
+                        f"📅 **Today's Total:** {total_day_time}\n"
+                        f"⏱️ **Current Shift:** {shift_time}\n"
+                        f"{'─' * 35}"
                     )
                     user_details.append(user_entry)
                     
@@ -3130,9 +3130,9 @@ class TimeClockView(discord.ui.View):
                     print(f"Error processing user {user_id}: {e}")
                     # Fallback with better formatting even for errors
                     user_entry = (
-                        f"**#{i}** <@{user_id}> â€¢ **Unknown User**\n"
-                        f"âŒ **Error loading time data**\n"
-                        f"{'â”€' * 35}"
+                        f"**#{i}** <@{user_id}> • **Unknown User**\n"
+                        f"❌ **Error loading time data**\n"
+                        f"{'─' * 35}"
                     )
                     user_details.append(user_entry)
             
@@ -3140,7 +3140,7 @@ class TimeClockView(discord.ui.View):
             if len(user_details) <= 3:
                 # If 3 or fewer users, show them all in one field
                 embed.add_field(
-                    name="ðŸ‘¥ Active Team Members",
+                    name="👥 Active Team Members",
                     value="\n".join(user_details),
                     inline=False
                 )
@@ -3149,13 +3149,13 @@ class TimeClockView(discord.ui.View):
                 mid_point = len(user_details) // 2
                 
                 embed.add_field(
-                    name="ðŸ‘¥ Active Team Members (Part 1)",
+                    name="👥 Active Team Members (Part 1)",
                     value="\n".join(user_details[:mid_point]),
                     inline=True
                 )
                 
                 embed.add_field(
-                    name="ðŸ‘¥ Active Team Members (Part 2)", 
+                    name="👥 Active Team Members (Part 2)", 
                     value="\n".join(user_details[mid_point:]),
                     inline=True
                 )
@@ -3170,7 +3170,7 @@ class TimeClockView(discord.ui.View):
             
         except Exception as e:
             await interaction.followup.send(
-                "âŒ Error retrieving active users. Please try again.", 
+                "❌ Error retrieving active users. Please try again.", 
                 ephemeral=True
             )
             print(f"Error in on_the_clock: {e}")
@@ -3202,14 +3202,14 @@ class TimeClockView(discord.ui.View):
             # Type guard: ensure we have a Member for guild-specific functions
             if not isinstance(interaction.user, discord.Member):
                 await interaction.followup.send(
-                    "âŒ Unable to verify access permissions. Please try again.",
+                    "❌ Unable to verify access permissions. Please try again.",
                     ephemeral=True
                 )
                 return
             
             if not user_has_clock_access(interaction.user, server_tier):
                 await interaction.followup.send(
-                    "ðŸ”’ **Access Restricted**\n"
+                    "🔒 **Access Restricted**\n"
                     "You need an employee role to use the timeclock.\n"
                     "Ask an administrator to add your role with `/add_employee_role @yourrole`",
                     ephemeral=True
@@ -3219,7 +3219,7 @@ class TimeClockView(discord.ui.View):
             # Check mobile device restriction
             if is_mobile_restricted(guild_id) and interaction.user.is_on_mobile():
                 await interaction.followup.send(
-                    "ðŸ“± **Mobile Clock-In Restricted**\n"
+                    "📱 **Mobile Clock-In Restricted**\n"
                     "Your server administrator has disabled mobile/tablet clock-ins.\n"
                     "Please use a desktop or web browser to clock in.",
                     ephemeral=True
@@ -3229,7 +3229,7 @@ class TimeClockView(discord.ui.View):
             # Check kiosk mode restriction
             if is_kiosk_mode_only(guild_id):
                 await interaction.followup.send(
-                    "ðŸ“± **Kiosk Mode Only**\n"
+                    "📱 **Kiosk Mode Only**\n"
                     "Your server administrator has enabled Kiosk Mode.\n"
                     "Please use the in-store kiosk tablet to clock in.",
                     ephemeral=True
@@ -3266,10 +3266,10 @@ class TimeClockView(discord.ui.View):
                         setup_url = f"{protocol}://{domain}/setup-profile/{token}"
                         
                         await interaction.followup.send(
-                            f"âœ… **Clocked In!**\n\n"
-                            f"ðŸ‘‹ **Welcome to the team!**\n"
+                            f"✅ **Clocked In!**\n\n"
+                            f"👋 **Welcome to the team!**\n"
                             f"Please take a moment to set up your employee profile:\n"
-                            f"ðŸ‘‰ [**Complete Your Profile**]({setup_url})\n"
+                            f"👉 [**Complete Your Profile**]({setup_url})\n"
                             f"*(This link expires in 30 days)*", 
                             ephemeral=True
                         )
@@ -3283,28 +3283,28 @@ class TimeClockView(discord.ui.View):
                 print(f"Error in profile setup logic: {e}")
             
             if not profile_message_sent:
-                await interaction.followup.send("âœ… Clocked in. Have a great shift!", ephemeral=True)
+                await interaction.followup.send("✅ Clocked in. Have a great shift!", ephemeral=True)
             
         except (discord.NotFound, discord.errors.NotFound):
             # Interaction expired or was deleted - silently handle this
-            print(f"âš ï¸ Clock in interaction expired/not found for user {interaction.user.id}")
+            print(f"⚠️ Clock in interaction expired/not found for user {interaction.user.id}")
         except discord.errors.InteractionResponded:
             # Interaction was already responded to - try followup
             try:
-                await interaction.followup.send("âŒ Button interaction error. Please try again.", ephemeral=True)
+                await interaction.followup.send("❌ Button interaction error. Please try again.", ephemeral=True)
             except Exception as e:
-                print(f"âš ï¸ Failed to send followup after InteractionResponded: {e}")
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
         except Exception as e:
             # General error handling
-            print(f"âŒ Error in clock_in callback: {e}")
+            print(f"❌ Error in clock_in callback: {e}")
             try:
                 if not interaction.response.is_done():
-                    await interaction.response.send_message("âŒ An error occurred. Please try again.", ephemeral=True)
+                    await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
                 else:
-                    await interaction.followup.send("âŒ An error occurred. Please try again.", ephemeral=True)
+                    await interaction.followup.send("❌ An error occurred. Please try again.", ephemeral=True)
             except Exception:
                 # If we can't even send an error message, just log it
-                print(f"âŒ Failed to send error message for clock_in: {e}")
+                print(f"❌ Failed to send error message for clock_in: {e}")
 
     async def clock_out(self, interaction: discord.Interaction):
         """Handle clock out button interaction with robust error handling"""
@@ -3333,14 +3333,14 @@ class TimeClockView(discord.ui.View):
             # Type guard: ensure we have a Member for guild-specific functions
             if not isinstance(interaction.user, discord.Member):
                 await interaction.followup.send(
-                    "âŒ Unable to verify access permissions. Please try again.",
+                    "❌ Unable to verify access permissions. Please try again.",
                     ephemeral=True
                 )
                 return
             
             if not user_has_clock_access(interaction.user, server_tier):
                 await interaction.followup.send(
-                    "ðŸ”’ **Access Restricted**\n"
+                    "🔒 **Access Restricted**\n"
                     "You need an employee role to use the timeclock.\n"
                     "Ask an administrator to add your role with `/add_employee_role @yourrole`",
                     ephemeral=True
@@ -3350,7 +3350,7 @@ class TimeClockView(discord.ui.View):
             # Check mobile device restriction
             if is_mobile_restricted(guild_id) and interaction.user.is_on_mobile():
                 await interaction.followup.send(
-                    "ðŸ“± **Mobile Clock-Out Restricted**\n"
+                    "📱 **Mobile Clock-Out Restricted**\n"
                     "Your server administrator has disabled mobile/tablet clock-outs.\n"
                     "Please use a desktop or web browser to clock out.",
                     ephemeral=True
@@ -3360,7 +3360,7 @@ class TimeClockView(discord.ui.View):
             # Check kiosk mode restriction
             if is_kiosk_mode_only(guild_id):
                 await interaction.followup.send(
-                    "ðŸ“± **Kiosk Mode Only**\n"
+                    "📱 **Kiosk Mode Only**\n"
                     "Your server administrator has enabled Kiosk Mode.\n"
                     "Please use the in-store kiosk tablet to clock out.",
                     ephemeral=True
@@ -3380,12 +3380,12 @@ class TimeClockView(discord.ui.View):
             close_session(session_id, end_dt.isoformat(), elapsed)
 
             tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ) or DEFAULT_TZ
-            out_msg = f"ðŸ”š Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}"
+            out_msg = f"🔚 Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}"
             
             # Phase 5: The Review & Feedback Funnel (10% Micro-Prompt)
             import random
             if random.random() < 0.10:
-                out_msg += "\n\n*Having a good shift? â­ [Leave us a 5-star review on top.gg!](https://top.gg/bot/1418446753379913809#reviews)*"
+                out_msg += "\n\n*Having a good shift? ⭐ [Leave us a 5-star review on top.gg!](https://top.gg/bot/1418446753379913809#reviews)*"
                 
             await interaction.followup.send(out_msg, ephemeral=True)
 
@@ -3394,24 +3394,24 @@ class TimeClockView(discord.ui.View):
                         
         except (discord.NotFound, discord.errors.NotFound):
             # Interaction expired or was deleted - silently handle this
-            print(f"âš ï¸ Clock out interaction expired/not found for user {interaction.user.id}")
+            print(f"⚠️ Clock out interaction expired/not found for user {interaction.user.id}")
         except discord.errors.InteractionResponded:
             # Interaction was already responded to - try followup
             try:
-                await interaction.followup.send("âŒ Button interaction error. Please try again.", ephemeral=True)
+                await interaction.followup.send("❌ Button interaction error. Please try again.", ephemeral=True)
             except Exception as e:
-                print(f"âš ï¸ Failed to send followup after InteractionResponded: {e}")
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
         except Exception as e:
             # General error handling
-            print(f"âŒ Error in clock_out callback: {e}")
+            print(f"❌ Error in clock_out callback: {e}")
             try:
                 if not interaction.response.is_done():
-                    await interaction.response.send_message("âŒ An error occurred. Please try again.", ephemeral=True)
+                    await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
                 else:
-                    await interaction.followup.send("âŒ An error occurred. Please try again.", ephemeral=True)
+                    await interaction.followup.send("❌ An error occurred. Please try again.", ephemeral=True)
             except Exception:
                 # If we can't even send an error message, just log it
-                print(f"âŒ Failed to send error message for clock_out: {e}")
+                print(f"❌ Failed to send error message for clock_out: {e}")
 
     async def show_help(self, interaction: discord.Interaction):
         """Show help commands instead of user time info with robust error handling"""
@@ -3443,20 +3443,20 @@ class TimeClockView(discord.ui.View):
             # Type guard: ensure we have a Member for guild-specific functions
             if not isinstance(interaction.user, discord.Member):
                 await interaction.followup.send(
-                    "âŒ Unable to verify admin permissions. Please try again.",
+                    "❌ Unable to verify admin permissions. Please try again.",
                     ephemeral=True
                 )
                 return
             
             if not user_has_admin_access(interaction.user):
                 await interaction.followup.send(
-                    "âŒ **Access Denied - Admin Role Required**\n\n"
+                    "❌ **Access Denied - Admin Role Required**\n\n"
                     "You need administrator permissions or an admin role to generate reports.\n\n"
                     "**To get access:**\n"
-                    "â€¢ Ask your server administrator to grant you admin role access\n"
-                    "â€¢ They can use: `/add_admin_role @yourrole` to give your role admin access\n"
-                    "â€¢ Or ask them to add you to an existing admin role\n\n"
-                    "ðŸ’¡ Contact your server admin for help with role management.",
+                    "• Ask your server administrator to grant you admin role access\n"
+                    "• They can use: `/add_admin_role @yourrole` to give your role admin access\n"
+                    "• Or ask them to add you to an existing admin role\n\n"
+                    "💡 Contact your server admin for help with role management.",
                     ephemeral=True
                 )
                 return
@@ -3466,12 +3466,12 @@ class TimeClockView(discord.ui.View):
             if not access['is_exempt'] and access['tier'] == 'free':
                 if not access['trial_active']:
                     embed = discord.Embed(
-                        title="â° Free Trial Expired",
+                        title="⏰ Free Trial Expired",
                         description="Your 30-day free trial has ended.\nUpgrade to Premium to generate reports!",
                         color=discord.Color.red()
                     )
-                    embed.add_field(name="ðŸ’Ž Premium", value="$8/month (first month FREE!)\nâœ… Full team clock in/out\nâœ… Dashboard & reports\nâœ… 30-day data retention", inline=False)
-                    embed.add_field(name="â¬†ï¸ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+                    embed.add_field(name="💎 Premium", value="$8/month (first month FREE!)\n✅ Full team clock in/out\n✅ Dashboard & reports\n✅ 30-day data retention", inline=False)
+                    embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
                     await interaction.followup.send(embed=embed, ephemeral=True)
                     return
                 else:
@@ -3481,9 +3481,9 @@ class TimeClockView(discord.ui.View):
                     file = discord.File(io.BytesIO(fake_csv.encode('utf-8')), filename=filename)
                     days = access['days_remaining']
                     await interaction.followup.send(
-                        f"ðŸ“Š **Free Trial Sample Report**\n"
-                        f"ðŸŽ¯ This is sample data. Upgrade to Premium for real reports!\n"
-                        f"âš ï¸ **{days} day{'s' if days != 1 else ''} left on your free trial.**",
+                        f"📊 **Free Trial Sample Report**\n"
+                        f"🎯 This is sample data. Upgrade to Premium for real reports!\n"
+                        f"⚠️ **{days} day{'s' if days != 1 else ''} left on your free trial.**",
                         file=file,
                         ephemeral=True
                     )
@@ -3525,7 +3525,7 @@ class TimeClockView(discord.ui.View):
             
             if not sessions_data:
                 await interaction.followup.send(
-                    f"ðŸ“­ No completed timesheet entries found for the last {report_days} days",
+                    f"📭 No completed timesheet entries found for the last {report_days} days",
                     ephemeral=True
                 )
                 return
@@ -3561,10 +3561,10 @@ class TimeClockView(discord.ui.View):
                 )
                 
                 await interaction.followup.send(
-                    f"ðŸ“Š Generated timesheet report for **{user_display_name}** {tier_note}\n"
-                    f"ðŸ“… **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
-                    f"ðŸ“ **Total Entries:** {total_entries} completed shifts\n"
-                    f"ðŸ• **Timezone:** {guild_tz_name}",
+                    f"📊 Generated timesheet report for **{user_display_name}** {tier_note}\n"
+                    f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+                    f"📝 **Total Entries:** {total_entries} completed shifts\n"
+                    f"🕐 **Timezone:** {guild_tz_name}",
                     file=file,
                     ephemeral=True
                 )
@@ -3586,58 +3586,58 @@ class TimeClockView(discord.ui.View):
                 zip_discord_file = discord.File(zip_buffer, filename=zip_filename)
                 
                 await interaction.followup.send(
-                    f"ðŸ“Š Generated timesheet reports for **{total_users} users** {tier_note}\n"
-                    f"ðŸ“… **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
-                    f"ðŸ“ **Total Entries:** {total_entries} completed shifts\n"
-                    f"ðŸ• **Timezone:** {guild_tz_name}\n\n"
-                    f"ðŸ“ **Delivery:** ZIP file containing individual CSV for each employee",
+                    f"📊 Generated timesheet reports for **{total_users} users** {tier_note}\n"
+                    f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+                    f"📝 **Total Entries:** {total_entries} completed shifts\n"
+                    f"🕐 **Timezone:** {guild_tz_name}\n\n"
+                    f"📁 **Delivery:** ZIP file containing individual CSV for each employee",
                     file=zip_discord_file,
                     ephemeral=True
                 )
             
         except (discord.NotFound, discord.errors.NotFound):
             # Interaction expired or was deleted - silently handle this
-            print(f"âš ï¸ Reports interaction expired/not found for user {interaction.user.id}")
+            print(f"⚠️ Reports interaction expired/not found for user {interaction.user.id}")
         except discord.errors.InteractionResponded:
             # Interaction was already responded to - try followup
             try:
-                await interaction.followup.send("âŒ Reports interaction error. Please try again.", ephemeral=True)
+                await interaction.followup.send("❌ Reports interaction error. Please try again.", ephemeral=True)
             except Exception as e:
-                print(f"âš ï¸ Failed to send followup after InteractionResponded: {e}")
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
         except Exception as e:
             # General error handling
-            print(f"âŒ Error in generate_reports callback: {e}")
+            print(f"❌ Error in generate_reports callback: {e}")
             try:
                 if not interaction.response.is_done():
-                    await interaction.response.send_message(f"âŒ Error generating reports: {str(e)}", ephemeral=True)
+                    await interaction.response.send_message(f"❌ Error generating reports: {str(e)}", ephemeral=True)
                 else:
-                    await interaction.followup.send(f"âŒ Error generating reports: {str(e)}", ephemeral=True)
+                    await interaction.followup.send(f"❌ Error generating reports: {str(e)}", ephemeral=True)
             except Exception:
                 # If we can't even send an error message, just log it
-                print(f"âŒ Failed to send error message for generate_reports: {e}")
+                print(f"❌ Failed to send error message for generate_reports: {e}")
 
     async def show_upgrade(self, interaction: discord.Interaction):
         """Show upgrade options for free tier servers"""
         if not interaction.guild:
-            await send_reply(interaction, "âŒ This command must be used in a server.", ephemeral=True)
+            await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
             return
         
         # This command should always be available.
         # No rate limiting or permission checks needed for showing upgrade options.
 
         embed = discord.Embed(
-            title="â¬†ï¸ Upgrade Your Server",
+            title="⬆️ Upgrade Your Server",
             description="Unlock the full power of Time Warden!",
             color=discord.Color.gold()
         )
         embed.add_field(
-            name="ðŸ’Ž Premium â€” $8/month",
-            value="First month FREE!\nâœ… Full team clock in/out\nâœ… Web dashboard access\nâœ… CSV reports & exports\nâœ… 30-day data retention\nâœ… Email reports\nâœ… Time adjustments",
+            name="💎 Premium — $8/month",
+            value="First month FREE!\n✅ Full team clock in/out\n✅ Web dashboard access\n✅ CSV reports & exports\n✅ 30-day data retention\n✅ Email reports\n✅ Time adjustments",
             inline=False
         )
         embed.add_field(
-            name="ðŸš€ Pro â€” $15/month (Coming Soon!)",
-            value="Everything in Premium, plus:\nâœ… Kiosk mode for shared devices\nâœ… Ad-free dashboard\nâœ… Priority support",
+            name="🚀 Pro — $15/month (Coming Soon!)",
+            value="Everything in Premium, plus:\n✅ Kiosk mode for shared devices\n✅ Ad-free dashboard\n✅ Priority support",
             inline=False
         )
         
@@ -3646,7 +3646,7 @@ class TimeClockView(discord.ui.View):
     async def show_dashboard(self, interaction: discord.Interaction):
         """Show dashboard link - purchase page for free, normal dashboard for paid"""
         if not interaction.guild:
-            await send_reply(interaction, "âŒ This command must be used in a server.", ephemeral=True)
+            await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
             return
             
         guild_id = interaction.guild.id
@@ -3658,22 +3658,22 @@ class TimeClockView(discord.ui.View):
             # Handle rate limit response
             if action == "server_abuse":
                 await send_reply(interaction,
-                    "ðŸš¨ **Server Abuse Detected**\n\nThis server has excessive spam activity. The bot is leaving this server.",
+                    "🚨 **Server Abuse Detected**\n\nThis server has excessive spam activity. The bot is leaving this server.",
                     ephemeral=True
                 )
                 try:
                     await interaction.guild.leave()
-                    print(f"ðŸš¨ Bot left guild {guild_id} due to abuse")
+                    print(f"🚨 Bot left guild {guild_id} due to abuse")
                 except Exception as e:
-                    print(f"âŒ Failed to leave guild {guild_id}: {e}")
+                    print(f"❌ Failed to leave guild {guild_id}: {e}")
             elif action == "warning":
                 await send_reply(interaction,
-                    "âš ï¸ **Spam Detection Warning**\n\nYou're clicking the same button too quickly (5+ clicks in 30 seconds).\nPlease slow down.\n\n**â›” Next violation will result in a 24-hour ban.**",
+                    "⚠️ **Spam Detection Warning**\n\nYou're clicking the same button too quickly (5+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
                     ephemeral=True
                 )
             else:  # banned
                 await send_reply(interaction,
-                    "ðŸš« **24-Hour Ban**\n\nYour access has been temporarily suspended due to spam/abuse.\n**Ban Duration:** 24 hours",
+                    "🚫 **24-Hour Ban**\n\nYour access has been temporarily suspended due to spam/abuse.\n**Ban Duration:** 24 hours",
                     ephemeral=True
                 )
             return
@@ -3682,13 +3682,13 @@ class TimeClockView(discord.ui.View):
         landing_page_url = f"https://{domain}/"
         
         embed = discord.Embed(
-            title="ðŸŒ On the Clock Dashboard",
+            title="🌐 On the Clock Dashboard",
             description=f"Access the web dashboard to manage your server settings, view reports, and purchase upgrades.",
             color=discord.Color.blue()
         )
         
         embed.add_field(
-            name="ðŸ”— Dashboard Link",
+            name="🔗 Dashboard Link",
             value=f"[Open Dashboard]({landing_page_url})\n\nLog in with Discord to access your server settings and features.",
             inline=False
         )
@@ -3704,7 +3704,7 @@ class SetupInstructionsView(discord.ui.View):
         super().__init__(timeout=None)
     
     @discord.ui.button(
-        label="ðŸ“‹ Setup Instructions",
+        label="📋 Setup Instructions",
         style=discord.ButtonStyle.primary,
         custom_id="setup:show_instructions"
     )
@@ -3718,11 +3718,11 @@ class SetupInstructionsView(discord.ui.View):
             await interaction.response.send_message(embed=embed, ephemeral=True)
             
         except Exception as e:
-            print(f"âŒ Error showing setup instructions: {e}")
+            print(f"❌ Error showing setup instructions: {e}")
             try:
                 if not interaction.response.is_done():
                     await interaction.response.send_message(
-                        "âŒ Error loading setup instructions. Please try again.",
+                        "❌ Error loading setup instructions. Please try again.",
                         ephemeral=True
                     )
             except Exception:
@@ -3755,7 +3755,7 @@ class TimeclockHubView(discord.ui.View):
         label="Clock In",
         style=discord.ButtonStyle.success,
         custom_id="tc:clock_in",
-        emoji="â°",
+        emoji="⏰",
         row=0
     )
     async def clock_in_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -3766,7 +3766,7 @@ class TimeclockHubView(discord.ui.View):
         label="Clock Out",
         style=discord.ButtonStyle.secondary,
         custom_id="tc:clock_out",
-        emoji="ðŸ",
+        emoji="🏁",
         row=0
     )
     async def clock_out_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -3777,7 +3777,7 @@ class TimeclockHubView(discord.ui.View):
         label="My Adjustments",
         style=discord.ButtonStyle.primary,
         custom_id="tc:adjustments",
-        emoji="ðŸ“",
+        emoji="📝",
         row=1
     )
     async def adjustments_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -3788,7 +3788,7 @@ class TimeclockHubView(discord.ui.View):
         label="My Hours",
         style=discord.ButtonStyle.primary,
         custom_id="tc:my_hours",
-        emoji="ðŸ“Š",
+        emoji="📊",
         row=1
     )
     async def my_hours_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -3799,7 +3799,7 @@ class TimeclockHubView(discord.ui.View):
         label="Support",
         style=discord.ButtonStyle.danger,
         custom_id="tc:support",
-        emoji="ðŸ†˜",
+        emoji="🆘",
         row=1
     )
     async def support_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -3810,7 +3810,7 @@ class TimeclockHubView(discord.ui.View):
         label="Unlock Premium",
         style=discord.ButtonStyle.success,
         custom_id="tc:upgrade",
-        emoji="â­",
+        emoji="⭐",
         row=2
     )
     async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -3838,8 +3838,8 @@ class DemoRoleSwitcherView(discord.ui.View):
         
         # Add a prominent Kiosk advertisement button to the role selection view (Row 1)
         self.add_item(discord.ui.Button(
-            label="ðŸ“± Test Kiosk Tablet Mode (BETA)",
-            emoji="âœ¨",
+            label="📱 Test Kiosk Tablet Mode (BETA)",
+            emoji="✨",
             url=f"https://time-warden.com/kiosk/{DEMO_SERVER_ID}",
             row=1
         ))
@@ -3847,7 +3847,7 @@ class DemoRoleSwitcherView(discord.ui.View):
     @discord.ui.button(
         label="Become Admin",
         style=discord.ButtonStyle.danger,  # Red
-        emoji="ðŸ‘‘",
+        emoji="👑",
         custom_id="demo:become_admin",
         row=0
     )
@@ -3861,7 +3861,7 @@ class DemoRoleSwitcherView(discord.ui.View):
             employee_role = interaction.guild.get_role(DEMO_EMPLOYEE_ROLE_ID)
 
             if not admin_role:
-                await send_reply(interaction, "âŒ Demo Admin role not found. Please contact support.", ephemeral=True)
+                await send_reply(interaction, "❌ Demo Admin role not found. Please contact support.", ephemeral=True)
                 return
 
             # Add admin role
@@ -3875,18 +3875,18 @@ class DemoRoleSwitcherView(discord.ui.View):
             dashboard_url = "https://time-warden.com"
             await send_reply(
                 interaction,
-                f"âœ… **You are now an Admin!**\n\n"
-                f"ðŸ–¥ï¸ **[Open Dashboard]({dashboard_url})** - Manage employees, view reports, configure settings",
+                f"✅ **You are now an Admin!**\n\n"
+                f"🖥️ **[Open Dashboard]({dashboard_url})** - Manage employees, view reports, configure settings",
                 ephemeral=True
             )
 
             embed = discord.Embed(
-                title="â° Your Timeclock Hub",
+                title="⏰ Your Timeclock Hub",
                 description=(
                     "As an **Admin**, you can:\n"
-                    "â€¢ Clock in/out to test the employee experience\n"
-                    "â€¢ View your hours and adjustments\n"
-                    "â€¢ Access the full admin dashboard\n\n"
+                    "• Clock in/out to test the employee experience\n"
+                    "• View your hours and adjustments\n"
+                    "• Access the full admin dashboard\n\n"
                     "Use the buttons below to interact with the timeclock system."
                 ),
                 color=0xFF0000  # Red for admin
@@ -3894,18 +3894,18 @@ class DemoRoleSwitcherView(discord.ui.View):
             view = build_timeclock_hub_view(interaction.guild_id, embed)
 
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-            print(f"ðŸ“Œ Sent ephemeral timeclock hub for admin user {interaction.user.id}")
+            print(f"📌 Sent ephemeral timeclock hub for admin user {interaction.user.id}")
 
         except discord.Forbidden:
-            await send_reply(interaction, "âŒ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
+            await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
         except Exception as e:
-            print(f"âŒ Error in become_admin: {e}")
-            await send_reply(interaction, "âŒ An error occurred. Please try again.", ephemeral=True)
+            print(f"❌ Error in become_admin: {e}")
+            await send_reply(interaction, "❌ An error occurred. Please try again.", ephemeral=True)
 
     @discord.ui.button(
         label="Become Employee",
         style=discord.ButtonStyle.primary,  # Blue
-        emoji="ðŸ‘·",
+        emoji="👷",
         custom_id="demo:become_employee",
         row=0
     )
@@ -3919,7 +3919,7 @@ class DemoRoleSwitcherView(discord.ui.View):
             employee_role = interaction.guild.get_role(DEMO_EMPLOYEE_ROLE_ID)
 
             if not employee_role:
-                await send_reply(interaction, "âŒ Demo Employee role not found. Please contact support.", ephemeral=True)
+                await send_reply(interaction, "❌ Demo Employee role not found. Please contact support.", ephemeral=True)
                 return
 
             # Add employee role
@@ -3951,20 +3951,20 @@ class DemoRoleSwitcherView(discord.ui.View):
             kiosk_url = f"https://time-warden.com/kiosk/{DEMO_SERVER_ID}"
             await send_reply(
                 interaction,
-                f"âœ… **You are now an Employee!**\n\n"
-                f"ðŸ–¥ï¸ **[Open Web Dashboard]({dashboard_url})** - Our core product. Clock in/out and view your hours.\n"
-                f"ðŸ“± **[Try Kiosk Mode (BETA)]({kiosk_url})** - Upcoming tablet feature. Your test PIN is: **{pin}**",
+                f"✅ **You are now an Employee!**\n\n"
+                f"🖥️ **[Open Web Dashboard]({dashboard_url})** - Our core product. Clock in/out and view your hours.\n"
+                f"📱 **[Try Kiosk Mode (BETA)]({kiosk_url})** - Upcoming tablet feature. Your test PIN is: **{pin}**",
                 ephemeral=True
             )
 
             embed = discord.Embed(
-                title="â° Your Timeclock Hub",
+                title="⏰ Your Timeclock Hub",
                 description=(
                     "As an **Employee**, you can:\n"
-                    "â€¢ Clock in/out using the buttons below\n"
-                    "â€¢ View your hours and request adjustments\n"
-                    "â€¢ Access your personal dashboard\n"
-                    "â€¢ Try the Kiosk mode (tablet-friendly interface)\n\n"
+                    "• Clock in/out using the buttons below\n"
+                    "• View your hours and request adjustments\n"
+                    "• Access your personal dashboard\n"
+                    "• Try the Kiosk mode (tablet-friendly interface)\n\n"
                     "Use the buttons below to interact with the timeclock system."
                 ),
                 color=0x0099FF  # Blue for employee
@@ -3972,14 +3972,14 @@ class DemoRoleSwitcherView(discord.ui.View):
             view = build_timeclock_hub_view(interaction.guild_id, embed)
 
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-            print(f"ðŸ“Œ Sent ephemeral timeclock hub for employee user {interaction.user.id}")
-            print(f"ðŸ“Œ Sent timeclock hub to channel as message {timeclock_msg.id} for employee user {interaction.user.id}")
+            print(f"📌 Sent ephemeral timeclock hub for employee user {interaction.user.id}")
+            print(f"📌 Sent timeclock hub to channel as message {timeclock_msg.id} for employee user {interaction.user.id}")
 
         except discord.Forbidden:
-            await send_reply(interaction, "âŒ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
+            await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
         except Exception as e:
-            print(f"âŒ Error in become_employee: {e}")
-            await send_reply(interaction, "âŒ An error occurred. Please try again.", ephemeral=True)
+            print(f"❌ Error in become_employee: {e}")
+            await send_reply(interaction, "❌ An error occurred. Please try again.", ephemeral=True)
 
 
 def build_timeclock_hub_view(guild_id: int, embed: discord.Embed) -> discord.ui.View:
@@ -3998,32 +3998,32 @@ def build_timeclock_hub_view(guild_id: int, embed: discord.Embed) -> discord.ui.
     
     # Core buttons - always present (Row 0)
     clock_in_btn = discord.ui.Button(
-        label="Clock In", style=discord.ButtonStyle.success, custom_id="tc:clock_in", emoji="â°", row=0
+        label="Clock In", style=discord.ButtonStyle.success, custom_id="tc:clock_in", emoji="⏰", row=0
     )
     clock_in_btn.callback = handle_tc_clock_in
     view.add_item(clock_in_btn)
     
     clock_out_btn = discord.ui.Button(
-        label="Clock Out", style=discord.ButtonStyle.secondary, custom_id="tc:clock_out", emoji="ðŸ", row=0
+        label="Clock Out", style=discord.ButtonStyle.secondary, custom_id="tc:clock_out", emoji="🏁", row=0
     )
     clock_out_btn.callback = handle_tc_clock_out
     view.add_item(clock_out_btn)
     
     # Feature buttons - always present (Row 1)
     adjustments_btn = discord.ui.Button(
-        label="My Adjustments", style=discord.ButtonStyle.primary, custom_id="tc:adjustments", emoji="ðŸ“", row=1
+        label="My Adjustments", style=discord.ButtonStyle.primary, custom_id="tc:adjustments", emoji="📝", row=1
     )
     adjustments_btn.callback = handle_tc_adjustments
     view.add_item(adjustments_btn)
     
     my_hours_btn = discord.ui.Button(
-        label="My Hours", style=discord.ButtonStyle.primary, custom_id="tc:my_hours", emoji="ðŸ“Š", row=1
+        label="My Hours", style=discord.ButtonStyle.primary, custom_id="tc:my_hours", emoji="📊", row=1
     )
     my_hours_btn.callback = handle_tc_my_hours
     view.add_item(my_hours_btn)
     
     support_btn = discord.ui.Button(
-        label="Support", style=discord.ButtonStyle.danger, custom_id="tc:support", emoji="ðŸ†˜", row=1
+        label="Support", style=discord.ButtonStyle.danger, custom_id="tc:support", emoji="🆘", row=1
     )
     support_btn.callback = handle_tc_support
     view.add_item(support_btn)
@@ -4032,15 +4032,15 @@ def build_timeclock_hub_view(guild_id: int, embed: discord.Embed) -> discord.ui.
     access = get_guild_access_info(guild_id)
     if not access['is_exempt'] and access['tier'] == 'free':
         upgrade_btn = discord.ui.Button(
-            label="â¬†ï¸ Upgrade â€” First Month Free!", style=discord.ButtonStyle.success, custom_id="tc:upgrade", row=2
+            label="⬆️ Upgrade — First Month Free!", style=discord.ButtonStyle.success, custom_id="tc:upgrade", row=2
         )
         upgrade_btn.callback = handle_tc_upgrade
         view.add_item(upgrade_btn)
 
         if not access['trial_active']:
-            embed.add_field(name="âš ï¸ Trial Expired", value="Upgrade to continue using the bot.", inline=False)
+            embed.add_field(name="⚠️ Trial Expired", value="Upgrade to continue using the bot.", inline=False)
         elif access['days_remaining'] <= 10:
-            embed.add_field(name="â³ Trial Ends Soon!", value=f"{access['days_remaining']} days left. Upgrade to keep access.", inline=False)
+            embed.add_field(name="⏳ Trial Ends Soon!", value=f"{access['days_remaining']} days left. Upgrade to keep access.", inline=False)
 
     return view
 
@@ -4055,7 +4055,7 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
         return
     
     if not interaction.guild:
-        await interaction.followup.send("âŒ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
         return
     
     guild_id = interaction.guild.id
@@ -4075,7 +4075,7 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
             
         if settings and settings.get('kiosk_only_mode'):
             await interaction.followup.send(
-                "ðŸ–¥ï¸ **Kiosk Only Mode Active**\n\n"
+                "🖥️ **Kiosk Only Mode Active**\n\n"
                 "Discord clocking is disabled for this server.\n"
                 f"Please clock in physically at the terminal: `https://time-warden.com/kiosk/{guild_id}`",
                 ephemeral=True
@@ -4087,12 +4087,12 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
     # Check permissions
     server_tier = get_guild_tier_string(guild_id)
     if not isinstance(interaction.user, discord.Member):
-        await interaction.followup.send("âŒ Unable to verify permissions.", ephemeral=True)
+        await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
         return
     
     if not user_has_clock_access(interaction.user, server_tier):
         await interaction.followup.send(
-            "ðŸ”’ **Access Restricted**\n"
+            "🔒 **Access Restricted**\n"
             "You need an employee role to use the timeclock.\n"
             "Ask an administrator to add your role with `/add_employee_role @yourrole`",
             ephemeral=True
@@ -4107,7 +4107,7 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
                 active_count = cursor.fetchone()['count']
             if active_count > 3:
                 await interaction.followup.send(
-                    "ðŸ”’ **Server Cap Reached**\n\n"
+                    "🔒 **Server Cap Reached**\n\n"
                     f"Your Premium Trial has expired and this server has {active_count} active profiles.\n"
                     "The **Free Tier** limit is 3 employees.\n\n"
                     "Please ask your Server Administrator to upgrade to Premium, or archive unused profiles from the Web Dashboard.",
@@ -4128,7 +4128,7 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
             
             if not lock_acquired:
                 await interaction.followup.send(
-                    "âš ï¸ **Processing**\n\n"
+                    "⚠️ **Processing**\n\n"
                     "Your previous clock-in request is still processing. Please wait a moment.",
                     ephemeral=True
                 )
@@ -4144,7 +4144,7 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
             if existing:
                 clock_in_time = safe_parse_timestamp(existing['clock_in'])
                 await interaction.followup.send(
-                    f"âš ï¸ **Already Clocked In**\n\n"
+                    f"⚠️ **Already Clocked In**\n\n"
                     f"You clocked in at <t:{int(clock_in_time.timestamp())}:f>\n"
                     f"Use **Clock Out** to end your shift first.",
                     ephemeral=True
@@ -4170,10 +4170,10 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
                     user_display_name = get_user_display_name(interaction.user, guild_id)
                     try:
                         await log_channel.send(
-                            f"ðŸŸ¢ **{user_display_name}** clocked in at `{in_time_formatted}`"
+                            f"🟢 **{user_display_name}** clocked in at `{in_time_formatted}`"
                         )
                     except discord.Forbidden:
-                        print(f"âš ï¸ Missing permissions to send clock-in log in channel {log_channel_id} (Guild {guild_id})")
+                        print(f"⚠️ Missing permissions to send clock-in log in channel {log_channel_id} (Guild {guild_id})")
         except Exception as e:
             print(f"Error sending log channel alert for clock in: {e}")
         
@@ -4190,24 +4190,24 @@ async def handle_tc_clock_in(interaction: discord.Interaction):
         if access['tier'] == 'free' and access['trial_active'] and not access['is_exempt']:
             days = access['days_remaining']
             if days <= 3:
-                trial_msg = f"\n\nðŸš¨ **Trial expires in {days} day{'s' if days != 1 else ''}!** Your team will lose clock access. Use `/upgrade` now!"
+                trial_msg = f"\n\n🚨 **Trial expires in {days} day{'s' if days != 1 else ''}!** Your team will lose clock access. Use `/upgrade` now!"
             elif days <= 7:
-                trial_msg = f"\n\nâš ï¸ **{days} days left** on your free trial. Use `/upgrade` to keep access!"
+                trial_msg = f"\n\n⚠️ **{days} days left** on your free trial. Use `/upgrade` to keep access!"
             elif days <= 10:
-                trial_msg = f"\n\nðŸ’¡ {days} days left on your free trial."
+                trial_msg = f"\n\n💡 {days} days left on your free trial."
 
         await interaction.followup.send(
-            f"âœ… **Clocked In!**\n\n"
+            f"✅ **Clocked In!**\n\n"
             f"**Time:** <t:{int(now.timestamp())}:f>\n"
             f"Have a productive shift!{trial_msg}",
             ephemeral=True
         )
-        print(f"âœ… [TC Hub] User {user_id} clocked in at guild {guild_id}")
+        print(f"✅ [TC Hub] User {user_id} clocked in at guild {guild_id}")
         
     except Exception as e:
-        print(f"âŒ [TC Hub] Clock in error for {user_id}: {e}")
+        print(f"❌ [TC Hub] Clock in error for {user_id}: {e}")
         await interaction.followup.send(
-            "âŒ **Error**\nFailed to clock in. Please try again.",
+            "❌ **Error**\nFailed to clock in. Please try again.",
             ephemeral=True
         )
 
@@ -4219,7 +4219,7 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
         return
     
     if not interaction.guild:
-        await interaction.followup.send("âŒ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
         return
     
     guild_id = interaction.guild.id
@@ -4239,7 +4239,7 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
             
         if settings and settings.get('kiosk_only_mode'):
             await interaction.followup.send(
-                "ðŸ–¥ï¸ **Kiosk Only Mode Active**\n\n"
+                "🖥️ **Kiosk Only Mode Active**\n\n"
                 "Discord clocking is disabled for this server.\n"
                 f"Please clock out physically at the terminal: `https://time-warden.com/kiosk/{guild_id}`",
                 ephemeral=True
@@ -4251,12 +4251,12 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
     # Check permissions
     server_tier = get_guild_tier_string(guild_id)
     if not isinstance(interaction.user, discord.Member):
-        await interaction.followup.send("âŒ Unable to verify permissions.", ephemeral=True)
+        await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
         return
     
     if not user_has_clock_access(interaction.user, server_tier):
         await interaction.followup.send(
-            "ðŸ”’ **Access Restricted**\n"
+            "🔒 **Access Restricted**\n"
             "You need an employee role to use the timeclock.",
             ephemeral=True
         )
@@ -4273,7 +4273,7 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
         
         if not session:
             await interaction.followup.send(
-                "âš ï¸ **Not Clocked In**\n\n"
+                "⚠️ **Not Clocked In**\n\n"
                 "You're not currently on the clock.\n"
                 "Use **Clock In** to start a shift.",
                 ephemeral=True
@@ -4309,10 +4309,10 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
                     user_display_name = get_user_display_name(interaction.user, guild_id)
                     try:
                         await log_channel.send(
-                            f"ðŸ”´ **{user_display_name}** clocked out at `{out_time_formatted}` ({hours_int}h {minutes}m)"
+                            f"🔴 **{user_display_name}** clocked out at `{out_time_formatted}` ({hours_int}h {minutes}m)"
                         )
                     except discord.Forbidden:
-                        print(f"âš ï¸ Missing permissions to send clock-out log in channel {log_channel_id} (Guild {guild_id})")
+                        print(f"⚠️ Missing permissions to send clock-out log in channel {log_channel_id} (Guild {guild_id})")
         except Exception as e:
             print(f"Error sending log channel alert for clock out: {e}")
         
@@ -4321,26 +4321,26 @@ async def handle_tc_clock_out(interaction: discord.Interaction):
         if access['tier'] == 'free' and access['trial_active'] and not access['is_exempt']:
             days = access['days_remaining']
             if days <= 3:
-                trial_msg = f"\n\nðŸš¨ **Trial expires in {days} day{'s' if days != 1 else ''}!** Your team will lose clock access. Use `/upgrade` now!"
+                trial_msg = f"\n\n🚨 **Trial expires in {days} day{'s' if days != 1 else ''}!** Your team will lose clock access. Use `/upgrade` now!"
             elif days <= 7:
-                trial_msg = f"\n\nâš ï¸ **{days} days left** on your free trial. Use `/upgrade` to keep access!"
+                trial_msg = f"\n\n⚠️ **{days} days left** on your free trial. Use `/upgrade` to keep access!"
             elif days <= 10:
-                trial_msg = f"\n\nðŸ’¡ {days} days left on your free trial."
+                trial_msg = f"\n\n💡 {days} days left on your free trial."
 
         await interaction.followup.send(
-            f"âœ… **Clocked Out!**\n\n"
+            f"✅ **Clocked Out!**\n\n"
             f"**Started:** <t:{int(clock_in_time.timestamp())}:f>\n"
             f"**Ended:** <t:{int(now.timestamp())}:f>\n"
             f"**Duration:** {hours_int}h {minutes}m\n\n"
             f"Great work today!{trial_msg}",
             ephemeral=True
         )
-        print(f"âœ… [TC Hub] User {user_id} clocked out at guild {guild_id} ({hours:.2f}h)")
+        print(f"✅ [TC Hub] User {user_id} clocked out at guild {guild_id} ({hours:.2f}h)")
         
     except Exception as e:
-        print(f"âŒ [TC Hub] Clock out error for {user_id}: {e}")
+        print(f"❌ [TC Hub] Clock out error for {user_id}: {e}")
         await interaction.followup.send(
-            "âŒ **Error**\nFailed to clock out. Please try again.",
+            "❌ **Error**\nFailed to clock out. Please try again.",
             ephemeral=True
         )
 
@@ -4352,7 +4352,7 @@ async def handle_tc_adjustments(interaction: discord.Interaction):
         return
     
     if not interaction.guild:
-        await interaction.followup.send("âŒ Use this in a server.", ephemeral=True)
+        await interaction.followup.send("❌ Use this in a server.", ephemeral=True)
         return
     
     url = generate_dashboard_deeplink(
@@ -4362,7 +4362,7 @@ async def handle_tc_adjustments(interaction: discord.Interaction):
     )
     
     embed = discord.Embed(
-        title="ðŸ“ Time Adjustments",
+        title="📝 Time Adjustments",
         description="Click the button below to manage your time adjustments in the dashboard.",
         color=0xD4AF37
     )
@@ -4380,7 +4380,7 @@ async def handle_tc_my_hours(interaction: discord.Interaction):
         return
     
     if not interaction.guild:
-        await interaction.followup.send("âŒ Use this in a server.", ephemeral=True)
+        await interaction.followup.send("❌ Use this in a server.", ephemeral=True)
         return
     
     guild_id = interaction.guild.id
@@ -4411,12 +4411,12 @@ async def handle_tc_my_hours(interaction: discord.Interaction):
         session_count = row['session_count'] if row else 0
         
         embed = discord.Embed(
-            title="ðŸ“Š My Hours",
+            title="📊 My Hours",
             description="Your time tracking summary",
             color=0xD4AF37
         )
         embed.add_field(
-            name="ðŸ“… Last 14 Days",
+            name="📅 Last 14 Days",
             value=f"**Total Hours:** {total_hours:.2f}h\n**Sessions:** {session_count}",
             inline=False
         )
@@ -4427,9 +4427,9 @@ async def handle_tc_my_hours(interaction: discord.Interaction):
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         
     except Exception as e:
-        print(f"âŒ [TC Hub] My hours error for {user_id}: {e}")
+        print(f"❌ [TC Hub] My hours error for {user_id}: {e}")
         embed = discord.Embed(
-            title="âŒ Error",
+            title="❌ Error",
             description="Couldn't load hours summary. Click below to view in dashboard.",
             color=0xED4245
         )
@@ -4445,16 +4445,16 @@ async def handle_tc_support(interaction: discord.Interaction):
         return
     
     embed = discord.Embed(
-        title="ðŸ†˜ Need Help?",
+        title="🆘 Need Help?",
         description="Join our support Discord for assistance!",
         color=0xED4245
     )
     embed.add_field(
-        name="ðŸ“ž Support Server",
-        value=f"**[Join Support Discord]({SUPPORT_DISCORD_URL})**\n\nGet help with:\nâ€¢ Setup and configuration\nâ€¢ Billing questions\nâ€¢ Bug reports\nâ€¢ Feature requests",
+        name="📞 Support Server",
+        value=f"**[Join Support Discord]({SUPPORT_DISCORD_URL})**\n\nGet help with:\n• Setup and configuration\n• Billing questions\n• Bug reports\n• Feature requests",
         inline=False
     )
-    embed.set_footer(text="On the Clock â€¢ Professional Time Tracking")
+    embed.set_footer(text="On the Clock • Professional Time Tracking")
     
     await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -4466,22 +4466,22 @@ async def handle_tc_upgrade(interaction: discord.Interaction):
         return
     
     if not interaction.guild:
-        await interaction.followup.send("âŒ This command must be used in a server.", ephemeral=True)
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
         return
 
     embed = discord.Embed(
-        title="â¬†ï¸ Upgrade Your Server",
+        title="⬆️ Upgrade Your Server",
         description="Unlock the full power of Time Warden!",
         color=discord.Color.gold()
     )
     embed.add_field(
-        name="ðŸ’Ž Premium â€” $8/month",
-        value="First month FREE!\nâœ… Full team clock in/out\nâœ… Web dashboard access\nâœ… CSV reports & exports\nâœ… 30-day data retention\nâœ… Email reports\nâœ… Time adjustments",
+        name="💎 Premium — $8/month",
+        value="First month FREE!\n✅ Full team clock in/out\n✅ Web dashboard access\n✅ CSV reports & exports\n✅ 30-day data retention\n✅ Email reports\n✅ Time adjustments",
         inline=False
     )
     embed.add_field(
-        name="ðŸš€ Pro â€” $15/month (Coming Soon!)",
-        value="Everything in Premium, plus:\nâœ… Kiosk mode for shared devices\nâœ… Ad-free dashboard\nâœ… Priority support",
+        name="🚀 Pro — $15/month (Coming Soon!)",
+        value="Everything in Premium, plus:\n✅ Kiosk mode for shared devices\n✅ Ad-free dashboard\n✅ Priority support",
         inline=False
     )
     
@@ -4497,13 +4497,13 @@ async def on_ready():
     # Start email scheduler for automated reports and warnings
     try:
         start_scheduler(bot)
-        print("âœ… Email scheduler started successfully")
+        print("✅ Email scheduler started successfully")
     except Exception as e:
-        print(f"âš ï¸ Failed to start email scheduler: {e}")
+        print(f"⚠️ Failed to start email scheduler: {e}")
     
     # Debug: Check what commands are in the tree
     commands = tree.get_commands()
-    print(f"ðŸ“‹ Commands in tree: {len(commands)}")
+    print(f"📋 Commands in tree: {len(commands)}")
     for cmd in commands:
         description = getattr(cmd, 'description', 'No description')
         print(f"   - {cmd.name}: {description}")
@@ -4520,40 +4520,40 @@ async def on_ready():
                 synced = await tree.sync(guild=guild_obj)
                 synced_count = len(synced)
                 sync_location = f"guild {GUILD_ID}"
-                print(f"âœ… Synced {synced_count} commands to guild {GUILD_ID}")
+                print(f"✅ Synced {synced_count} commands to guild {GUILD_ID}")
 
                 # If guild sync fails, try global
                 if synced_count == 0:
-                    print("ðŸ”„ Guild sync returned 0 commands, trying global sync...")
+                    print("🔄 Guild sync returned 0 commands, trying global sync...")
                     synced = await tree.sync()
                     synced_count = len(synced)
                     sync_location = "globally (after guild failed)"
-                    print(f"âœ… Global sync: {synced_count} commands")
+                    print(f"✅ Global sync: {synced_count} commands")
 
             except Exception as guild_error:
-                print(f"âŒ Guild sync failed: {guild_error}")
-                print("ðŸ”„ Trying global sync as fallback...")
+                print(f"❌ Guild sync failed: {guild_error}")
+                print("🔄 Trying global sync as fallback...")
                 # Fallback to global sync
                 synced = await tree.sync()
                 synced_count = len(synced)
                 sync_location = "globally"
-                print(f"âœ… Synced {synced_count} commands globally (fallback)")
+                print(f"✅ Synced {synced_count} commands globally (fallback)")
         else:
             # No guild ID provided, sync globally
             synced = await tree.sync()
             synced_count = len(synced)
             sync_location = "globally"
-            print(f"âœ… Synced {synced_count} global commands")
+            print(f"✅ Synced {synced_count} global commands")
 
     except Exception as e:
-        print(f"âŒ All command sync attempts failed: {e}")
+        print(f"❌ All command sync attempts failed: {e}")
         synced_count = 0
 
-    print(f"ðŸŽ¯ Final result: {synced_count} commands synced {sync_location}")
+    print(f"🎯 Final result: {synced_count} commands synced {sync_location}")
     if bot.user:
-        print(f"ðŸ¤– Logged in as {bot.user} ({bot.user.id})")
+        print(f"🤖 Logged in as {bot.user} ({bot.user.id})")
     else:
-        print("ðŸ¤– Bot user information not available")
+        print("🤖 Bot user information not available")
     
     # Update bot_guilds table with all connected guilds
     try:
@@ -4574,9 +4574,9 @@ async def on_ready():
                     ON CONFLICT (guild_id) DO UPDATE 
                     SET guild_name = EXCLUDED.guild_name, is_present = TRUE, left_at = NULL
                 """, (str(guild.id), guild.name))
-        print(f"âœ… Updated bot_guilds table with {len(bot.guilds)} guilds")
+        print(f"✅ Updated bot_guilds table with {len(bot.guilds)} guilds")
     except Exception as e:
-        print(f"âŒ Error updating bot_guilds table: {e}")
+        print(f"❌ Error updating bot_guilds table: {e}")
 
     # Backfill trial start dates for existing guilds
     try:
@@ -4587,12 +4587,12 @@ async def on_ready():
                     VALUES (%s, NOW())
                     ON CONFLICT (guild_id) DO NOTHING
                 """, (guild.id,))
-        print(f"âœ… Backfilled trial start dates for {len(bot.guilds)} guilds")
+        print(f"✅ Backfilled trial start dates for {len(bot.guilds)} guilds")
     except Exception as e:
-        print(f"âŒ Error backfilling trial start dates: {e}")
+        print(f"❌ Error backfilling trial start dates: {e}")
 
     # --- Employee Profile Catch-up ---
-    print("ðŸ”„ Running employee profile catch-up...")
+    print("🔄 Running employee profile catch-up...")
     try:
         with db() as conn:
             for guild in bot.guilds:
@@ -4616,14 +4616,14 @@ async def on_ready():
                             )
                 except Exception as e:
                     print(f"Error processing guild {guild.id} for catch-up: {e}")
-        print("âœ… Employee profile catch-up complete")
+        print("✅ Employee profile catch-up complete")
     except Exception as e:
-        print(f"âŒ Error in employee profile catch-up: {e}")
+        print(f"❌ Error in employee profile catch-up: {e}")
 
 def create_setup_embed() -> discord.Embed:
     """Create the setup instructions embed (reusable for DMs and button responses)"""
     embed = discord.Embed(
-        title="â° Welcome to Time Warden!",
+        title="⏰ Welcome to Time Warden!",
         description=(
             "Thanks for adding our professional Discord timeclock bot to your server!\n\n"
             "**You now have a 30-day Premium Trial with full access to all features.**\n"
@@ -4634,27 +4634,27 @@ def create_setup_embed() -> discord.Embed:
     
     # Add setup instructions
     embed.add_field(
-        name="ðŸš€ Quick Setup Guide",
+        name="🚀 Quick Setup Guide",
         value=(
-            "1ï¸âƒ£ **Visit the Dashboard:** Log in at https://time-warden.com\n"
-            "2ï¸âƒ£ **Set Employee Roles:** Add roles that can use the timeclock\n"
-            "3ï¸âƒ£ **Set Admin Roles** (optional): Add roles for report/settings access\n"
-            "4ï¸âƒ£ **Start Tracking:** Use `/clock` to get your timeclock interface\n\n"
-            "ðŸ’¡ **Tip:** Use `/setup` anytime to see setup instructions!"
+            "1️⃣ **Visit the Dashboard:** Log in at https://time-warden.com\n"
+            "2️⃣ **Set Employee Roles:** Add roles that can use the timeclock\n"
+            "3️⃣ **Set Admin Roles** (optional): Add roles for report/settings access\n"
+            "4️⃣ **Start Tracking:** Use `/clock` to get your timeclock interface\n\n"
+            "💡 **Tip:** Use `/setup` anytime to see setup instructions!"
         ),
         inline=False
     )
     
     # Add subscription tier information
     embed.add_field(
-        name="ðŸ’¼ After Your Trial",
+        name="💼 After Your Trial",
         value=(
             "Upgrade to Premium to continue using all features.\n\n"
-            "**ðŸ’Ž Premium ($8/month, first month FREE!):**\n"
-            "â€¢ Full team access\n"
-            "â€¢ CSV reports & exports\n"
-            "â€¢ 30-day data retention\n"
-            "â€¢ Dashboard & all features\n\n"
+            "**💎 Premium ($8/month, first month FREE!):**\n"
+            "• Full team access\n"
+            "• CSV reports & exports\n"
+            "• 30-day data retention\n"
+            "• Dashboard & all features\n\n"
             "Use `/upgrade` to subscribe!"
         ),
         inline=False
@@ -4662,10 +4662,10 @@ def create_setup_embed() -> discord.Embed:
     
     # Add footer with support info
     embed.add_field(
-        name="ðŸ’¬ Need Help?",
+        name="💬 Need Help?",
         value=(
             "Join our support server for assistance:\n"
-            "ðŸ”— https://discord.gg/tMGssTjkUt\n\n"
+            "🔗 https://discord.gg/tMGssTjkUt\n\n"
             "Run `/help` anytime to see all available commands!"
         ),
         inline=False
@@ -4787,7 +4787,7 @@ def trigger_welcome_dm(guild_id: int, user_id: int) -> dict:
 @app_commands.guild_only()
 async def upgrade_command(interaction: discord.Interaction):
     if interaction.guild_id is None:
-        await send_reply(interaction, "âŒ This command must be used in a server.", ephemeral=True)
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
         return
 
     guild_id = interaction.guild_id
@@ -4797,7 +4797,7 @@ async def upgrade_command(interaction: discord.Interaction):
 
     if access['is_exempt']:
         embed = discord.Embed(
-            title="â­ Full Access Granted",
+            title="⭐ Full Access Granted",
             description="This server has full access to all features. No upgrade needed!",
             color=discord.Color.gold()
         )
@@ -4806,8 +4806,8 @@ async def upgrade_command(interaction: discord.Interaction):
 
     if access['tier'] == 'pro':
         embed = discord.Embed(
-            title="ðŸš€ Pro Plan Active",
-            description="This server is on the **Pro** plan â€” you have access to everything!",
+            title="🚀 Pro Plan Active",
+            description="This server is on the **Pro** plan — you have access to everything!",
             color=discord.Color.purple()
         )
         embed.add_field(name="Includes", value="All Premium features + Kiosk Mode + Ad-free Dashboard", inline=False)
@@ -4816,12 +4816,12 @@ async def upgrade_command(interaction: discord.Interaction):
 
     if access['tier'] == 'premium':
         embed = discord.Embed(
-            title="ðŸ’Ž Premium Plan Active",
+            title="💎 Premium Plan Active",
             description="This server is on the **Premium** plan.",
             color=discord.Color.blue()
         )
         embed.add_field(
-            name="ðŸš€ Upgrade to Pro ($15/mo)",
+            name="🚀 Upgrade to Pro ($15/mo)",
             value="Get Kiosk Mode for shared-device clock-in, ad-free dashboard, and priority support.",
             inline=False
         )
@@ -4832,42 +4832,42 @@ async def upgrade_command(interaction: discord.Interaction):
     if access['trial_active']:
         days = access['days_remaining']
         embed = discord.Embed(
-            title="ðŸ†“ Free Trial Active",
+            title="🆓 Free Trial Active",
             description=f"You have **{days} day{'s' if days != 1 else ''}** remaining on your free trial.",
             color=discord.Color.green()
         )
     else:
         embed = discord.Embed(
-            title="âš ï¸ Trial Expired",
+            title="⚠️ Trial Expired",
             description="Your free trial has ended. Subscribe to continue using the bot!",
             color=discord.Color.red()
         )
 
     embed.add_field(
-        name="ðŸ’Ž Premium â€” $8/month",
+        name="💎 Premium — $8/month",
         value=(
             "**First month FREE!**\n"
-            "â€¢ Full bot access (clock in/out, reports)\n"
-            "â€¢ Web dashboard with team management\n"
-            "â€¢ CSV report exports\n"
-            "â€¢ Email automation & reminders\n"
-            "â€¢ 30-day data retention\n"
-            "â€¢ Calendar view & time adjustments"
+            "• Full bot access (clock in/out, reports)\n"
+            "• Web dashboard with team management\n"
+            "• CSV report exports\n"
+            "• Email automation & reminders\n"
+            "• 30-day data retention\n"
+            "• Calendar view & time adjustments"
         ),
         inline=False
     )
     embed.add_field(
-        name="ðŸš€ Pro â€” $15/month (Coming Soon)",
+        name="🚀 Pro — $15/month (Coming Soon)",
         value=(
             "Everything in Premium, plus:\n"
-            "â€¢ Kiosk Mode for shared devices\n"
-            "â€¢ Ad-free dashboard\n"
-            "â€¢ Priority support"
+            "• Kiosk Mode for shared devices\n"
+            "• Ad-free dashboard\n"
+            "• Priority support"
         ),
         inline=False
     )
     embed.add_field(
-        name="ðŸ‘‰ Subscribe Now",
+        name="👉 Subscribe Now",
         value=f"**[Click here to subscribe]({purchase_url})**",
         inline=False
     )
@@ -4878,87 +4878,21 @@ async def upgrade_command(interaction: discord.Interaction):
 
 @tree.command(name="help", description="List all available slash commands")
 @app_commands.default_permissions(administrator=True)
-        
-        # Add summary
-        total_members = sum(s['member_count'] for s in server_data)
-        paid_count = len([s for s in server_data if s['paid_status'] == 'Paid'])
-        free_count = len([s for s in server_data if s['paid_status'] == 'Free'])
-        retention_7day = len([s for s in server_data if s['retention_tier'] == '7-Day'])
-        retention_30day = len([s for s in server_data if s['retention_tier'] == '30-Day'])
-        
-        embed.add_field(
-            name="ðŸ“ˆ Summary",
-            value=f"**Total Servers:** {len(server_data)}\n"
-                  f"**Total Users:** {total_members:,}\n"
-                  f"**Paid Servers:** {paid_count}\n"
-                  f"**Free Servers:** {free_count}\n"
-                  f"**7-Day Retention:** {retention_7day}\n"
-                  f"**30-Day Retention:** {retention_30day}",
-            inline=False
-        )
-        
-        await interaction.followup.send(embed=embed, ephemeral=True)
-        
-    except Exception as e:
-        await interaction.followup.send(f"âŒ Error fetching server listings: {str(e)}", ephemeral=True)
+async def help_command(interaction: discord.Interaction):
+    # This command is left here as a placeholder for help
+    embed = discord.Embed(
+        title="📚 Help & Commands",
+        description="Here are the available commands:",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="`/setup`", value="Initial server setup instructions", inline=False)
+    embed.add_field(name="`/clock`", value="Open the timeclock interface", inline=False)
+    embed.add_field(name="`/upgrade`", value="Manage your premium subscription", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # --- Context Menu Commands (Right-Click Actions) ---
 
-        
-        cursor = conn.execute("""
-            SELECT clock_in_time, clock_out_time,
-                   EXTRACT(EPOCH FROM (COALESCE(clock_out_time, NOW()) - clock_in_time)) / 3600.0 as hours
-            FROM timeclock_sessions
-            WHERE guild_id = %s AND user_id = %s
-            AND clock_in_time >= date_trunc('week', NOW() AT TIME ZONE %s)
-            ORDER BY clock_in_time
-        """, (guild_id, user.id, guild_tz))
-        sessions = cursor.fetchall()
-    
-    if not sessions:
-        await interaction.followup.send(f"â„¹ï¸ {user.display_name} has no sessions this week.", ephemeral=True)
-        return
-    
-    # Calculate total hours
-    total_hours = sum(s['hours'] or 0 for s in sessions)
-    
-    if interaction.guild:
-        server_name = interaction.guild.name
-    else:
-        server_name = "Unknown Server"
-        
-    report_lines = [f"Shift Report for {user.display_name}", f"Server: {server_name}", f"Week of {datetime.now().strftime('%B %d, %Y')}", "", "Sessions:"]
-    
-    for s in sessions:
-        clock_in = s['clock_in_time'].strftime('%a %m/%d %I:%M %p') if s['clock_in_time'] else 'N/A'
-        clock_out = s['clock_out_time'].strftime('%I:%M %p') if s['clock_out_time'] else 'In Progress'
-        hours = s['hours'] or 0
-        report_lines.append(f"  {clock_in} - {clock_out} ({hours:.2f} hrs)")
-    
-    report_lines.append(f"\nTotal Hours: {total_hours:.2f}")
-    report_text = "\n".join(report_lines)
-    
-    # Import at function level to avoid circular imports
-    from email_utils import queue_email
-    
-    try:
-        for email in recipients:
-            queue_email(
-                email_type="shift_report",
-                recipients=[email],
-                subject=f"Shift Report: {user.display_name} - {server_name}",
-                text_content=report_text,
-                guild_id=int(guild_id) if guild_id else None
-            )
-        
-        await interaction.followup.send(f"âœ… Shift report for {user.display_name} queued for {len(recipients)} recipient(s).\n\n**Total Hours:** {total_hours:.2f}", ephemeral=True)
-    except Exception as e:
-        print(f"âŒ Error sending shift report: {e}")
-        await interaction.followup.send(f"âŒ Failed to send report: {str(e)}", ephemeral=True)
-
-
-# --- Bot HTTP API Server for Dashboard Integration ---
 BOT_API_PORT = int(os.getenv("BOT_API_PORT", "8081"))
 BOT_API_SECRET = os.getenv("BOT_API_SECRET", secrets.token_hex(32))  # Shared secret for auth
 
@@ -4985,13 +4919,13 @@ def verify_api_request(request: web.Request) -> bool:
     signature = request.headers.get('X-Signature')
     
     if not timestamp_str or not signature:
-        print("âš ï¸ API Request blocked: Missing Replay Defense headers.")
+        print("⚠️ API Request blocked: Missing Replay Defense headers.")
         return False
         
     try:
         timestamp_float = float(timestamp_str)
         if abs(time.time() - timestamp_float) > 30: # 30 second window
-            print(f"âš ï¸ API Request blocked: Timestamp {timestamp_float} is outside the 30s replay window.")
+            print(f"⚠️ API Request blocked: Timestamp {timestamp_float} is outside the 30s replay window.")
             return False
     except ValueError:
         return False
@@ -5005,7 +4939,7 @@ def verify_api_request(request: web.Request) -> bool:
     ).hexdigest()
     
     if not secrets.compare_digest(expected_mac, signature):
-        print("âš ï¸ API Request blocked: Cryptographic signature mismatch.")
+        print("⚠️ API Request blocked: Cryptographic signature mismatch.")
         return False
         
     return True
@@ -5029,7 +4963,7 @@ async def handle_add_admin_role(request: web.Request):
             'role_id': str(role_id)
         })
     except Exception as e:
-        print(f"âŒ Error adding admin role via API: {e}")
+        print(f"❌ Error adding admin role via API: {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def handle_remove_admin_role(request: web.Request):
@@ -5051,19 +4985,19 @@ async def handle_remove_admin_role(request: web.Request):
             'role_id': str(role_id)
         })
     except Exception as e:
-        print(f"âŒ Error removing admin role via API: {e}")
+        print(f"❌ Error removing admin role via API: {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def sync_employees_for_role(guild_id: int, role_id: int) -> int:
     """Sync all members with a given role into employee_profiles. Returns count of new profiles created."""
     guild = bot.get_guild(guild_id)
     if not guild:
-        print(f"âš ï¸ Cannot sync employees - guild {guild_id} not found")
+        print(f"⚠️ Cannot sync employees - guild {guild_id} not found")
         return 0
     
     role = guild.get_role(role_id)
     if not role:
-        print(f"âš ï¸ Cannot sync employees - role {role_id} not found in guild {guild_id}")
+        print(f"⚠️ Cannot sync employees - role {role_id} not found in guild {guild_id}")
         return 0
     
     server_tier = get_guild_tier_string(guild_id)
@@ -5088,7 +5022,7 @@ async def sync_employees_for_role(guild_id: int, role_id: int) -> int:
                         active_count = cursor.fetchone()['count']
                         
                     if active_count >= 3:
-                        print(f"ðŸ”’ Sync blocked for {member.name} in guild {guild_id}: Free tier limit (3) reached.")
+                        print(f"🔒 Sync blocked for {member.name} in guild {guild_id}: Free tier limit (3) reached.")
                         continue # Skip adding this member to respect the cap
             except Exception as e:
                 print(f"Error checking free tier limits during sync: {e}")
@@ -5105,14 +5039,14 @@ async def sync_employees_for_role(guild_id: int, role_id: int) -> int:
             new_count += 1
     
     if new_count > 0:
-        print(f"ðŸ‘¥ Synced {new_count} new employees from role '{role.name}' in guild {guild_id}")
+        print(f"👥 Synced {new_count} new employees from role '{role.name}' in guild {guild_id}")
     
     return new_count
 
 async def handle_add_employee_role(request: web.Request):
     """HTTP endpoint: Add employee role"""
     if not verify_api_request(request):
-        print(f"âš ï¸ Unauthorized employee role add attempt")
+        print(f"⚠️ Unauthorized employee role add attempt")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
     
     try:
@@ -5120,7 +5054,7 @@ async def handle_add_employee_role(request: web.Request):
         guild_id = int(request.match_info['guild_id'])
         role_id = int(data.get('role_id'))
         
-        print(f"ðŸ“¥ API: Adding employee role {role_id} to guild {guild_id}")
+        print(f"📥 API: Adding employee role {role_id} to guild {guild_id}")
         
         # Use existing bot function
         add_employee_role(guild_id, role_id)
@@ -5128,7 +5062,7 @@ async def handle_add_employee_role(request: web.Request):
         # Sync members with this role into employee_profiles
         synced_count = await sync_employees_for_role(guild_id, role_id)
         
-        print(f"âœ… API: Successfully added employee role {role_id} to guild {guild_id} (synced {synced_count} employees)")
+        print(f"✅ API: Successfully added employee role {role_id} to guild {guild_id} (synced {synced_count} employees)")
         
         return web.json_response({
             'success': True,
@@ -5137,13 +5071,13 @@ async def handle_add_employee_role(request: web.Request):
             'synced_count': synced_count
         })
     except Exception as e:
-        print(f"âŒ Error adding employee role via API (guild {request.match_info.get('guild_id')}): {e}")
+        print(f"❌ Error adding employee role via API (guild {request.match_info.get('guild_id')}): {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def handle_remove_employee_role(request: web.Request):
     """HTTP endpoint: Remove employee role"""
     if not verify_api_request(request):
-        print(f"âš ï¸ Unauthorized employee role remove attempt")
+        print(f"⚠️ Unauthorized employee role remove attempt")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
     
     try:
@@ -5152,12 +5086,12 @@ async def handle_remove_employee_role(request: web.Request):
         role_id = int(data.get('role_id'))
         user_id = data.get('user_id') # Might be passed, might not be
         
-        print(f"ðŸ“¥ API: Removing employee role {role_id} from guild {guild_id}")
+        print(f"📥 API: Removing employee role {role_id} from guild {guild_id}")
         
         # Use existing bot function
         remove_employee_role(guild_id, role_id)
         
-        print(f"âœ… API: Successfully removed employee role {role_id} from guild {guild_id}")
+        print(f"✅ API: Successfully removed employee role {role_id} from guild {guild_id}")
         
         # Dispatch webhook if user_id is provided
         if user_id:
@@ -5174,19 +5108,19 @@ async def handle_remove_employee_role(request: web.Request):
             'role_id': str(role_id)
         })
     except Exception as e:
-        print(f"âŒ Error removing employee role via API (guild {request.match_info.get('guild_id')}): {e}")
+        print(f"❌ Error removing employee role via API (guild {request.match_info.get('guild_id')}): {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def handle_sync_employees(request: web.Request):
     """HTTP endpoint: Sync all employees from configured roles into employee_profiles"""
     if not verify_api_request(request):
-        print(f"âš ï¸ Unauthorized employee sync attempt")
+        print(f"⚠️ Unauthorized employee sync attempt")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
     
     try:
         guild_id = int(request.match_info['guild_id'])
         
-        print(f"ðŸ“¥ API: Syncing employees for guild {guild_id}")
+        print(f"📥 API: Syncing employees for guild {guild_id}")
         
         # Get all employee roles for this guild
         employee_role_ids = get_employee_roles(guild_id)
@@ -5196,7 +5130,7 @@ async def handle_sync_employees(request: web.Request):
             synced = await sync_employees_for_role(guild_id, role_id)
             total_synced += synced
         
-        print(f"âœ… API: Synced {total_synced} employees across {len(employee_role_ids)} roles for guild {guild_id}")
+        print(f"✅ API: Synced {total_synced} employees across {len(employee_role_ids)} roles for guild {guild_id}")
         
         return web.json_response({
             'success': True,
@@ -5205,7 +5139,7 @@ async def handle_sync_employees(request: web.Request):
             'roles_checked': len(employee_role_ids)
         })
     except Exception as e:
-        print(f"âŒ Error syncing employees via API (guild {request.match_info.get('guild_id')}): {e}")
+        print(f"❌ Error syncing employees via API (guild {request.match_info.get('guild_id')}): {e}")
         import traceback
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
@@ -5221,11 +5155,11 @@ async def handle_prune_ghosts(request: web.Request):
         
         if not guild:
             # Maybe the bot hasn't fully loaded the guild cache yet, or the ID is mistyped
-            print(f"âš ï¸ [Prune Ghosts] Guild {guild_id} not found in bot cache. Skipping auto-prune.")
+            print(f"⚠️ [Prune Ghosts] Guild {guild_id} not found in bot cache. Skipping auto-prune.")
             return web.json_response({'success': False, 'error': 'Guild not found in bot cache'}, status=404)
             
         employee_role_ids = get_employee_roles(guild_id)
-        # print(f"ðŸ” [Prune Ghosts] Guild {guild_id} expects roles: {employee_role_ids}")
+        # print(f"🔍 [Prune Ghosts] Guild {guild_id} expects roles: {employee_role_ids}")
         archived_count = 0
         
         with db() as conn:
@@ -5251,14 +5185,14 @@ async def handle_prune_ghosts(request: web.Request):
                         archived_count += 1
                         
         if archived_count > 0:
-            print(f"ðŸ§¹ Auto-pruned {archived_count} ghost employees from guild {guild_id}")
+            print(f"🧹 Auto-pruned {archived_count} ghost employees from guild {guild_id}")
             
         return web.json_response({
             'success': True,
             'archived_count': archived_count
         })
     except Exception as e:
-        print(f"âŒ Error auto-pruning ghosts (guild {request.match_info.get('guild_id')}): {e}")
+        print(f"❌ Error auto-pruning ghosts (guild {request.match_info.get('guild_id')}): {e}")
         import traceback
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
@@ -5266,13 +5200,13 @@ async def handle_prune_ghosts(request: web.Request):
 async def handle_send_onboarding(request: web.Request):
     """HTTP endpoint: Send onboarding DMs to all employees with profile links"""
     if not verify_api_request(request):
-        print(f"âš ï¸ Unauthorized onboarding attempt")
+        print(f"⚠️ Unauthorized onboarding attempt")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
     
     try:
         guild_id = int(request.match_info['guild_id'])
         
-        print(f"ðŸ“¨ API: Sending onboarding DMs for guild {guild_id}")
+        print(f"📨 API: Sending onboarding DMs for guild {guild_id}")
         
         guild = bot.get_guild(guild_id)
         if not guild:
@@ -5305,41 +5239,41 @@ async def handle_send_onboarding(request: web.Request):
                 profile_url = f"https://{domain}/dashboard/server/{guild_id}/profile/{user_id}"
                 
                 embed = discord.Embed(
-                    title="ðŸ“‹ Welcome! Set Up Your Profile",
+                    title="📋 Welcome! Set Up Your Profile",
                     description=f"Hi {display_name}! Your admin has invited you to set up your profile for **{guild.name}**.",
                     color=discord.Color.blue()
                 )
                 
                 embed.add_field(
-                    name="ðŸ”— Your Profile Page",
-                    value=f"**[Click here to set up your profile]({profile_url})**\n\nOn your profile page you can:\nâ€¢ Set your email for notifications\nâ€¢ View your hours and stats\nâ€¢ Track your work history",
+                    name="🔗 Your Profile Page",
+                    value=f"**[Click here to set up your profile]({profile_url})**\n\nOn your profile page you can:\n• Set your email for notifications\n• View your hours and stats\n• Track your work history",
                     inline=False
                 )
                 
                 embed.add_field(
-                    name="â° Using the Timeclock",
+                    name="⏰ Using the Timeclock",
                     value="Use `/clock` in Discord to clock in/out and view your hours.",
                     inline=False
                 )
                 
-                embed.set_footer(text="On the Clock â€¢ Professional Time Tracking")
+                embed.set_footer(text="On the Clock • Professional Time Tracking")
                 
                 await member.send(embed=embed)
                 sent_count += 1
-                print(f"  âœ“ Sent onboarding to {member.display_name}")
+                print(f"  ✓ Sent onboarding to {member.display_name}")
                 
             except discord.Forbidden:
                 failed_count += 1
-                print(f"  âœ— Cannot DM user {emp['user_id']} (DMs disabled)")
+                print(f"  ✗ Cannot DM user {emp['user_id']} (DMs disabled)")
             except Exception as e:
                 failed_count += 1
-                print(f"  âœ— Failed to send to {emp['user_id']}: {e}")
+                print(f"  ✗ Failed to send to {emp['user_id']}: {e}")
         
         message = f"Sent onboarding to {sent_count} employees"
         if failed_count > 0:
             message += f" ({failed_count} failed - DMs may be disabled)"
         
-        print(f"âœ… API: {message}")
+        print(f"✅ API: {message}")
         
         return web.json_response({
             'success': True,
@@ -5348,7 +5282,7 @@ async def handle_send_onboarding(request: web.Request):
             'failed_count': failed_count
         })
     except Exception as e:
-        print(f"âŒ Error sending onboarding (guild {request.match_info.get('guild_id')}): {e}")
+        print(f"❌ Error sending onboarding (guild {request.match_info.get('guild_id')}): {e}")
         import traceback
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
@@ -5386,7 +5320,7 @@ async def handle_get_channels(request: web.Request):
             'channels': channels
         })
     except Exception as e:
-        print(f"âŒ Error fetching channels for {guild_id_str}: {e}")
+        print(f"❌ Error fetching channels for {guild_id_str}: {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def handle_test_message(request: web.Request):
@@ -5414,19 +5348,19 @@ async def handle_test_message(request: web.Request):
                 return web.json_response({'success': False, 'error': 'Channel not found or bot lacks access.'}, status=404)
                 
         try:
-            await channel.send("âœ… **Time Warden Integration Test**\n\nThis channel has been successfully linked to your Time Warden dashboard. You will now receive notifications here.")
+            await channel.send("✅ **Time Warden Integration Test**\n\nThis channel has been successfully linked to your Time Warden dashboard. You will now receive notifications here.")
             return web.json_response({'success': True, 'message': 'Test message sent successfully'})
         except discord.Forbidden:
             return web.json_response({'success': False, 'error': 'The bot lacks permission to send messages in this channel.'}, status=403)
             
     except Exception as e:
-        print(f"âŒ Error sending test message to {guild_id_str}: {e}")
+        print(f"❌ Error sending test message to {guild_id_str}: {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
 async def handle_broadcast(request: web.Request):
     """HTTP endpoint: Send broadcast message to guilds"""
     if not verify_api_request(request):
-        print(f"âš ï¸ Unauthorized broadcast attempt via API")
+        print(f"⚠️ Unauthorized broadcast attempt via API")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
     
     try:
@@ -5441,16 +5375,16 @@ async def handle_broadcast(request: web.Request):
         if not title or not message:
             return web.json_response({'success': False, 'error': 'Title and message are required'}, status=400)
         
-        print(f"ðŸ“¢ API Broadcast request: {len(guild_ids)} guilds, title: {title[:50]}...")
+        print(f"📢 API Broadcast request: {len(guild_ids)} guilds, title: {title[:50]}...")
         
         result = await send_broadcast_to_guilds(guild_ids, title, message)
         
-        print(f"ðŸ“¢ API Broadcast complete: {result.get('sent_count', 0)} sent, {result.get('failed_count', 0)} failed")
+        print(f"📢 API Broadcast complete: {result.get('sent_count', 0)} sent, {result.get('failed_count', 0)} failed")
         
         return web.json_response(result)
         
     except Exception as e:
-        print(f"âŒ Error in broadcast API: {e}")
+        print(f"❌ Error in broadcast API: {e}")
         import traceback
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
@@ -5458,7 +5392,7 @@ async def handle_broadcast(request: web.Request):
 async def handle_check_user_admin(request: web.Request):
     """HTTP endpoint: Check if user has admin permissions in a guild (real-time check)"""
     if not verify_api_request(request):
-        print(f"âš ï¸ Unauthorized admin check attempt")
+        print(f"⚠️ Unauthorized admin check attempt")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
     
     try:
@@ -5490,7 +5424,7 @@ async def handle_check_user_admin(request: web.Request):
                     'reason': 'not_member'
                 })
             except discord.HTTPException as e:
-                print(f"âŒ Discord API error fetching member {user_id} in guild {guild_id}: {e}")
+                print(f"❌ Discord API error fetching member {user_id} in guild {guild_id}: {e}")
                 return web.json_response({
                     'success': False,
                     'error': f'Discord API error: {str(e)}'
@@ -5530,7 +5464,7 @@ async def handle_check_user_admin(request: web.Request):
         })
         
     except Exception as e:
-        print(f"âŒ Error checking user admin status (guild {request.match_info.get('guild_id')}, user {request.match_info.get('user_id')}): {e}")
+        print(f"❌ Error checking user admin status (guild {request.match_info.get('guild_id')}, user {request.match_info.get('user_id')}): {e}")
         import traceback
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
@@ -5538,7 +5472,7 @@ async def handle_check_user_admin(request: web.Request):
 async def handle_reports_export(request: web.Request):
     """HTTP endpoint: Generate reports (CSV, Payroll, PDF)"""
     if not verify_api_request(request):
-        print(f"âš ï¸ Unauthorized reports export attempt")
+        print(f"⚠️ Unauthorized reports export attempt")
         return web.json_response({'success': False, 'error': 'Unauthorized'}, status=401)
         
     try:
@@ -5548,7 +5482,7 @@ async def handle_reports_export(request: web.Request):
         start_date_str = data.get('start_date')
         end_date_str = data.get('end_date')
         
-        print(f"ðŸ“¥ API: Generating {export_type} report for guild {guild_id} from {start_date_str} to {end_date_str}")
+        print(f"📥 API: Generating {export_type} report for guild {guild_id} from {start_date_str} to {end_date_str}")
         
         # Get guild timezone
         guild_settings = get_guild_settings(guild_id)
@@ -5601,7 +5535,7 @@ async def handle_reports_export(request: web.Request):
         # Base64 encode the final file payload to safely transfer over HTTP JSON
         b64_content = base64.b64encode(content.encode('utf-8')).decode('utf-8')
         
-        print(f"âœ… API: Generated {export_type} report for guild {guild_id}")
+        print(f"✅ API: Generated {export_type} report for guild {guild_id}")
         
         return web.json_response({
             'success': True,
@@ -5612,7 +5546,7 @@ async def handle_reports_export(request: web.Request):
         })
         
     except Exception as e:
-        print(f"âŒ Error exporting reports via API (guild {request.match_info.get('guild_id')}): {e}")
+        print(f"❌ Error exporting reports via API (guild {request.match_info.get('guild_id')}): {e}")
         import traceback
         traceback.print_exc()
         return web.json_response({'success': False, 'error': str(e)}, status=500)
@@ -5629,8 +5563,10 @@ async def handle_health(request: web.Request):
     guild_count = len(bot.guilds) if bot and bot_ready else 0
     
     return web.json_response({
-
-# --- Scheduled Tasks ---
+        'healthy': True,
+        'bot_ready': bot_ready,
+        'guild_count': guild_count
+    })# --- Scheduled Tasks ---
 def schedule_daily_cleanup():
     """Schedule daily cleanup task"""
     import threading
@@ -5646,21 +5582,21 @@ def schedule_daily_cleanup():
                 # Run cleanup
                 deleted_count = cleanup_old_sessions()
                 if deleted_count > 0:
-                    print(f"🧹 Daily cleanup: Removed {deleted_count} old session records")
+                    print(f"?? Daily cleanup: Removed {deleted_count} old session records")
                 
                 # Sleep for 24 hours
                 threading.Event().wait(86400)  # 24 hours in seconds
             except psycopg2.OperationalError as e:
                 if "locked" in str(e).lower():
-                    print(f"⏳ Database locked during daily cleanup, skipping this cycle: {e}")
+                    print(f"? Database locked during daily cleanup, skipping this cycle: {e}")
                     threading.Event().wait(3600)  # Wait 1 hour before retrying
                 else:
-                    print(f"❌ Database error during daily cleanup: {e}")
+                    print(f"? Database error during daily cleanup: {e}")
                     threading.Event().wait(3600)  # Wait 1 hour before retrying
             except Exception as e:
-                print(f"❌ Error during daily cleanup: {e}")
+                print(f"? Error during daily cleanup: {e}")
                 threading.Event().wait(3600)  # Wait 1 hour before retrying
 
     cleanup_thread = threading.Thread(target=daily_cleanup, daemon=True)
     cleanup_thread.start()
-    print("⏰ Daily cleanup scheduler started")
+    print("? Daily cleanup scheduler started")
