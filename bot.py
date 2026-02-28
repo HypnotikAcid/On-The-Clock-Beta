@@ -4,20 +4,16 @@ from bot_core import (
     TOKEN,
     run_migrations,
     init_db,
-    schedule_daily_cleanup,
-    start_bot_api_server
+    schedule_daily_cleanup
 )
 
-async def main():
+async def run_bot_with_api():
     # Load core cogs
     await bot.load_extension("bot.cogs.core_events")
     await bot.load_extension("bot.cogs.presence_events")
     await bot.load_extension("bot.cogs.employee_cmds")
     await bot.load_extension("bot.cogs.admin_cmds")
     await bot.load_extension("bot.cogs.owner_cmds")
-    
-    # Start API server in background
-    asyncio.create_task(start_bot_api_server())
     
     # Start Discord bot (will block until disconnected)
     await bot.start(TOKEN)
@@ -36,4 +32,4 @@ if __name__ == "__main__":
     schedule_daily_cleanup()
     
     print(f"🤖 Starting Discord bot with API server...")
-    asyncio.run(main())
+    asyncio.run(run_bot_with_api())
