@@ -8,9 +8,11 @@ from app import (
     __version__, CHANGELOG,  verify_guild_access, Entitlements, UserRole
 )
 
-dashboard_bp = Blueprint('dashboard', __name__)
-@dashboard_bp.route("/dashboard/invite")
 from web.utils.db import get_db
+
+dashboard_bp = Blueprint('dashboard', __name__)
+
+@dashboard_bp.route("/dashboard/invite")
 def dashboard_invite():
     """Page shown when user tries to access dashboard but bot is not invited to their server."""
     discord_client_id = os.getenv("DISCORD_CLIENT_ID", "1418446753379913809")

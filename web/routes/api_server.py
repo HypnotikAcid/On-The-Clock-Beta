@@ -7,9 +7,9 @@ from flask import Blueprint, render_template, redirect, request, session, jsonif
 import requests
 
 from app import (
-    require_auth, require_paid_api_access, get_flask_guild_access, get_all_user_guilds, is_demo_server, 
+    require_api_auth, require_auth, require_paid_api_access, require_server_owner, get_flask_guild_access, get_all_user_guilds, is_demo_server, 
     __version__, CHANGELOG,  verify_guild_access, Entitlements, UserRole,
-    send_email, send_onboarding_email, sanitize_csv_string,
+    sanitize_csv_string,
     _get_bot_module, get_bot_guild_ids, get_guild_roles_from_bot, get_guild_settings, get_guild_text_channels, validate_bot_api_url, validate_role_in_guild, _parse_stickers
 )
 from web.utils.db import get_db

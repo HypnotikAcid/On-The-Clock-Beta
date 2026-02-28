@@ -1,4 +1,4 @@
-﻿import discord
+import discord
 from discord import app_commands
 from discord.ext import commands
 from bot_core import (
@@ -29,19 +29,19 @@ class EmployeeCmds(commands.Cog):
 
         guild_id = interaction.guild_id
         if guild_id is None:
-            await interaction.followup.send("âŒ This command must be used in a server.", ephemeral=True)
+            await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
             return
 
         access = get_guild_access_info(guild_id)
         if not access['is_exempt'] and access['tier'] == 'free' and not access['trial_active']:
             embed = discord.Embed(
-                title="â° Free Trial Expired",
+                title="⏰ Free Trial Expired",
                 description="Your 30-day free trial has ended.\nUpgrade to Premium to continue using the timeclock!",
                 color=discord.Color.red()
             )
-            embed.add_field(name="ðŸ’Ž Premium", value="$8/month (first month FREE!)\nâœ… Full team clock in/out\nâœ… Dashboard & reports\nâœ… 30-day data retention", inline=False)
-            embed.add_field(name="ðŸš€ Pro", value="$15/month â€” Coming Soon!\nâœ… Everything in Premium\nâœ… Kiosk mode\nâœ… Ad-free dashboard", inline=False)
-            embed.add_field(name="â¬†ï¸ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+            embed.add_field(name="💎 Premium", value="$8/month (first month FREE!)\n✅ Full team clock in/out\n✅ Dashboard & reports\n✅ 30-day data retention", inline=False)
+            embed.add_field(name="🚀 Pro", value="$15/month — Coming Soon!\n✅ Everything in Premium\n✅ Kiosk mode\n✅ Ad-free dashboard", inline=False)
+            embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
@@ -53,7 +53,7 @@ class EmployeeCmds(commands.Cog):
 
             if settings and settings.get('kiosk_only_mode'):
                 await interaction.followup.send(
-                    "ðŸ–¥ï¸ **Kiosk Only Mode Active**\n\n"
+                    "🖥️ **Kiosk Only Mode Active**\n\n"
                     "Discord clocking is disabled for this server.\n"
                     f"Please manage your time physically at the terminal: `https://time-warden.com/kiosk/{guild_id}`",
                     ephemeral=True
@@ -65,20 +65,20 @@ class EmployeeCmds(commands.Cog):
         # Check permissions
         server_tier = get_guild_tier_string(guild_id)
         if not isinstance(interaction.user, discord.Member):
-            await interaction.followup.send("âŒ Unable to verify permissions.", ephemeral=True)
+            await interaction.followup.send("❌ Unable to verify permissions.", ephemeral=True)
             return
 
         if not user_has_clock_access(interaction.user, server_tier):
             if server_tier == "free":
                 await interaction.followup.send(
-                    "âš ï¸ **Free Tier Limitation**\n\n"
+                    "⚠️ **Free Tier Limitation**\n\n"
                     "Only administrators can use timeclock on the free tier.\n"
                     "Use `/upgrade` to unlock full team access!",
                     ephemeral=True
                 )
             else:
                 await interaction.followup.send(
-                    "âŒ **Access Denied**\n\n"
+                    "❌ **Access Denied**\n\n"
                     "You need an employee role to use the timeclock.\n"
                     "Ask an administrator to add your role with `/add_employee_role @yourrole`",
                     ephemeral=True
@@ -156,24 +156,24 @@ class EmployeeCmds(commands.Cog):
                 minutes, _ = divmod(remainder, 60)
 
                 embed = discord.Embed(
-                    title="â° Timeclock Hub",
+                    title="⏰ Timeclock Hub",
                     description="Your personal time management center",
                     color=0x57F287  # Green for clocked in
                 )
                 embed.add_field(
-                    name="ðŸŸ¢ Status: Clocked In",
+                    name="🟢 Status: Clocked In",
                     value=f"**Started:** <t:{int(clock_in_time.timestamp())}:f>\n"
                           f"**Elapsed:** {hours}h {minutes}m",
                     inline=False
                 )
             else:
                 embed = discord.Embed(
-                    title="â° Timeclock Hub",
+                    title="⏰ Timeclock Hub",
                     description="Your personal time management center",
                     color=0xD4AF37  # Gold
                 )
                 embed.add_field(
-                    name="âšª Status: Not Clocked In",
+                    name="⚪ Status: Not Clocked In",
                     value="Ready to start your shift!",
                     inline=False
                 )
@@ -192,22 +192,22 @@ class EmployeeCmds(commands.Cog):
                 week_hours = float(row['week_hours']) if row and row['week_hours'] else 0
 
             embed.add_field(
-                name="ðŸ“Š This Week",
+                name="📊 This Week",
                 value=f"**Hours:** {week_hours:.1f}h",
                 inline=True
             )
 
-            embed.set_footer(text="Buttons below work even after bot restarts â€¢ On the Clock")
+            embed.set_footer(text="Buttons below work even after bot restarts • On the Clock")
 
             # Send with bulletproof view
             view = build_timeclock_hub_view(guild_id, embed)
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-            print(f"âœ… [TC Hub] Sent timeclock hub to {interaction.user} in guild {guild_id}")
+            print(f"✅ [TC Hub] Sent timeclock hub to {interaction.user} in guild {guild_id}")
 
         except Exception as e:
-            print(f"âŒ [TC Hub] Error creating hub for {interaction.user}: {e}")
+            print(f"❌ [TC Hub] Error creating hub for {interaction.user}: {e}")
             await interaction.followup.send(
-                "âŒ **Error**\nCouldn't load timeclock hub. Please try again.",
+                "❌ **Error**\nCouldn't load timeclock hub. Please try again.",
                 ephemeral=True
             )
 
@@ -229,7 +229,7 @@ class EmployeeCmds(commands.Cog):
     @app_commands.guild_only()
     async def help_command(self, interaction: discord.Interaction):
         if interaction.guild_id is None:
-            await send_reply(interaction, "âŒ This command must be used in a server.", ephemeral=True)
+            await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
             return
 
         guild_id = interaction.guild_id
@@ -240,35 +240,35 @@ class EmployeeCmds(commands.Cog):
         footer_text = ""
 
         if access['is_exempt']:
-            tier_display = "â­ Full Access"
+            tier_display = "⭐ Full Access"
             tier_color = discord.Color.gold()
-            footer_text = "â­ Full Access"
+            footer_text = "⭐ Full Access"
         elif access['tier'] == 'pro':
-            tier_display = "ðŸš€ PRO PLAN"
+            tier_display = "🚀 PRO PLAN"
             tier_color = discord.Color.purple()
-            footer_text = "ðŸš€ Pro Plan Active"
+            footer_text = "🚀 Pro Plan Active"
         elif access['tier'] == 'premium':
-            tier_display = "ðŸ’Ž PREMIUM PLAN"
+            tier_display = "💎 PREMIUM PLAN"
             tier_color = discord.Color.blue()
-            footer_text = "ðŸ’Ž Premium Plan Active"
+            footer_text = "💎 Premium Plan Active"
         elif access['trial_active']:
-            tier_display = "ðŸ†“ FREE TRIAL"
+            tier_display = "🆓 FREE TRIAL"
             tier_color = discord.Color.green()
             days = access['days_remaining']
-            footer_text = f"ðŸ†“ Free Trial - {days} day{'s' if days != 1 else ''} remaining"
+            footer_text = f"🆓 Free Trial - {days} day{'s' if days != 1 else ''} remaining"
         else:
-            tier_display = "âš ï¸ TRIAL EXPIRED"
+            tier_display = "⚠️ TRIAL EXPIRED"
             tier_color = discord.Color.red()
-            footer_text = "âš ï¸ Trial Expired â€” Use /upgrade to continue"
+            footer_text = "⚠️ Trial Expired — Use /upgrade to continue"
 
         embed = discord.Embed(
-            title="â° On the Clock - Help",
+            title="⏰ On the Clock - Help",
             description=f"**Your Server:** {tier_display}\n\nSimple time tracking for your team, right in Discord.",
             color=tier_color
         )
 
         embed.add_field(
-            name="ðŸ“± Discord Commands",
+            name="📱 Discord Commands",
             value=(
                 "`/clock` - Open your timeclock (clock in/out, view hours)\n"
                 "`/setup` - View setup instructions\n"
@@ -278,47 +278,47 @@ class EmployeeCmds(commands.Cog):
         )
 
         embed.add_field(
-            name="ðŸ–±ï¸ Right-Click Actions (Admins)",
+            name="🖱️ Right-Click Actions (Admins)",
             value=(
-                "Right-click any user â†’ Apps:\n"
-                "â€¢ **View Hours** - See employee's weekly hours\n"
-                "â€¢ **View Profile** - Open employee's dashboard profile\n"
-                "â€¢ **Send Shift Report** - Email shift report to recipients\n"
-                "â€¢ **Force Clock Out** - Clock out an employee\n"
-                "â€¢ **Ban from Timeclock** - Temporarily block access"
+                "Right-click any user → Apps:\n"
+                "• **View Hours** - See employee's weekly hours\n"
+                "• **View Profile** - Open employee's dashboard profile\n"
+                "• **Send Shift Report** - Email shift report to recipients\n"
+                "• **Force Clock Out** - Clock out an employee\n"
+                "• **Ban from Timeclock** - Temporarily block access"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="ðŸŒ Dashboard Features",
+            name="🌐 Dashboard Features",
             value=(
                 "**[time-warden.com/dashboard](https://time-warden.com/dashboard)**\n\n"
-                "â€¢ **Role Management** - Set admin & employee roles\n"
-                "â€¢ **Team Management** - Manage your team\n"
-                "â€¢ **Time Adjustments** - Review & approve corrections\n"
-                "â€¢ ðŸ’Ž **Reports** - Export CSV timesheets\n"
-                "â€¢ ðŸ’Ž **Email Automation** - Daily reports & reminders\n"
-                "â€¢ ðŸš€ **Kiosk Mode** - Shared device clock-in\n"
-                "â€¢ **Calendar View** - Edit time entries"
+                "• **Role Management** - Set admin & employee roles\n"
+                "• **Team Management** - Manage your team\n"
+                "• **Time Adjustments** - Review & approve corrections\n"
+                "• 💎 **Reports** - Export CSV timesheets\n"
+                "• 💎 **Email Automation** - Daily reports & reminders\n"
+                "• 🚀 **Kiosk Mode** - Shared device clock-in\n"
+                "• **Calendar View** - Edit time entries"
             ),
             inline=False
         )
 
         if not access['is_exempt'] and access['tier'] == 'free':
             embed.add_field(
-                name="â¬†ï¸ Upgrade to Premium",
+                name="⬆️ Upgrade to Premium",
                 value=(
                     "**Free Trial:** 30-day full access trial\n"
                     "**Premium ($8/month, first month FREE!):** Full team access, dashboard, reports, 30-day retention\n"
-                    "**Pro ($15/month â€” Coming Soon!):** Kiosk mode + ad-free dashboard\n\n"
-                    "ðŸ‘‰ Visit the dashboard to upgrade!"
+                    "**Pro ($15/month — Coming Soon!):** Kiosk mode + ad-free dashboard\n\n"
+                    "👉 Visit the dashboard to upgrade!"
                 ),
                 inline=False
             )
         else:
             embed.add_field(
-                name="âœ… Premium Active",
+                name="✅ Premium Active",
                 value="You have full access to all dashboard features!",
                 inline=False
             )
@@ -340,11 +340,11 @@ class EmployeeCmds(commands.Cog):
         )
 
         async def on_submit(self, interaction: discord.Interaction):
-            await send_reply(interaction, "âœ… Thank you! Your feedback has been sent directly to our development team.", ephemeral=True)
+            await send_reply(interaction, "✅ Thank you! Your feedback has been sent directly to our development team.", ephemeral=True)
 
             webhook_url = os.environ.get('DEVELOPER_WEBHOOK_URL')
             if not webhook_url:
-                print("âš ï¸ DEVELOPER_WEBHOOK_URL not configured. Feedback suppressed.")
+                print("⚠️ DEVELOPER_WEBHOOK_URL not configured. Feedback suppressed.")
                 return
 
             embed = discord.Embed(
@@ -365,7 +365,7 @@ class EmployeeCmds(commands.Cog):
                     import requests
                     requests.post(webhook_url, json={"embeds": [embed.to_dict()]}, timeout=5)
                 except Exception as e:
-                    print(f"âŒ Failed to send feedback webhook: {e}")
+                    print(f"❌ Failed to send feedback webhook: {e}")
 
             import threading
             t = threading.Thread(target=send_webhook)
@@ -373,41 +373,12 @@ class EmployeeCmds(commands.Cog):
             t.start()
 
             await interaction.response.send_message(
-                "ðŸ—„ï¸ **Your Data Summary:**\n"
+                "🗄️ **Your Data Summary:**\n"
                 "We store your Discord ID, Username, configured Timezone, and Clock-In timestamps required for payroll generation.\n"
                 "To request a full JSON export, please email privacy@ontheclock.bot.",
                 ephemeral=True
             )
             return
-
-        elif action.value == "delete":
-            try:
-                with get_db() as conn:
-                    # Scramble profile, delete pins, and drop active sessions
-                    conn.execute("""
-                        UPDATE employee_profiles 
-                        SET first_name = 'Deleted', 
-                            last_name = 'User', 
-                            email = NULL,
-                            timesheet_email = NULL,
-                            phone = NULL,
-                            is_active = FALSE
-                        WHERE user_id = %s
-                    """, (user_id,))
-
-                    conn.execute("DELETE FROM employee_pins WHERE user_id = %s", (user_id,))
-                    conn.execute("DELETE FROM timeclock_sessions WHERE user_id = %s", (user_id,))
-
-                    await interaction.response.send_message(
-                        "âš ï¸ **DATA ERASED**\n"
-                        "Your personal information (Name, Email, Phone, PINs, and Time Logs) has been wiped from this server's database.\n"
-                        "You will no longer appear on payroll exports.", 
-                        ephemeral=True
-                    )
-            except Exception as e:
-                await interaction.response.send_message("âŒ Database error during data removal request.", ephemeral=True)
-
-
 
     @app_commands.command(name="timezone", description="Set your personal dashboard and reporting timezone")
     async def timezone_command(self, interaction: discord.Interaction, tz_string: str):
@@ -415,7 +386,7 @@ class EmployeeCmds(commands.Cog):
         import pytz
         if tz_string not in pytz.all_timezones:
             await interaction.response.send_message(
-                f"âŒ Invalid timezone: `{tz_string}`.\n"
+                f"❌ Invalid timezone: `{tz_string}`.\n"
                 "Example valid formats: `America/New_York`, `America/Los_Angeles`, `Europe/London`.", 
                 ephemeral=True
             )
@@ -431,9 +402,9 @@ class EmployeeCmds(commands.Cog):
                     timezone_configured = TRUE
                 """, (str(interaction.user.id), tz_string))
 
-                await interaction.response.send_message(f"âœ… Your personal timezone is now locked to **{tz_string}**.", ephemeral=True)
+                await interaction.response.send_message(f"✅ Your personal timezone is now locked to **{tz_string}**.", ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message("âŒ Failed to save timezone preference.", ephemeral=True)
+            await interaction.response.send_message("❌ Failed to save timezone preference.", ephemeral=True)
 
 
 
@@ -451,7 +422,7 @@ async def setup(bot):
         
         if action.value == "view":
             await interaction.response.send_message(
-                "🗄️ **Your Data Summary:**\n"
+                "??? **Your Data Summary:**\n"
                 "We store your Discord ID, Username, configured Timezone, and Clock-In timestamps required for payroll generation.\n"
                 "To request a full JSON export, please email privacy@ontheclock.bot.",
                 ephemeral=True
@@ -477,13 +448,13 @@ async def setup(bot):
                     conn.execute("DELETE FROM timeclock_sessions WHERE user_id = %s", (user_id,))
                     
                     await interaction.response.send_message(
-                        "⚠️ **DATA ERASED**\n"
+                        "?? **DATA ERASED**\n"
                         "Your personal information (Name, Email, Phone, PINs, and Time Logs) has been wiped from this server's database.\n"
                         "You will no longer appear on payroll exports.", 
                         ephemeral=True
                     )
             except Exception as e:
-                await interaction.response.send_message("❌ Database error during data removal request.", ephemeral=True)
+                await interaction.response.send_message("? Database error during data removal request.", ephemeral=True)
 
     @app_commands.command(name="timezone", description="Set your personal dashboard and reporting timezone")
     async def timezone_command(self, interaction: discord.Interaction, tz_string: str):
@@ -491,7 +462,7 @@ async def setup(bot):
         import pytz
         if tz_string not in pytz.all_timezones:
             await interaction.response.send_message(
-                f"❌ Invalid timezone: `{tz_string}`.\n"
+                f"? Invalid timezone: `{tz_string}`.\n"
                 "Example valid formats: `America/New_York`, `America/Los_Angeles`, `Europe/London`.", 
                 ephemeral=True
             )
@@ -507,9 +478,9 @@ async def setup(bot):
                     timezone_configured = TRUE
                 """, (str(interaction.user.id), tz_string))
                 
-                await interaction.response.send_message(f"✅ Your personal timezone is now locked to **{tz_string}**.", ephemeral=True)
+                await interaction.response.send_message(f"? Your personal timezone is now locked to **{tz_string}**.", ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message("❌ Failed to save timezone preference.", ephemeral=True)
+            await interaction.response.send_message("? Failed to save timezone preference.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EmployeeCmds(bot))

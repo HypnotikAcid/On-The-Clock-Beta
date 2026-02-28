@@ -413,11 +413,6 @@ class OwnerCmds(commands.Cog):
         except Exception as e:
             print(f"Error handling guild removal for {guild.id}: {e}")
 
-    @app_commands.command(name="my_data", description="[PRIVACY] View or delete your personal data (GDPR/CCPA Compliance)")
-    @app_commands.choices(action=[
-        app_commands.Choice(name="View My Data", value="view"),
-        app_commands.Choice(name="Delete My Data (Irreversible)", value="delete")
-
     @app_commands.command(name="owner_server_listings", description="[OWNER] View all servers with employee/admin headcounts")
     async def owner_server_listings(self, interaction: discord.Interaction):
         """Owner-only command to list all servers with employee/admin headcounts"""
@@ -500,6 +495,11 @@ class OwnerCmds(commands.Cog):
                     value=f"And {len(server_data) - 15} more servers",
                     inline=False
                 )
+
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            await interaction.followup.send(f"â Œ Error fetching server listings: {str(e)}", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(OwnerCmds(bot))

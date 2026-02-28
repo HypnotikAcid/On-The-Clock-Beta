@@ -7,18 +7,18 @@ from flask import Blueprint, render_template, redirect, request, session, jsonif
 import requests
 
 from app import (
+    require_api_auth,
     require_auth,
     require_paid_api_access,
     get_flask_guild_access,
     get_all_user_guilds,
     flask_check_bot_access,
     flask_set_bot_access,
-    create_secure_checkout_session
+    create_secure_checkout_session,
+    is_demo_server, __version__, CHANGELOG, verify_guild_access, Entitlements, UserRole,
+    sanitize_csv_string, approve_adjustment, check_guild_paid_access, check_user_admin_realtime, create_adjustment_request, deny_adjustment
 )
-from web.utils.db import get_dbr_guilds, is_demo_server, \
-    __version__, CHANGELOG, get_db, verify_guild_access, Entitlements, UserRole, \
-    send_email, send_onboarding_email, sanitize_csv_string, \
-    approve_adjustment, check_guild_paid_access, check_user_admin_realtime, create_adjustment_request, deny_adjustment
+from web.utils.db import get_db
 
 
 api_guild_bp = Blueprint('api_guild', __name__)

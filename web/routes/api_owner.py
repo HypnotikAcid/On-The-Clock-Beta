@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from flask import Blueprint, render_template, redirect, request, session, jsonify, current_app as app, Response
 
 from app import (
-    require_api_auth,  Entitlements, 
-    sanitize_csv_string, send_manual_report_email,
+    require_api_auth, require_auth, require_server_owner, Entitlements, 
+    sanitize_csv_string,
     _get_bot_module, notify_server_owner_bot_access, validate_role_in_guild, verify_guild_access
 )
 
