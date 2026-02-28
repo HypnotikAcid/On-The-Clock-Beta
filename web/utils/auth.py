@@ -32,7 +32,8 @@ def validate_bot_api_url(url):
     except Exception:
         return False
 
-        """Optionally stores metadata (e.g. purchase_intent) that survives cross-domain redirects."""
+def create_oauth_state(metadata=None):
+    """Optionally stores metadata (e.g. purchase_intent) that survives cross-domain redirects."""
     state = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
     metadata_json = json.dumps(metadata) if metadata else None
