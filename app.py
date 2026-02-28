@@ -459,73 +459,7 @@ def get_redirect_uri():
 
 # Database connection
 from web.utils.db import init_app_db_pool, app_db_pool, FlaskConnectionWrapper, get_db
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS oauth_states (
-                state TEXT PRIMARY KEY,
-                expires_at TEXT NOT NULL,
-                metadata TEXT
-            )
-        """)
-        conn.execute("""
-            ALTER TABLE oauth_states ADD COLUMN IF NOT EXISTS metadata TEXT
-        """)
-        
-        # User sessions table for logged-in users
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS user_sessions (
-                session_id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                username TEXT NOT NULL,
-                discriminator TEXT,
-                avatar TEXT,
-                access_token TEXT NOT NULL,
-                refresh_token TEXT,
-                guilds_data TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT (NOW()),
-                expires_at TEXT NOT NULL,
-                ip_address TEXT NOT NULL DEFAULT 'unknown'
-            )
-        """)
-        
-        # Migration: Add refresh_token column if it doesn't exist
-        try:
-            conn.execute("ALTER TABLE user_sessions ADD COLUMN refresh_token TEXT")
-        except psycopg2.OperationalError:
-            pass
-        
-        # Migration: Add created_at column if it doesn't exist
-        try:
-            conn.execute("ALTER TABLE user_sessions ADD COLUMN created_at TEXT NOT NULL DEFAULT (NOW())")
-        except psycopg2.OperationalError:
-            pass
-        
-        # Migration: Add ip_address column if it doesn't exist
-        try:
-            conn.execute("ALTER TABLE user_sessions ADD COLUMN ip_address TEXT NOT NULL DEFAULT 'unknown'")
-        except psycopg2.OperationalError:
-            pass
-        
-        # Purchase history table for tracking all purchases
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS purchase_history (
-                id SERIAL PRIMARY KEY NOT NULL,
-                guild_id BIGINT NOT NULL,
-                guild_name VARCHAR(255),
-                customer_email VARCHAR(255),
-                customer_id VARCHAR(255),
-                product_type VARCHAR(50) NOT NULL,
-                amount_cents INTEGER,
-                currency VARCHAR(10) DEFAULT 'usd',
-                stripe_session_id VARCHAR(255),
-                purchased_at TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        
-        # Clean up expired sessions and states
-        conn.execute("DELETE FROM oauth_states WHERE expires_at < %s", 
-                    (datetime.now(timezone.utc).isoformat(),))
-        conn.execute("DELETE FROM user_sessions WHERE expires_at < %s", 
-                    (datetime.now(timezone.utc).isoformat(),))
+
 
 # Dashboard tables are initialized in the Gunicorn startup block (deferred)
 # This allows the Flask app to bind to port 5000 immediately without blocking on DB
