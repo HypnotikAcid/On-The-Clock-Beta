@@ -198,3 +198,11 @@
 - **The Problem**: Flask routes calling `bot.py` functions that use `db()` (the bot's connection pool) cause deadlocks resulting in `[CRITICAL] WORKER TIMEOUT` in Gunicorn.
 - **The Solution**: Flask routes must NEVER call `bot.py` functions that use `db()`. Flask routes must use Flask's own DB connection directly via `with get_db() as conn:`.
 - **Pattern**: The `_get_bot_func()` bridge is ONLY safe for non-DB bot operations, such as Discord API calls, or simple tier checks that don't open a database connection.
+
+## Python Namespace Collisions (2026-02-28)
+- **The Problem**: Naming a script `bot.py` while having a directory named `bot/` causes Python 3 to fail when importing packages from the directory (e.g., `import bot.cogs`). It imports the script instead, resulting in `No module named 'bot.cogs'; 'bot' is not a package`.
+- **The Solution**: Never name a root runner script the same as a Python package directory. Renamed `bot.py` to `discord_runner.py` to resolve the collision.
+
+## Discord Context Menus inside Cogs (2026-02-28)
+- **The Problem**: App Commands Context Menus (`@app_commands.context_menu()`) throw a `TypeError: context menus cannot be defined inside a class` if they are defined inside a `commands.Cog` class.
+- **The Solution**: Define Context Menus as global async functions outside of the Cog class, and manually register them into the bot tree during the `setup(bot)` function using `bot.tree.add_command(context_menu_function)`.
