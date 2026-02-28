@@ -3,8 +3,8 @@ from discord import app_commands
 from discord.ext import commands
 from bot_core import (
     db, robust_defer, get_guild_access_info, get_guild_tier_string, user_has_clock_access,
-    safe_parse_timestamp, build_timeclock_hub_view, send_reply, get_domain, APP_DOMAIN,
-    handle_my_data_command, parse_timezone, register_discord_user_timezone, bot
+    safe_parse_timestamp, build_timeclock_hub_view, send_reply, get_domain,
+    bot
 )
 import os
 from datetime import datetime, timezone
