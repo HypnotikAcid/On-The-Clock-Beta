@@ -8,7 +8,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route("/login")
 def auth_login():
     """Redirect user to Discord OAuth"""
-from web.utils.db import get_db
+    from web.utils.db import get_db
     from web.utils.auth import create_oauth_state, get_redirect_uri, DISCORD_CLIENT_ID, DISCORD_OAUTH_SCOPES
     state = create_oauth_state()
     redirect_uri = get_redirect_uri()
