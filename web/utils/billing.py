@@ -7,8 +7,8 @@ from stripe import SignatureVerificationError
 from flask import request, jsonify, current_app as app
 from flask import Blueprint, request, jsonify, current_app as app
 billing_bp = Blueprint('billing', __name__)
-from app import flask_set_bot_access, flask_set_retention_tier
-
+from flask import Blueprint, request, jsonify, current_app as app
+billing_bp = Blueprint('billing', __name__)
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 STRIPE_PRICE_IDS = {
     'premium': os.environ.get('STRIPE_PRICE_PREMIUM'),
@@ -308,6 +308,7 @@ def handle_checkout_completed(session):
         )
         
         if product_type in ('premium', 'bot_access'):
+            from app import flask_set_bot_access, flask_set_retention_tier
             flask_set_bot_access(guild_id, True)
             flask_set_retention_tier(guild_id, '30day')
             with get_db() as conn:
@@ -325,6 +326,7 @@ def handle_checkout_completed(session):
             app.logger.info(f"[OK] Premium subscription activated for server {guild_id}")
             
         elif product_type == 'pro':
+            from app import flask_set_bot_access, flask_set_retention_tier
             flask_set_bot_access(guild_id, True)
             flask_set_retention_tier(guild_id, '30day')
             with get_db() as conn:
@@ -342,6 +344,7 @@ def handle_checkout_completed(session):
             app.logger.info(f"[OK] Pro subscription activated for server {guild_id}")
         
         elif product_type in ('retention_7day', 'retention_30day'):
+            from app import flask_set_retention_tier
             retention_val = '7day' if product_type == 'retention_7day' else '30day'
             flask_set_retention_tier(guild_id, retention_val)
             with get_db() as conn:
@@ -440,11 +443,13 @@ def handle_subscription_change(subscription):
             """, (status, cancel_at_period_end, current_period_end, subscription_id))
             
             if status in ('active', 'trialing'):
+                from app import flask_set_bot_access
                 flask_set_bot_access(guild_id, True)
                 app.logger.info(f"[OK] Subscription {subscription_id} active for server {guild_id}")
             elif status in ('past_due', 'unpaid'):
                 app.logger.warning(f"[WARN] Subscription {subscription_id} is {status} for server {guild_id}")
             elif status == 'canceled':
+                from app import flask_set_bot_access
                 flask_set_bot_access(guild_id, False)
                 app.logger.info(f"[OK] Subscription canceled, access revoked for server {guild_id}")
         
@@ -488,6 +493,7 @@ def handle_subscription_cancellation(subscription):
                     app.logger.info(f"[OK] Subscription set to cancel at period end for server {guild_id}")
                 else:
                     # Immediate cancellation
+                    from app import flask_set_bot_access, flask_set_retention_tier
                     flask_set_bot_access(guild_id, False)
                     flask_set_retention_tier(guild_id, 'none')
                     
