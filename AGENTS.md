@@ -36,9 +36,12 @@ When you finish the task and verify the changes:
 
 ---
 
-## 📝 Rules of Engagement
-1. **Never skip the lock check.**
-2. **Never edit a locked file.**
-3. **Always update CURRENT_TASK.md** so the next agent has context.
-4. **Commit frequently** - CLI agents don't auto-commit.
-5. **Briefing Request**: When switching agents, ask "Give me a briefing on CURRENT_TASK.md".
+## 🛑 FATAL ARCHITECTURE RULES (DO NOT IGNORE)
+1. **Architectural Separation**: Web routes strictly go in `web/routes/`, SQL/Business logic in `web/utils/`, and Discord commands in `bot/cogs/`. Never dump raw functionality into `app.py` or `discord_runner.py`.
+2. **Demo Server Sandboxing**: Always use `is_demo_server(guild_id)` to sandbox mutations. Return fake success messages and NEVER execute destructive DB queries for the demo server.
+3. **No Flask/Bot DB Cross-Contamination**: Flask routes MUST use Flask's `get_db()` pool. NEVER call a `bot_core.py` function from a Flask route if it opens a bot DB connection (causes Gunicorn Worker Timeout).
+4. **Discord UI Persistence**: Interactive UI components (Buttons, Dropdowns) MUST use Discord.py Persistent Views registered in `bot.setup_hook()`. NEVER use global `on_interaction` listeners for buttons.
+5. **Discord Cog Structure**: Context menus MUST be defined as global async functions outside of the `commands.Cog` class.
+6. **Async Email Queue**: NEVER block or wait on email sends in a route. Always use `queue_email()`, handled asynchronously by the scheduler.
+7. **Python Namespaces**: NEVER name a script identical to a package directory (e.g. `bot.py` next to `bot/`).
+8. **Agent Protocol**: Never skip the lock check (`WORKING_FILES.md`). Update `CURRENT_TASK.md` so the next agent has context. Commit frequently. When switching agents, ask "Give me a briefing on CURRENT_TASK.md".

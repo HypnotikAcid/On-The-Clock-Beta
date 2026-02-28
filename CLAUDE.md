@@ -36,16 +36,16 @@ Before editing ANY file:
 
 ---
 
-## Key Rules
-- Never delete code without explaining why and getting approval
-- Use `Entitlements.get_guild_tier()` for all tier checks
-- Always use parameterized SQL statements
-- Manually review any auth logic you write (AI auth bugs are common)
-- Update `CURRENT_TASK.md` during complex work for handoff
-- Commit frequently with `git add . && git commit -m "message"`
-- **Parallel Workflow**: If Gemini can work safely in parallel (UI/templates only, no backend conflicts), ALWAYS provide a handoff prompt for Gemini FIRST so user can start it immediately while you work on backend tasks
+## 🛑 FATAL ARCHITECTURE RULES (DO NOT IGNORE)
+1. **Architectural Separation**: Web routes strictly go in `web/routes/`, SQL/Business logic in `web/utils/`, and Discord commands in `bot/cogs/`. Never dump raw functionality into `app.py` or `discord_runner.py`.
+2. **Demo Server Sandboxing**: Always use `is_demo_server(guild_id)` to sandbox mutations. Return fake success messages and NEVER execute destructive DB queries for the demo server.
+3. **No Flask/Bot DB Cross-Contamination**: Flask routes MUST use Flask's `get_db()` pool. NEVER call a `bot_core.py` function from a Flask route if it opens a bot DB connection (causes Gunicorn Worker Timeout).
+4. **Discord UI Persistence**: Interactive UI components (Buttons, Dropdowns) MUST use Discord.py Persistent Views registered in `bot.setup_hook()`. NEVER use global `on_interaction` listeners for buttons.
+5. **Discord Cog Structure**: Context menus MUST be defined as global async functions outside of the `commands.Cog` class.
+6. **Async Email Queue**: NEVER block or wait on email sends in a route. Always use `queue_email()`, handled asynchronously by the scheduler.
+7. **Python Namespaces**: NEVER name a script identical to a package directory (e.g. `bot.py` next to `bot/`).
+8. **General Protocol**: Never delete code without explaining why. Always use parameterized SQL. Commit frequently. Update `CURRENT_TASK.md` for handoffs.
 
----
 
 ## Quick Reference
 | Item | Value |
