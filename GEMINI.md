@@ -25,6 +25,9 @@
 - Follow "Neon Cyber" theme (Cyan #00FFFF, Matrix rain).
 - Check `docs/lessons-learned.md` and `docs/architecture_manifesto.md` before any code changes.
 - Always verify accessibility (`aria-hidden="true"` on decor).
+- **NEVER create a Python file and a directory with the exact same name** (e.g. `bot.py` and `bot/`). This causes fatal `ModuleNotFoundError` collisions in Python 3.
+- **Discord Cogs (`bot/cogs/`)**: Context menus MUST be defined as global async functions outside of the `commands.Cog` class, or they will crash the bot.
+- **Flask/Bot Bridge**: Flask API routes (`web/routes/`) MUST use Flask's `get_db()` connection pool. NEVER call a `bot_core.py` function from Flask if it uses the bot's own `db()` pool, or it will trigger a fatal Gunicorn timeout.
 - Commit after significant changes (CLI doesn't auto-commit).
 
 ---
