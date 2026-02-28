@@ -1,0 +1,214 @@
+        embed = discord.Embed(
+            title="🚀 Pro Plan Active",
+            description="This server is on the **Pro** plan — you have access to everything!",
+            color=discord.Color.purple()
+        )
+        embed.add_field(name="Includes", value="All Premium features + Kiosk Mode + Ad-free Dashboard", inline=False)
+        await send_reply(interaction, embed=embed, ephemeral=True)
+        return
+
+    if access['tier'] == 'premium':
+        embed = discord.Embed(
+            title="💎 Premium Plan Active",
+            description="This server is on the **Premium** plan.",
+            color=discord.Color.blue()
+        )
+        embed.add_field(
+            name="🚀 Upgrade to Pro ($15/mo)",
+            value="Get Kiosk Mode for shared-device clock-in, ad-free dashboard, and priority support.",
+            inline=False
+        )
+        embed.add_field(name="How to Upgrade", value=f"Visit your [dashboard]({purchase_url}) to manage your subscription.", inline=False)
+        await send_reply(interaction, embed=embed, ephemeral=True)
+        return
+
+    if access['trial_active']:
+        days = access['days_remaining']
+        embed = discord.Embed(
+            title="🆓 Free Trial Active",
+            description=f"You have **{days} day{'s' if days != 1 else ''}** remaining on your free trial.",
+            color=discord.Color.green()
+        )
+    else:
+        embed = discord.Embed(
+            title="⚠️ Trial Expired",
+            description="Your free trial has ended. Subscribe to continue using the bot!",
+            color=discord.Color.red()
+        )
+
+    embed.add_field(
+        name="💎 Premium — $8/month",
+        value=(
+            "**First month FREE!**\n"
+            "• Full bot access (clock in/out, reports)\n"
+            "• Web dashboard with team management\n"
+            "• CSV report exports\n"
+            "• Email automation & reminders\n"
+            "• 30-day data retention\n"
+            "• Calendar view & time adjustments"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="🚀 Pro — $15/month (Coming Soon)",
+        value=(
+            "Everything in Premium, plus:\n"
+            "• Kiosk Mode for shared devices\n"
+            "• Ad-free dashboard\n"
+            "• Priority support"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="👉 Subscribe Now",
+        value=f"**[Click here to subscribe]({purchase_url})**",
+        inline=False
+    )
+    embed.set_footer(text="Cancel anytime. Your first month of Premium is completely free!")
+
+    await send_reply(interaction, embed=embed, ephemeral=True)
+
+
+@tree.command(name="help", description="List all available slash commands")
+@app_commands.guild_only()
+async def help_command(interaction: discord.Interaction):
+    if interaction.guild_id is None:
+        await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+        return
+    
+    guild_id = interaction.guild_id
+    access = get_guild_access_info(guild_id)
+
+    tier_display = ""
+    tier_color = discord.Color.greyple()
+    footer_text = ""
+
+    if access['is_exempt']:
+        tier_display = "⭐ Full Access"
+        tier_color = discord.Color.gold()
+        footer_text = "⭐ Full Access"
+    elif access['tier'] == 'pro':
+        tier_display = "🚀 PRO PLAN"
+        tier_color = discord.Color.purple()
+        footer_text = "🚀 Pro Plan Active"
+    elif access['tier'] == 'premium':
+        tier_display = "💎 PREMIUM PLAN"
+        tier_color = discord.Color.blue()
+        footer_text = "💎 Premium Plan Active"
+    elif access['trial_active']:
+        tier_display = "🆓 FREE TRIAL"
+        tier_color = discord.Color.green()
+        days = access['days_remaining']
+        footer_text = f"🆓 Free Trial - {days} day{'s' if days != 1 else ''} remaining"
+    else:
+        tier_display = "⚠️ TRIAL EXPIRED"
+        tier_color = discord.Color.red()
+        footer_text = "⚠️ Trial Expired — Use /upgrade to continue"
+
+    embed = discord.Embed(
+        title="⏰ On the Clock - Help",
+        description=f"**Your Server:** {tier_display}\n\nSimple time tracking for your team, right in Discord.",
+        color=tier_color
+    )
+    
+    embed.add_field(
+        name="📱 Discord Commands",
+        value=(
+            "`/clock` - Open your timeclock (clock in/out, view hours)\n"
+            "`/setup` - View setup instructions\n"
+            "`/help` - This help menu"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🖱️ Right-Click Actions (Admins)",
+        value=(
+            "Right-click any user → Apps:\n"
+            "• **View Hours** - See employee's weekly hours\n"
+            "• **View Profile** - Open employee's dashboard profile\n"
+            "• **Send Shift Report** - Email shift report to recipients\n"
+            "• **Force Clock Out** - Clock out an employee\n"
+            "• **Ban from Timeclock** - Temporarily block access"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🌐 Dashboard Features",
+        value=(
+            "**[time-warden.com/dashboard](https://time-warden.com/dashboard)**\n\n"
+            "• **Role Management** - Set admin & employee roles\n"
+            "• **Team Management** - Manage your team\n"
+            "• **Time Adjustments** - Review & approve corrections\n"
+            "• 💎 **Reports** - Export CSV timesheets\n"
+            "• 💎 **Email Automation** - Daily reports & reminders\n"
+            "• 🚀 **Kiosk Mode** - Shared device clock-in\n"
+            "• **Calendar View** - Edit time entries"
+        ),
+        inline=False
+    )
+    
+    if not access['is_exempt'] and access['tier'] == 'free':
+        embed.add_field(
+            name="⬆️ Upgrade to Premium",
+            value=(
+                "**Free Trial:** 30-day full access trial\n"
+                "**Premium ($8/month, first month FREE!):** Full team access, dashboard, reports, 30-day retention\n"
+                "**Pro ($15/month — Coming Soon!):** Kiosk mode + ad-free dashboard\n\n"
+                "👉 Visit the dashboard to upgrade!"
+            ),
+            inline=False
+        )
+    else:
+        embed.add_field(
+            name="✅ Premium Active",
+            value="You have full access to all dashboard features!",
+            inline=False
+        )
+    
+    embed.set_footer(text=footer_text)
+    
+    await send_reply(interaction, embed=embed, ephemeral=True)
+
+# =============================================================================
+# PHASE 5: FEEDBACK FUNNEL
+# =============================================================================
+class FeedbackModal(discord.ui.Modal, title="Submit Feedback"):
+    feedback = discord.ui.TextInput(
+        label="Your Feedback / Bug Report",
+        style=discord.TextStyle.paragraph,
+        placeholder="Tell us what you love, what needs fixing, or feature requests...",
+        required=True,
+        max_length=2000
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await send_reply(interaction, "✅ Thank you! Your feedback has been sent directly to our development team.", ephemeral=True)
+        
+        webhook_url = os.environ.get('DEVELOPER_WEBHOOK_URL')
+        if not webhook_url:
+            print("⚠️ DEVELOPER_WEBHOOK_URL not configured. Feedback suppressed.")
+            return
+            
+        embed = discord.Embed(
+            title="New User Feedback submitted!",
+            description=self.feedback.value,
+            color=discord.Color.gold(),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_author(name=f"{interaction.user} ({interaction.user.id})", icon_url=interaction.user.display_avatar.url if interaction.user.display_avatar else None)
+        
+        if interaction.guild:
+            embed.set_footer(text=f"Server: {interaction.guild.name} ({interaction.guild.id})")
+        else:
+            embed.set_footer(text="Sent via DM")
+
+        def send_webhook():
+            try:
+                import requests
+                requests.post(webhook_url, json={"embeds": [embed.to_dict()]}, timeout=5)
+            except Exception as e:
+                print(f"❌ Failed to send feedback webhook: {e}")
+
+        import threading

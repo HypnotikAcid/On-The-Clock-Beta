@@ -1,0 +1,243 @@
+    
+    logger.info(f"[BROADCAST] Complete: {sent_count} sent, {failed_count} failed")
+    return {'success': True, 'sent_count': sent_count, 'failed_count': failed_count}
+
+# =============================================================================
+# OWNER-ONLY SUPER ADMIN COMMANDS (Only visible to bot owner)
+# =============================================================================
+
+@tree.command(name="setup_demo_roles", description="[OWNER] Post the demo role switcher message")
+@app_commands.default_permissions(administrator=True)
+@app_commands.guild_only()
+async def setup_demo_roles_command(interaction: discord.Interaction):
+    """
+    Posts a persistent message with buttons for users to switch between Admin and Employee roles.
+    Only works on the demo server. Admins use this to set up the role switcher.
+    """
+    if interaction.user.id != interaction.guild.owner_id and interaction.user.id != BOT_OWNER_ID:
+        await interaction.response.send_message("❌ This command is strictly locked to the Server Owner.", ephemeral=True)
+        return
+    import time
+    execution_id = f"{interaction.user.id}-{int(time.time() * 1000)}"
+    print(f"🎭 [SETUP_DEMO_ROLES] Execution ID: {execution_id} - Command invoked by {interaction.user} in guild {interaction.guild_id}")
+
+    # Verify this is the demo server
+    if interaction.guild_id != DEMO_SERVER_ID:
+        await send_reply(
+            interaction,
+            "❌ This command only works on the demo server.",
+            ephemeral=True
+        )
+        return
+
+    await robust_defer(interaction, ephemeral=True)
+
+    # Deduplication check - prevent duplicate execution within 2-second window
+    call_key = (interaction.guild_id, interaction.user.id)
+    current_time = time.time()
+
+    if call_key in _setup_demo_roles_recent_calls:
+        last_call = _setup_demo_roles_recent_calls[call_key]
+        if current_time - last_call < 2.0:
+            print(f"🎭 [SETUP_DEMO_ROLES] {execution_id} - Duplicate call detected (last call {current_time - last_call:.2f}s ago) - ignoring")
+            await send_reply(interaction, "⏳ Please wait - already processing your request.", ephemeral=True)
+            return
+
+    # Record this call
+    _setup_demo_roles_recent_calls[call_key] = current_time
+
+    # Clean up old entries (older than 10 seconds)
+    for k, v in list(_setup_demo_roles_recent_calls.items()):
+        if current_time - v >= 10.0:
+            del _setup_demo_roles_recent_calls[k]
+
+    try:
+        # Create the embed
+        embed = discord.Embed(
+            title="🎭 Choose Your Role",
+            description=(
+                "Welcome to the Time Warden demo! Choose how you'd like to experience our timeclock system.\n\n"
+                "You can switch between roles at any time by clicking the buttons below."
+            ),
+            color=0x00FFFF  # Cyan
+        )
+
+        embed.add_field(
+            name="👑 Admin Mode",
+            value=(
+                "Experience the Dashboard as a **Manager**.\n"
+                "• Approve timesheets and view reports\n"
+                "• Configure settings and manage roles\n"
+                "• Access all administrative features"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="👷 Employee Mode",
+            value=(
+                "Experience the Dashboard as **Staff**.\n"
+                "• Clock in/out from Discord or Dashboard\n"
+                "• View your own timesheet history\n"
+                "• Request time adjustments"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="💡 Both roles are safe for testing - choose what you want to explore!")
+
+        # Create the view with buttons
+        view = DemoRoleSwitcherView()
+
+        # Send the message
+        print(f"🎭 [SETUP_DEMO_ROLES] {execution_id} - Sending embed to channel {interaction.channel.id}")
+        message = await interaction.channel.send(embed=embed, view=view)
+        print(f"🎭 [SETUP_DEMO_ROLES] {execution_id} - Message sent successfully with ID {message.id}")
+
+        await send_reply(
+            interaction,
+            "✅ Demo role switcher posted! Users can now choose their role.",
+            ephemeral=True
+        )
+        print(f"🎭 [SETUP_DEMO_ROLES] {execution_id} - Command completed successfully")
+
+    except Exception as e:
+        print(f"❌ [SETUP_DEMO_ROLES] {execution_id} - Error: {e}")
+        await send_reply(
+            interaction,
+            "❌ Failed to post role switcher. Please try again.",
+            ephemeral=True
+        )
+
+
+@tree.command(name="owner_broadcast", description="[OWNER] Send announcement to all servers")
+@app_commands.describe(
+    title="Title of the broadcast message",
+    message="The message content to send",
+    target="Which servers to send to"
+)
+@app_commands.choices(target=[
+    app_commands.Choice(name="All Servers", value="all"),
+    app_commands.Choice(name="Paid Servers Only", value="paid"),
+    app_commands.Choice(name="Free Tier Only", value="free")
+])
+async def owner_broadcast_command(interaction: discord.Interaction, title: str, message: str, target: str = "all"):
+    """Owner-only command to broadcast messages to all servers"""
+    if interaction.user.id != BOT_OWNER_ID:
+        await send_reply(interaction, "❌ Access denied.", ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        # Get guild IDs based on target
+        # Note: bot_guilds.guild_id is TEXT, server_subscriptions.guild_id is BIGINT - must cast for JOIN
+        with db() as conn:
+            if target == 'all':
+                cursor = conn.execute("""
+                    SELECT DISTINCT guild_id FROM bot_guilds WHERE is_present = TRUE
+                """)
+            elif target == 'paid':
+                cursor = conn.execute("""
+                    SELECT bg.guild_id FROM bot_guilds bg
+                    JOIN server_subscriptions ss ON CAST(bg.guild_id AS BIGINT) = ss.guild_id
+                    WHERE bg.is_present = TRUE AND ss.bot_access_paid = TRUE
+                """)
+            else:  # free
+                cursor = conn.execute("""
+                    SELECT bg.guild_id FROM bot_guilds bg
+                    LEFT JOIN server_subscriptions ss ON CAST(bg.guild_id AS BIGINT) = ss.guild_id
+                    WHERE bg.is_present = TRUE AND (ss.bot_access_paid IS NULL OR ss.bot_access_paid = FALSE)
+                """)
+            
+            guild_rows = cursor.fetchall()
+            guild_ids = [row['guild_id'] for row in guild_rows]
+        
+        if not guild_ids:
+            await interaction.followup.send("❌ No servers found matching the target filter.", ephemeral=True)
+            return
+        
+        # Send the broadcast
+        result = await send_broadcast_to_guilds(guild_ids, title, message)
+        
+        embed = discord.Embed(
+            title="📢 Broadcast Complete",
+            color=discord.Color.gold() if result['failed_count'] == 0 else discord.Color.orange()
+        )
+        embed.add_field(name="Target", value=target.title(), inline=True)
+        embed.add_field(name="Sent", value=str(result['sent_count']), inline=True)
+        embed.add_field(name="Failed", value=str(result['failed_count']), inline=True)
+        embed.add_field(name="Title", value=title[:100], inline=False)
+        embed.add_field(name="Message Preview", value=message[:200] + ("..." if len(message) > 200 else ""), inline=False)
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        print(f"Broadcast command error: {e}")
+        await interaction.followup.send(f"❌ Broadcast failed: {str(e)}", ephemeral=True)
+
+@tree.command(name="owner_grant", description="[OWNER] Grant subscription tier to current server")
+@app_commands.describe(tier="Subscription tier to grant")
+@app_commands.choices(tier=[
+    app_commands.Choice(name="Premium", value="bot_access"),
+    app_commands.Choice(name="Pro Retention (30-day)", value="pro")
+])
+async def owner_grant_tier(interaction: discord.Interaction, tier: str):
+    """Owner-only command to grant subscription tiers"""
+    if interaction.user.id != BOT_OWNER_ID:
+        await send_reply(interaction, "❌ Access denied.", ephemeral=True)
+        return
+        
+    # Robust defer with proper fallback
+    defer_success = await robust_defer(interaction, ephemeral=True)
+    if not defer_success and not interaction.response.is_done():
+        # If defer failed and interaction isn't done, we can't proceed
+        return
+    
+    if interaction.guild is None:
+        await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+        return
+        
+    guild_id = interaction.guild.id
+    guild_name = interaction.guild.name
+    
+    try:
+        # Handle bot access grant differently
+        if tier == "bot_access":
+            set_bot_access(guild_id, True)
+            
+            embed = discord.Embed(
+                title="👑 Owner Grant Successful",
+                description=f"Manually granted **Bot Access** to this server",
+                color=discord.Color.gold()
+            )
+            
+            embed.add_field(name="Server", value=guild_name, inline=True)
+            embed.add_field(name="Server ID", value=str(guild_id), inline=True)
+            embed.add_field(name="Grant Type", value="Bot Access", inline=True)
+            embed.add_field(name="Granted By", value="Bot Owner (Manual)", inline=True)
+            
+            embed.add_field(
+                name="Features Unlocked",
+                value="• Full team access\n• CSV Reports\n• Role management\n• Dashboard access",
+                inline=False
+            )
+        else:
+            # Check current tier
+            current_tier = get_guild_tier_string(guild_id)
+
+            # Grant the new tier (no Stripe subscription - manual owner grant)
+            set_server_tier(guild_id, tier, subscription_id=f"owner_grant_{int(time.time())}", customer_id="owner_manual")
+            
+            # Also ensure bot access is granted (retention requires bot access)
+            set_bot_access(guild_id, True)
+            
+            tier_display = "7-Day Retention" if tier == "basic" else "30-Day Retention"
+            
+            embed = discord.Embed(
+                title="👑 Owner Grant Successful",
+                description=f"Manually granted **{tier_display}** to this server",
+                color=discord.Color.gold()
+            )
+            
+            embed.add_field(name="Server", value=guild_name, inline=True)

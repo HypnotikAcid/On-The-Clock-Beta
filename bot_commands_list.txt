@@ -1,0 +1,2 @@
+C:\Dev\TimeWarden\bot.py:6208:@app_commands.command(name="my_data", description="[PRIVACY] View or delete your personal data (GDPR/CCPA Compliance)")
+C:\Dev\TimeWarden\bot.py:6256:@app_commands.command(name="timezone", description="Set your personal dashboard and reporting timezone")

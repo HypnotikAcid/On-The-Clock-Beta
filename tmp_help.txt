@@ -1,0 +1,148 @@
+            embed = interaction.message.embeds[0]
+            embed.color = discord.Color.red()
+            embed.set_field_at(0, name="Status", value="❌ Denied", inline=True)
+            embed.add_field(name="Reviewed By", value=interaction.user.mention, inline=True)
+            
+            # Disable buttons
+            for item in self.children:
+                item.disabled = True
+                
+            await interaction.edit_original_response(embed=embed, view=self)
+            await interaction.followup.send(f"✅ Adjustment request #{self.request_id} denied.", ephemeral=True)
+        else:
+            await interaction.followup.send(f"❌ Error: {message}", ephemeral=True)
+
+async def notify_admins_of_adjustment(guild_id: int, request_id: int):
+    """Send notification to admins about a new adjustment request"""
+    try:
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            return
+
+        # Get request details
+        with db() as conn:
+            cursor = conn.execute("""
+                SELECT r.*, u.display_name, u.username 
+                FROM time_adjustment_requests r
+                LEFT JOIN employee_profiles u ON r.user_id = u.user_id AND r.guild_id = u.guild_id
+                WHERE r.id = %s
+            """, (request_id,))
+            req = cursor.fetchone()
+            
+        if not req:
+            return
+
+        # Create Embed
+        embed = discord.Embed(
+            title="⏳ Time Adjustment Request",
+            description=f"User **{req['display_name'] or req['username']}** has requested a time adjustment.",
+            color=discord.Color.gold(),
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+        embed.add_field(name="Status", value="⏳ Pending", inline=True)
+        embed.add_field(name="Type", value=req['request_type'].replace('_', ' ').title(), inline=True)
+        embed.add_field(name="Reason", value=req['reason'], inline=False)
+        
+        if req['original_clock_in']:
+            embed.add_field(name="Original Time", value=f"{req['original_clock_in']}", inline=True)
+        if req['requested_clock_in']:
+            embed.add_field(name="Requested Time", value=f"{req['requested_clock_in']}", inline=True)
+
+        view = AdjustmentReviewView(request_id, guild_id)
+
+        # Build ping string for mapped Admin Roles
+        admin_ping_str = ""
+        with db() as conn:
+            cursor = conn.execute("SELECT role_id FROM admin_roles WHERE guild_id = %s", (guild_id,))
+            roles = cursor.fetchall()
+            if roles:
+                admin_ping_str = " ".join([f"<@&{r['role_id']}>" for r in roles])
+
+        # Notify via Log Channel if configured
+        log_channel_id = get_guild_setting(guild_id, "log_channel_id")
+        if log_channel_id:
+            channel = guild.get_channel(int(log_channel_id))
+            if channel:
+                msg_content = f"🔔 {admin_ping_str} New Time Adjustment Request!" if admin_ping_str else "🔔 New Time Adjustment Request!"
+                await channel.send(content=msg_content, embed=embed, view=view)
+                return
+
+        # Fallback: Notify Owner DM
+        owner_id = guild.owner_id
+        owner = guild.get_member(owner_id)
+        if owner:
+            try:
+                await owner.send(content=f"New adjustment request in **{guild.name}**:", embed=embed, view=view)
+            except:
+                pass
+
+    except Exception as e:
+        print(f"❌ Error notifying admins of adjustment: {e}")
+
+# =============================================================================
+# BROADCAST FUNCTION (Called from Flask API)
+# =============================================================================
+
+async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) -> dict:
+    """
+    Send a broadcast message to multiple guilds.
+    Returns dict with sent_count and failed_count.
+    """
+    import logging
+    logger = logging.getLogger('bot.broadcast')
+    
+    sent_count = 0
+    failed_count = 0
+    
+    for guild_id in guild_ids:
+        try:
+            guild = bot.get_guild(int(guild_id))
+            if not guild:
+                logger.warning(f"[BROADCAST] Guild {guild_id} not found in cache")
+                failed_count += 1
+                continue
+            
+            # Create the broadcast embed
+            embed = discord.Embed(
+                title=f"📢 {title}",
+                description=message,
+                color=discord.Color.gold(),
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.set_footer(text="On the Clock Bot Announcement")
+            
+            # Find a channel to send to
+            channel_to_use = None
+            
+            # First, try to use the broadcast channel if configured
+            broadcast_channel_id = get_guild_setting(int(guild_id), "broadcast_channel_id")
+            if broadcast_channel_id:
+                channel_to_use = guild.get_channel(int(broadcast_channel_id))
+            
+            # If no broadcast channel, try to find system channel
+            if not channel_to_use and guild.system_channel:
+                if guild.system_channel.permissions_for(guild.me).send_messages:
+                    channel_to_use = guild.system_channel
+            
+            # If still no channel, find first text channel we can send to
+            if not channel_to_use:
+                for channel in guild.text_channels:
+                    if channel.permissions_for(guild.me).send_messages:
+                        channel_to_use = channel
+                        break
+            
+            if channel_to_use:
+                await channel_to_use.send(embed=embed)
+                logger.info(f"[BROADCAST] Sent to {guild.name} (#{channel_to_use.name})")
+                sent_count += 1
+            else:
+                logger.warning(f"[BROADCAST] No sendable channel found in {guild.name}")
+                failed_count += 1
+                
+        except discord.Forbidden:
+            logger.warning(f"[BROADCAST] Permission denied for guild {guild_id}")
+            failed_count += 1
+        except Exception as e:
+            logger.error(f"[BROADCAST] Error sending to guild {guild_id}: {e}")
+            failed_count += 1

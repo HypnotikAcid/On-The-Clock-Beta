@@ -1,0 +1,828 @@
+class TimeClockView(discord.ui.View):
+    """
+    Persistent timeclock view following 2025 Discord best practices.
+    
+    All buttons are defined using @discord.ui.button decorators with unique custom_id values.
+    This ensures buttons work correctly after bot reboots - Discord can match button clicks
+    to the registered view callbacks even when the bot restarts.
+    
+    Tier-specific logic is handled in the callback functions, not by conditionally
+    showing/hiding buttons. This is required for proper persistence.
+    """
+    def __init__(self):
+        super().__init__(timeout=None)  # REQUIRED for persistence
+    
+    # Row 0: Core timeclock buttons
+    @discord.ui.button(
+        label="Clock In",
+        style=discord.ButtonStyle.success,
+        custom_id="timeclock:clock_in",
+        row=0
+    )
+    async def clock_in_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Clock in button callback"""
+        await self.clock_in(interaction)
+    
+    @discord.ui.button(
+        label="Clock Out",
+        style=discord.ButtonStyle.danger,
+        custom_id="timeclock:clock_out",
+        row=0
+    )
+    async def clock_out_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Clock out button callback"""
+        await self.clock_out(interaction)
+    
+    @discord.ui.button(
+        label="Help",
+        style=discord.ButtonStyle.primary,
+        custom_id="timeclock:help",
+        row=0
+    )
+    async def help_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Help button callback"""
+        await self.show_help(interaction)
+    
+    @discord.ui.button(
+        label="On the Clock",
+        style=discord.ButtonStyle.secondary,
+        custom_id="timeclock:onclock",
+        row=0
+    )
+    async def onclock_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """On the clock button callback"""
+        await self.on_the_clock(interaction)
+    
+    # Row 1: Dashboard and conditional buttons (Reports/Upgrade)
+    @discord.ui.button(
+        label="Dashboard",
+        style=discord.ButtonStyle.primary,
+        custom_id="timeclock:dashboard",
+        emoji="📊",
+        row=1
+    )
+    async def dashboard_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Dashboard button callback"""
+        await self.show_dashboard(interaction)
+    
+    @discord.ui.button(
+        label="Reports",
+        style=discord.ButtonStyle.success,
+        custom_id="timeclock:reports",
+        row=1
+    )
+    async def reports_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Reports button callback - handles tier check internally"""
+        await self.generate_reports(interaction)
+    
+    @discord.ui.button(
+        label="Upgrade",
+        style=discord.ButtonStyle.secondary,
+        custom_id="timeclock:upgrade",
+        emoji="🚀",
+        row=1
+    )
+    async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Upgrade button callback"""
+        await self.show_upgrade(interaction)
+
+    async def on_the_clock(self, interaction: discord.Interaction):
+        """Show all currently clocked in users with their times"""
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
+        
+        if interaction.guild is None:
+            await interaction.followup.send("Use this in a server.", ephemeral=True)
+            return
+            
+        guild_id = interaction.guild.id
+        user_id = interaction.user.id
+        
+        # RATE LIMITING: Check for spam/abuse
+        is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "on_the_clock")
+        if not is_allowed:
+            await handle_rate_limit_response(interaction, action)
+            return
+
+        # Check clock access permissions
+        server_tier = get_guild_tier_string(guild_id)
+        # Type guard: ensure we have a Member for guild-specific functions
+        if not isinstance(interaction.user, discord.Member):
+            await interaction.followup.send(
+                "❌ Unable to verify access permissions. Please try again.",
+                ephemeral=True
+            )
+            return
+        
+        if not user_has_clock_access(interaction.user, server_tier):
+            await interaction.followup.send(
+                "🔒 **Access Restricted**\n"
+                "You need an employee role to use the timeclock.\n"
+                "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                ephemeral=True
+            )
+            return
+        
+        try:
+            # Get all currently clocked in users
+            with db() as conn:
+                cursor = conn.execute("""
+                    SELECT user_id, clock_in_time as clock_in 
+                    FROM timeclock_sessions 
+                    WHERE guild_id = %s AND clock_out_time IS NULL
+                    ORDER BY clock_in_time ASC
+                """, (guild_id,))
+                active_sessions = cursor.fetchall()
+            
+            if not active_sessions:
+                embed = discord.Embed(
+                    title="⏰ On the Clock",
+                    description="No one is currently clocked in.",
+                    color=discord.Color.gold()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+            
+            # Get timezone setting
+            tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
+            
+            try:
+                from zoneinfo import ZoneInfo
+                guild_tz = ZoneInfo(tz_name or DEFAULT_TZ)
+            except (ImportError, Exception):
+                # If timezone or ZoneInfo import fails, fallback to EST instead of UTC
+                try:
+                    from zoneinfo import ZoneInfo
+                    guild_tz = ZoneInfo(DEFAULT_TZ)
+                    tz_name = "America/New_York (EST)"
+                except ImportError:
+                    # ZoneInfo not available, use UTC
+                    guild_tz = ZoneInfo('UTC')
+                    tz_name = "UTC"
+            
+            embed = discord.Embed(
+                title="🕒 Team Currently On the Clock",
+                description=f"📊 **{len(active_sessions)} active team member{'s' if len(active_sessions) != 1 else ''}**",
+                color=discord.Color.blurple()
+            )
+            
+            now_utc = datetime.now(timezone.utc)
+            
+            # Sort users by clock in time for organized display
+            sorted_sessions = sorted(active_sessions, key=lambda x: x['clock_in'])
+            
+            user_details = []
+            for i, session in enumerate(sorted_sessions, 1):
+                user_id = session['user_id']
+                clock_in_iso = session['clock_in']
+                try:
+                    # Get user with proper Discord nickname
+                    user = interaction.guild.get_member(user_id)
+                    if user:
+                        # Always use Discord nickname (display_name) which includes server nick
+                        display_name = user.display_name
+                        user_mention = user.mention
+                    else:
+                        # Fallback to trying to get user from cache
+                        try:
+                            user = await interaction.client.fetch_user(user_id)
+                            display_name = user.display_name if hasattr(user, 'display_name') else user.name
+                            user_mention = f"<@{user_id}>"
+                        except:
+                            display_name = f"Unknown User"
+                            user_mention = f"<@{user_id}>"
+                    
+                    # Parse clock in time
+                    clock_in_utc = safe_parse_timestamp(clock_in_iso)
+                    if clock_in_utc.tzinfo is None:
+                        clock_in_utc = clock_in_utc.replace(tzinfo=timezone.utc)
+                    clock_in_local = clock_in_utc.astimezone(guild_tz)
+                    
+                    # Calculate total time for today in this timezone
+                    local_date = clock_in_local.date()
+                    day_start = datetime.combine(local_date, datetime.min.time()).replace(tzinfo=guild_tz)
+                    day_end = datetime.combine(local_date, datetime.max.time()).replace(tzinfo=guild_tz)
+                    
+                    # Get all sessions for today
+                    day_start_utc = day_start.astimezone(timezone.utc).isoformat()
+                    day_end_utc = day_end.astimezone(timezone.utc).isoformat()
+                    
+                    with db() as conn:
+                        cursor = conn.execute("""
+                            SELECT clock_in_time as clock_in, clock_out_time as clock_out 
+                            FROM timeclock_sessions 
+                            WHERE guild_id = %s AND user_id = %s 
+                            AND clock_in_time >= %s AND clock_in_time <= %s
+                        """, (guild_id, user_id, day_start_utc, day_end_utc))
+                        day_sessions = cursor.fetchall()
+                    
+                    # Calculate total day seconds
+                    total_day_seconds = 0
+                    for day_session in day_sessions:
+                        session_in = safe_parse_timestamp(day_session['clock_in'])
+                        session_out_raw = day_session['clock_out']
+                        if session_out_raw:  # Completed session
+                            session_out = safe_parse_timestamp(session_out_raw)
+                            if session_in.tzinfo is None:
+                                session_in = session_in.replace(tzinfo=timezone.utc)
+                            if session_out.tzinfo is None:
+                                session_out = session_out.replace(tzinfo=timezone.utc)
+                            total_day_seconds += (session_out - session_in).total_seconds()
+                        else:  # Current active session
+                            if session_in.tzinfo is None:
+                                session_in = session_in.replace(tzinfo=timezone.utc)
+                            total_day_seconds += (now_utc - session_in).total_seconds()
+                    
+                    # Current shift time
+                    shift_seconds = (now_utc - clock_in_utc).total_seconds()
+                    
+                    # Format times
+                    clock_in_time = clock_in_local.strftime("%I:%M %p")
+                    total_day_time = format_duration_hhmmss(int(total_day_seconds))
+                    shift_time = format_shift_duration(int(shift_seconds))
+                    
+                    # Create fancy formatted entry
+                    user_entry = (
+                        f"**#{i}** {user_mention} • **{display_name}**\n"
+                        f"🟢 **Clocked In:** {clock_in_time}\n"
+                        f"📅 **Today's Total:** {total_day_time}\n"
+                        f"⏱️ **Current Shift:** {shift_time}\n"
+                        f"{'─' * 35}"
+                    )
+                    user_details.append(user_entry)
+                    
+                except Exception as e:
+                    print(f"Error processing user {user_id}: {e}")
+                    # Fallback with better formatting even for errors
+                    user_entry = (
+                        f"**#{i}** <@{user_id}> • **Unknown User**\n"
+                        f"❌ **Error loading time data**\n"
+                        f"{'─' * 35}"
+                    )
+                    user_details.append(user_entry)
+            
+            # Add users to embed with nice organization
+            if len(user_details) <= 3:
+                # If 3 or fewer users, show them all in one field
+                embed.add_field(
+                    name="👥 Active Team Members",
+                    value="\n".join(user_details),
+                    inline=False
+                )
+            else:
+                # If more than 3 users, split into multiple fields for better organization
+                mid_point = len(user_details) // 2
+                
+                embed.add_field(
+                    name="👥 Active Team Members (Part 1)",
+                    value="\n".join(user_details[:mid_point]),
+                    inline=True
+                )
+                
+                embed.add_field(
+                    name="👥 Active Team Members (Part 2)", 
+                    value="\n".join(user_details[mid_point:]),
+                    inline=True
+                )
+            
+            embed.add_field(
+                name="Timezone",
+                value=tz_name,
+                inline=True
+            )
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            await interaction.followup.send(
+                "❌ Error retrieving active users. Please try again.", 
+                ephemeral=True
+            )
+            print(f"Error in on_the_clock: {e}")
+
+    async def clock_in(self, interaction: discord.Interaction):
+        """Handle clock in button interaction with robust error handling"""
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
+        
+        try:
+            if interaction.guild is None:
+                await interaction.followup.send("Use this in a server.", ephemeral=True)
+                return
+                
+            guild_id = interaction.guild.id
+            user_id = interaction.user.id
+            
+            # RATE LIMITING: Check for spam/abuse
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "clock_in")
+            if not is_allowed:
+                await handle_rate_limit_response(interaction, action)
+                return
+
+            # Check clock access permissions
+            server_tier = get_guild_tier_string(guild_id)
+            # Type guard: ensure we have a Member for guild-specific functions
+            if not isinstance(interaction.user, discord.Member):
+                await interaction.followup.send(
+                    "❌ Unable to verify access permissions. Please try again.",
+                    ephemeral=True
+                )
+                return
+            
+            if not user_has_clock_access(interaction.user, server_tier):
+                await interaction.followup.send(
+                    "🔒 **Access Restricted**\n"
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                    ephemeral=True
+                )
+                return
+            
+            # Check mobile device restriction
+            if is_mobile_restricted(guild_id) and interaction.user.is_on_mobile():
+                await interaction.followup.send(
+                    "📱 **Mobile Clock-In Restricted**\n"
+                    "Your server administrator has disabled mobile/tablet clock-ins.\n"
+                    "Please use a desktop or web browser to clock in.",
+                    ephemeral=True
+                )
+                return
+            
+            # Check kiosk mode restriction
+            if is_kiosk_mode_only(guild_id):
+                await interaction.followup.send(
+                    "📱 **Kiosk Mode Only**\n"
+                    "Your server administrator has enabled Kiosk Mode.\n"
+                    "Please use the in-store kiosk tablet to clock in.",
+                    ephemeral=True
+                )
+                return
+            
+            if get_active_session(guild_id, user_id):
+                await interaction.followup.send("You're already clocked in.", ephemeral=True)
+                return
+                
+            start_session(guild_id, user_id, now_utc().isoformat())
+            
+            # --- Profile Setup Logic ---
+            profile_message_sent = False
+            try:
+                avatar_url = str(interaction.user.avatar.url) if interaction.user.avatar else str(interaction.user.default_avatar.url)
+                ensure_employee_profile(
+                    guild_id, user_id, 
+                    interaction.user.name, interaction.user.display_name, 
+                    avatar_url
+                )
+                
+                with db() as conn:
+                    cursor = conn.execute(
+                        "SELECT profile_sent_on_first_clockin, profile_setup_completed FROM employee_profiles WHERE guild_id = %s AND user_id = %s",
+                        (guild_id, user_id)
+                    )
+                    row = cursor.fetchone()
+                    
+                    if row and not row['profile_sent_on_first_clockin'] and not row['profile_setup_completed']:
+                        token = generate_profile_setup_token(guild_id, user_id)
+                        domain = get_domain()
+                        protocol = "https" if "replit.app" in domain else "http"
+                        setup_url = f"{protocol}://{domain}/setup-profile/{token}"
+                        
+                        await interaction.followup.send(
+                            f"✅ **Clocked In!**\n\n"
+                            f"👋 **Welcome to the team!**\n"
+                            f"Please take a moment to set up your employee profile:\n"
+                            f"👉 [**Complete Your Profile**]({setup_url})\n"
+                            f"*(This link expires in 30 days)*", 
+                            ephemeral=True
+                        )
+                        profile_message_sent = True
+                        
+                        conn.execute(
+                            "UPDATE employee_profiles SET profile_sent_on_first_clockin = TRUE WHERE guild_id = %s AND user_id = %s",
+                            (guild_id, user_id)
+                        )
+            except Exception as e:
+                print(f"Error in profile setup logic: {e}")
+            
+            if not profile_message_sent:
+                await interaction.followup.send("✅ Clocked in. Have a great shift!", ephemeral=True)
+            
+        except (discord.NotFound, discord.errors.NotFound):
+            # Interaction expired or was deleted - silently handle this
+            print(f"⚠️ Clock in interaction expired/not found for user {interaction.user.id}")
+        except discord.errors.InteractionResponded:
+            # Interaction was already responded to - try followup
+            try:
+                await interaction.followup.send("❌ Button interaction error. Please try again.", ephemeral=True)
+            except Exception as e:
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
+        except Exception as e:
+            # General error handling
+            print(f"❌ Error in clock_in callback: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
+                else:
+                    await interaction.followup.send("❌ An error occurred. Please try again.", ephemeral=True)
+            except Exception:
+                # If we can't even send an error message, just log it
+                print(f"❌ Failed to send error message for clock_in: {e}")
+
+    async def clock_out(self, interaction: discord.Interaction):
+        """Handle clock out button interaction with robust error handling"""
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
+        
+        try:
+            if interaction.guild is None:
+                await interaction.followup.send("Use this in a server.", ephemeral=True)
+                return
+                
+            guild_id = interaction.guild.id
+            user_id = interaction.user.id
+            
+            # RATE LIMITING: Check for spam/abuse
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "clock_out")
+            if not is_allowed:
+                await handle_rate_limit_response(interaction, action)
+                return
+
+            # Check clock access permissions
+            server_tier = get_guild_tier_string(guild_id)
+            # Type guard: ensure we have a Member for guild-specific functions
+            if not isinstance(interaction.user, discord.Member):
+                await interaction.followup.send(
+                    "❌ Unable to verify access permissions. Please try again.",
+                    ephemeral=True
+                )
+                return
+            
+            if not user_has_clock_access(interaction.user, server_tier):
+                await interaction.followup.send(
+                    "🔒 **Access Restricted**\n"
+                    "You need an employee role to use the timeclock.\n"
+                    "Ask an administrator to add your role with `/add_employee_role @yourrole`",
+                    ephemeral=True
+                )
+                return
+            
+            # Check mobile device restriction
+            if is_mobile_restricted(guild_id) and interaction.user.is_on_mobile():
+                await interaction.followup.send(
+                    "📱 **Mobile Clock-Out Restricted**\n"
+                    "Your server administrator has disabled mobile/tablet clock-outs.\n"
+                    "Please use a desktop or web browser to clock out.",
+                    ephemeral=True
+                )
+                return
+            
+            # Check kiosk mode restriction
+            if is_kiosk_mode_only(guild_id):
+                await interaction.followup.send(
+                    "📱 **Kiosk Mode Only**\n"
+                    "Your server administrator has enabled Kiosk Mode.\n"
+                    "Please use the in-store kiosk tablet to clock out.",
+                    ephemeral=True
+                )
+                return
+            
+            active = get_active_session(guild_id, user_id)
+            if not active:
+                await interaction.followup.send("You don't have an active session.", ephemeral=True)
+                return
+
+            session_id = active['id']
+            clock_in_iso = active['clock_in']
+            start_dt = safe_parse_timestamp(clock_in_iso)
+            end_dt = now_utc()
+            elapsed = int((end_dt - start_dt).total_seconds())
+            close_session(session_id, end_dt.isoformat(), elapsed)
+
+            tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ) or DEFAULT_TZ
+            out_msg = f"🔚 Clocked out.\n**In:** {fmt(start_dt, tz_name)}\n**Out:** {fmt(end_dt, tz_name)}\n**Total:** {human_duration(elapsed)}"
+            
+            # Phase 5: The Review & Feedback Funnel (10% Micro-Prompt)
+            import random
+            if random.random() < 0.10:
+                out_msg += "\n\n*Having a good shift? ⭐ [Leave us a 5-star review on top.gg!](https://top.gg/bot/1418446753379913809#reviews)*"
+                
+            await interaction.followup.send(out_msg, ephemeral=True)
+
+            # Send notifications to all configured recipients
+            await send_timeclock_notifications(guild_id, interaction, start_dt, end_dt, elapsed, tz_name)
+                        
+        except (discord.NotFound, discord.errors.NotFound):
+            # Interaction expired or was deleted - silently handle this
+            print(f"⚠️ Clock out interaction expired/not found for user {interaction.user.id}")
+        except discord.errors.InteractionResponded:
+            # Interaction was already responded to - try followup
+            try:
+                await interaction.followup.send("❌ Button interaction error. Please try again.", ephemeral=True)
+            except Exception as e:
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
+        except Exception as e:
+            # General error handling
+            print(f"❌ Error in clock_out callback: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
+                else:
+                    await interaction.followup.send("❌ An error occurred. Please try again.", ephemeral=True)
+            except Exception:
+                # If we can't even send an error message, just log it
+                print(f"❌ Failed to send error message for clock_out: {e}")
+
+    async def show_help(self, interaction: discord.Interaction):
+        """Show help commands instead of user time info with robust error handling"""
+        await send_reply(interaction, "Please use the `/help` command to see a full list of commands.", ephemeral=True)
+
+    async def generate_reports(self, interaction: discord.Interaction):
+        # Robust defer with proper fallback
+        defer_success = await robust_defer(interaction, ephemeral=True)
+        if not defer_success and not interaction.response.is_done():
+            # If defer failed and interaction isn't done, we can't proceed
+            return
+            
+        try:
+            
+            if interaction.guild is None:
+                await interaction.followup.send("Use this in a server.", ephemeral=True)
+                return
+            
+            guild_id = interaction.guild.id
+            user_id = interaction.user.id
+            
+            # RATE LIMITING: Check for spam/abuse
+            is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "reports")
+            if not is_allowed:
+                await handle_rate_limit_response(interaction, action)
+                return
+            
+            # Check if user has admin access (Discord admin OR custom admin role)
+            # Type guard: ensure we have a Member for guild-specific functions
+            if not isinstance(interaction.user, discord.Member):
+                await interaction.followup.send(
+                    "❌ Unable to verify admin permissions. Please try again.",
+                    ephemeral=True
+                )
+                return
+            
+            if not user_has_admin_access(interaction.user):
+                await interaction.followup.send(
+                    "❌ **Access Denied - Admin Role Required**\n\n"
+                    "You need administrator permissions or an admin role to generate reports.\n\n"
+                    "**To get access:**\n"
+                    "• Ask your server administrator to grant you admin role access\n"
+                    "• They can use: `/add_admin_role @yourrole` to give your role admin access\n"
+                    "• Or ask them to add you to an existing admin role\n\n"
+                    "💡 Contact your server admin for help with role management.",
+                    ephemeral=True
+                )
+                return
+            
+            access = get_guild_access_info(guild_id)
+
+            if not access['is_exempt'] and access['tier'] == 'free':
+                if not access['trial_active']:
+                    embed = discord.Embed(
+                        title="⏰ Free Trial Expired",
+                        description="Your 30-day free trial has ended.\nUpgrade to Premium to generate reports!",
+                        color=discord.Color.red()
+                    )
+                    embed.add_field(name="💎 Premium", value="$8/month (first month FREE!)\n✅ Full team clock in/out\n✅ Dashboard & reports\n✅ 30-day data retention", inline=False)
+                    embed.add_field(name="⬆️ Upgrade", value="Use `/upgrade` or visit your dashboard to subscribe!", inline=False)
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+                    return
+                else:
+                    # Free tier with active trial: show sample data with trial countdown
+                    fake_csv = "Date,Clock In,Clock Out,Duration\n2024-01-01,09:00,17:00,8.0 hours\nThis is sample data from your free trial."
+                    filename = f"sample_report_last_30_days.csv"
+                    file = discord.File(io.BytesIO(fake_csv.encode('utf-8')), filename=filename)
+                    days = access['days_remaining']
+                    await interaction.followup.send(
+                        f"📊 **Free Trial Sample Report**\n"
+                        f"🎯 This is sample data. Upgrade to Premium for real reports!\n"
+                        f"⚠️ **{days} day{'s' if days != 1 else ''} left on your free trial.**",
+                        file=file,
+                        ephemeral=True
+                    )
+                    return
+
+            # Paid or exempt users get full reports
+            guild_tz_name = get_guild_setting(guild_id, "timezone", DEFAULT_TZ)
+            if guild_tz_name is None:
+                guild_tz_name = DEFAULT_TZ
+            
+            server_tier = get_guild_tier_string(guild_id)
+            # Determine report range based on tier
+            if server_tier == "basic":
+                report_days = 7  # Basic tier: 7 days max
+            else:  # pro tier
+                report_days = 30  # Pro tier: 30 days max
+            
+            # Generate report for tier-appropriate days
+            from zoneinfo import ZoneInfo
+            from datetime import timedelta
+            try:
+                guild_tz = ZoneInfo(guild_tz_name or DEFAULT_TZ)
+            except Exception:
+                guild_tz = ZoneInfo('UTC')
+                guild_tz_name = "UTC"
+            
+            # Calculate date range based on tier limits
+            end_date = datetime.now(guild_tz)
+            start_date = end_date - timedelta(days=report_days)
+            
+            start_boundary = datetime.combine(start_date.date(), datetime.min.time()).replace(tzinfo=guild_tz)
+            end_boundary = datetime.combine(end_date.date(), datetime.max.time()).replace(tzinfo=guild_tz)
+            
+            start_utc = start_boundary.astimezone(timezone.utc).isoformat()
+            end_utc = end_boundary.astimezone(timezone.utc).isoformat()
+            
+            # Get all user sessions
+            sessions_data = get_sessions_report(guild_id, None, start_utc, end_utc)
+            
+            if not sessions_data:
+                await interaction.followup.send(
+                    f"📭 No completed timesheet entries found for the last {report_days} days",
+                    ephemeral=True
+                )
+                return
+            
+            # Group sessions by user
+            user_sessions: dict[int, list[tuple]] = {}
+            for session_row in sessions_data:
+                user_id = session_row['user_id']
+                clock_in_iso = session_row['clock_in']
+                clock_out_iso = session_row['clock_out']
+                duration_seconds = session_row['duration_seconds']
+                if user_id not in user_sessions:
+                    user_sessions[user_id] = []
+                user_sessions[user_id].append((clock_in_iso, clock_out_iso, duration_seconds))
+            
+            # Generate CSV files for each user
+            total_users = len(user_sessions)
+            total_entries = len(sessions_data)
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+            tier_note = f"({server_tier.title()} tier - {report_days} days max)" if server_tier == "basic" else f"({server_tier.title()} tier)"
+            
+            if total_users == 1:
+                # Single user: Send CSV file directly (not zipped)
+                user_id, sessions = next(iter(user_sessions.items()))
+                csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name or DEFAULT_TZ)
+                
+                safe_user_name = sanitize_filename(user_display_name)
+                filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
+                file = discord.File(
+                    io.BytesIO(csv_content.encode('utf-8')), 
+                    filename=filename
+                )
+                
+                await interaction.followup.send(
+                    f"📊 Generated timesheet report for **{user_display_name}** {tier_note}\n"
+                    f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+                    f"📝 **Total Entries:** {total_entries} completed shifts\n"
+                    f"🕐 **Timezone:** {guild_tz_name}",
+                    file=file,
+                    ephemeral=True
+                )
+            else:
+                # Multiple users: Create zip file containing all CSV files
+                zip_buffer = io.BytesIO()
+                
+                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_archive:
+                    for user_id, sessions in user_sessions.items():
+                        csv_content, user_display_name = await generate_individual_csv_report(bot, user_id, sessions, guild_id, guild_tz_name or DEFAULT_TZ)
+                        safe_user_name = sanitize_filename(user_display_name)
+                        csv_filename = f"timesheet_report_{start_date_str}_to_{end_date_str}_{safe_user_name}.csv"
+                        # Explicitly encode CSV content to UTF-8 bytes for zip
+                        zip_archive.writestr(csv_filename, csv_content.encode('utf-8'))
+                
+                zip_buffer.seek(0)
+                zip_filename = f"timesheet_reports_{start_date_str}_to_{end_date_str}_all_users.zip"
+                
+                zip_discord_file = discord.File(zip_buffer, filename=zip_filename)
+                
+                await interaction.followup.send(
+                    f"📊 Generated timesheet reports for **{total_users} users** {tier_note}\n"
+                    f"📅 **Period:** Last {report_days} days ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})\n"
+                    f"📝 **Total Entries:** {total_entries} completed shifts\n"
+                    f"🕐 **Timezone:** {guild_tz_name}\n\n"
+                    f"📁 **Delivery:** ZIP file containing individual CSV for each employee",
+                    file=zip_discord_file,
+                    ephemeral=True
+                )
+            
+        except (discord.NotFound, discord.errors.NotFound):
+            # Interaction expired or was deleted - silently handle this
+            print(f"⚠️ Reports interaction expired/not found for user {interaction.user.id}")
+        except discord.errors.InteractionResponded:
+            # Interaction was already responded to - try followup
+            try:
+                await interaction.followup.send("❌ Reports interaction error. Please try again.", ephemeral=True)
+            except Exception as e:
+                print(f"⚠️ Failed to send followup after InteractionResponded: {e}")
+        except Exception as e:
+            # General error handling
+            print(f"❌ Error in generate_reports callback: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(f"❌ Error generating reports: {str(e)}", ephemeral=True)
+                else:
+                    await interaction.followup.send(f"❌ Error generating reports: {str(e)}", ephemeral=True)
+            except Exception:
+                # If we can't even send an error message, just log it
+                print(f"❌ Failed to send error message for generate_reports: {e}")
+
+    async def show_upgrade(self, interaction: discord.Interaction):
+        """Show upgrade options for free tier servers"""
+        if not interaction.guild:
+            await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+            return
+        
+        # This command should always be available.
+        # No rate limiting or permission checks needed for showing upgrade options.
+
+        embed = discord.Embed(
+            title="⬆️ Upgrade Your Server",
+            description="Unlock the full power of Time Warden!",
+            color=discord.Color.gold()
+        )
+        embed.add_field(
+            name="💎 Premium — $8/month",
+            value="First month FREE!\n✅ Full team clock in/out\n✅ Web dashboard access\n✅ CSV reports & exports\n✅ 30-day data retention\n✅ Email reports\n✅ Time adjustments",
+            inline=False
+        )
+        embed.add_field(
+            name="🚀 Pro — $15/month (Coming Soon!)",
+            value="Everything in Premium, plus:\n✅ Kiosk mode for shared devices\n✅ Ad-free dashboard\n✅ Priority support",
+            inline=False
+        )
+        
+        await send_reply(interaction, embed=embed, ephemeral=True)
+
+    async def show_dashboard(self, interaction: discord.Interaction):
+        """Show dashboard link - purchase page for free, normal dashboard for paid"""
+        if not interaction.guild:
+            await send_reply(interaction, "❌ This command must be used in a server.", ephemeral=True)
+            return
+            
+        guild_id = interaction.guild.id
+        user_id = interaction.user.id
+        
+        # RATE LIMITING: Check for spam/abuse
+        is_allowed, request_count, action = check_rate_limit(guild_id, user_id, "dashboard")
+        if not is_allowed:
+            # Handle rate limit response
+            if action == "server_abuse":
+                await send_reply(interaction,
+                    "🚨 **Server Abuse Detected**\n\nThis server has excessive spam activity. The bot is leaving this server.",
+                    ephemeral=True
+                )
+                try:
+                    await interaction.guild.leave()
+                    print(f"🚨 Bot left guild {guild_id} due to abuse")
+                except Exception as e:
+                    print(f"❌ Failed to leave guild {guild_id}: {e}")
+            elif action == "warning":
+                await send_reply(interaction,
+                    "⚠️ **Spam Detection Warning**\n\nYou're clicking the same button too quickly (5+ clicks in 30 seconds).\nPlease slow down.\n\n**⛔ Next violation will result in a 24-hour ban.**",
+                    ephemeral=True
+                )
+            else:  # banned
+                await send_reply(interaction,
+                    "🚫 **24-Hour Ban**\n\nYour access has been temporarily suspended due to spam/abuse.\n**Ban Duration:** 24 hours",
+                    ephemeral=True
+                )
+            return
+        
+        domain = get_domain()
+        landing_page_url = f"https://{domain}/"
+        
+        embed = discord.Embed(
+            title="🌐 On the Clock Dashboard",
+            description=f"Access the web dashboard to manage your server settings, view reports, and purchase upgrades.",
+            color=discord.Color.blue()
+        )
+        
+        embed.add_field(
+            name="🔗 Dashboard Link",
+            value=f"[Open Dashboard]({landing_page_url})\n\nLog in with Discord to access your server settings and features.",
+            inline=False
+        )
+        
+        embed.set_footer(text="Tip: Use the dashboard to configure roles, timezone, and email settings")
+        
+        await send_reply(interaction, embed=embed, ephemeral=True)
+
+

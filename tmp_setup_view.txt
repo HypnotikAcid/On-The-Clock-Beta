@@ -1,0 +1,129 @@
+class SetupInstructionsView(discord.ui.View):
+    """Persistent view with a button that shows setup instructions"""
+    def __init__(self):
+        super().__init__(timeout=None)
+    
+    @discord.ui.button(
+        label="📋 Setup Instructions",
+        style=discord.ButtonStyle.primary,
+        custom_id="setup:show_instructions"
+    )
+    async def show_instructions(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show the setup instructions embed when button is clicked"""
+        try:
+            # Create the setup embed
+            embed = create_setup_embed()
+            
+            # Send ephemeral message so only the user who clicked sees it
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            print(f"❌ Error showing setup instructions: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ Error loading setup instructions. Please try again.",
+                        ephemeral=True
+                    )
+            except Exception:
+                pass
+
+
+# --- Timeclock Hub View (Bulletproof Button Persistence) ---
+# Uses stable custom_ids with "tc:" prefix for maximum reliability
+SUPPORT_DISCORD_URL = "https://discord.gg/tMGssTjkUt"
+LANDING_PAGE_URL = "https://time-warden.com"
+
+class TimeclockHubView(discord.ui.View):
+    """
+    Bulletproof timeclock hub with persistent buttons.
+    
+    Follows 2025 Discord best practices:
+    - timeout=None for never-expiring buttons
+    - Stable custom_id values with "tc:" prefix
+    - Fast ACK (defer immediately in handlers)
+    - Registered in setup_hook for post-restart reliability
+    
+    NOTE: This base view is registered for fallback handling.
+    The actual view sent to users is built dynamically via build_timeclock_hub_view()
+    to conditionally show/hide buttons based on subscription tier.
+    """
+    def __init__(self):
+        super().__init__(timeout=None)  # Never timeout - critical for persistence
+    
+    @discord.ui.button(
+        label="Clock In",
+        style=discord.ButtonStyle.success,
+        custom_id="tc:clock_in",
+        emoji="⏰",
+        row=0
+    )
+    async def clock_in_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Clock in button - ACK fast, then process"""
+        await handle_tc_clock_in(interaction)
+    
+    @discord.ui.button(
+        label="Clock Out",
+        style=discord.ButtonStyle.secondary,
+        custom_id="tc:clock_out",
+        emoji="🏁",
+        row=0
+    )
+    async def clock_out_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Clock out button - ACK fast, then process"""
+        await handle_tc_clock_out(interaction)
+    
+    @discord.ui.button(
+        label="My Adjustments",
+        style=discord.ButtonStyle.primary,
+        custom_id="tc:adjustments",
+        emoji="📝",
+        row=1
+    )
+    async def adjustments_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Link to dashboard adjustments page"""
+        await handle_tc_adjustments(interaction)
+    
+    @discord.ui.button(
+        label="My Hours",
+        style=discord.ButtonStyle.primary,
+        custom_id="tc:my_hours",
+        emoji="📊",
+        row=1
+    )
+    async def my_hours_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Link to dashboard user hours"""
+        await handle_tc_my_hours(interaction)
+    
+    @discord.ui.button(
+        label="Support",
+        style=discord.ButtonStyle.danger,
+        custom_id="tc:support",
+        emoji="🆘",
+        row=1
+    )
+    async def support_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Link to support Discord server"""
+        await handle_tc_support(interaction)
+    
+    @discord.ui.button(
+        label="Unlock Premium",
+        style=discord.ButtonStyle.success,
+        custom_id="tc:upgrade",
+        emoji="⭐",
+        row=2
+    )
+    async def upgrade_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show upgrade options"""
+        await handle_tc_upgrade(interaction)
+
+
+# =============================================================================
+# Demo Role Switcher View
+# =============================================================================
+
+
+
+# Track recent /setup_demo_roles calls to prevent duplicate execution
+_setup_demo_roles_recent_calls: dict[tuple[int, int], float] = {}  # {(guild_id, user_id): timestamp}
+

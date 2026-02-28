@@ -1,0 +1,110 @@
+        filename = f"timesheet_{guild_id}_{start_dt.strftime('%Y%m%d')}.csv"
+        
+        if export_type == 'standard_csv':
+            content = await generate_csv_report(bot, sessions, guild_id, guild_tz)
+            mime_type = "text/csv"
+        elif export_type == 'payroll_csv':
+            # Stub for Phase 3
+            content = await generate_csv_report(bot, sessions, guild_id, guild_tz)
+            filename = f"payroll_{guild_id}_{start_dt.strftime('%Y%m%d')}.csv"
+            mime_type = "text/csv"
+        elif export_type == 'pdf':
+            # Stub for Phase 3
+            content = await generate_csv_report(bot, sessions, guild_id, guild_tz)
+            filename = f"report_{guild_id}_{start_dt.strftime('%Y%m%d')}.txt"
+            mime_type = "text/plain"
+        else:
+            return web.json_response({'success': False, 'error': f'Unsupported export type: {export_type}'}, status=400)
+            
+        # Base64 encode the final file payload to safely transfer over HTTP JSON
+        b64_content = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+        
+        print(f"✅ API: Generated {export_type} report for guild {guild_id}")
+        
+        return web.json_response({
+            'success': True,
+            'filename': filename,
+            'mime_type': mime_type,
+            'content': b64_content,
+            'record_count': len(sessions)
+        })
+        
+    except Exception as e:
+        print(f"❌ Error exporting reports via API (guild {request.match_info.get('guild_id')}): {e}")
+        import traceback
+        traceback.print_exc()
+        return web.json_response({'success': False, 'error': str(e)}, status=500)
+
+async def handle_health(request: web.Request):
+    """Health check endpoint for the bot API"""
+    auth_header = request.headers.get('Authorization', '')
+    expected_token = f'Bearer {BOT_API_SECRET}'
+    
+    if auth_header != expected_token:
+        return web.json_response({'healthy': False, 'error': 'Unauthorized'}, status=401)
+    
+    bot_ready = bot.is_ready() if bot else False
+    guild_count = len(bot.guilds) if bot and bot_ready else 0
+    
+    return web.json_response({
+        'healthy': bot_ready,
+        'message': f'Bot ready with {guild_count} guilds' if bot_ready else 'Bot not ready',
+        'guilds': guild_count,
+        'latency_ms': round(bot.latency * 1000, 2) if bot_ready else None
+    })
+
+
+async def start_bot_api_server():
+    """Start aiohttp server for bot API endpoints"""
+    app = web.Application()
+    app.router.add_get('/health', handle_health)
+    app.router.add_post('/api/guild/{guild_id}/admin-roles/add', handle_add_admin_role)
+    app.router.add_post('/api/guild/{guild_id}/admin-roles/remove', handle_remove_admin_role)
+    app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
+    app.router.add_post('/api/guild/{guild_id}/employee-roles/remove', handle_remove_employee_role)
+    app.router.add_post('/api/guild/{guild_id}/employees/sync', handle_sync_employees)
+    app.router.add_post('/api/guild/{guild_id}/employees/prune-ghosts', handle_prune_ghosts)
+    app.router.add_post('/api/guild/{guild_id}/employees/send-onboarding', handle_send_onboarding)
+    app.router.add_get('/api/guild/{guild_id}/user/{user_id}/check-admin', handle_check_user_admin)
+    app.router.add_post('/api/guild/{guild_id}/reports/export', handle_reports_export)
+    app.router.add_get('/api/guild/{guild_id}/channels', handle_get_channels)
+    app.router.add_post('/api/guild/{guild_id}/test-message', handle_test_message)
+    app.router.add_post('/api/broadcast', handle_broadcast)
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', BOT_API_PORT)
+    await site.start()
+    print(f"🔌 Bot API server running on http://0.0.0.0:{BOT_API_PORT}")
+    print(f"🔐 API Secret: {BOT_API_SECRET[:16]}... (set BOT_API_SECRET env var)")
+
+async def run_bot_with_api():
+    """Run Discord bot and API server concurrently"""
+    # Start API server in background
+    asyncio.create_task(start_bot_api_server())
+    
+    # Start Discord bot (will block until disconnected)
+    await bot.start(TOKEN)
+
+if __name__ == "__main__":
+    # Run database migrations first with exclusive locking
+    print("🔧 Running database migrations...")
+    run_migrations()
+    
+    # Initialize database tables
+    init_db()
+    
+    if not TOKEN:
+        raise SystemExit("Set DISCORD_TOKEN in your environment.")
+    
+    # Health check server disabled - Flask app handles web server
+    # health_thread = threading.Thread(target=start_health_server, daemon=True)
+    # health_thread.start()
+    print(f"✅ Health check server disabled (Flask app handles web server)")
+    
+    # Start daily cleanup scheduler
+    schedule_daily_cleanup()
+    
+    # Start Discord bot with API server
+    print(f"🤖 Starting Discord bot with API server...")
+    asyncio.run(run_bot_with_api())
