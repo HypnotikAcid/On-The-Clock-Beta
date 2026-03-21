@@ -5566,7 +5566,32 @@ async def handle_health(request: web.Request):
         'healthy': True,
         'bot_ready': bot_ready,
         'guild_count': guild_count
-    })# --- Scheduled Tasks ---
+    })
+
+async def start_bot_api_server():
+    """Start aiohttp server for bot API endpoints"""
+    app = web.Application()
+    app.router.add_get('/health', handle_health)
+    app.router.add_post('/api/guild/{guild_id}/admin-roles/add', handle_add_admin_role)
+    app.router.add_post('/api/guild/{guild_id}/admin-roles/remove', handle_remove_admin_role)
+    app.router.add_post('/api/guild/{guild_id}/employee-roles/add', handle_add_employee_role)
+    app.router.add_post('/api/guild/{guild_id}/employee-roles/remove', handle_remove_employee_role)
+    app.router.add_post('/api/guild/{guild_id}/employees/sync', handle_sync_employees)
+    app.router.add_post('/api/guild/{guild_id}/employees/prune-ghosts', handle_prune_ghosts)
+    app.router.add_post('/api/guild/{guild_id}/employees/send-onboarding', handle_send_onboarding)
+    app.router.add_get('/api/guild/{guild_id}/user/{user_id}/check-admin', handle_check_user_admin)
+    app.router.add_post('/api/guild/{guild_id}/reports/export', handle_reports_export)
+    app.router.add_get('/api/guild/{guild_id}/channels', handle_get_channels)
+    app.router.add_post('/api/guild/{guild_id}/test-message', handle_test_message)
+    app.router.add_post('/api/broadcast', handle_broadcast)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', BOT_API_PORT)
+    await site.start()
+    print(f"🔌 Bot API server running on http://0.0.0.0:{BOT_API_PORT}")
+
+# --- Scheduled Tasks ---
 def schedule_daily_cleanup():
     """Schedule daily cleanup task"""
     import threading

@@ -190,6 +190,13 @@
       return jsonify({'success': False, 'error': 'Bot API not configured.'}), 503
   ```
 
+## Antigravity Refactor Dropped the Bot API Server Startup (2026-03-21)
+- **Root Cause**: Antigravity's commit `706cf69` (modularize monolith into Cogs) moved all handler functions from `bot.py` → `bot_core.py` but dropped the `start_bot_api_server()` function and the `asyncio.create_task(start_bot_api_server())` call in `run_bot_with_api()`. The handlers existed but were never registered with an aiohttp Application, so nothing listened on port 8081.
+- **Symptom**: Flask → `http://127.0.0.1:8081/api/broadcast` → `ConnectionError` → "Bot is not ready" (503). Also affects employee sync, channel listing, report export, onboarding, and all other bot API calls.
+- **Fix**: Restored `start_bot_api_server()` in `bot_core.py` and the `asyncio.create_task()` call in `discord_runner.py:run_bot_with_api()` — exact code from the last working commit (`f2070a9`).
+- **Pattern**: When refactoring, always verify that server startup/wiring code is preserved, not just handler definitions. Grep for `web.Application`, `AppRunner`, `TCPSite` to confirm the aiohttp server is still being started.
+- **Verification**: Startup logs must show `🔌 Bot API server running on http://0.0.0.0:8081`. If this line is missing, the bot API is broken.
+
 ## Atomic Layering vs Monolithic Feature Phases (Architectural Standard)
 - **The Problem**: Building an entire vertical feature (Database + Backend + Webhooks + Discord Commands + Javascript UI) in a single massive "Phase" introduces extreme regression risk. If one layer fails, it masks bugs in the others.
 - **The Solution (Atomic Slicing)**: Break large feature sets down into horizontal, atomic layers. Build Layer 1 (Security Hooks), test it. Build Layer 2 (Database Migrations), test it. Build Layer 3 (Backend API), test it. Build Layer 4 (Javascript UI), test it.
