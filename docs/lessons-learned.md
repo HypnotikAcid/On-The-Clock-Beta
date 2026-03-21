@@ -32,6 +32,53 @@
 - **Git Discipline**: CLI agents (Claude Code, Gemini) don't auto-commit - commit frequently.
 - **File Isolation**: Don't have multiple agents edit the same files simultaneously.
 - **Briefing Request**: When switching agents, ask "Give me a briefing on CURRENT_TASK.md".
+
+## Refactoring Safety Protocol (MANDATORY — All Agents)
+Moving code between files is the #1 source of silent catastrophic breakage in this project. The Antigravity Cog refactor (`706cf69`) is the cautionary example: all handler functions were moved correctly, but the server startup code that *wired them together* was dropped — killing the entire bot API with zero errors at import time.
+
+### Before Any Refactor
+1. **Map the wiring, not just the functions.** For every file being refactored, identify:
+   - Server/service startup code (e.g., `web.Application()`, `AppRunner`, `TCPSite`, `create_task`)
+   - Registration code (e.g., `app.router.add_post(...)`, `app.register_blueprint(...)`)
+   - Initialization sequences (e.g., `asyncio.create_task(start_something())`)
+   - Background thread launches (e.g., `threading.Thread(target=...).start()`)
+   These are the "glue" — they don't look important but without them nothing works.
+
+2. **Run the connection audit before AND after.** Check that every endpoint/handler is still reachable:
+   ```bash
+   # Bot API server wiring (must show web.Application + all routes + AppRunner + TCPSite):
+   grep -n "web\.Application\|app\.router\.add\|AppRunner\|TCPSite\|start_bot_api_server" bot_core.py
+   
+   # Flask blueprint registration:
+   grep -n "register_blueprint" app.py
+   
+   # Verify startup log markers exist — if these prints are gone, the wiring is gone:
+   grep -n "🔌 Bot API server running\|Bot API server" bot_core.py discord_runner.py
+   ```
+
+3. **Leave breadcrumb comments at critical wiring points.** Any code that starts a server, registers routes, or launches background tasks MUST have a comment like:
+   ```python
+   # ⚠️ CRITICAL WIRING: This starts the aiohttp API server on port 8081.
+   # All Flask→Bot API calls (broadcast, sync, channels, etc.) depend on this.
+   # If this is removed or not called, Flask will get ConnectionError on every bot API call.
+   # See: docs/lessons-learned.md "Refactoring Safety Protocol"
+   ```
+
+4. **Verify with a smoke test.** After any refactor that moves bot or Flask code:
+   - Restart the workflow
+   - Confirm `🔌 Bot API server running on http://0.0.0.0:8081` appears in startup logs
+   - Confirm `✅ BOT_API_SECRET configured` appears in startup logs
+   - Confirm no `ConnectionError` when hitting a bot API endpoint
+
+### Critical Wiring Points in This Project
+| What | Where | Startup Log Marker | If Missing |
+|------|-------|--------------------|------------|
+| Bot API server (aiohttp on :8081) | `bot_core.py:start_bot_api_server()` | `🔌 Bot API server running on http://0.0.0.0:8081` | ALL Flask→Bot calls fail (broadcast, sync, channels, reports, onboarding) |
+| Bot API task launch | `discord_runner.py:run_bot_with_api()` | (same as above) | Server function exists but never runs |
+| BOT_API_SECRET | Environment variable | `✅ BOT_API_SECRET configured` | Bot API returns 401 on every call |
+| Flask blueprints | `app.py:register_blueprint()` | N/A — check route registration | Dashboard/API routes return 404 |
+| Discord bot thread | `app.py:start_discord_bot()` | `🤖 Logged in as On the Clock` | Bot offline, no slash commands |
+| Email scheduler | `bot_core.py` via `on_ready` | `✅ Email scheduler started` | Scheduled reports stop sending |
 - **Context Files**: All agents should read `replit.md` first, then this file.
 - **Progressive Disclosure**: Don't overload context - point to specific docs when needed.
 - **Date Awareness**: AI may think it's 2024 - verify current date if time-sensitive.

@@ -5569,6 +5569,11 @@ async def handle_health(request: web.Request):
     })
 
 async def start_bot_api_server():
+    # ⚠️ CRITICAL WIRING: This starts the aiohttp API server on port 8081.
+    # All Flask→Bot API calls (broadcast, sync, channels, reports, onboarding) depend on this.
+    # If this function is removed or not called, Flask will get ConnectionError on every bot API call.
+    # Called by: discord_runner.py → run_bot_with_api() → asyncio.create_task(start_bot_api_server())
+    # See: docs/lessons-learned.md "Refactoring Safety Protocol"
     """Start aiohttp server for bot API endpoints"""
     app = web.Application()
     app.router.add_get('/health', handle_health)
