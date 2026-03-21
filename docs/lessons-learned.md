@@ -177,6 +177,19 @@
 - **Root Cause**: Antigravity correctly fixed the `resolved` column migration but never published the deployment. The git commit existed but the production environment never received it. A subsequent publish by another session pushed BOTH the column fix AND a new template bug together.
 - **Pattern**: After any agent commits a critical fix, explicitly verify a new deployment has been triggered. Compare the timestamp of the last git commit against the timestamp of the last "Published your App" checkpoint. If commit is newer than publish, the fix is not live.
 
+## BOT_API_SECRET Must Be a Fixed Env Var — Never Rely on Runtime Generation (2026-03-21)
+- **Root Cause**: `bot_core.py` generates a random `BOT_API_SECRET` at startup via `secrets.token_hex(32)` when the env var is not set. Flask (in `api_owner.py`) tries `os.getenv("BOT_API_SECRET", "")` (gets `""`) then falls back to `_get_bot_module().BOT_API_SECRET`. That fallback calls `import bot` — but the bot module is `bot_core.py`, not `bot.py`, so the import silently fails and the secret stays empty. Flask sends `Authorization: Bearer ` (empty) → bot API returns 401 → Flask propagates "Unauthorized" to the user.
+- **Fix**: Set `BOT_API_SECRET` as a fixed shared environment variable. Both `bot_core.py` and `api_owner.py` already read from `os.getenv("BOT_API_SECRET")` — they just need a stable value to agree on.
+- **Hardening Added**:
+  1. Startup check in `app.py` now logs `✅ BOT_API_SECRET configured` or `⚠️ WARNING: BOT_API_SECRET is not set` — misconfiguration is immediately visible in startup logs instead of silently failing at runtime.
+  2. The broadcast endpoint in `api_owner.py` now uses the same fast-fail pattern as every other bot API call: `bot_api_secret = os.getenv('BOT_API_SECRET')` → return 503 if missing. No more silent fallback.
+- **Pattern**: All bot-internal API calls must follow this pattern — never use a default empty string or a `_get_bot_module()` fallback:
+  ```python
+  bot_api_secret = os.getenv('BOT_API_SECRET')
+  if not bot_api_secret:
+      return jsonify({'success': False, 'error': 'Bot API not configured.'}), 503
+  ```
+
 ## Atomic Layering vs Monolithic Feature Phases (Architectural Standard)
 - **The Problem**: Building an entire vertical feature (Database + Backend + Webhooks + Discord Commands + Javascript UI) in a single massive "Phase" introduces extreme regression risk. If one layer fails, it masks bugs in the others.
 - **The Solution (Atomic Slicing)**: Break large feature sets down into horizontal, atomic layers. Build Layer 1 (Security Hooks), test it. Build Layer 2 (Database Migrations), test it. Build Layer 3 (Backend API), test it. Build Layer 4 (Javascript UI), test it.

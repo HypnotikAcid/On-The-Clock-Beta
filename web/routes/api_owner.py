@@ -1290,14 +1290,9 @@ def api_owner_broadcast(user_session):
         try:
             import requests
             bot_api_port = os.getenv("BOT_API_PORT", "8081")
-            bot_api_secret = os.getenv("BOT_API_SECRET", "")
-            
-            # If no secret configured, try to get it from the bot module
+            bot_api_secret = os.getenv('BOT_API_SECRET')
             if not bot_api_secret:
-                try:
-                    bot_api_secret = _get_bot_module().BOT_API_SECRET
-                except:
-                    pass
+                return jsonify({'success': False, 'error': 'Bot API not configured. Set BOT_API_SECRET environment variable.'}), 503
             
             response = requests.post(
                 f"http://127.0.0.1:{bot_api_port}/api/broadcast",

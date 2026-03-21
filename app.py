@@ -316,6 +316,10 @@ if __name__ != '__main__':
     import os
     print("[STARTUP] Flask app initializing under Gunicorn...")
     print(f"[STARTUP] Health check endpoint ready at /health")
+    if not os.getenv('BOT_API_SECRET'):
+        print("[STARTUP] ⚠️  WARNING: BOT_API_SECRET is not set. Bot internal API calls (broadcast, admin checks) will fail silently. Set this in environment secrets.")
+    else:
+        print("[STARTUP] ✅ BOT_API_SECRET configured")
     
     worker_id = os.environ.get('GUNICORN_WORKER_ID', '1')
     # Only start bot in first worker to avoid multiple instances
