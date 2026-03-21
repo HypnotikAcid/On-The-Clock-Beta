@@ -1294,6 +1294,14 @@ def api_owner_broadcast(user_session):
             if not bot_api_secret:
                 return jsonify({'success': False, 'error': 'Bot API not configured. Set BOT_API_SECRET environment variable.'}), 503
             
+            import time, hmac, hashlib
+            timestamp_str = str(time.time())
+            signature = hmac.new(
+                bot_api_secret.encode('utf-8'),
+                timestamp_str.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            
             response = requests.post(
                 f"http://127.0.0.1:{bot_api_port}/api/broadcast",
                 json={
@@ -1303,7 +1311,9 @@ def api_owner_broadcast(user_session):
                 },
                 headers={
                     'Authorization': f'Bearer {bot_api_secret}',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Timestamp': timestamp_str,
+                    'X-Signature': signature
                 },
                 timeout=300  # 5 minute timeout for broadcasts
             )
