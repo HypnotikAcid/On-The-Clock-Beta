@@ -5419,7 +5419,7 @@ async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) ->
             logger.error(f"[BROADCAST] Error sending to guild {guild_id}: {e}")
             failed_count += 1
     
-    return {'success': True, 'sent_count': sent_count, 'failed_count': failed_count}
+    return {'success': sent_count > 0, 'sent_count': sent_count, 'failed_count': failed_count}
 
 async def handle_broadcast(request: web.Request):
     """HTTP endpoint: Send broadcast message to guilds"""
