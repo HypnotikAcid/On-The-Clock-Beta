@@ -10,11 +10,34 @@ from flask import session, redirect, request, jsonify, current_app as app
 from web.utils.db import get_db
 from entitlements import Entitlements, UserTier
 
+import hmac
+import hashlib
+import time as time_module_std
+
 DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID', '1418446753379913809')
 DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
 DISCORD_API_BASE = 'https://discord.com/api/v10'
 BOT_API_BASE_URL = os.getenv('BOT_API_BASE_URL', 'http://localhost:8081')
 DEMO_SERVER_ID = '1419894879894507661'
+
+# ⚠️ CRITICAL WIRING: All Flask→Bot API calls MUST use this helper for headers.
+# It generates the Authorization, X-Timestamp, and X-Signature headers required
+# by bot_core.py's verify_api_request(). Without the replay defense headers,
+# the bot API returns 401 Unauthorized on every call.
+# See: docs/lessons-learned.md "Refactoring Safety Protocol"
+def get_bot_api_headers(bot_api_secret):
+    """Generate authenticated headers with replay defense for bot API calls."""
+    timestamp_str = str(time_module_std.time())
+    signature = hmac.new(
+        bot_api_secret.encode('utf-8'),
+        timestamp_str.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    return {
+        'Authorization': f'Bearer {bot_api_secret}',
+        'X-Timestamp': timestamp_str,
+        'X-Signature': signature
+    }
 
 def is_demo_server(guild_id) -> bool:
     return str(guild_id) == DEMO_SERVER_ID
@@ -328,7 +351,7 @@ def check_user_admin_realtime(user_id, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return {'is_member': False, 'is_admin': False, 'reason': 'invalid_url'}
         
-        headers = {'Authorization': f'Bearer {bot_api_secret}'}
+        headers = get_bot_api_headers(bot_api_secret)
         
         response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:

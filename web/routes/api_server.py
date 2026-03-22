@@ -12,6 +12,7 @@ from app import (
     sanitize_csv_string,
     _get_bot_module, get_bot_guild_ids, get_guild_roles_from_bot, get_guild_settings, get_guild_text_channels, validate_bot_api_url, validate_role_in_guild, _parse_stickers
 )
+from web.utils.auth import get_bot_api_headers
 from web.utils.db import get_db
 
 api_server_bp = Blueprint('api_server', __name__)
@@ -64,23 +65,10 @@ def api_add_admin_role(user_session, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
-        # Cryptographic Signature for Replay Defense
-        import time, hmac, hashlib
-        timestamp_str = str(time.time())
-        signature = hmac.new(
-            bot_api_secret.encode('utf-8'),
-            timestamp_str.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
-        
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
-            headers={
-                'Authorization': f'Bearer {bot_api_secret}',
-                'X-Timestamp': timestamp_str,
-                'X-Signature': signature
-            },
+            headers=get_bot_api_headers(bot_api_secret),
             timeout=5
         )
         
@@ -145,23 +133,10 @@ def api_remove_admin_role(user_session, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
-        # Cryptographic Signature for Replay Defense
-        import time, hmac, hashlib
-        timestamp_str = str(time.time())
-        signature = hmac.new(
-            bot_api_secret.encode('utf-8'),
-            timestamp_str.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
-        
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
-            headers={
-                'Authorization': f'Bearer {bot_api_secret}',
-                'X-Timestamp': timestamp_str,
-                'X-Signature': signature
-            },
+            headers=get_bot_api_headers(bot_api_secret),
             timeout=5
         )
         
@@ -226,29 +201,16 @@ def api_add_employee_role(user_session, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
-        # Cryptographic Signature for Replay Defense
-        import time, hmac, hashlib
-        timestamp_str = str(time.time())
-        signature = hmac.new(
-            bot_api_secret.encode('utf-8'),
-            timestamp_str.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
-        
-        app.logger.info(f"≡ƒou Flask calling bot API: {bot_api_url} with role_id={role_id}")
+        app.logger.info(f"Flask calling bot API: {bot_api_url} with role_id={role_id}")
         
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id},
-            headers={
-                'Authorization': f'Bearer {bot_api_secret}',
-                'X-Timestamp': timestamp_str,
-                'X-Signature': signature
-            },
+            headers=get_bot_api_headers(bot_api_secret),
             timeout=5
         )
         
-        app.logger.info(f"≡ƒou Bot API response: status={response.status_code}, ok={response.ok}")
+        app.logger.info(f"Bot API response: status={response.status_code}, ok={response.ok}")
         
         if response.ok:
             app.logger.info(f"Added employee role {role_id} to guild {guild_id} by user {user_session.get('username')}")
@@ -311,23 +273,10 @@ def api_remove_employee_role(user_session, guild_id):
             app.logger.error(f"SSRF protection: Invalid bot API URL rejected")
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
         
-        # Cryptographic Signature for Replay Defense
-        import time, hmac, hashlib
-        timestamp_str = str(time.time())
-        signature = hmac.new(
-            bot_api_secret.encode('utf-8'),
-            timestamp_str.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
-
         response = requests.post(
             bot_api_url,
             json={'role_id': role_id, 'user_id': user_session.get('user_id')},
-            headers={
-                'Authorization': f'Bearer {bot_api_secret}',
-                'X-Timestamp': timestamp_str,
-                'X-Signature': signature
-            },
+            headers=get_bot_api_headers(bot_api_secret),
             timeout=5
         )
         
@@ -1462,22 +1411,14 @@ def api_sync_server_employees(user_session, guild_id):
         if not guild:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
-        # Call bot API to sync employees
         bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/employees/sync"
         bot_api_secret = os.environ.get('BOT_API_SECRET')
-        
-        if not bot_api_secret:
-            bot_module = _get_bot_module()
-            if bot_module:
-                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
-        
         if not bot_api_secret:
             return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
         
-        import requests
         response = requests.post(
             bot_api_url,
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers=get_bot_api_headers(bot_api_secret),
             json={},
             timeout=30
         )
@@ -1666,28 +1607,20 @@ def api_export_reports(user_session, guild_id):
                 'upgrade_url': f'/dashboard/purchase?guild_id={guild_id}&plan=pro'
             }), 403
             
-        # Trigger bot API to generate and return the report
         bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/reports/export"
         bot_api_secret = os.environ.get('BOT_API_SECRET')
-        
-        if not bot_api_secret:
-            bot_module = _get_bot_module()
-            if bot_module:
-                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
-                
         if not bot_api_secret:
             return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
             
-        import requests
         response = requests.post(
             bot_api_url,
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers=get_bot_api_headers(bot_api_secret),
             json={
                 'export_type': export_type,
                 'start_date': start_date_str,
                 'end_date': end_date_str
             },
-            timeout=60 # Reports can take some time
+            timeout=60
         )
         
         if response.status_code == 200:
@@ -1718,19 +1651,12 @@ def api_get_discord_channels(user_session, guild_id):
             
         bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/channels"
         bot_api_secret = os.environ.get('BOT_API_SECRET')
-        
-        if not bot_api_secret:
-            bot_module = _get_bot_module()
-            if bot_module:
-                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
-                
         if not bot_api_secret:
             return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
             
-        import requests
         response = requests.get(
             bot_api_url,
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers=get_bot_api_headers(bot_api_secret),
             timeout=5
         )
         
@@ -1761,19 +1687,12 @@ def api_test_discord_routing(user_session, guild_id):
             
         bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/test-message"
         bot_api_secret = os.environ.get('BOT_API_SECRET')
-        
-        if not bot_api_secret:
-            bot_module = _get_bot_module()
-            if bot_module:
-                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
-                
         if not bot_api_secret:
             return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
             
-        import requests
         response = requests.post(
             bot_api_url,
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers=get_bot_api_headers(bot_api_secret),
             json={'channel_id': channel_id},
             timeout=10
         )
@@ -1820,22 +1739,14 @@ def api_send_employee_onboarding(user_session, guild_id):
         if not guild_settings.get('has_bot_access'):
             return jsonify({'success': False, 'error': 'Premium feature - please upgrade'}), 403
         
-        # Call bot API to send onboarding DMs
         bot_api_url = f"http://127.0.0.1:8081/api/guild/{guild_id}/employees/send-onboarding"
         bot_api_secret = os.environ.get('BOT_API_SECRET')
-        
-        if not bot_api_secret:
-            bot_module = _get_bot_module()
-            if bot_module:
-                bot_api_secret = getattr(bot_module, 'BOT_API_SECRET', None)
-        
         if not bot_api_secret:
             return jsonify({'success': False, 'error': 'Bot API not configured'}), 500
         
-        import requests
         response = requests.post(
             bot_api_url,
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers=get_bot_api_headers(bot_api_secret),
             json={},
             timeout=60
         )

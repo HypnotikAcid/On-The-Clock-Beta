@@ -11,6 +11,7 @@ from app import (
     sanitize_csv_string,
     _get_bot_module, notify_server_owner_bot_access, validate_role_in_guild, verify_guild_access
 )
+from web.utils.auth import get_bot_api_headers
 
 from web.utils.db import get_db
 api_owner_bp = Blueprint('api_owner', __name__)
@@ -135,7 +136,7 @@ def debug_run_test(user_session):
                 
                 response = requests.get(
                     'http://localhost:8081/health',
-                    headers={'Authorization': f'Bearer {bot_api_secret}'},
+                    headers=get_bot_api_headers(bot_api_secret),
                     timeout=5
                 )
                 
@@ -352,7 +353,7 @@ def debug_health_bot(user_session):
         
         response = requests.get(
             'http://localhost:8081/health',
-            headers={'Authorization': f'Bearer {bot_api_secret}'},
+            headers=get_bot_api_headers(bot_api_secret),
             timeout=5
         )
         
@@ -441,7 +442,7 @@ def debug_api_test(user_session, test_id):
                 return jsonify({'success': False, 'error': 'No API secret configured'})
             response = requests.get(
                 'http://localhost:8081/health',
-                headers={'Authorization': f'Bearer {bot_api_secret}'},
+                headers=get_bot_api_headers(bot_api_secret),
                 timeout=5
             )
             return jsonify({'success': response.ok, 'message': f'Status {response.status_code}'})
@@ -529,7 +530,7 @@ def debug_checklist(user_session):
         if bot_api_secret:
             response = requests.get(
                 'http://localhost:8081/health',
-                headers={'Authorization': f'Bearer {bot_api_secret}'},
+                headers=get_bot_api_headers(bot_api_secret),
                 timeout=5
             )
             if response.ok:
@@ -546,7 +547,7 @@ def debug_checklist(user_session):
         if bot_api_secret:
             response = requests.get(
                 'http://localhost:8081/commands',
-                headers={'Authorization': f'Bearer {bot_api_secret}'},
+                headers=get_bot_api_headers(bot_api_secret),
                 timeout=5
             )
             if response.ok:
@@ -1294,13 +1295,8 @@ def api_owner_broadcast(user_session):
             if not bot_api_secret:
                 return jsonify({'success': False, 'error': 'Bot API not configured. Set BOT_API_SECRET environment variable.'}), 503
             
-            import time, hmac, hashlib
-            timestamp_str = str(time.time())
-            signature = hmac.new(
-                bot_api_secret.encode('utf-8'),
-                timestamp_str.encode('utf-8'),
-                hashlib.sha256
-            ).hexdigest()
+            headers = get_bot_api_headers(bot_api_secret)
+            headers['Content-Type'] = 'application/json'
             
             response = requests.post(
                 f"http://127.0.0.1:{bot_api_port}/api/broadcast",
@@ -1309,13 +1305,8 @@ def api_owner_broadcast(user_session):
                     'title': title,
                     'message': message
                 },
-                headers={
-                    'Authorization': f'Bearer {bot_api_secret}',
-                    'Content-Type': 'application/json',
-                    'X-Timestamp': timestamp_str,
-                    'X-Signature': signature
-                },
-                timeout=300  # 5 minute timeout for broadcasts
+                headers=headers,
+                timeout=300
             )
             
             result = response.json()

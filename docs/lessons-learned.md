@@ -230,12 +230,16 @@ Moving code between files is the #1 source of silent catastrophic breakage in th
 - **Hardening Added**:
   1. Startup check in `app.py` now logs `✅ BOT_API_SECRET configured` or `⚠️ WARNING: BOT_API_SECRET is not set` — misconfiguration is immediately visible in startup logs instead of silently failing at runtime.
   2. The broadcast endpoint in `api_owner.py` now uses the same fast-fail pattern as every other bot API call: `bot_api_secret = os.getenv('BOT_API_SECRET')` → return 503 if missing. No more silent fallback.
-- **Pattern**: All bot-internal API calls must follow this pattern — never use a default empty string or a `_get_bot_module()` fallback:
+- **Pattern**: All bot-internal API calls must use `get_bot_api_headers()` from `web/utils/auth.py`. This helper generates `Authorization`, `X-Timestamp`, and `X-Signature` headers required by `bot_core.py`'s HMAC replay defense. Never build headers manually or use bare `Authorization: Bearer`:
   ```python
+  from web.utils.auth import get_bot_api_headers
+  
   bot_api_secret = os.getenv('BOT_API_SECRET')
   if not bot_api_secret:
       return jsonify({'success': False, 'error': 'Bot API not configured.'}), 503
+  response = requests.get(url, headers=get_bot_api_headers(bot_api_secret), timeout=5)
   ```
+- **Audit (2026-03-22)**: Fixed 12 Flask→Bot API call sites that were missing X-Timestamp/X-Signature replay defense headers: 5 in `api_server.py`, 6 in `api_owner.py`, 1 in `api_kiosk.py`, plus `check_user_admin_realtime` in `web/utils/auth.py` (which gates every dashboard page). Also removed the broken `_get_bot_module()` fallback pattern from all 5 `api_server.py` endpoints.
 
 ## Antigravity Refactor Dropped the Bot API Server Startup (2026-03-21)
 - **Root Cause**: Antigravity's commit `706cf69` (modularize monolith into Cogs) moved all handler functions from `bot.py` → `bot_core.py` but dropped the `start_bot_api_server()` function and the `asyncio.create_task(start_bot_api_server())` call in `run_bot_with_api()`. The handlers existed but were never registered with an aiohttp Application, so nothing listened on port 8081.
