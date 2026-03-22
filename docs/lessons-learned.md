@@ -244,6 +244,12 @@ Moving code between files is the #1 source of silent catastrophic breakage in th
 - **Pattern**: When refactoring, always verify that server startup/wiring code is preserved, not just handler definitions. Grep for `web.Application`, `AppRunner`, `TCPSite` to confirm the aiohttp server is still being started.
 - **Verification**: Startup logs must show `🔌 Bot API server running on http://0.0.0.0:8081`. If this line is missing, the bot API is broken.
 
+## Antigravity Refactor Stranded send_broadcast_to_guilds in tmp_help.txt (2026-03-22)
+- **Root Cause**: The `send_broadcast_to_guilds` function — which `handle_broadcast` calls to actually send Discord messages — was dropped from bot_core.py during the Cog refactor and left in `tmp_help.txt`. Additionally, `bot/cogs/owner_cmds.py` called the function but never imported it from `bot_core`.
+- **Symptom**: Broadcast API returns 500 with `NameError: name 'send_broadcast_to_guilds' is not defined`.
+- **Fix**: Restored the function into `bot_core.py` (before `handle_broadcast`), added `send_broadcast_to_guilds` to the imports in `bot/cogs/owner_cmds.py`, and added `'success': True` to the return dict to match the contract expected by `handle_broadcast` and `api_owner.py`.
+- **Pattern**: When moving functions between files, always grep for ALL call sites and verify each one has the correct import. Use: `grep -rn "function_name" --include="*.py"` to find every reference.
+
 ## Atomic Layering vs Monolithic Feature Phases (Architectural Standard)
 - **The Problem**: Building an entire vertical feature (Database + Backend + Webhooks + Discord Commands + Javascript UI) in a single massive "Phase" introduces extreme regression risk. If one layer fails, it masks bugs in the others.
 - **The Solution (Atomic Slicing)**: Break large feature sets down into horizontal, atomic layers. Build Layer 1 (Security Hooks), test it. Build Layer 2 (Database Migrations), test it. Build Layer 3 (Backend API), test it. Build Layer 4 (Javascript UI), test it.

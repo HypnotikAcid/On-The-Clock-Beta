@@ -5357,6 +5357,70 @@ async def handle_test_message(request: web.Request):
         print(f"❌ Error sending test message to {guild_id_str}: {e}")
         return web.json_response({'success': False, 'error': str(e)}, status=500)
 
+# ⚠️ CRITICAL WIRING: This function is called by handle_broadcast() below.
+# It was stranded in tmp_help.txt during the Antigravity Cog refactor (706cf69)
+# and restored in this fix. If removed, broadcasts fail with NameError.
+# See: docs/lessons-learned.md "Refactoring Safety Protocol"
+async def send_broadcast_to_guilds(guild_ids: list, title: str, message: str) -> dict:
+    """
+    Send a broadcast message to multiple guilds.
+    Returns dict with success, sent_count and failed_count.
+    """
+    import logging
+    logger = logging.getLogger('bot.broadcast')
+    
+    sent_count = 0
+    failed_count = 0
+    
+    for guild_id in guild_ids:
+        try:
+            guild = bot.get_guild(int(guild_id))
+            if not guild:
+                logger.warning(f"[BROADCAST] Guild {guild_id} not found in cache")
+                failed_count += 1
+                continue
+            
+            embed = discord.Embed(
+                title=f"📢 {title}",
+                description=message,
+                color=discord.Color.gold(),
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.set_footer(text="On the Clock Bot Announcement")
+            
+            channel_to_use = None
+            
+            broadcast_channel_id = get_guild_setting(int(guild_id), "broadcast_channel_id")
+            if broadcast_channel_id:
+                channel_to_use = guild.get_channel(int(broadcast_channel_id))
+            
+            if not channel_to_use and guild.system_channel:
+                if guild.system_channel.permissions_for(guild.me).send_messages:
+                    channel_to_use = guild.system_channel
+            
+            if not channel_to_use:
+                for channel in guild.text_channels:
+                    if channel.permissions_for(guild.me).send_messages:
+                        channel_to_use = channel
+                        break
+            
+            if channel_to_use:
+                await channel_to_use.send(embed=embed)
+                logger.info(f"[BROADCAST] Sent to {guild.name} (#{channel_to_use.name})")
+                sent_count += 1
+            else:
+                logger.warning(f"[BROADCAST] No sendable channel found in {guild.name}")
+                failed_count += 1
+                
+        except discord.Forbidden:
+            logger.warning(f"[BROADCAST] Permission denied for guild {guild_id}")
+            failed_count += 1
+        except Exception as e:
+            logger.error(f"[BROADCAST] Error sending to guild {guild_id}: {e}")
+            failed_count += 1
+    
+    return {'success': True, 'sent_count': sent_count, 'failed_count': failed_count}
+
 async def handle_broadcast(request: web.Request):
     """HTTP endpoint: Send broadcast message to guilds"""
     if not verify_api_request(request):
