@@ -44,31 +44,26 @@ class PresenceEvents(commands.Cog):
             dashboard_url = "https://time-warden.com"
             
             embed = discord.Embed(
-                title="🎮 Welcome to the Time Warden Demo Server!",
-                description="Thanks for checking out our Discord timeclock bot! This demo lets you explore **all features** with live test data.",
-                color=0x00FFFF  # Cyan to match branding
+                title="⚡ Welcome to the Time Warden Playground",
+                description="Experience the ultimate Discord-native Timeclock solution. This server is heavily sandboxed with automatically refreshing test data to provide a flawless demonstration environment.",
+                color=0x00FFFF
             )
             embed.add_field(
-                name="🎭 STEP 1: Choose Your Demo Persona",
-                value="Click a button below to begin your demo:\n• 👷 **Become Employee** - Test clock in/out features\n• 👑 **Become Admin** - Manage employees and settings",
+                name="🎭 1. Choose Your Persona",
+                value="Did you skip Server Onboarding? No problem! Use the buttons attached below to instantly assign yourself as a **Demo Admin** (Manager Control Panel) or a **Demo Employee** (Clock In/Out). You can freely hot-swap your role at any time to explore both sides of the product.",
                 inline=False
             )
             embed.add_field(
-                name="🖥️ STEP 2: Try the Web Dashboard",
-                value=f"[Login to Dashboard]({dashboard_url}/auth/login)\n\nExplore our core product! The full admin dashboard allows you to manage staff, edit timesheets, view reports, and configure server settings.",
+                name="🖥️ 2. Enter the Dashboard",
+                value=f"[Launch Manager Dashboard]({dashboard_url}/auth/login)\nDive directly into payroll routing, deep analytics, manual timesheet adjustments, and server settings.",
                 inline=False
             )
             embed.add_field(
-                name="📱 STEP 3: Try the Kiosk Mode (BETA)",
-                value=f"[Open Demo Kiosk]({dashboard_url}/kiosk/{DEMO_SERVER_ID})\n\nOur upcoming physical workplace solution. Test our tablet-friendly interface with PIN-based clock in/out.",
+                name="📱 3. Interact with Kiosk Mode (BETA)",
+                value=f"[Launch Kiosk Tablet Interface]({dashboard_url}/kiosk/{DEMO_SERVER_ID})\nOpen our physical-workplace tablet solution. Seamlessly clock in utilizing 4-digit PINs (Test PINs available in Dashboard Profiles).",
                 inline=False
             )
-            embed.add_field(
-                name="💬 Discord Commands",
-                value="• `/clock` - Open your personal timeclock\n• `/help` - See all available commands\n• `/report` - Generate timesheet reports",
-                inline=False
-            )
-            embed.set_footer(text="Time Warden - Professional Time Tracking for Discord Teams")
+            embed.set_footer(text="Time Warden • Environment resets completely at Midnight (UTC)")
             
             # Send Welcome DM as a reference
             try:
