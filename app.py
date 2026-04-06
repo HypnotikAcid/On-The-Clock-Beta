@@ -267,7 +267,7 @@ from entitlements import Entitlements, UserTier, UserRole
 # Start Discord bot in background daemon thread
 def start_discord_bot():
     """Start the Discord bot in a background daemon thread with robust error handling."""
-    global bot_status
+
     bot_status['started_at'] = datetime.now(timezone.utc).isoformat()
     
     try:
@@ -1524,11 +1524,14 @@ def purchase_checkout(user_session):
             except Exception as e:
                 app.logger.warning(f"Could not check trial eligibility: {e}")
         
+        # Resolve the guild dynamically
+        guild = next((g for g in user_session.get('guilds', []) if str(g.get('id', '')) == str(guild_id)), None)
+
         # Create checkout session
         checkout_url = create_secure_checkout_session(
             guild_id=int(guild_id),
             product_type=product_type,
-            guild_name=authorized_guild.get('name', ''),
+            guild_name=guild.get('name', '') if guild else f'Server {guild_id}',
             apply_trial_coupon=apply_trial
         )
         

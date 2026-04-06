@@ -1019,7 +1019,7 @@ def is_kiosk_mode_only(guild_id: int) -> bool:
         # Use async DB connection pool
         return bot.loop.run_until_complete(_check_kiosk_mode(guild_id))
     except Exception as e:
-        logger.error(f"Error checking kiosk_only_mode for guild {guild_id}: {e}")
+        print(f"Error checking kiosk_only_mode for guild {guild_id}: {e}")
         return False
 
 async def _check_kiosk_mode(guild_id: int) -> bool:
@@ -1031,7 +1031,7 @@ async def _check_kiosk_mode(guild_id: int) -> bool:
             )
             return bool(row.get('kiosk_only_mode', False)) if row else False
     except Exception as e:
-        logger.error(f"Error checking kiosk_only_mode for guild {guild_id}: {e}")
+        print(f"Error checking kiosk_only_mode for guild {guild_id}: {e}")
         return False
 
 async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purchase"):
@@ -3973,8 +3973,6 @@ class DemoRoleSwitcherView(discord.ui.View):
 
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             print(f"📌 Sent ephemeral timeclock hub for employee user {interaction.user.id}")
-            print(f"📌 Sent timeclock hub to channel as message {timeclock_msg.id} for employee user {interaction.user.id}")
-
         except discord.Forbidden:
             await send_reply(interaction, "❌ I don't have permission to manage roles. Please contact a server admin.", ephemeral=True)
         except Exception as e:

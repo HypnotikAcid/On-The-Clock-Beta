@@ -3,6 +3,10 @@ import traceback
 import logging
 import csv
 import io
+import requests
+import json
+import asyncio
+import concurrent.futures as concurrent
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, redirect, request, session, jsonify, current_app as app, Response
 
@@ -811,6 +815,7 @@ def api_owner_grant_access(user_session):
                 app.logger.info(f"≡ƒôº Attempting to send welcome notification to server owner for guild {guild_id}")
                 
                 # Check bot availability with detailed logging
+                bot = _get_bot_module().bot if _get_bot_module() else None
                 if not bot:
                     app.logger.error(f"[ERROR] Bot instance is None - cannot send notification")
                     app.logger.error(f"   Bot may not have started yet. Check if Discord bot thread is running.")
@@ -1420,6 +1425,7 @@ def api_owner_trigger_deletion_check(user_session):
         import asyncio
         from scheduler import send_deletion_warnings
         
+        bot = _get_bot_module().bot if _get_bot_module() else None
         if bot and bot.loop and bot.loop.is_running():
             # Use bot's event loop if available
             future = asyncio.run_coroutine_threadsafe(

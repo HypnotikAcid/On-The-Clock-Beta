@@ -283,3 +283,13 @@ Moving code between files is the #1 source of silent catastrophic breakage in th
 ## Discord Context Menus inside Cogs (2026-02-28)
 - **The Problem**: App Commands Context Menus (`@app_commands.context_menu()`) throw a `TypeError: context menus cannot be defined inside a class` if they are defined inside a `commands.Cog` class.
 - **The Solution**: Define Context Menus as global async functions outside of the Cog class, and manually register them into the bot tree during the `setup(bot)` function using `bot.tree.add_command(context_menu_function)`.
+
+## Legacy Subscription Decorators Blocking Free Trials (2026-04-06)
+- **Root Cause**: When migrating to the 30-Day Free Trial system, `get_flask_guild_access()` was injected inside 34+ API routes to grant trial servers access. However, the legacy `@require_paid_api_access` decorator was left on those routes. The decorator explicitly enforced `bot_access_paid == True`, immediately throwing a 403 Forbidden payload *before* the route's trial logic could even execute.
+- **Fix**: Refactored `require_paid_api_access` and `require_paid_access` in `web/utils/auth.py` to inherently evaluate `get_flask_guild_access()` natively. This unblocks all free trials without having to rewrite 34 individual fetch routes.
+- **Pattern**: When deprecating a security constraint, update the global decorator directly rather than bypassing it sequentially inside the downstream routes.
+
+## Python Console Log Unicode Emulators Crashing Gunicorn (2026-04-06)
+- **Root Cause**: Gunicorn crashed in the Windows deployment environment when it attempted to stdout emojis like `🔄` and `❌` from `migrations.py` and `bot_core.py`. The Windows console defaults to `cp1252` encoding which throws a fatal `UnicodeEncodeError`.
+- **Fix**: Replaced graphical emojis inside initialization prints with standard bracket strings like `[SYNC]`, `[FAIL]`, and `[OK]`.
+- **Pattern**: Python `print()` statements executed during application startup must be scrubbed of non-ASCII characters to maintain portability across rigid Windows terminal mappings.
