@@ -1145,7 +1145,7 @@ def api_save_server_settings(user_session, guild_id):
     """API endpoint to save general server settings (admin only)"""
     try:
         guild, access_level = verify_guild_access(user_session, guild_id)
-        if not guild or access_level != 'admin':
+        if not guild or access_level not in ['admin', 'owner']:
             return jsonify({'success': False, 'error': 'Access denied. Admin only.'}), 403
             
         data = request.json
