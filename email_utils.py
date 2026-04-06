@@ -95,9 +95,8 @@ class ReplitMailSender:
         if web_repl_renewal:
             return f"depl {web_repl_renewal}"
         
-        raise ValueError(
-            "No authentication token found. Please set REPL_IDENTITY or ensure you're running in Replit environment."
-        )
+        logger.warning("No Replit auth token found. Using 'local_dev_token' for development.")
+        return "local_dev_token"
     
     async def send_email(
         self,

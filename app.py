@@ -304,12 +304,7 @@ def deferred_db_init():
     except Exception as e:
         print(f"[WARNING] Migration error (non-fatal): {e}")
     
-    try:
-        print("[STARTUP] Initializing dashboard tables...")
-        init_dashboard_tables()
-        print("[STARTUP] Dashboard tables initialized")
-    except Exception as e:
-        print(f"[WARNING] Dashboard initialization warning: {e}")
+    # Dashboard tables are initialized natively by the migrations script
 
 # Start bot thread when running under Gunicorn (only in first worker)
 if __name__ != '__main__':
