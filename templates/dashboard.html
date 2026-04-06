@@ -92,16 +92,14 @@
             box-shadow: 0 0 12px rgba(0, 255, 255, 0.18) !important;
         }
 
-        /* Page heading */
-        h1,
-        h2,
-        h3 {
-            color: #E6EDF3 !important;
-        }
-
+        /* Page heading — only top-level content titles, not nav labels */
         .content-title {
             color: #fff !important;
             font-weight: 800 !important;
+        }
+
+        h1.content-title {
+            font-size: 1.8rem !important;
         }
 
         /* Hover glow items */
@@ -111,14 +109,13 @@
             box-shadow: 0 0 16px rgba(0, 255, 255, 0.15) !important;
         }
 
-        /* Content layering above matrix canvas */
-        .sidebar,
-        .content-area,
-        main,
-        section,
-        [class*="content"] {
-            position: relative;
-            z-index: 10;
+        /* Matrix canvas sits behind everything — only the sidebar needs explicit z-index */
+        #matrix-canvas {
+            z-index: 0 !important;
+        }
+
+        .sidebar {
+            z-index: 1010 !important;
         }
     </style>
 </head>
