@@ -186,7 +186,8 @@ def get_discord_guild_member(access_token: str, guild_id: int) -> Optional[Dict]
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get(
             f'{DISCORD_API_BASE}/users/@me/guilds/{guild_id}/member',
-            headers=headers
+            headers=headers,
+            timeout=10
         )
         
         if response.status_code == 200:
