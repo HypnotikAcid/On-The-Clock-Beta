@@ -4,19 +4,22 @@
 
 {% block content %}
 <div class="content-header">
-    <h1 class="content-title">Time Adjustments <button class="help-btn" onclick="showPageHelp('adjustments-help-content')">?</button></h1>
-    <p class="content-subtitle">{% if user_role == 'admin' %}Review and manage time correction requests{% else %}Request time corrections{% endif %}</p>
+    <h1 class="content-title">Time Adjustments <button class="help-btn"
+            onclick="showPageHelp('adjustments-help-content')">?</button></h1>
+    <p class="content-subtitle">{% if user_role == 'admin' %}Review and manage time correction requests{% else %}Request
+        time corrections{% endif %}</p>
 </div>
 
 <template id="adjustments-help-content">
     <div class="help-modal-title">⏱️ Time Adjustments Help</div>
-    
+
     {% if user_role == 'admin' %}
     <div class="help-modal-section">
         <h4>Overview</h4>
-        <p>Employees can request corrections to their time entries when they forget to clock in or out. As an admin, you review and approve or deny these requests.</p>
+        <p>Employees can request corrections to their time entries when they forget to clock in or out. As an admin, you
+            review and approve or deny these requests.</p>
     </div>
-    
+
     <div class="help-modal-section">
         <h4>Request Types</h4>
         <ul>
@@ -25,7 +28,7 @@
             <li><strong>Delete Entry:</strong> Employee clocked in by mistake</li>
         </ul>
     </div>
-    
+
     <div class="help-modal-section">
         <h4>Reviewing Requests</h4>
         <p>The Pending tab shows all requests awaiting your decision. For each request:</p>
@@ -35,19 +38,21 @@
             <li>Approve to apply the change, or Deny to reject it</li>
         </ul>
     </div>
-    
+
     <div class="help-modal-section">
         <h4>Calendar View</h4>
-        <p>See pending requests visualized on a calendar. Days with requests are highlighted, making it easy to spot patterns.</p>
+        <p>See pending requests visualized on a calendar. Days with requests are highlighted, making it easy to spot
+            patterns.</p>
     </div>
-    
+
     <div class="help-tip">All approved and denied requests are logged in the History tab for audit purposes.</div>
     {% else %}
     <div class="help-modal-section">
         <h4>Overview</h4>
-        <p>If you forgot to clock in or out, or made a mistake with your time, you can submit a correction request here.</p>
+        <p>If you forgot to clock in or out, or made a mistake with your time, you can submit a correction request here.
+        </p>
     </div>
-    
+
     <div class="help-modal-section">
         <h4>How to Submit a Request</h4>
         <ul>
@@ -57,7 +62,7 @@
             <li>Submit and wait for admin approval</li>
         </ul>
     </div>
-    
+
     <div class="help-modal-section">
         <h4>Request Status</h4>
         <ul>
@@ -66,7 +71,7 @@
             <li><strong>Denied:</strong> Request was rejected</li>
         </ul>
     </div>
-    
+
     <div class="help-tip">Include a clear reason in your request to help admins approve it quickly.</div>
     {% endif %}
 </template>
@@ -100,15 +105,20 @@
             <h2><span class="tile-icon">📅</span><span id="calendar-title-text">Pending Requests Calendar</span></h2>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <button id="calendar-prev-month" class="btn btn-secondary btn-sm">← Prev</button>
-                <span id="calendar-month-year" style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
+                <span id="calendar-month-year"
+                    style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
                 <button id="calendar-next-month" class="btn btn-secondary btn-sm">Next →</button>
             </div>
         </div>
         <div id="calendar-grid" class="calendar-grid">
-            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">Loading calendar...</div>
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">Loading calendar...
+            </div>
         </div>
-        <div style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
-            <div style="font-size: 13px; color: #C9D1D9;"><strong>📋 How to use:</strong> <span id="calendar-help-content">Click on any day to review and approve/deny pending requests.</span></div>
+        <div
+            style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
+            <div style="font-size: 13px; color: #C9D1D9;"><strong>📋 How to use:</strong> <span
+                    id="calendar-help-content">Click on any day to review and approve/deny pending requests.</span>
+            </div>
         </div>
     </div>
 </div>
@@ -119,15 +129,19 @@
         <h2><span class="tile-icon">📅</span><span id="calendar-title-text">My Work Calendar</span></h2>
         <div style="display: flex; align-items: center; gap: 10px;">
             <button id="calendar-prev-month" class="btn btn-secondary btn-sm">← Prev</button>
-            <span id="calendar-month-year" style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
+            <span id="calendar-month-year"
+                style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
             <button id="calendar-next-month" class="btn btn-secondary btn-sm">Next →</button>
         </div>
     </div>
     <div id="calendar-grid" class="calendar-grid">
         <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">Loading calendar...</div>
     </div>
-    <div style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
-        <div style="font-size: 13px; color: #C9D1D9;"><strong>📋 How to use:</strong> <span id="calendar-help-content">Click on any day to view your work sessions or add missing time for days you forgot to clock in.</span></div>
+    <div
+        style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
+        <div style="font-size: 13px; color: #C9D1D9;"><strong>📋 How to use:</strong> <span
+                id="calendar-help-content">Click on any day to view your work sessions or add missing time for days you
+                forgot to clock in.</span></div>
     </div>
 </div>
 
@@ -135,12 +149,12 @@
     <div class="tile">
         <h2><span class="tile-icon">📝</span>New Request</h2>
         <p class="tile-description">Submit a time correction request</p>
-        
+
         <div class="form-group">
             <label for="request-date">Date:</label>
             <input type="date" id="request-date" class="form-input">
         </div>
-        
+
         <div class="form-group">
             <label for="request-type">Type:</label>
             <select id="request-type" class="form-select">
@@ -149,18 +163,20 @@
                 <option value="time_correction">Time Correction</option>
             </select>
         </div>
-        
+
         <div class="form-group">
             <label for="request-time">Correct Time:</label>
             <input type="time" id="request-time" class="form-input">
-            <small style="color: #8B949E; display: block; margin-top: 4px;">The actual time you clocked in/out or should have</small>
+            <small style="color: #8B949E; display: block; margin-top: 4px;">The actual time you clocked in/out or should
+                have</small>
         </div>
-        
+
         <div class="form-group">
             <label for="request-reason">Reason:</label>
-            <textarea id="request-reason" class="form-textarea" placeholder="Explain why this adjustment is needed"></textarea>
+            <textarea id="request-reason" class="form-textarea"
+                placeholder="Explain why this adjustment is needed"></textarea>
         </div>
-        
+
         <button id="submit-request-btn" class="btn btn-primary">Submit Request</button>
     </div>
 
@@ -177,99 +193,117 @@
 {% block page_scripts %}
 <script src="/static/js/dashboard-adjustments.js"></script>
 <script>
-const guildId = '{{ server.id }}';
-const userId = '{{ user.user_id }}';
-const userRole = '{{ user_role }}';
-window.currentViewMode = userRole;
+    const guildId = '{{ server.id }}';
+    const userId = '{{ user.user_id }}';
+    const userRole = '{{ user_role }}';
+    window.currentViewMode = userRole;
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        
-        this.classList.add('active');
-        document.getElementById(`tab-${this.dataset.tab}`).classList.add('active');
-        
-        if (this.dataset.tab === 'history') loadHistory();
-        if (this.dataset.tab === 'calendar') loadCalendar();
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            this.classList.add('active');
+            document.getElementById(`tab-${this.dataset.tab}`).classList.add('active');
+
+            if (this.dataset.tab === 'history') loadHistory();
+            if (this.dataset.tab === 'calendar') loadCalendar();
+        });
     });
-});
 
-async function loadPendingRequests() {
-    const container = document.getElementById('pending-requests');
-    try {
-        const response = await fetch(`/api/guild/${guildId}/adjustments/pending`);
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
-        }
-        const data = await response.json();
-        
-        if (data.success) {
-            renderRequests(data.requests || [], 'pending-requests', true);
-        } else {
+    async function loadPendingRequests() {
+        const container = document.getElementById('pending-requests');
+        try {
+            const response = await fetch(`/api/guild/${guildId}/adjustments/pending`);
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.success) {
+                renderRequests(data.requests || [], 'pending-requests', true);
+            } else {
+                container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
+                DashboardUtils.showNotification(data.error || 'Failed to load pending requests', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to load pending requests:', error);
             container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
-            DashboardUtils.showNotification(data.error || 'Failed to load pending requests', 'error');
+            DashboardUtils.showNotification('Connection error loading requests', 'error');
         }
-    } catch (error) {
-        console.error('Failed to load pending requests:', error);
-        container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
-        DashboardUtils.showNotification('Connection error loading requests', 'error');
     }
-}
 
-async function loadHistory() {
-    const container = document.getElementById('history-requests');
-    try {
-        const response = await fetch(`/api/guild/${guildId}/adjustments/history`);
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
-        }
-        const data = await response.json();
-        
-        if (data.success) {
-            renderRequests(data.requests || [], 'history-requests', false);
-        } else {
+    async function loadHistory() {
+        const container = document.getElementById('history-requests');
+        try {
+            const response = await fetch(`/api/guild/${guildId}/adjustments/history`);
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.success) {
+                renderRequests(data.requests || [], 'history-requests', false);
+            } else {
+                container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load history</p>';
+                DashboardUtils.showNotification(data.error || 'Failed to load history', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to load history:', error);
             container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load history</p>';
-            DashboardUtils.showNotification(data.error || 'Failed to load history', 'error');
+            DashboardUtils.showNotification('Connection error loading history', 'error');
         }
-    } catch (error) {
-        console.error('Failed to load history:', error);
-        container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load history</p>';
-        DashboardUtils.showNotification('Connection error loading history', 'error');
     }
-}
 
-async function loadMyRequests() {
-    const container = document.getElementById('my-requests');
-    try {
-        const response = await fetch(`/api/guild/${guildId}/adjustments/history?user_id=${userId}`);
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
-        }
-        const data = await response.json();
-        
-        if (data.success) {
-            renderRequests(data.requests || [], 'my-requests', false);
-        } else {
+    async function loadMyRequests() {
+        const container = document.getElementById('my-requests');
+        try {
+            const response = await fetch(`/api/guild/${guildId}/adjustments/history?user_id=${userId}`);
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.success) {
+                renderRequests(data.requests || [], 'my-requests', false);
+            } else {
+                container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
+                DashboardUtils.showNotification(data.error || 'Failed to load your requests', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to load requests:', error);
             container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
-            DashboardUtils.showNotification(data.error || 'Failed to load your requests', 'error');
+            DashboardUtils.showNotification('Connection error loading requests', 'error');
         }
-    } catch (error) {
-        console.error('Failed to load requests:', error);
-        container.innerHTML = '<p class="empty-state-text" style="color: #EF4444;">Failed to load requests</p>';
-        DashboardUtils.showNotification('Connection error loading requests', 'error');
     }
-}
 
-function renderRequests(requests, containerId, showActions) {
-    const container = document.getElementById(containerId);
-    
-    if (requests.length === 0) {
-        container.innerHTML = '<p class="empty-state-text">No requests found</p>';
-        return;
-    }
-    
-    container.innerHTML = requests.map(r => `
+    function renderRequests(requests, containerId, showActions) {
+        const container = document.getElementById(containerId);
+
+        if (requests.length === 0) {
+            if (containerId === 'pending-requests') {
+                container.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
+                    <div style="font-size: 48px; margin-bottom: 15px;">✨</div>
+                    <h3 style="color: #10B981; margin-bottom: 10px;">All Caught Up!</h3>
+                    <p style="color: #C9D1D9; max-width: 400px; margin: 0 auto; line-height: 1.5;">You have zero pending time adjustment requests. When employees forget to clock out and submit corrections, they will appear here for your review.</p>
+                </div>
+            `;
+            } else if (containerId === 'my-requests') {
+                container.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
+                    <div style="font-size: 48px; margin-bottom: 15px;">📝</div>
+                    <h3 style="color: #10B981; margin-bottom: 10px;">No Recent Requests</h3>
+                    <p style="color: #C9D1D9; max-width: 400px; margin: 0 auto; line-height: 1.5;">You haven't submitted any time corrections! Keep up the great work clocking in and out on time.</p>
+                </div>
+            `;
+            } else {
+                container.innerHTML = '<p class="empty-state-text">No requests found.</p>';
+            }
+            return;
+        }
+
+        container.innerHTML = requests.map(r => `
         <div class="request-item status-${r.status}">
             <div class="request-header">
                 <span class="request-user">${DashboardUtils.escapeHtml(r.display_name || r.user_id)}</span>
@@ -286,101 +320,101 @@ function renderRequests(requests, containerId, showActions) {
             ` : ''}
         </div>
     `).join('');
-}
-
-async function handleRequest(requestId, action) {
-    try {
-        const response = await fetch(`/api/guild/${guildId}/adjustments/${requestId}/${action}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            DashboardUtils.showNotification(`Request ${action === 'approve' ? 'approved' : 'denied'}`, 'success');
-            loadPendingRequests();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to process request', 'error');
-        }
-    } catch (error) {
-        console.error('Failed to handle request:', error);
-        DashboardUtils.showNotification('Failed to process request', 'error');
     }
-}
 
-let calendarInitialized = false;
-function loadCalendar() {
-    if (calendarInitialized) return;
-    if (typeof initializeAdjustments === 'function') {
-        initializeAdjustments(guildId, userId);
-        calendarInitialized = true;
-    } else {
-        console.error('Calendar JS not loaded');
-        document.getElementById('calendar-grid').innerHTML = '<p style="text-align: center; color: #EF4444;">Calendar failed to load</p>';
-    }
-}
-
-if (document.getElementById('submit-request-btn')) {
-    document.getElementById('submit-request-btn').addEventListener('click', async function() {
-        const date = document.getElementById('request-date').value;
-        const type = document.getElementById('request-type').value;
-        const time = document.getElementById('request-time').value;
-        const reason = document.getElementById('request-reason').value;
-        
-        if (!date || !time || !reason) {
-            DashboardUtils.showNotification('Please fill all fields', 'error');
-            return;
-        }
-        
-        this.disabled = true;
-        this.textContent = 'Submitting...';
-        
+    async function handleRequest(requestId, action) {
         try {
-            const response = await fetch(`/api/guild/${guildId}/adjustments`, {
+            const response = await fetch(`/api/guild/${guildId}/adjustments/${requestId}/${action}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    request_date: date,
-                    request_type: type,
-                    correct_time: time,
-                    reason: reason
-                })
+                headers: { 'Content-Type': 'application/json' }
             });
-            
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
             const data = await response.json();
-            
+
             if (data.success) {
-                DashboardUtils.showNotification('Request submitted', 'success');
-                document.getElementById('request-date').value = '';
-                document.getElementById('request-time').value = '';
-                document.getElementById('request-reason').value = '';
-                loadMyRequests();
+                DashboardUtils.showNotification(`Request ${action === 'approve' ? 'approved' : 'denied'}`, 'success');
+                loadPendingRequests();
             } else {
-                DashboardUtils.showNotification(data.error || 'Failed to submit', 'error');
+                DashboardUtils.showNotification(data.error || 'Failed to process request', 'error');
             }
         } catch (error) {
-            DashboardUtils.showNotification('Failed to submit request', 'error');
-        }
-        
-        this.disabled = false;
-        this.textContent = 'Submit Request';
-    });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    if (userRole === 'admin') {
-        loadPendingRequests();
-    } else {
-        loadMyRequests();
-        if (typeof initializeAdjustments === 'function') {
-            initializeAdjustments(guildId, userId);
+            console.error('Failed to handle request:', error);
+            DashboardUtils.showNotification('Failed to process request', 'error');
         }
     }
-});
+
+    let calendarInitialized = false;
+    function loadCalendar() {
+        if (calendarInitialized) return;
+        if (typeof initializeAdjustments === 'function') {
+            initializeAdjustments(guildId, userId);
+            calendarInitialized = true;
+        } else {
+            console.error('Calendar JS not loaded');
+            document.getElementById('calendar-grid').innerHTML = '<p style="text-align: center; color: #EF4444;">Calendar failed to load</p>';
+        }
+    }
+
+    if (document.getElementById('submit-request-btn')) {
+        document.getElementById('submit-request-btn').addEventListener('click', async function () {
+            const date = document.getElementById('request-date').value;
+            const type = document.getElementById('request-type').value;
+            const time = document.getElementById('request-time').value;
+            const reason = document.getElementById('request-reason').value;
+
+            if (!date || !time || !reason) {
+                DashboardUtils.showNotification('Please fill all fields', 'error');
+                return;
+            }
+
+            this.disabled = true;
+            this.textContent = 'Submitting...';
+
+            try {
+                const response = await fetch(`/api/guild/${guildId}/adjustments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        request_date: date,
+                        request_type: type,
+                        correct_time: time,
+                        reason: reason
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    DashboardUtils.showNotification('Request submitted', 'success');
+                    document.getElementById('request-date').value = '';
+                    document.getElementById('request-time').value = '';
+                    document.getElementById('request-reason').value = '';
+                    loadMyRequests();
+                } else {
+                    DashboardUtils.showNotification(data.error || 'Failed to submit', 'error');
+                }
+            } catch (error) {
+                DashboardUtils.showNotification('Failed to submit request', 'error');
+            }
+
+            this.disabled = false;
+            this.textContent = 'Submit Request';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (userRole === 'admin') {
+            loadPendingRequests();
+        } else {
+            loadMyRequests();
+            if (typeof initializeAdjustments === 'function') {
+                initializeAdjustments(guildId, userId);
+            }
+        }
+    });
 </script>
 {% endblock %}

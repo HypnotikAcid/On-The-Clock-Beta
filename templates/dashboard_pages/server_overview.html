@@ -34,6 +34,93 @@
 </div>
 
 <div class="tiles-grid">
+    {% if not has_completed_onboarding and user_role == 'admin' %}
+    <div class="tile" id="onboarding-setup-tile"
+        style="border: 2px solid rgba(0, 255, 255, 0.4); background: linear-gradient(135deg, rgba(0,255,255,0.05) 0%, rgba(0,153,255,0.05) 100%); grid-column: 1 / -1; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h2><span class="tile-icon">🚀</span>Server Setup Guide</h2>
+                <p class="tile-description" style="color: #C9D1D9;">Complete these quick steps to unlock the full power
+                    of Time Warden.</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 0.85rem; color: #00FFFF; font-weight: bold; margin-bottom: 5px;"
+                    id="setup-progress-text">Setup: 25% Completed</div>
+                <div
+                    style="width: 150px; height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; overflow: hidden;">
+                    <div id="setup-progress-bar"
+                        style="width: 25%; height: 100%; background: #00FFFF; box-shadow: 0 0 10px #00FFFF; transition: width 0.5s ease;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="onboarding-checklist"
+            style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            <div class="check-item completed"
+                style="display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);">
+                <span style="color: #10B981; font-size: 1.2rem;">✅</span>
+                <span style="text-decoration: line-through; color: #8B949E; font-weight: 500;">Connect Discord
+                    Server</span>
+            </div>
+
+            <a href="/dashboard/server/{{ server.id }}/timezone" class="check-item pending hover-glow"
+                id="setup-check-tz"
+                style="display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s;">
+                <span style="font-size: 1.2rem;" id="setup-icon-tz">⭕</span>
+                <span style="color: #C9D1D9; font-weight: 500;" id="setup-text-tz">Configure Timezone</span>
+            </a>
+
+            <a href="/dashboard/server/{{ server.id }}/admin-roles" class="check-item pending hover-glow"
+                id="setup-check-roles"
+                style="display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s;">
+                <span style="font-size: 1.2rem;" id="setup-icon-roles">⭕</span>
+                <span style="color: #C9D1D9; font-weight: 500;" id="setup-text-roles">Designate Admin Roles</span>
+            </a>
+
+            {% if is_demo_server %}
+            <a href="/dashboard/server/{{ server.id }}/employees" class="check-item pending hover-glow"
+                style="display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s;">
+                <span style="font-size: 1.2rem;">✨</span>
+                <span style="color: #C9D1D9; font-weight: 500;">Review Dummy Test Data</span>
+            </a>
+            {% else %}
+            <a href="/dashboard/server/{{ server.id }}/employees" class="check-item pending hover-glow"
+                style="display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s;">
+                <span style="font-size: 1.2rem;">👥</span>
+                <span style="color: #C9D1D9; font-weight: 500;">View First Employee</span>
+            </a>
+            {% endif %}
+        </div>
+
+        <script>
+            function dismissSetupWidget() {
+                fetch(`/api/server/{{ server.id }}/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ has_completed_onboarding: true })
+                }).then(() => {
+                    const tile = document.getElementById('onboarding-setup-tile');
+                    tile.style.opacity = '0';
+                    setTimeout(() => tile.style.display = 'none', 300);
+                });
+            }
+        </script>
+
+        <style>
+            .hover-glow:hover {
+                background: rgba(0, 255, 255, 0.1) !important;
+                border-color: rgba(0, 255, 255, 0.4) !important;
+                box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            }
+        </style>
+
+        <button onclick="dismissSetupWidget()" class="btn-secondary"
+            style="width: 100%; margin-top: 20px; font-size: 0.85rem; background: transparent; border: 1px dashed rgba(255,255,255,0.2); transition: background 0.2s;">Dismiss
+            Checklist (I know what I'm doing)</button>
+    </div>
+    {% endif %}
+
     <div class="tile" id="subscription-tile">
         <h2><span class="tile-icon">💎</span>Subscription Status</h2>
         <div class="stat-row">
@@ -229,9 +316,75 @@
                 document.getElementById('employee-count').textContent = '--';
                 document.getElementById('clocked-in-count').textContent = '--';
             }
-        } catch (error) {
-            console.error('Failed to load overview:', error);
+
+            // Dynamic Checklist Widget Progression
+            if (userRole === 'admin') {
+                let progressPercent = 25; // Base 25% for connecting
+
+                // Check Timezone
+                const hasTimezone = {{ 'false' if show_tz_reminder else 'true' }
+            };
+            if (hasTimezone) {
+                progressPercent += 25;
+                const tzEl = document.getElementById('setup-check-tz');
+                if (tzEl) {
+                    tzEl.style.background = 'rgba(16, 185, 129, 0.1)';
+                    tzEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                    document.getElementById('setup-icon-tz').textContent = '✅';
+                    document.getElementById('setup-text-tz').style.color = '#8B949E';
+                    document.getElementById('setup-text-tz').style.textDecoration = 'line-through';
+                }
+            } else {
+                const tzEl = document.getElementById('setup-check-tz');
+                if (tzEl) {
+                    tzEl.style.background = 'rgba(245, 158, 11, 0.1)';
+                    tzEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                    document.getElementById('setup-icon-tz').textContent = '⏳';
+                    document.getElementById('setup-text-tz').style.color = '#00FFFF';
+                }
+            }
+
+            // Check Admin Roles (Using rolesData fetched previously if available, wait the roles fetch happened earlier but not exposed globally here. We can re-fetch or use logic)
+            const rolesCheckResp = await fetch(`/api/server/${guildId}/roles`);
+            const rData = await rolesCheckResp.json();
+            if (rData.success && rData.admin_roles && rData.admin_roles.length > 0) {
+                progressPercent += 25;
+                const rEl = document.getElementById('setup-check-roles');
+                if (rEl) {
+                    rEl.style.background = 'rgba(16, 185, 129, 0.1)';
+                    rEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                    document.getElementById('setup-icon-roles').textContent = '✅';
+                    document.getElementById('setup-text-roles').style.color = '#8B949E';
+                    document.getElementById('setup-text-roles').style.textDecoration = 'line-through';
+                }
+            } else {
+                // Check if it's demo server and roles don't exist
+                const rEl = document.getElementById('setup-check-roles');
+                if (rEl) {
+                    if (progressPercent >= 50) { // Timezone is done, this is the current active step
+                        rEl.style.background = 'rgba(245, 158, 11, 0.1)';
+                        rEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                        document.getElementById('setup-icon-roles').textContent = '⏳';
+                        document.getElementById('setup-text-roles').style.color = '#00FFFF';
+                    }
+                }
+            }
+
+            const pText = document.getElementById('setup-progress-text');
+            const pBar = document.getElementById('setup-progress-bar');
+            if (pText && pBar) {
+                pText.textContent = `Setup: ${progressPercent}% Completed`;
+                pBar.style.width = `${progressPercent}%`;
+                if (progressPercent === 100) {
+                    pText.style.color = '#10B981';
+                    pBar.style.background = '#10B981';
+                    pBar.style.boxShadow = '0 0 10px #10B981';
+                }
+            }
         }
+        } catch (error) {
+        console.error('Failed to load overview:', error);
+    }
     }
 
     async function cancelSubscription() {

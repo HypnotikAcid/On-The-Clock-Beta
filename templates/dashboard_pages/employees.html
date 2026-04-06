@@ -11,7 +11,7 @@
 <div class="tiles-grid">
     <div class="tile tile-full">
         <h2><span class="tile-icon">👥</span>Active Employees</h2>
-        
+
         <div class="employee-filters">
             <input type="text" id="search-employees" class="form-input" placeholder="Search employees...">
             <select id="status-filter" class="form-select">
@@ -20,11 +20,12 @@
                 <option value="clocked-out">Clocked Out</option>
                 <option value="needs-attention">Needs Attention</option>
             </select>
-            <button id="sync-employees-btn" class="btn btn-secondary" onclick="syncEmployees()" title="Sync employees from Discord roles">
+            <button id="sync-employees-btn" class="btn btn-secondary" onclick="syncEmployees()"
+                title="Sync employees from Discord roles">
                 Sync Employees
             </button>
         </div>
-        
+
         <div id="employees-list" class="employees-list">
             <div class="loading-placeholder">Loading employees...</div>
         </div>
@@ -34,304 +35,304 @@
 
 {% block page_scripts %}
 <style>
-.employees-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
+    .employees-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
 
-.employee-card-collapsible {
-    background: var(--card-bg, #161b22);
-    border: 1px solid var(--border-color, #30363d);
-    border-radius: 8px;
-    overflow: hidden;
-    transition: all 0.2s ease;
-}
+    .employee-card-collapsible {
+        background: var(--card-bg, #161b22);
+        border: 1px solid var(--border-color, #30363d);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
 
-.employee-card-collapsible.has-alert {
-    border-left: 3px solid #f0ad4e;
-}
+    .employee-card-collapsible.has-alert {
+        border-left: 3px solid #f0ad4e;
+    }
 
-.employee-card-collapsible.is-clocked-in {
-    border-left: 3px solid #10B981;
-}
+    .employee-card-collapsible.is-clocked-in {
+        border-left: 3px solid #10B981;
+    }
 
-.employee-header {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    gap: 0.75rem;
-    transition: background 0.2s ease;
-}
+    .employee-header {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        gap: 0.75rem;
+        transition: background 0.2s ease;
+    }
 
-.employee-header:hover {
-    background: rgba(255,255,255,0.02);
-}
+    .employee-header:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
 
-.employee-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    flex-shrink: 0;
-    overflow: hidden;
-}
+    .employee-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
 
-.employee-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
+    .employee-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
 
-.employee-main-info {
-    flex: 1;
-    min-width: 0;
-}
+    .employee-main-info {
+        flex: 1;
+        min-width: 0;
+    }
 
-.employee-name-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.employee-name {
-    font-weight: 600;
-    color: var(--text-primary, #c9d1d9);
-}
-
-.status-pill {
-    font-size: 0.7rem;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-weight: 500;
-}
-
-.status-pill.in {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10B981;
-}
-
-.status-pill.out {
-    background: rgba(139, 148, 158, 0.15);
-    color: #8B949E;
-}
-
-.employee-quick-stats {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.8rem;
-    color: #8B949E;
-    margin-top: 0.25rem;
-}
-
-.quick-stat {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.quick-stat.alert {
-    color: #f0ad4e;
-}
-
-.employee-badges {
-    display: flex;
-    gap: 0.5rem;
-    flex-shrink: 0;
-}
-
-.badge-icon {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    border-radius: 4px;
-    background: rgba(255,255,255,0.05);
-}
-
-.badge-icon.warning {
-    background: rgba(240, 173, 78, 0.2);
-    color: #f0ad4e;
-}
-
-.expand-icon {
-    color: #8B949E;
-    transition: transform 0.2s ease;
-}
-
-.employee-card-collapsible.expanded .expand-icon {
-    transform: rotate(180deg);
-}
-
-.employee-details {
-    display: none;
-    padding: 0 1rem 1rem;
-    border-top: 1px solid var(--border-color, #30363d);
-    background: rgba(0,0,0,0.1);
-}
-
-.employee-card-collapsible.expanded .employee-details {
-    display: block;
-}
-
-.details-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
-    padding-top: 1rem;
-}
-
-.detail-item {
-    text-align: center;
-    padding: 0.75rem;
-    background: rgba(255,255,255,0.03);
-    border-radius: 6px;
-}
-
-.detail-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #8B949E;
-    margin-bottom: 0.25rem;
-}
-
-.detail-value {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-primary, #c9d1d9);
-}
-
-.detail-value.highlight {
-    color: #10B981;
-}
-
-.quick-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid rgba(255,255,255,0.05);
-}
-
-.action-btn {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.75rem;
-    border-radius: 4px;
-    border: 1px solid var(--border-color, #30363d);
-    background: transparent;
-    color: #c9d1d9;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.action-btn:hover {
-    background: rgba(255,255,255,0.05);
-    border-color: #8B949E;
-}
-
-.action-btn.warning:hover {
-    background: rgba(240, 173, 78, 0.1);
-    border-color: #f0ad4e;
-    color: #f0ad4e;
-}
-
-.action-btn.danger:hover {
-    background: rgba(248, 81, 73, 0.1);
-    border-color: #f85149;
-    color: #f85149;
-}
-
-.action-btn.primary {
-    background: rgba(99, 102, 241, 0.1);
-    border-color: #6366f1;
-    color: #a5b4fc;
-}
-
-.action-btn.primary:hover {
-    background: rgba(99, 102, 241, 0.2);
-}
-
-.empty-state-text {
-    text-align: center;
-    padding: 2rem;
-    color: #8B949E;
-}
-
-.onboarding-status {
-    font-size: 0.7rem;
-    color: #8B949E;
-}
-
-.onboarding-status.incomplete {
-    color: #f0ad4e;
-}
-
-@media (max-width: 768px) {
-    .employee-quick-stats {
+    .employee-name-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         flex-wrap: wrap;
     }
-    
+
+    .employee-name {
+        font-weight: 600;
+        color: var(--text-primary, #c9d1d9);
+    }
+
+    .status-pill {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 500;
+    }
+
+    .status-pill.in {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10B981;
+    }
+
+    .status-pill.out {
+        background: rgba(139, 148, 158, 0.15);
+        color: #8B949E;
+    }
+
+    .employee-quick-stats {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.8rem;
+        color: #8B949E;
+        margin-top: 0.25rem;
+    }
+
+    .quick-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .quick-stat.alert {
+        color: #f0ad4e;
+    }
+
     .employee-badges {
-        display: none;
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
     }
-    
-    .details-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .quick-actions {
-        flex-direction: column;
-    }
-    
-    .action-btn {
-        width: 100%;
+
+    .badge-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
         justify-content: center;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.05);
     }
-}
+
+    .badge-icon.warning {
+        background: rgba(240, 173, 78, 0.2);
+        color: #f0ad4e;
+    }
+
+    .expand-icon {
+        color: #8B949E;
+        transition: transform 0.2s ease;
+    }
+
+    .employee-card-collapsible.expanded .expand-icon {
+        transform: rotate(180deg);
+    }
+
+    .employee-details {
+        display: none;
+        padding: 0 1rem 1rem;
+        border-top: 1px solid var(--border-color, #30363d);
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .employee-card-collapsible.expanded .employee-details {
+        display: block;
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding-top: 1rem;
+    }
+
+    .detail-item {
+        text-align: center;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 6px;
+    }
+
+    .detail-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #8B949E;
+        margin-bottom: 0.25rem;
+    }
+
+    .detail-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary, #c9d1d9);
+    }
+
+    .detail-value.highlight {
+        color: #10B981;
+    }
+
+    .quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .action-btn {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        border: 1px solid var(--border-color, #30363d);
+        background: transparent;
+        color: #c9d1d9;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .action-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: #8B949E;
+    }
+
+    .action-btn.warning:hover {
+        background: rgba(240, 173, 78, 0.1);
+        border-color: #f0ad4e;
+        color: #f0ad4e;
+    }
+
+    .action-btn.danger:hover {
+        background: rgba(248, 81, 73, 0.1);
+        border-color: #f85149;
+        color: #f85149;
+    }
+
+    .action-btn.primary {
+        background: rgba(99, 102, 241, 0.1);
+        border-color: #6366f1;
+        color: #a5b4fc;
+    }
+
+    .action-btn.primary:hover {
+        background: rgba(99, 102, 241, 0.2);
+    }
+
+    .empty-state-text {
+        text-align: center;
+        padding: 2rem;
+        color: #8B949E;
+    }
+
+    .onboarding-status {
+        font-size: 0.7rem;
+        color: #8B949E;
+    }
+
+    .onboarding-status.incomplete {
+        color: #f0ad4e;
+    }
+
+    @media (max-width: 768px) {
+        .employee-quick-stats {
+            flex-wrap: wrap;
+        }
+
+        .employee-badges {
+            display: none;
+        }
+
+        .details-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .quick-actions {
+            flex-direction: column;
+        }
+
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
 </style>
 
 <script>
-const guildId = '{{ server.id }}';
-let allEmployees = [];
+    const guildId = '{{ server.id }}';
+    let allEmployees = [];
 
-async function loadEmployees() {
-    const container = document.getElementById('employees-list');
-    
-    try {
-        console.log('[EmployeeStatus] Fetching employees for guild:', guildId);
-        const response = await fetch(`/api/server/${guildId}/employees`);
-        const data = await response.json();
-        
-        console.log('[EmployeeStatus] API response:', response.status, data);
-        
-        if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}`);
-        }
-        
-        if (data.success) {
-            allEmployees = data.employees || [];
-            console.log('[EmployeeStatus] Loaded', allEmployees.length, 'employees');
-            renderEmployees(allEmployees);
-        } else {
-            throw new Error(data.error || 'Unknown error');
-        }
-    } catch (error) {
-        console.error('[EmployeeStatus] Failed to load employees:', error);
-        container.innerHTML = `
+    async function loadEmployees() {
+        const container = document.getElementById('employees-list');
+
+        try {
+            console.log('[EmployeeStatus] Fetching employees for guild:', guildId);
+            const response = await fetch(`/api/server/${guildId}/employees`);
+            const data = await response.json();
+
+            console.log('[EmployeeStatus] API response:', response.status, data);
+
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            if (data.success) {
+                allEmployees = data.employees || [];
+                console.log('[EmployeeStatus] Loaded', allEmployees.length, 'employees');
+                renderEmployees(allEmployees);
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        } catch (error) {
+            console.error('[EmployeeStatus] Failed to load employees:', error);
+            container.innerHTML = `
             <div class="error-state" style="text-align: center; padding: 2rem; color: #8B949E;">
                 <p style="font-size: 1.5rem; margin-bottom: 0.5rem;">⚠️</p>
                 <p style="font-weight: 600; color: #EF4444; margin-bottom: 0.5rem;">Failed to load employees</p>
@@ -341,41 +342,51 @@ async function loadEmployees() {
                 </button>
             </div>
         `;
+        }
     }
-}
 
-function formatDuration(minutes) {
-    if (!minutes || minutes <= 0) return '0h 0m';
-    const hours = Math.floor(minutes / 60);
-    const mins = Math.round(minutes % 60);
-    return `${hours}h ${mins}m`;
-}
-
-function renderEmployees(employees) {
-    const container = document.getElementById('employees-list');
-    
-    if (employees.length === 0) {
-        container.innerHTML = '<p class="empty-state-text">No employees found. Assign employee roles to users to see them here.</p>';
-        return;
+    function formatDuration(minutes) {
+        if (!minutes || minutes <= 0) return '0h 0m';
+        const hours = Math.floor(minutes / 60);
+        const mins = Math.round(minutes % 60);
+        return `${hours}h ${mins}m`;
     }
-    
-    container.innerHTML = employees.map(emp => {
-        const pendingAdj = emp.pending_adjustments || 0;
-        const sessionDuration = emp.current_session_duration || 0;
-        const hasOnboarded = emp.first_clock_used === true;
-        const needsAttention = pendingAdj > 0 || (emp.is_clocked_in && sessionDuration > 720);
-        const cardClasses = ['employee-card-collapsible'];
-        if (emp.is_clocked_in) cardClasses.push('is-clocked-in');
-        if (needsAttention) cardClasses.push('has-alert');
-        
-        return `
+
+    function renderEmployees(employees) {
+        const container = document.getElementById('employees-list');
+
+        if (employees.length === 0) {
+            container.innerHTML = `
+            <div style="text-align: center; padding: 50px 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
+                <div style="font-size: 48px; margin-bottom: 15px;">👥</div>
+                <h3 style="color: #00FFFF; margin-bottom: 10px;">Your Team is Empty</h3>
+                <p style="color: #C9D1D9; max-width: 500px; margin: 0 auto 20px auto; line-height: 1.5;">Time Warden needs to know who your employees are! To get started, make sure you have mapped an Employee Discord Role in your settings, then assign that role to your staff in Discord.</p>
+                <div style="display: flex; gap: 10px; justify-content: center; align-items: center;">
+                    <a href="/dashboard/server/${guildId}/employee-roles" class="btn btn-secondary" style="padding: 10px 20px;">Role Settings</a>
+                    <button onclick="syncEmployees()" class="btn btn-primary" style="padding: 10px 20px; font-weight: bold; box-shadow: 0 0 15px rgba(0,255,255,0.3);">Sync Employees Now</button>
+                </div>
+            </div>
+        `;
+            return;
+        }
+
+        container.innerHTML = employees.map(emp => {
+            const pendingAdj = emp.pending_adjustments || 0;
+            const sessionDuration = emp.current_session_duration || 0;
+            const hasOnboarded = emp.first_clock_used === true;
+            const needsAttention = pendingAdj > 0 || (emp.is_clocked_in && sessionDuration > 720);
+            const cardClasses = ['employee-card-collapsible'];
+            if (emp.is_clocked_in) cardClasses.push('is-clocked-in');
+            if (needsAttention) cardClasses.push('has-alert');
+
+            return `
         <div class="${cardClasses.join(' ')}" data-user-id="${emp.user_id}">
             <div class="employee-header" onclick="toggleEmployeeCard(this)">
                 <div class="employee-avatar">
-                    ${emp.avatar_url 
-                        ? `<img src="${DashboardUtils.escapeHtml(emp.avatar_url)}" alt="${DashboardUtils.escapeHtml(emp.display_name)}">`
-                        : `<span>${(emp.display_name || '?')[0].toUpperCase()}</span>`
-                    }
+                    ${emp.avatar_url
+                    ? `<img src="${DashboardUtils.escapeHtml(emp.avatar_url)}" alt="${DashboardUtils.escapeHtml(emp.display_name)}">`
+                    : `<span>${(emp.display_name || '?')[0].toUpperCase()}</span>`
+                }
                 </div>
                 <div class="employee-main-info">
                     <div class="employee-name-row">
@@ -386,12 +397,12 @@ function renderEmployees(employees) {
                     </div>
                     <div class="employee-quick-stats">
                         <span class="quick-stat">This week: ${formatDuration(emp.weekly_minutes)}</span>
-                        ${emp.is_clocked_in && sessionDuration ? 
-                            `<span class="quick-stat ${sessionDuration > 720 ? 'alert' : ''}">
+                        ${emp.is_clocked_in && sessionDuration ?
+                    `<span class="quick-stat ${sessionDuration > 720 ? 'alert' : ''}">
                                 Current: ${formatDuration(sessionDuration)}
                             </span>` : ''}
-                        ${pendingAdj > 0 ? 
-                            `<span class="quick-stat alert">${pendingAdj} pending adjustment${pendingAdj > 1 ? 's' : ''}</span>` : ''}
+                        ${pendingAdj > 0 ?
+                    `<span class="quick-stat alert">${pendingAdj} pending adjustment${pendingAdj > 1 ? 's' : ''}</span>` : ''}
                     </div>
                 </div>
                 <div class="employee-badges">
@@ -420,12 +431,12 @@ function renderEmployees(employees) {
                     </div>
                 </div>
                 <div class="quick-actions">
-                    ${emp.is_clocked_in ? 
-                        `<button class="action-btn warning" onclick="forceClockOut('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
+                    ${emp.is_clocked_in ?
+                    `<button class="action-btn warning" onclick="forceClockOut('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
                             Force Clock Out
                         </button>` : ''}
-                    ${pendingAdj > 0 ? 
-                        `<a href="/dashboard/server/${guildId}/adjustments" class="action-btn primary">
+                    ${pendingAdj > 0 ?
+                    `<a href="/dashboard/server/${guildId}/adjustments" class="action-btn primary">
                             Review Adjustments
                         </a>` : ''}
                     <button class="action-btn" onclick="rerunOnboarding('${emp.user_id}', '${DashboardUtils.escapeHtml(emp.display_name)}')">
@@ -435,143 +446,143 @@ function renderEmployees(employees) {
             </div>
         </div>
     `;
-    }).join('');
-}
-
-function toggleEmployeeCard(headerEl) {
-    const card = headerEl.closest('.employee-card-collapsible');
-    card.classList.toggle('expanded');
-}
-
-function filterEmployees() {
-    const search = document.getElementById('search-employees').value.toLowerCase();
-    const status = document.getElementById('status-filter').value;
-    
-    let filtered = allEmployees;
-    
-    if (search) {
-        filtered = filtered.filter(e => 
-            (e.display_name || e.username || '').toLowerCase().includes(search)
-        );
+        }).join('');
     }
-    
-    if (status === 'clocked-in') {
-        filtered = filtered.filter(e => e.is_clocked_in);
-    } else if (status === 'clocked-out') {
-        filtered = filtered.filter(e => !e.is_clocked_in);
-    } else if (status === 'needs-attention') {
-        filtered = filtered.filter(e => {
-            const pendingAdj = e.pending_adjustments || 0;
-            const sessionDuration = e.current_session_duration || 0;
-            return pendingAdj > 0 || (e.is_clocked_in && sessionDuration > 720);
-        });
+
+    function toggleEmployeeCard(headerEl) {
+        const card = headerEl.closest('.employee-card-collapsible');
+        card.classList.toggle('expanded');
     }
-    
-    renderEmployees(filtered);
-}
 
-document.getElementById('search-employees').addEventListener('input', filterEmployees);
-document.getElementById('status-filter').addEventListener('change', filterEmployees);
+    function filterEmployees() {
+        const search = document.getElementById('search-employees').value.toLowerCase();
+        const status = document.getElementById('status-filter').value;
 
-async function forceClockOut(userId, displayName) {
-    if (!confirm(`Force clock out ${displayName}?`)) return;
-    
-    try {
-        const response = await fetch(`/api/guild/${guildId}/employees/${userId}/clock-out`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            DashboardUtils.showNotification(`${displayName} has been clocked out`, 'success');
-            loadEmployees();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to force clock out', 'error');
+        let filtered = allEmployees;
+
+        if (search) {
+            filtered = filtered.filter(e =>
+                (e.display_name || e.username || '').toLowerCase().includes(search)
+            );
         }
-    } catch (error) {
-        DashboardUtils.showNotification('Failed to force clock out', 'error');
-    }
-}
 
-async function resetPin(userId, displayName) {
-    if (!confirm(`Reset/generate kiosk PIN for ${displayName}? They will need to use /clock in Discord to get their new PIN.`)) return;
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/employee/${userId}/reset-pin`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            DashboardUtils.showNotification(data.message || 'PIN has been reset', 'success');
-            loadEmployees();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to reset PIN', 'error');
+        if (status === 'clocked-in') {
+            filtered = filtered.filter(e => e.is_clocked_in);
+        } else if (status === 'clocked-out') {
+            filtered = filtered.filter(e => !e.is_clocked_in);
+        } else if (status === 'needs-attention') {
+            filtered = filtered.filter(e => {
+                const pendingAdj = e.pending_adjustments || 0;
+                const sessionDuration = e.current_session_duration || 0;
+                return pendingAdj > 0 || (e.is_clocked_in && sessionDuration > 720);
+            });
         }
-    } catch (error) {
-        DashboardUtils.showNotification('Failed to reset PIN', 'error');
-    }
-}
 
-async function rerunOnboarding(userId, displayName) {
-    if (!confirm(`Send welcome DM to ${displayName}? This will reset their onboarding status and send them a new welcome message.`)) return;
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/employee/${userId}/rerun-onboarding`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            DashboardUtils.showNotification(data.message || 'Welcome DM sent', 'success');
-            loadEmployees();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to send welcome DM', 'error');
-        }
-    } catch (error) {
-        DashboardUtils.showNotification('Failed to send welcome DM', 'error');
+        renderEmployees(filtered);
     }
-}
 
-async function syncEmployees() {
-    const btn = document.getElementById('sync-employees-btn');
-    const originalText = btn.textContent;
-    btn.textContent = 'Syncing...';
-    btn.disabled = true;
-    
-    try {
-        const response = await fetch(`/api/server/${guildId}/employees/sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            const count = data.synced_count || 0;
-            if (count > 0) {
-                DashboardUtils.showNotification(`Synced ${count} new employee${count !== 1 ? 's' : ''} from Discord roles`, 'success');
+    document.getElementById('search-employees').addEventListener('input', filterEmployees);
+    document.getElementById('status-filter').addEventListener('change', filterEmployees);
+
+    async function forceClockOut(userId, displayName) {
+        if (!confirm(`Force clock out ${displayName}?`)) return;
+
+        try {
+            const response = await fetch(`/api/guild/${guildId}/employees/${userId}/clock-out`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                DashboardUtils.showNotification(`${displayName} has been clocked out`, 'success');
+                loadEmployees();
             } else {
-                DashboardUtils.showNotification('All employees are already synced', 'success');
+                DashboardUtils.showNotification(data.error || 'Failed to force clock out', 'error');
             }
-            loadEmployees();
-        } else {
-            DashboardUtils.showNotification(data.error || 'Failed to sync employees', 'error');
+        } catch (error) {
+            DashboardUtils.showNotification('Failed to force clock out', 'error');
         }
-    } catch (error) {
-        DashboardUtils.showNotification('Failed to sync employees', 'error');
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
     }
-}
 
-document.addEventListener('DOMContentLoaded', loadEmployees);
+    async function resetPin(userId, displayName) {
+        if (!confirm(`Reset/generate kiosk PIN for ${displayName}? They will need to use /clock in Discord to get their new PIN.`)) return;
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/employee/${userId}/reset-pin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                DashboardUtils.showNotification(data.message || 'PIN has been reset', 'success');
+                loadEmployees();
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to reset PIN', 'error');
+            }
+        } catch (error) {
+            DashboardUtils.showNotification('Failed to reset PIN', 'error');
+        }
+    }
+
+    async function rerunOnboarding(userId, displayName) {
+        if (!confirm(`Send welcome DM to ${displayName}? This will reset their onboarding status and send them a new welcome message.`)) return;
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/employee/${userId}/rerun-onboarding`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                DashboardUtils.showNotification(data.message || 'Welcome DM sent', 'success');
+                loadEmployees();
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to send welcome DM', 'error');
+            }
+        } catch (error) {
+            DashboardUtils.showNotification('Failed to send welcome DM', 'error');
+        }
+    }
+
+    async function syncEmployees() {
+        const btn = document.getElementById('sync-employees-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Syncing...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`/api/server/${guildId}/employees/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const count = data.synced_count || 0;
+                if (count > 0) {
+                    DashboardUtils.showNotification(`Synced ${count} new employee${count !== 1 ? 's' : ''} from Discord roles`, 'success');
+                } else {
+                    DashboardUtils.showNotification('All employees are already synced', 'success');
+                }
+                loadEmployees();
+            } else {
+                DashboardUtils.showNotification(data.error || 'Failed to sync employees', 'error');
+            }
+        } catch (error) {
+            DashboardUtils.showNotification('Failed to sync employees', 'error');
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadEmployees);
 </script>
 {% endblock %}
