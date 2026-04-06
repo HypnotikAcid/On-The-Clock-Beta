@@ -28,7 +28,7 @@
 <!-- ── ADMIN / OWNER STAT BUBBLES ─────────────────────────── -->
 <div
     style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px;">
-    <div class="neon-stat-bubble">
+    <div class="neon-stat-bubble" style="cursor: pointer;" onclick="switchSection('employees')" title="Manage Employees">
         <span class="bubble-value" id="employee-count">—</span>
         <span class="bubble-label">Employees</span>
     </div>
@@ -36,15 +36,15 @@
         <span class="bubble-value" id="clocked-in-count" style="color: #10B981;">—</span>
         <span class="bubble-label" style="color: rgba(16,185,129,0.7);">Clocked In</span>
     </div>
-    <div class="neon-stat-bubble" style="border-color: rgba(245,158,11,0.3);">
+    <div class="neon-stat-bubble" style="border-color: rgba(245,158,11,0.3); cursor: pointer;" onclick="switchSection('adjustments')" title="View Pending Adjustments">
         <span class="bubble-value" id="pending-adjustments" style="color: #F59E0B;">{{ pending_adjustments }}</span>
         <span class="bubble-label" style="color: rgba(245,158,11,0.7);">Pending Adj.</span>
     </div>
-    <div class="neon-stat-bubble" id="tier-bubble">
+    <div class="neon-stat-bubble" id="tier-bubble" style="cursor: pointer;" onclick="window.location.href='/dashboard/purchase?guild_id={{ server.id }}'" title="Manage Subscription">
         <span class="bubble-value" id="tier-status" style="font-size: 1.1rem;">—</span>
         <span class="bubble-label">Subscription</span>
     </div>
-    <div class="neon-stat-bubble" id="health-bubble" style="border-color: rgba(16,185,129,0.25);">
+    <div class="neon-stat-bubble" id="health-bubble" style="border-color: rgba(16,185,129,0.25); cursor: pointer;" onclick="document.getElementById('system-health-tile').scrollIntoView({behavior: 'smooth'})" title="View Error Details">
         <span class="bubble-value" id="error-bubble-val"
             style="color: {% if error_count > 0 %}#ef4444{% else %}#10B981{% endif %};">{{ error_count }}</span>
         <span class="bubble-label">{% if error_count > 0 %}System Errors{% else %}All Systems OK{% endif %}</span>
@@ -54,12 +54,12 @@
 <!-- ── EMPLOYEE STAT BUBBLES ──────────────────────────────── -->
 <div
     style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px;">
-    <div class="neon-stat-bubble">
+    <div class="neon-stat-bubble" style="cursor: pointer;" onclick="switchSection('on-the-clock')" title="View Time Punch History">
         <span class="bubble-value" id="my-hours-today">—</span>
         <span class="bubble-label">Hours Today</span>
     </div>
-    <div class="neon-stat-bubble" style="border-color: rgba(245,158,11,0.3);">
-        <span class="bubble-value" id="pending-adjustments" style="color: #F59E0B;">{{ pending_adjustments }}</span>
+    <div class="neon-stat-bubble" style="border-color: rgba(245,158,11,0.3); cursor: pointer;" onclick="switchSection('adjustments')" title="Request Time Change">
+        <span class="bubble-value" id="pending-adjustments-emp" style="color: #F59E0B;">{{ pending_adjustments }}</span>
         <span class="bubble-label" style="color: rgba(245,158,11,0.7);">Pending Adj.</span>
     </div>
 </div>
