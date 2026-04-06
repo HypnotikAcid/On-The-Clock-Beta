@@ -1,0 +1,80 @@
+2026-04-06 17:14:02.82
+a5bd3cba
+User
+[2026-04-06 21:14:02 +0000] [23] [ERROR] Authentication error: unexpected '}'
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/templating.py", line 131, in _render
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+rv = template.render(context)
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+return _render(app, template, context)
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+return render_template('dashboard_pages/server_overview.html', **context)
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+File "/home/runner/workspace/templates/dashboard_pages/server_overview.html", line 1, in top-level template code
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+return f(user_session, *args, **kwargs)
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/environment.py", line 942, in handle_exception
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+{% extends "dashboard_base.html" %}
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/environment.py", line 942, in handle_exception
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+self.environment.handle_exception()
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+^^^^^^^^^^^^^^^^^^^^^^^^
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+[2026-04-06 21:14:02 +0000] [23] [ERROR] Traceback (most recent call last):
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+File "/home/runner/workspace/web/routes/dashboard.py", line 315, in dashboard_server_overview
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/jinja2/environment.py", line 1295, in render
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/flask/templating.py", line 150, in render_template
+2026-04-06 17:14:02.83
+a5bd3cba
+User
+File "/home/runner/workspace/web/utils/auth.py", line 193, in decorated_function

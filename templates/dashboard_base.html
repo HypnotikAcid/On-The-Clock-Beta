@@ -452,8 +452,7 @@
                 }
             }
             // Phase 5: Admin Milestone Toasts
-            const totalShifts = {{ total_shifts if total_shifts is defined else 0 }
-        };
+            const totalShifts = {{ total_shifts if total_shifts is defined else 0 }};
 
         if (totalShifts >= 100 && role === 'admin') {
             const milestoneKey = `milestone_100_shown_${GUILD_ID}`;
