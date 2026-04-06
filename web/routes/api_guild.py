@@ -315,10 +315,10 @@ def api_submit_day_adjustment(user_session, guild_id):
         user_id = int(user_session['user_id'])
         guild_id_int = int(guild_id)
         
-        # Check guild has paid access
+        # Verify bot is still in the server
         access_status = check_guild_paid_access(guild_id)
-        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
-            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        if not access_status['bot_invited']:
+            return jsonify({'success': False, 'error': 'Bot is not in this server'}), 403
         
         created_requests = []
         invalid_sessions = []
@@ -528,10 +528,10 @@ def api_get_admin_calendar_adjustments(user_session, guild_id):
         if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
-        # Check guild has paid access
+        # Verify bot is still in the server
         access_status = check_guild_paid_access(guild_id)
-        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
-            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        if not access_status['bot_invited']:
+            return jsonify({'success': False, 'error': 'Bot is not in this server'}), 403
         
         # Verify admin access
         admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
@@ -719,10 +719,10 @@ def api_get_admin_master_calendar(user_session, guild_id):
         if not guild_id.isdigit() or len(guild_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid guild ID format'}), 400
         
-        # Check guild has paid access
+        # Verify bot is still in the server
         access_status = check_guild_paid_access(guild_id)
-        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
-            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        if not access_status['bot_invited']:
+            return jsonify({'success': False, 'error': 'Bot is not in this server'}), 403
         
         # Verify admin access
         admin_status = check_user_admin_realtime(user_session['user_id'], guild_id)
@@ -888,10 +888,10 @@ def api_get_monthly_timecard(user_session, guild_id, user_id):
         if not user_id.isdigit() or len(user_id) > 20:
             return jsonify({'success': False, 'error': 'Invalid user ID format'}), 400
         
-        # Check guild has paid access
+        # Verify bot is still in the server
         access_status = check_guild_paid_access(guild_id)
-        if not access_status['bot_invited'] or not access_status['bot_access_paid']:
-            return jsonify({'success': False, 'error': 'Server does not have paid access'}), 403
+        if not access_status['bot_invited']:
+            return jsonify({'success': False, 'error': 'Bot is not in this server'}), 403
         
         # Authorization: allow if viewing own data OR if admin
         current_user_id = str(user_session.get('user_id', ''))
