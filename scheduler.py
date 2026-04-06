@@ -535,7 +535,7 @@ async def reset_demo_data_job():
     """Job to reset demo server data by calling the internal seeding function."""
     logger.info("[SYNC] Running scheduled demo data reset...")
     try:
-        from app import seed_demo_data_internal
+        from web.routes.api_owner import seed_demo_data_internal
         success = seed_demo_data_internal()
         if success:
             logger.info("✅ Demo data reset successfully")

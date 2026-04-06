@@ -1024,15 +1024,21 @@ def is_kiosk_mode_only(guild_id: int) -> bool:
 
 async def _check_kiosk_mode(guild_id: int) -> bool:
     try:
-        async with db() as conn:
-            row = await conn.fetchrow(
-                "SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = $1",
-                guild_id
+        with db() as conn:
+            cursor = conn.execute(
+                "SELECT kiosk_only_mode FROM guild_settings WHERE guild_id = %s",
+                (guild_id,)
             )
-            return bool(row.get('kiosk_only_mode', False)) if row else False
+            row = cursor.fetchone()
+            return bool(row['kiosk_only_mode']) if row else False
     except Exception as e:
         print(f"Error checking kiosk_only_mode for guild {guild_id}: {e}")
         return False
+
+async def notify_admins_of_adjustment(guild_id: int, request_id: int):
+    """Stub to gracefully handle web dashboard adjustment notification calls."""
+    print(f"🔔 [NOTIFY] Time adjustment request {request_id} submitted for guild {guild_id}")
+    pass
 
 async def notify_server_owner_bot_access(guild_id: int, granted_by: str = "purchase"):
     """

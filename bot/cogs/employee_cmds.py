@@ -393,7 +393,8 @@ class EmployeeCmds(commands.Cog):
             return
 
         try:
-            with get_db() as conn:
+            from bot_core import db
+            with db() as conn:
                 conn.execute("""
                     INSERT INTO user_preferences (user_id, dashboard_timezone, timezone_configured)
                     VALUES (%s, %s, TRUE)
@@ -405,11 +406,6 @@ class EmployeeCmds(commands.Cog):
                 await interaction.response.send_message(f"✅ Your personal timezone is now locked to **{tz_string}**.", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message("❌ Failed to save timezone preference.", ephemeral=True)
-
-
-
-async def setup(bot):
-    await bot.add_cog(EmployeeCmds(bot))
     @app_commands.command(name="my_data", description="[PRIVACY] View or delete your personal data (GDPR/CCPA Compliance)")
     @app_commands.choices(action=[
         app_commands.Choice(name="View My Data", value="view"),
@@ -418,11 +414,10 @@ async def setup(bot):
     async def my_data_command(self, interaction: discord.Interaction, action: app_commands.Choice[str]):
         """Allow users to view or wipe their dataset from our servers."""
         user_id = str(interaction.user.id)
-        guild_id = str(interaction.guild_id)
         
         if action.value == "view":
             await interaction.response.send_message(
-                "??? **Your Data Summary:**\n"
+                "🗄️ **Your Data Summary:**\n"
                 "We store your Discord ID, Username, configured Timezone, and Clock-In timestamps required for payroll generation.\n"
                 "To request a full JSON export, please email privacy@ontheclock.bot.",
                 ephemeral=True
@@ -431,6 +426,7 @@ async def setup(bot):
             
         elif action.value == "delete":
             try:
+                from bot_core import db
                 with db() as conn:
                     # Scramble profile, delete pins, and drop active sessions
                     conn.execute("""
@@ -448,39 +444,13 @@ async def setup(bot):
                     conn.execute("DELETE FROM timeclock_sessions WHERE user_id = %s", (user_id,))
                     
                     await interaction.response.send_message(
-                        "?? **DATA ERASED**\n"
+                        "🗑️ **DATA ERASED**\n"
                         "Your personal information (Name, Email, Phone, PINs, and Time Logs) has been wiped from this server's database.\n"
                         "You will no longer appear on payroll exports.", 
                         ephemeral=True
                     )
             except Exception as e:
-                await interaction.response.send_message("? Database error during data removal request.", ephemeral=True)
-
-    @app_commands.command(name="timezone", description="Set your personal dashboard and reporting timezone")
-    async def timezone_command(self, interaction: discord.Interaction, tz_string: str):
-        """Allow employees to set their personal timezone"""
-        import pytz
-        if tz_string not in pytz.all_timezones:
-            await interaction.response.send_message(
-                f"? Invalid timezone: `{tz_string}`.\n"
-                "Example valid formats: `America/New_York`, `America/Los_Angeles`, `Europe/London`.", 
-                ephemeral=True
-            )
-            return
-            
-        try:
-            with db() as conn:
-                conn.execute("""
-                    INSERT INTO user_preferences (user_id, dashboard_timezone, timezone_configured)
-                    VALUES (%s, %s, TRUE)
-                    ON CONFLICT (user_id) DO UPDATE SET 
-                    dashboard_timezone = EXCLUDED.dashboard_timezone,
-                    timezone_configured = TRUE
-                """, (str(interaction.user.id), tz_string))
-                
-                await interaction.response.send_message(f"? Your personal timezone is now locked to **{tz_string}**.", ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message("? Failed to save timezone preference.", ephemeral=True)
+                await interaction.response.send_message("❌ Database error during data removal request.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EmployeeCmds(bot))

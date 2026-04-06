@@ -10,6 +10,10 @@ from bot_core import (
 )
 import os
 from datetime import datetime, timezone
+import time
+from bot_core import set_bot_access, set_server_tier, check_bot_access, get_retention_tier
+
+_setup_demo_roles_recent_calls = {}
 
 class OwnerCmds(commands.Cog):
     def __init__(self, bot):
@@ -376,12 +380,12 @@ class OwnerCmds(commands.Cog):
     # LAYER 3: LEGAL, PRIVACY, & COMPLIANCE TOOLS
     # ---------------------------------------------------------
 
-    @bot.event
-    async def on_guild_remove(guild):
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild):
         """Fires when the bot is kicked from a server. Instantly terminates subscriptions and sets presence flag to False."""
         try:
             print(f"[{datetime.now()}] Bot removed from server: {guild.name} ({guild.id})")
-            with get_db() as conn:
+            with db() as conn:
                 # 1. Mark bot as not present
                 conn.execute("""
                     UPDATE bot_guilds 
@@ -396,11 +400,12 @@ class OwnerCmds(commands.Cog):
                 """, (str(guild.id),))
                 sub = cursor.fetchone()
 
-                if sub and sub['subscription_id']:
+                if sub and dict(sub).get('subscription_id'):
                     import stripe
                     try:
+                        stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
                         stripe.Subscription.modify(
-                            sub['subscription_id'],
+                            dict(sub)['subscription_id'],
                             cancel_at_period_end=True
                         )
                         conn.execute("""
