@@ -181,9 +181,11 @@ const DashboardTour = {
     },
 
     checkAutoStart() {
-        // Disabled for modern SaaS UX: We no longer force users into dark-overlay tours.
-        // The tour must now be manually triggered via direct user action.
-        return;
+        // Auto-start for completely new users only
+        const completed = localStorage.getItem(this.keys[this.currentRole]);
+        if (!completed && this.guildId && window.location.pathname === `/dashboard/server/${this.guildId}`) {
+            setTimeout(() => this.start(this.currentRole), 1500);
+        }
     },
 
     createElements() {
