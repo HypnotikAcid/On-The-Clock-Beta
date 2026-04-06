@@ -551,7 +551,7 @@ async def run_shift_abandonment():
         with db() as cursor:
             # Join with guild_settings to get the custom max_shift_hours per guild
             cursor.execute("""
-                SELECT s.id, s.guild_id, s.user_id, s.clock_in_time, COALESCE(gs.max_shift_hours, 16) as max_hours
+                SELECT s.guild_id, s.user_id, s.clock_in_time, COALESCE(gs.max_shift_hours, 16) as max_hours
                 FROM timeclock_sessions s
                 LEFT JOIN guild_settings gs ON s.guild_id = gs.guild_id
                 WHERE s.clock_out_time IS NULL
@@ -561,15 +561,14 @@ async def run_shift_abandonment():
 
             abandoned_count = 0
             for shift in abandoned_shifts:
-                # Force clock out at exactly the max hours limit
                 max_hours = shift['max_hours']
                 auto_clock_out = shift['clock_in_time'] + timedelta(hours=max_hours)
                 
                 cursor.execute("""
                     UPDATE timeclock_sessions
                     SET clock_out_time = %s, duration_minutes = %s
-                    WHERE id = %s
-                """, (auto_clock_out, max_hours * 60, shift['id']))
+                    WHERE guild_id = %s AND user_id = %s AND clock_in_time = %s AND clock_out_time IS NULL
+                """, (auto_clock_out, max_hours * 60, shift['guild_id'], shift['user_id'], shift['clock_in_time']))
                 
                 # Log the auto-clock out in error_logs as an audit trail
                 cursor.execute("""
