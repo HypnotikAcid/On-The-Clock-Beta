@@ -566,9 +566,9 @@ async def run_shift_abandonment():
                 
                 cursor.execute("""
                     UPDATE timeclock_sessions
-                    SET clock_out_time = %s, duration_minutes = %s
+                    SET clock_out_time = %s
                     WHERE guild_id = %s AND user_id = %s AND clock_in_time = %s AND clock_out_time IS NULL
-                """, (auto_clock_out, max_hours * 60, shift['guild_id'], shift['user_id'], shift['clock_in_time']))
+                """, (auto_clock_out, shift['guild_id'], shift['user_id'], shift['clock_in_time']))
                 
                 # Log the auto-clock out in error_logs as an audit trail
                 cursor.execute("""
