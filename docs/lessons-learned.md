@@ -304,6 +304,12 @@ Moving code between files is the #1 source of silent catastrophic breakage in th
 - **Fix**: Changed to `⚠️ [ROLE SYNC] Forbidden (403)` with the guild name and a checklist: 1) Bot has 'Manage Roles' permission, 2) Bot's role is ABOVE the target roles in Server Settings → Roles hierarchy.
 - **Pattern**: When logging Discord permission errors, always include the guild name and actionable steps to fix. Server admins need to know exactly what to check in their Discord server settings.
 
+## Scheduler Jobs Must Match Real Table Schema (2026-04-06)
+- **Root Cause**: The `run_shift_abandonment()` job in `scheduler.py` referenced two columns that don't exist on `timeclock_sessions`: `id` (table has no auto-increment PK — it uses `session_id`) and `duration_minutes` (normal clock-outs only set `clock_out_time`). The job was written with wrong assumptions about the schema, likely copy-pasted without verification.
+- **Why It Hid**: The job runs every 30 minutes but only fires when an open shift exceeds `max_shift_hours` (default 16h). It can sit silently for days until someone triggers that condition, then crashes.
+- **Fix**: Changed SELECT to drop `s.id`, changed UPDATE to use `WHERE guild_id = %s AND user_id = %s AND clock_in_time = %s AND clock_out_time IS NULL` (matching the composite key), and removed `duration_minutes` from the SET clause.
+- **Pattern**: Before writing any SQL in scheduler jobs or background tasks, always verify the target table's actual columns. These jobs run infrequently and errors hide until production traffic triggers them. Use `INSERT INTO` examples from `bot_core.py` as the source of truth for what columns exist on `timeclock_sessions`.
+
 ## Python Console Log Unicode Emulators Crashing Gunicorn (2026-04-06)
 - **Root Cause**: Gunicorn crashed in the Windows deployment environment when it attempted to stdout emojis like `🔄` and `❌` from `migrations.py` and `bot_core.py`. The Windows console defaults to `cp1252` encoding which throws a fatal `UnicodeEncodeError`.
 - **Fix**: Replaced graphical emojis inside initialization prints with standard bracket strings like `[SYNC]`, `[FAIL]`, and `[OK]`.
