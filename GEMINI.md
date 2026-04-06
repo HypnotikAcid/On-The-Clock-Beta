@@ -11,6 +11,7 @@
 3. **Briefing**: `Give me a briefing on CURRENT_TASK.md`
 4. **Handoff**: `Update CURRENT_TASK.md` before stopping
 5. **Release**: `Update WORKING_FILES.md` when done
+6. **GitHub Sync**: `run_command("git add . ; git commit -m 'message' ; git push origin main")` is mandatory after modifying files, to enable Replit downstream deployment.
 
 ---
 
