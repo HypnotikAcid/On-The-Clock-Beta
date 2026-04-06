@@ -242,7 +242,7 @@
             align-items: center;
             gap: 6px;
             background: rgba(212, 175, 55, 0.1);
-            border: 1px solid rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(0, 255, 255, 0.3);
             border-radius: 20px;
             padding: 0.4rem 1rem;
             font-size: 0.85rem;
@@ -310,7 +310,7 @@
             background: linear-gradient(135deg, #D4AF37 0%, #F4E5A1 50%, #D4AF37 100%);
             background-size: 200% auto;
             color: #0D1117;
-            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 255, 255, 0.6);
         }
 
         .btn-primary:hover {
@@ -385,8 +385,10 @@
         }
 
         .feature-card {
-            background: rgba(30, 35, 45, 0.6);
-            border: 1px solid rgba(212, 175, 55, 0.2);
+            background: rgba(10, 15, 30, 0.4);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 255, 0.3);
             border-radius: 12px;
             padding: 1.75rem;
             transition: all 0.3s ease;
@@ -395,7 +397,7 @@
 
         .feature-card:hover {
             transform: translateY(-5px);
-            border-color: rgba(212, 175, 55, 0.4);
+            border-color: rgba(0, 255, 255, 0.6);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
 
@@ -669,7 +671,7 @@
             padding: 3rem;
             background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(212, 175, 55, 0.05));
             border-radius: 16px;
-            border: 1px solid rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(0, 255, 255, 0.3);
         }
 
         .cta-title {
@@ -772,11 +774,11 @@
             min-height: 90px;
             margin: 2rem auto;
             background: rgba(255, 255, 255, 0.03);
-            border: 1px dashed rgba(212, 175, 55, 0.2);
+            border: 1px dashed rgba(0, 255, 255, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: rgba(212, 175, 55, 0.4);
+            color: rgba(0, 255, 255, 0.6);
             font-size: 0.8rem;
             border-radius: 8px;
             text-transform: uppercase;
@@ -970,7 +972,7 @@
 
                 <!-- Roadmap & Version Section -->
                 <div id="version-roadmap-container"
-                    style="margin-bottom: 2.5rem; background: rgba(30, 35, 45, 0.4); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 12px; overflow: hidden; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);">
+                    style="margin-bottom: 2.5rem; background: rgba(30, 35, 45, 0.4); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 12px; overflow: hidden; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);">
                     <div style="padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; background: rgba(212, 175, 55, 0.05);"
                         onclick="toggleRoadmap()">
                         <div style="display: flex; align-items: center; gap: 12px;">
@@ -1346,6 +1348,7 @@
             }, 250);
         });
     </script>
+    <script src="/static/js/dashboard-matrix.js"></script>
 </body>
 
 </html>
