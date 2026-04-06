@@ -3,35 +3,69 @@
 {% block title %}{{ server.name }} - Overview{% endblock %}
 
 {% block content %}
-<div class="content-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div class="content-header"
+    style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px;">
     <div>
         <h1 class="content-title">Server Overview</h1>
         <p class="content-subtitle">{{ server.name }}</p>
     </div>
     <div class="hierarchy-badge"
-        style="margin-bottom: 2rem; background: rgba(30,30,40,0.7); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-        <span
-            style="font-size: 0.85rem; color: #8B949E; margin-right: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Hierarchy
-            Level:</span>
+        style="background: rgba(10,15,30,0.6); backdrop-filter: blur(12px); padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+        <span style="font-size: 0.8rem; color: #8B949E; margin-right: 6px;">Logged in as:</span>
         {% if is_bot_owner %}
-        <span class="badge"
-            style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 4px 10px; border-radius: 20px; font-weight: bold;">🤖
-            Bot Developer</span>
+        <span style="color: #ef4444; font-weight: 700;">🤖 Bot Developer</span>
         {% elif user_role == 'owner' %}
-        <span class="badge"
-            style="background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid #F59E0B; padding: 4px 10px; border-radius: 20px; font-weight: bold;">👑
-            Server Owner</span>
+        <span style="color: #F59E0B; font-weight: 700;">👑 Server Owner</span>
         {% elif user_role == 'admin' %}
-        <span class="badge"
-            style="background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid #10B981; padding: 4px 10px; border-radius: 20px; font-weight: bold;">🛡️
-            Admin</span>
+        <span style="color: #10B981; font-weight: 700;">🛡️ Admin</span>
         {% else %}
-        <span class="badge"
-            style="background: rgba(59, 130, 246, 0.2); color: #3B82F6; border: 1px solid #3B82F6; padding: 4px 10px; border-radius: 20px; font-weight: bold;">👷
-            Employee</span>
+        <span style="color: #3B82F6; font-weight: 700;">👷 Employee</span>
         {% endif %}
     </div>
 </div>
+
+{% if user_role in ['admin', 'owner'] or is_bot_owner %}
+<!-- ── ADMIN / OWNER STAT BUBBLES ─────────────────────────── -->
+<div
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px;">
+    <div class="neon-stat-bubble">
+        <span class="bubble-value" id="employee-count">—</span>
+        <span class="bubble-label">Employees</span>
+    </div>
+    <div class="neon-stat-bubble" style="border-color: rgba(16,185,129,0.3);">
+        <span class="bubble-value" id="clocked-in-count" style="color: #10B981;">—</span>
+        <span class="bubble-label" style="color: rgba(16,185,129,0.7);">Clocked In</span>
+    </div>
+    <div class="neon-stat-bubble" style="border-color: rgba(245,158,11,0.3);">
+        <span class="bubble-value" id="pending-adjustments" style="color: #F59E0B;">{{ pending_adjustments }}</span>
+        <span class="bubble-label" style="color: rgba(245,158,11,0.7);">Pending Adj.</span>
+    </div>
+    <div class="neon-stat-bubble" id="tier-bubble">
+        <span class="bubble-value" id="tier-status" style="font-size: 1.1rem;">—</span>
+        <span class="bubble-label">Subscription</span>
+    </div>
+    <div class="neon-stat-bubble" id="health-bubble" style="border-color: rgba(16,185,129,0.25);">
+        <span class="bubble-value" id="error-bubble-val"
+            style="color: {% if error_count > 0 %}#ef4444{% else %}#10B981{% endif %};">{{ error_count }}</span>
+        <span class="bubble-label">{% if error_count > 0 %}System Errors{% else %}All Systems OK{% endif %}</span>
+    </div>
+</div>
+{% else %}
+<!-- ── EMPLOYEE STAT BUBBLES ──────────────────────────────── -->
+<div
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px;">
+    <div class="neon-stat-bubble">
+        <span class="bubble-value" id="my-hours-today">—</span>
+        <span class="bubble-label">Hours Today</span>
+    </div>
+    <div class="neon-stat-bubble" style="border-color: rgba(245,158,11,0.3);">
+        <span class="bubble-value" id="pending-adjustments" style="color: #F59E0B;">{{ pending_adjustments }}</span>
+        <span class="bubble-label" style="color: rgba(245,158,11,0.7);">Pending Adj.</span>
+    </div>
+</div>
+{% endif %}
+
+
 
 <div class="tiles-grid">
     {% if not has_completed_onboarding and user_role == 'admin' %}

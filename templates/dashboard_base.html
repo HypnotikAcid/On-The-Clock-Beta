@@ -6,7 +6,211 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dashboard{% endblock %} - Time Warden</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ══════════════════════════════════════════
+           NEON CYBER DESIGN SYSTEM — Embedded Core
+           Survives external CSS sync issues
+        ══════════════════════════════════════════ */
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
+            background: linear-gradient(135deg, #0A0F1F 0%, #0D1525 50%, #111827 100%) !important;
+            color: #C9D1D9 !important;
+        }
+
+        /* Glassmorphism on ALL tile/card/panel surfaces */
+        .tile,
+        .server-item,
+        .stat-row,
+        .onboarding-checklist,
+        .content-card,
+        [class*="card"]:not(.server-card-header) {
+            background: rgba(10, 15, 30, 0.55) !important;
+            backdrop-filter: blur(14px) !important;
+            -webkit-backdrop-filter: blur(14px) !important;
+            border: 1px solid rgba(0, 255, 255, 0.15) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
+        }
+
+        .tile:hover,
+        .server-item:hover {
+            border-color: rgba(0, 255, 255, 0.38) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.12) !important;
+        }
+
+        /* Stat bubbles — owner dashboard style */
+        .neon-stat-bubble {
+            background: rgba(10, 15, 30, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 18px;
+            padding: 20px 24px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 255, 255, 0.06);
+            transition: all 0.3s ease;
+        }
+
+        .neon-stat-bubble:hover {
+            border-color: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), 0 0 25px rgba(0, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .neon-stat-bubble .bubble-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #fff;
+            display: block;
+            letter-spacing: -0.5px;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .neon-stat-bubble .bubble-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(0, 255, 255, 0.7);
+            margin-top: 6px;
+            display: block;
+        }
+
+        /* Stat rows inside tiles */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px !important;
+            margin-bottom: 8px !important;
+            border-radius: 8px !important;
+        }
+
+        .stat-label {
+            color: #8B949E;
+            font-size: 0.85rem;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            color: #C9D1D9;
+            font-size: 0.95rem;
+        }
+
+        /* Tile headings */
+        .tile h2 {
+            font-size: 1rem !important;
+            font-weight: 700 !important;
+            color: #E6EDF3 !important;
+            margin-bottom: 16px !important;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .tile h2 .tile-icon {
+            font-size: 1.1rem;
+        }
+
+        /* Tables */
+        th {
+            background: rgba(0, 255, 255, 0.08) !important;
+            color: #00FFFF !important;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15) !important;
+            font-size: 0.7rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            padding: 10px 14px !important;
+            font-weight: 600 !important;
+        }
+
+        td {
+            padding: 11px 14px !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+            color: #C9D1D9 !important;
+        }
+
+        tr:hover td {
+            background: rgba(0, 255, 255, 0.035) !important;
+        }
+
+        /* Inputs */
+        input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+        select,
+        textarea {
+            background: rgba(5, 8, 20, 0.75) !important;
+            border: 1px solid rgba(0, 255, 255, 0.2) !important;
+            color: #C9D1D9 !important;
+            border-radius: 8px !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none !important;
+            border-color: rgba(0, 255, 255, 0.5) !important;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.18) !important;
+        }
+
+        /* Links/tile links */
+        .tile-link {
+            color: #00FFFF !important;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .tile-link:hover {
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+        }
+
+        /* Role-based section dividers */
+        .role-section-header {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(0, 255, 255, 0.5);
+            padding: 6px 0 12px 4px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+            margin-bottom: 16px;
+            margin-top: 8px;
+        }
+
+        /* Cyan glow hover items */
+        .hover-glow:hover {
+            background: rgba(0, 255, 255, 0.08) !important;
+            border-color: rgba(0, 255, 255, 0.35) !important;
+            box-shadow: 0 0 16px rgba(0, 255, 255, 0.15) !important;
+        }
+
+        /* Page headings */
+        .content-title {
+            color: #fff !important;
+            font-size: 1.6rem !important;
+            font-weight: 800 !important;
+        }
+
+        .content-subtitle {
+            color: #8B949E !important;
+        }
+
+        /* Content area layering above matrix */
+        .content-area,
+        .tiles-grid,
+        [class*="content"] {
+            position: relative;
+            z-index: 10;
+        }
+    </style>
     {% block extra_css %}{% endblock %}
+
 </head>
 
 <body data-user-id="{{ user.user_id if user else '' }}" data-guild-id="{{ server.id if server else '' }}"
@@ -452,7 +656,8 @@
                 }
             }
             // Phase 5: Admin Milestone Toasts
-            const totalShifts = {{ total_shifts if total_shifts is defined else 0 }};
+            const totalShifts = {{ total_shifts if total_shifts is defined else 0 }
+        };
 
         if (totalShifts >= 100 && role === 'admin') {
             const milestoneKey = `milestone_100_shown_${GUILD_ID}`;
