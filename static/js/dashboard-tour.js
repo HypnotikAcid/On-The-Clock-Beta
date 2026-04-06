@@ -163,29 +163,7 @@ const DashboardTour = {
                 }
             } catch (e) { }
         }
-        this.checkAutoStart();
-    },
-
-    saveState() {
-        if (this.isActive && this.currentRole && this.guildId) {
-            sessionStorage.setItem(this.stateKey, JSON.stringify({
-                role: this.currentRole,
-                step: this.currentStep,
-                guildId: this.guildId
-            }));
-        }
-    },
-
-    clearState() {
-        sessionStorage.removeItem(this.stateKey);
-    },
-
-    checkAutoStart() {
-        // Auto-start for completely new users only
-        const completed = localStorage.getItem(this.keys[this.currentRole]);
-        if (!completed && this.guildId && window.location.pathname === `/dashboard/server/${this.guildId}`) {
-            setTimeout(() => this.start(this.currentRole), 1500);
-        }
+        // Tour auto-start is now strictly handled by backend Jinja injection in dashboard_base.html
     },
 
     createElements() {
