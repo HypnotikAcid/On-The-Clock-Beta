@@ -6,7 +6,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Time Warden</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ══ NEON CYBER DESIGN SYSTEM — dashboard.html ══ */
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
+            background: linear-gradient(135deg, #0A0F1F 0%, #0D1525 50%, #111827 100%) !important;
+            color: #C9D1D9 !important;
+        }
+
+        /* Glassmorphism on all card/server-item surfaces */
+        .tile,
+        .server-item,
+        .stat-row,
+        [class*="card"]:not(.server-card-header) {
+            background: rgba(10, 15, 30, 0.55) !important;
+            backdrop-filter: blur(14px) !important;
+            -webkit-backdrop-filter: blur(14px) !important;
+            border: 1px solid rgba(0, 255, 255, 0.15) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
+        }
+
+        .tile:hover,
+        .server-item:hover {
+            border-color: rgba(0, 255, 255, 0.38) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.12) !important;
+        }
+
+        /* Server cards on the /dashboard server list */
+        .server-card {
+            background: rgba(10, 15, 30, 0.5) !important;
+            backdrop-filter: blur(14px) !important;
+            -webkit-backdrop-filter: blur(14px) !important;
+            border: 1px solid rgba(0, 255, 255, 0.15) !important;
+            border-radius: 16px !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .server-card:hover {
+            border-color: rgba(0, 255, 255, 0.4) !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 255, 255, 0.12) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Tables */
+        th {
+            background: rgba(0, 255, 255, 0.08) !important;
+            color: #00FFFF !important;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15) !important;
+            font-size: 0.7rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            padding: 10px 14px !important;
+        }
+
+        td {
+            padding: 11px 14px !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+            color: #C9D1D9 !important;
+        }
+
+        tr:hover td {
+            background: rgba(0, 255, 255, 0.035) !important;
+        }
+
+        /* Inputs */
+        input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+        select,
+        textarea {
+            background: rgba(5, 8, 20, 0.75) !important;
+            border: 1px solid rgba(0, 255, 255, 0.2) !important;
+            color: #C9D1D9 !important;
+            border-radius: 8px !important;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none !important;
+            border-color: rgba(0, 255, 255, 0.5) !important;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.18) !important;
+        }
+
+        /* Page heading */
+        h1,
+        h2,
+        h3 {
+            color: #E6EDF3 !important;
+        }
+
+        .content-title {
+            color: #fff !important;
+            font-weight: 800 !important;
+        }
+
+        /* Hover glow items */
+        .hover-glow:hover {
+            background: rgba(0, 255, 255, 0.08) !important;
+            border-color: rgba(0, 255, 255, 0.35) !important;
+            box-shadow: 0 0 16px rgba(0, 255, 255, 0.15) !important;
+        }
+
+        /* Content layering above matrix canvas */
+        .sidebar,
+        .content-area,
+        main,
+        section,
+        [class*="content"] {
+            position: relative;
+            z-index: 10;
+        }
+    </style>
 </head>
+
 
 <body>
     <!-- Matrix Canvas Background -->
@@ -141,11 +257,13 @@
                         <div class="empty-state" style="text-align: center; padding: 40px 20px; color: #8B949E;">
                             <div style="font-size: 48px; margin-bottom: 15px;">🏢</div>
                             <p style="margin-bottom: 10px; font-size: 16px;"><strong>No servers found</strong></p>
-                            <p style="font-size: 13px; margin-bottom: 8px;">You don't have access to any servers yet.</p>
+                            <p style="font-size: 13px; margin-bottom: 8px;">You don't have access to any servers yet.
+                            </p>
                             <p style="font-size: 13px; margin-bottom: 15px;">Either:</p>
                             <p style="font-size: 13px;">✅ Add the "Time Warden" bot to your server (as admin)</p>
                             <p style="font-size: 13px;">✅ Or get added as an employee in a server with the bot</p>
-                            <p style="margin-top: 20px;"><a href="/invite" style="color: #D4AF37;">Add bot to your server</a></p>
+                            <p style="margin-top: 20px;"><a href="/invite" style="color: #D4AF37;">Add bot to your
+                                    server</a></p>
                         </div>
                     </div>
                 </div>
@@ -153,26 +271,33 @@
                 <div class="tiles-grid">
                     <!-- Bot Owner Quick Access (Owner Only) -->
                     {% if user.is_bot_owner %}
-                    <div class="tile" id="owner-quick-access-tile" style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 134, 11, 0.1)); border: 1px solid rgba(212, 175, 55, 0.3);">
+                    <div class="tile" id="owner-quick-access-tile"
+                        style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 134, 11, 0.1)); border: 1px solid rgba(212, 175, 55, 0.3);">
                         <h2><span class="tile-icon">👑</span>Owner Quick Access</h2>
                         <p style="color: #D4AF37; font-size: 13px; margin-bottom: 15px;">
                             Quick kiosk access for troubleshooting
                         </p>
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 5px;">Enter Guild ID:</label>
-                            <input type="text" id="owner-guild-id-input" placeholder="123456789012345678" style="width: 100%; padding: 10px; background: rgba(30, 35, 45, 0.8); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px; color: #C9D1D9; font-family: 'Courier New', monospace;">
+                            <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 5px;">Enter
+                                Guild ID:</label>
+                            <input type="text" id="owner-guild-id-input" placeholder="123456789012345678"
+                                style="width: 100%; padding: 10px; background: rgba(30, 35, 45, 0.8); border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px; color: #C9D1D9; font-family: 'Courier New', monospace;">
                         </div>
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <button onclick="goToOwnerKiosk()" style="flex: 1; padding: 10px 15px; background: linear-gradient(135deg, #00FFFF, #0099FF); color: #0a0e1a; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
+                            <button onclick="goToOwnerKiosk()"
+                                style="flex: 1; padding: 10px 15px; background: linear-gradient(135deg, #00FFFF, #0099FF); color: #0a0e1a; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
                                 🖥️ Go to Kiosk
                             </button>
-                            <button onclick="goToOwnerDashboard()" style="flex: 1; padding: 10px 15px; background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 153, 255, 0.2)); color: #00FFFF; border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
+                            <button onclick="goToOwnerDashboard()"
+                                style="flex: 1; padding: 10px 15px; background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 153, 255, 0.2)); color: #00FFFF; border: 1px solid rgba(0, 255, 255, 0.3); border-radius: 8px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
                                 ⚙️ Go to Dashboard
                             </button>
                         </div>
-                        <div style="margin-top: 15px; padding: 10px; background: rgba(0, 255, 255, 0.05); border-left: 3px solid #00FFFF; border-radius: 4px;">
+                        <div
+                            style="margin-top: 15px; padding: 10px; background: rgba(0, 255, 255, 0.05); border-left: 3px solid #00FFFF; border-radius: 4px;">
                             <p style="font-size: 11px; color: #8B949E; margin: 0;">
-                                💡 <strong>Tip:</strong> This bypasses normal permission checks. Use for support/troubleshooting only.
+                                💡 <strong>Tip:</strong> This bypasses normal permission checks. Use for
+                                support/troubleshooting only.
                             </p>
                         </div>
                     </div>
@@ -235,15 +360,16 @@
                         <div class="servers-list">
                             {% for guild in user.employee_guilds %}
                             <div class="server-item" data-guild-id="{{ guild.id }}" data-guild-name="{{ guild.name }}"
-                                data-guild-icon=""
-                                data-access-level="employee">
+                                data-guild-icon="" data-access-level="employee">
                                 <div class="server-icon">
                                     {{ guild.name[0]|upper }}
                                 </div>
                                 <div class="server-info">
                                     <div class="server-name">{{ guild.name }}</div>
                                     <div class="server-meta">
-                                        <span class="server-badge" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.15)); border: 1px solid rgba(59, 130, 246, 0.3); color: #3B82F6;">👷 Employee</span>
+                                        <span class="server-badge"
+                                            style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.15)); border: 1px solid rgba(59, 130, 246, 0.3); color: #3B82F6;">👷
+                                            Employee</span>
                                     </div>
                                 </div>
                             </div>
@@ -260,7 +386,7 @@
 
                 <!-- Action Buttons -->
                 <div class="action-buttons-container">
-                    
+
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
                         <span>✉️</span>
@@ -292,9 +418,10 @@
                         <p style="color: #C9D1D9; margin-top: 15px;">Select a setting from the sidebar to manage your
                             server.</p>
                     </div>
-                                      <!-- Pending Time Adjustments Tile (Admin Only) -->
-                                      <div class="tile clickable admin-only" id="pending-adjustments-tile" 
-                         onclick="window.location.href='/server/' + document.getElementById('guild-selector').value + '/adjustments/review'"                         style="cursor: pointer;">
+                    <!-- Pending Time Adjustments Tile (Admin Only) -->
+                    <div class="tile clickable admin-only" id="pending-adjustments-tile"
+                        onclick="window.location.href='/server/' + document.getElementById('guild-selector').value + '/adjustments/review'"
+                        style="cursor: pointer;">
                         <h2>
                             <span class="tile-icon">⏳</span>
                             Pending Time Adjustments
@@ -313,11 +440,11 @@
 
                 <script>
                     // Load pending adjustments count on server overview page
-                    (function() {
+                    (function () {
                         const guildSelector = document.getElementById('guild-selector');
                         const guildId = guildSelector ? guildSelector.value : null;
                         if (!guildId) return;
-                        
+
                         fetch(`/api/guild/${guildId}/adjustments/pending`)
                             .then(res => res.json())
                             .then(data => {
@@ -325,7 +452,7 @@
                                     const count = (data.requests || []).length;
                                     const badge = document.getElementById('pending-adjustments-badge');
                                     const summary = document.getElementById('pending-adjustments-summary');
-                                    
+
                                     if (count > 0) {
                                         badge.textContent = count;
                                         badge.style.display = 'inline-block';
@@ -342,15 +469,15 @@
                             })
                             .catch(err => {
                                 console.error('Error loading pending adjustments:', err);
-                                document.getElementById('pending-adjustments-summary').innerHTML = 
+                                document.getElementById('pending-adjustments-summary').innerHTML =
                                     '<div style="text-align: center; color: #8B949E; padding: 10px;">--</div>';
                             });
                     })();
-                </script>  
+                </script>
 
                 <!-- Action Buttons -->
                 <div class="action-buttons-container">
-                    
+
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
                         <span>✉️</span>
@@ -369,33 +496,44 @@
                 <div class="tiles-grid">
                     <div class="tile" style="grid-column: 1 / -1;">
                         <!-- Mode Toggle -->
-                        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
-                            <button id="btn-view-as-mode" class="tool-btn" onclick="setAdminCalendarMode('viewAs')" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                        <div
+                            style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                            <button id="btn-view-as-mode" class="tool-btn" onclick="setAdminCalendarMode('viewAs')"
+                                style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
                                 👤 View As Employee
                             </button>
-                            <button id="btn-master-mode" class="tool-btn" onclick="setAdminCalendarMode('master')" style="background: rgba(75, 85, 99, 0.5);">
+                            <button id="btn-master-mode" class="tool-btn" onclick="setAdminCalendarMode('master')"
+                                style="background: rgba(75, 85, 99, 0.5);">
                                 📅 Master Calendar
                             </button>
                         </div>
 
                         <!-- View As Employee Mode -->
                         <div id="admin-calendar-viewas" style="display: block;">
-                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px; margin-bottom: 20px;">
+                            <div
+                                style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px; margin-bottom: 20px;">
                                 <div>
-                                    <label style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Select Employee</label>
-                                    <select id="admin-calendar-employee-select" onchange="loadEmployeeCalendar()" style="background: #161B22; border: 1px solid #30363D; color: #C9D1D9; padding: 10px 12px; border-radius: 8px; min-width: 220px; font-size: 14px;">
+                                    <label
+                                        style="display: block; color: #8B949E; font-size: 12px; margin-bottom: 6px;">Select
+                                        Employee</label>
+                                    <select id="admin-calendar-employee-select" onchange="loadEmployeeCalendar()"
+                                        style="background: #161B22; border: 1px solid #30363D; color: #C9D1D9; padding: 10px 12px; border-radius: 8px; min-width: 220px; font-size: 14px;">
                                         <option value="">-- Select an employee --</option>
                                     </select>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px; margin-top: 18px;">
-                                    <button id="emp-calendar-prev" class="calendar-nav-btn" onclick="navigateEmployeeCalendar(-1)">← Prev</button>
-                                    <span id="emp-calendar-month-label" style="color: #D4AF37; font-weight: 600; min-width: 130px; text-align: center;">--</span>
-                                    <button id="emp-calendar-next" class="calendar-nav-btn" onclick="navigateEmployeeCalendar(1)">Next →</button>
+                                    <button id="emp-calendar-prev" class="calendar-nav-btn"
+                                        onclick="navigateEmployeeCalendar(-1)">← Prev</button>
+                                    <span id="emp-calendar-month-label"
+                                        style="color: #D4AF37; font-weight: 600; min-width: 130px; text-align: center;">--</span>
+                                    <button id="emp-calendar-next" class="calendar-nav-btn"
+                                        onclick="navigateEmployeeCalendar(1)">Next →</button>
                                 </div>
                             </div>
                             <div id="admin-employee-calendar-container">
                                 <div id="emp-calendar-grid" class="calendar-grid">
-                                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">
+                                    <div
+                                        style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">
                                         Select an employee above to view their calendar
                                     </div>
                                 </div>
@@ -405,9 +543,11 @@
                         <!-- Master Calendar Mode -->
                         <div id="admin-calendar-master" style="display: none;">
                             <!-- Month Navigation -->
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                            <div
+                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
                                 <button onclick="navigateMasterCalendar(-1)" class="calendar-nav-btn">← Prev</button>
-                                <span id="master-calendar-month-label" style="color: #D4AF37; font-size: 18px; font-weight: 600;"></span>
+                                <span id="master-calendar-month-label"
+                                    style="color: #D4AF37; font-size: 18px; font-weight: 600;"></span>
                                 <button onclick="navigateMasterCalendar(1)" class="calendar-nav-btn">Next →</button>
                             </div>
                             <div id="master-calendar-grid" class="calendar-grid">
@@ -418,11 +558,15 @@
                 </div>
 
                 <!-- Session Edit Modal -->
-                <div id="session-edit-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-                    <div style="background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 24px; max-width: 450px; width: 90%; max-height: 80vh; overflow-y: auto;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div id="session-edit-modal"
+                    style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+                    <div
+                        style="background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 24px; max-width: 450px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h3 style="color: #C9D1D9; margin: 0;">Edit Session</h3>
-                            <button onclick="closeSessionEditModal()" style="background: none; border: none; color: #8B949E; font-size: 24px; cursor: pointer;">&times;</button>
+                            <button onclick="closeSessionEditModal()"
+                                style="background: none; border: none; color: #8B949E; font-size: 24px; cursor: pointer;">&times;</button>
                         </div>
                         <div id="session-edit-content">
                             <!-- Form content injected by JS -->
@@ -435,7 +579,7 @@
                     let masterCalendarYear = new Date().getFullYear();
                     let masterCalendarMonth = new Date().getMonth() + 1;
                     let masterCalendarData = null;
-                    
+
                     // Helper to escape HTML for safe rendering
                     function escapeHtml(text) {
                         if (!text) return '';
@@ -450,7 +594,7 @@
                         document.getElementById('btn-master-mode').style.background = mode === 'master' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(75, 85, 99, 0.5)';
                         document.getElementById('admin-calendar-viewas').style.display = mode === 'viewAs' ? 'block' : 'none';
                         document.getElementById('admin-calendar-master').style.display = mode === 'master' ? 'block' : 'none';
-                        
+
                         if (mode === 'viewAs') {
                             loadEmployeeListForCalendar();
                         } else {
@@ -461,14 +605,14 @@
                     async function loadEmployeeListForCalendar() {
                         const guildId = window.selectedGuildId;
                         if (!guildId) return;
-                        
+
                         try {
                             const response = await fetch(`/api/guild/${guildId}/employees/calendar-list`, { credentials: 'include' });
                             const data = await response.json();
-                            
+
                             const select = document.getElementById('admin-calendar-employee-select');
                             select.innerHTML = '<option value="">-- Select an employee --</option>';
-                            
+
                             if (data.success && data.employees) {
                                 data.employees.forEach(emp => {
                                     const option = document.createElement('option');
@@ -492,22 +636,22 @@
                         const employeeId = document.getElementById('admin-calendar-employee-select').value;
                         const grid = document.getElementById('emp-calendar-grid');
                         const monthLabel = document.getElementById('emp-calendar-month-label');
-                        
+
                         currentEmpCalendarEmployeeId = employeeId;
-                        
+
                         if (!employeeId) {
                             monthLabel.textContent = '--';
                             grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #8B949E; padding: 40px;">Select an employee above to view their calendar</div>';
                             return;
                         }
-                        
+
                         monthLabel.textContent = new Date(empCalendarYear, empCalendarMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                         grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #8B949E; padding: 40px;">Loading calendar...</div>';
-                        
+
                         try {
                             const response = await fetch(`/api/guild/${guildId}/employee/${employeeId}/monthly-timecard?year=${empCalendarYear}&month=${empCalendarMonth}`, { credentials: 'include' });
                             const data = await response.json();
-                            
+
                             if (data.success) {
                                 empCalendarData = data.data;
                                 renderEmployeeCalendar();
@@ -536,7 +680,7 @@
                         const grid = document.getElementById('emp-calendar-grid');
                         const daysInMonth = new Date(empCalendarYear, empCalendarMonth, 0).getDate();
                         const firstDayOfWeek = new Date(empCalendarYear, empCalendarMonth - 1, 1).getDay();
-                        
+
                         // Build days lookup
                         const daysLookup = {};
                         if (empCalendarData && empCalendarData.days) {
@@ -544,24 +688,24 @@
                                 daysLookup[d.date] = d;
                             });
                         }
-                        
+
                         // Header row
-                        let html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => 
+                        let html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d =>
                             `<div class="calendar-day-header">${d}</div>`
                         ).join('');
-                        
+
                         // Empty cells for first week
                         for (let i = 0; i < firstDayOfWeek; i++) {
                             html += '<div class="calendar-day empty"></div>';
                         }
-                        
+
                         // Day cells
                         for (let day = 1; day <= daysInMonth; day++) {
                             const dateStr = `${empCalendarYear}-${String(empCalendarMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                             const dayData = daysLookup[dateStr];
                             const hasData = dayData && dayData.sessions && dayData.sessions.length > 0;
                             const totalHours = hasData ? dayData.total_seconds / 3600 : 0;
-                            
+
                             let dayClass = 'calendar-day';
                             if (hasData) {
                                 dayClass += ' has-sessions';
@@ -569,7 +713,7 @@
                                 else if (totalHours >= 4) dayClass += ' half-day';
                                 else dayClass += ' partial-day';
                             }
-                            
+
                             html += `
                                 <div class="${dayClass}" ${hasData ? `onclick="showEmpDayDetail('${dateStr}')"` : ''}>
                                     <div class="day-number">${day}</div>
@@ -580,25 +724,25 @@
                                 </div>
                             `;
                         }
-                        
+
                         grid.innerHTML = html;
                     }
 
                     function showEmpDayDetail(dateStr) {
                         if (!empCalendarData || !empCalendarData.days) return;
-                        
+
                         const dayData = empCalendarData.days.find(d => d.date === dateStr);
                         if (!dayData || !dayData.sessions) return;
-                        
+
                         const modal = document.getElementById('session-edit-modal');
                         const content = document.getElementById('session-edit-content');
-                        
+
                         const totalHours = (dayData.total_seconds / 3600).toFixed(2);
                         let html = `
                             <h4 style="color: #C9D1D9; margin-bottom: 10px;">${new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h4>
                             <div style="color: #10B981; font-size: 14px; margin-bottom: 15px;">${totalHours} hours total</div>
                         `;
-                        
+
                         dayData.sessions.forEach(s => {
                             html += `
                                 <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(16, 24, 39, 0.5); padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 8px;">
@@ -613,7 +757,7 @@
                                 </div>
                             `;
                         });
-                        
+
                         content.innerHTML = html;
                         modal.style.display = 'flex';
                     }
@@ -621,16 +765,16 @@
                     async function loadMasterCalendar() {
                         const guildId = window.selectedGuildId;
                         if (!guildId) return;
-                        
+
                         document.getElementById('master-calendar-month-label').textContent = new Date(masterCalendarYear, masterCalendarMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                        
+
                         const grid = document.getElementById('master-calendar-grid');
                         grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #8B949E; padding: 40px;">Loading...</div>';
-                        
+
                         try {
                             const response = await fetch(`/api/guild/${guildId}/admin/master-calendar?year=${masterCalendarYear}&month=${masterCalendarMonth}`, { credentials: 'include' });
                             const data = await response.json();
-                            
+
                             if (data.success) {
                                 masterCalendarData = data.data;
                                 renderMasterCalendar();
@@ -647,7 +791,7 @@
                         const grid = document.getElementById('master-calendar-grid');
                         const daysInMonth = new Date(masterCalendarYear, masterCalendarMonth, 0).getDate();
                         const firstDayOfWeek = new Date(masterCalendarYear, masterCalendarMonth - 1, 1).getDay();
-                        
+
                         // Build days lookup
                         const daysLookup = {};
                         if (masterCalendarData && masterCalendarData.days) {
@@ -655,24 +799,24 @@
                                 daysLookup[d.date] = d;
                             });
                         }
-                        
+
                         // Header row
-                        let html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => 
+                        let html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d =>
                             `<div class="calendar-day-header">${d}</div>`
                         ).join('');
-                        
+
                         // Empty cells for first week
                         for (let i = 0; i < firstDayOfWeek; i++) {
                             html += '<div class="calendar-day empty"></div>';
                         }
-                        
+
                         // Day cells
                         for (let day = 1; day <= daysInMonth; day++) {
                             const dateStr = `${masterCalendarYear}-${String(masterCalendarMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                             const dayData = daysLookup[dateStr];
                             const hasData = dayData && dayData.employee_count > 0;
                             const totalHours = hasData ? dayData.total_hours : 0;
-                            
+
                             let dayClass = 'calendar-day';
                             if (hasData) {
                                 dayClass += ' has-sessions';
@@ -680,7 +824,7 @@
                                 else if (totalHours >= 8) dayClass += ' half-day';
                                 else dayClass += ' partial-day';
                             }
-                            
+
                             html += `
                                 <div class="${dayClass}" ${hasData ? `onclick="showDayDetail('${dateStr}')"` : ''}>
                                     <div class="day-number">${day}</div>
@@ -691,7 +835,7 @@
                                 </div>
                             `;
                         }
-                        
+
                         grid.innerHTML = html;
                     }
 
@@ -709,15 +853,15 @@
 
                     function showDayDetail(dateStr) {
                         if (!masterCalendarData || !masterCalendarData.days) return;
-                        
+
                         const dayData = masterCalendarData.days.find(d => d.date === dateStr);
                         if (!dayData) return;
-                        
+
                         const modal = document.getElementById('session-edit-modal');
                         const content = document.getElementById('session-edit-content');
-                        
+
                         let html = `<h4 style="color: #C9D1D9; margin-bottom: 15px;">${new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h4>`;
-                        
+
                         dayData.employees.forEach(emp => {
                             html += `
                                 <div style="background: rgba(30, 40, 60, 0.6); border: 1px solid #30363D; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
@@ -738,7 +882,7 @@
                                 </div>
                             `;
                         });
-                        
+
                         content.innerHTML = html;
                         modal.style.display = 'flex';
                     }
@@ -746,10 +890,10 @@
                     function openSessionEditModal(sessionId, clockIn, clockOut) {
                         const modal = document.getElementById('session-edit-modal');
                         const content = document.getElementById('session-edit-content');
-                        
+
                         const clockInDate = clockIn ? new Date(clockIn) : null;
                         const clockOutDate = clockOut ? new Date(clockOut) : null;
-                        
+
                         content.innerHTML = `
                             <form id="session-edit-form" onsubmit="saveSessionEdit(event, ${sessionId})">
                                 <div style="margin-bottom: 15px;">
@@ -777,7 +921,7 @@
                                 </div>
                             </form>
                         `;
-                        
+
                         modal.style.display = 'flex';
                     }
 
@@ -787,12 +931,12 @@
 
                     async function saveSessionEdit(event, sessionId) {
                         event.preventDefault();
-                        
+
                         const guildId = window.selectedGuildId;
                         const clockIn = document.getElementById('edit-clock-in').value;
                         const clockOut = document.getElementById('edit-clock-out').value;
                         const reason = document.getElementById('edit-reason').value;
-                        
+
                         try {
                             const response = await fetch(`/api/guild/${guildId}/admin/edit-session`, {
                                 method: 'POST',
@@ -805,9 +949,9 @@
                                     reason: reason || 'Admin adjustment'
                                 })
                             });
-                            
+
                             const data = await response.json();
-                            
+
                             if (data.success) {
                                 closeSessionEditModal();
                                 // Refresh the current view
@@ -826,17 +970,17 @@
                     }
 
                     // Initialize when section becomes visible
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const observer = new MutationObserver(function(mutations) {
-                            mutations.forEach(function(mutation) {
-                                if (mutation.target.id === 'section-admin-calendar' && 
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const observer = new MutationObserver(function (mutations) {
+                            mutations.forEach(function (mutation) {
+                                if (mutation.target.id === 'section-admin-calendar' &&
                                     !mutation.target.classList.contains('hidden') &&
                                     mutation.target.style.display !== 'none') {
                                     loadEmployeeListForCalendar();
                                 }
                             });
                         });
-                        
+
                         const section = document.getElementById('section-admin-calendar');
                         if (section) {
                             observer.observe(section, { attributes: true, attributeFilter: ['class', 'style'] });
@@ -894,7 +1038,7 @@
 
                 <!-- Action Buttons -->
                 <div class="action-buttons-container">
-                    
+
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
                         <span>✉️</span>
@@ -911,13 +1055,15 @@
                 </div>
 
                 <!-- Beta Features Notice Banner -->
-                <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.15)); border: 2px solid rgba(245, 158, 11, 0.4); border-radius: 10px; padding: 20px; margin-bottom: 25px;">
+                <div
+                    style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.15)); border: 2px solid rgba(245, 158, 11, 0.4); border-radius: 10px; padding: 20px; margin-bottom: 25px;">
                     <div style="display: flex; align-items: start; gap: 15px;">
                         <span style="font-size: 28px; flex-shrink: 0;">⚠️</span>
                         <div>
-                            <strong style="font-size: 16px; color: #FCD34D; display: block; margin-bottom: 8px;">Beta Features Notice</strong>
+                            <strong style="font-size: 16px; color: #FCD34D; display: block; margin-bottom: 8px;">Beta
+                                Features Notice</strong>
                             <p style="font-size: 14px; color: #FDE68A; line-height: 1.6; margin: 0;">
-                                These settings are experimental and may not work consistently in all scenarios. 
+                                These settings are experimental and may not work consistently in all scenarios.
                                 Please report any issues and use with caution.
                             </p>
                         </div>
@@ -926,7 +1072,8 @@
 
                 <!-- Admin Beta Settings Section -->
                 <div class="beta-admin-section admin-only">
-                    <h3 style="color: #D4AF37; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <h3
+                        style="color: #D4AF37; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
                         <span>👑</span> Admin Beta Settings
                     </h3>
                     <div class="tiles-grid">
@@ -947,7 +1094,8 @@
                                         <ul style="margin: 0; padding-left: 18px;">
                                             <li>Discord doesn't distinguish between phones and tablets (both appear as
                                                 "mobile")</li>
-                                            <li>Users on multiple devices simultaneously (e.g., desktop + phone) may bypass
+                                            <li>Users on multiple devices simultaneously (e.g., desktop + phone) may
+                                                bypass
                                                 this restriction</li>
                                             <li>Users set to invisible/offline cannot be detected</li>
                                         </ul>
@@ -958,7 +1106,8 @@
                             <!-- Toggle -->
                             <div class="setting-row" style="margin-top: 20px;">
                                 <div class="setting-label">
-                                    <span style="font-weight: 500; color: #C9D1D9;">Restrict Mobile/Tablet Clock-ins</span>
+                                    <span style="font-weight: 500; color: #C9D1D9;">Restrict Mobile/Tablet
+                                        Clock-ins</span>
                                     <span class="setting-description"
                                         style="display: block; margin-top: 4px; font-size: 12px; color: #8B949E;">
                                         When enabled, employees must use desktop or web browser to clock in/out
@@ -975,14 +1124,16 @@
 
                 <!-- Employee Beta Settings Section -->
                 <div class="beta-employee-section" style="margin-top: 30px;">
-                    <h3 style="color: #D4AF37; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <h3
+                        style="color: #D4AF37; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
                         <span>👷</span> Employee Beta Settings
                     </h3>
                     <div class="tiles-grid">
                         <div class="tile">
                             <div style="text-align: center; padding: 30px 20px; color: #8B949E;">
                                 <div style="font-size: 48px; margin-bottom: 15px;">🔜</div>
-                                <p style="font-size: 14px; margin: 0;">No employee beta features available yet. Check back soon!</p>
+                                <p style="font-size: 14px; margin: 0;">No employee beta features available yet. Check
+                                    back soon!</p>
                             </div>
                         </div>
                     </div>
@@ -990,7 +1141,7 @@
 
                 <!-- Action Buttons -->
                 <div class="action-buttons-container">
-                    
+
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
                         <span>✉️</span>
@@ -1014,7 +1165,8 @@
                         <div class="sync-notice">
                             <div class="sync-notice-icon">⏳</div>
                             <div class="sync-notice-text">
-                                <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
+                                <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord
+                                commands.
                                 Refresh this page to see the latest updates.
                             </div>
                         </div>
@@ -1022,7 +1174,8 @@
                         <div class="tiles-grid">
                             <div class="tile">
                                 <h2><span class="tile-icon">👥</span>Admin Roles</h2>
-                                <p class="tile-description">Set which roles can access admin features like Reports and Upgrade
+                                <p class="tile-description">Set which roles can access admin features like Reports and
+                                    Upgrade
                                     buttons. Discord administrators always have access.</p>
 
                                 <div class="dual-listbox-container">
@@ -1044,7 +1197,7 @@
 
                         <!-- Action Buttons -->
                         <div class="action-buttons-container">
-                            
+
                             <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                                 class="btn support-button">
                                 <span>✉️</span>
@@ -1064,7 +1217,8 @@
                         <div class="sync-notice">
                             <div class="sync-notice-icon">⏳</div>
                             <div class="sync-notice-text">
-                                <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
+                                <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord
+                                commands.
                                 Refresh this page to see the latest updates.
                             </div>
                         </div>
@@ -1072,7 +1226,8 @@
                         <div class="tiles-grid">
                             <div class="tile">
                                 <h2><span class="tile-icon">👷</span>Employee Roles</h2>
-                                <p class="tile-description">Choose which roles can use the /clock command and access timeclock
+                                <p class="tile-description">Choose which roles can use the /clock command and access
+                                    timeclock
                                     functions.</p>
 
                                 <div class="dual-listbox-container">
@@ -1094,7 +1249,7 @@
 
                         <!-- Action Buttons -->
                         <div class="action-buttons-container">
-                            
+
                             <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                                 class="btn support-button">
                                 <span>✉️</span>
@@ -1114,11 +1269,13 @@
                             <!-- Email Recipients Tile -->
                             <div class="tile">
                                 <h2><span class="tile-icon">📧</span>Email Recipients</h2>
-                                <p class="tile-description" style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">Manage
+                                <p class="tile-description"
+                                    style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">Manage
                                     email addresses that will receive automated reports</p>
 
                                 <div class="email-input-group" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                                    <input type="email" class="email-input" id="email-input" placeholder="Enter email address"
+                                    <input type="email" class="email-input" id="email-input"
+                                        placeholder="Enter email address"
                                         style="flex: 1; background: rgba(10, 15, 31, 0.5); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 8px; padding: 12px; color: #C9D1D9; font-size: 14px;">
                                     <button class="btn" id="add-email-btn"
                                         style="background: linear-gradient(135deg, #10B981, #059669); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s ease; white-space: nowrap;">Add
@@ -1128,7 +1285,8 @@
                                 <div class="email-list" id="email-list"
                                     style="background: rgba(10, 15, 31, 0.5); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 8px; max-height: 200px; overflow-y: auto; padding: 10px;">
                                     <div class="empty-state"
-                                        style="text-align: center; padding: 40px 20px; color: #8B949E; font-size: 13px;">No
+                                        style="text-align: center; padding: 40px 20px; color: #8B949E; font-size: 13px;">
+                                        No
                                         email addresses configured</div>
                                 </div>
 
@@ -1139,13 +1297,15 @@
                                         <span>Send Test Email</span>
                                     </button>
                                     <p style="margin-top: 8px; color: #8B949E; font-size: 12px;">
-                                        Verify your email setup is working by sending a test message to all configured recipients
+                                        Verify your email setup is working by sending a test message to all configured
+                                        recipients
                                     </p>
                                 </div>
 
                                 <div class="workday-time-setting"
                                     style="margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
-                                    <label style="display: block; color: #C9D1D9; font-weight: 500; margin-bottom: 10px;">
+                                    <label
+                                        style="display: block; color: #C9D1D9; font-weight: 500; margin-bottom: 10px;">
                                         🕰️ Work Day End Time (for auto-send reports)
                                     </label>
                                     <div style="display: flex; gap: 10px; align-items: center;">
@@ -1166,11 +1326,13 @@
                                     style="margin-top: 15px; padding: 15px; background: rgba(245, 158, 11, 0.15); border: 2px solid rgba(245, 158, 11, 0.5); border-radius: 8px; display: block;">
                                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                                         <span style="font-size: 20px;">⚠️</span>
-                                        <span style="color: #F59E0B; font-weight: 600; font-size: 14px;">Email Recipients Required</span>
+                                        <span style="color: #F59E0B; font-weight: 600; font-size: 14px;">Email
+                                            Recipients Required</span>
                                     </div>
                                     <p style="color: #C9D1D9; font-size: 13px; margin: 0;">
-                                        Add at least one email address above to enable email automation features. 
-                                        The toggles and work day end time settings below will be enabled once you add a recipient.
+                                        Add at least one email address above to enable email automation features.
+                                        The toggles and work day end time settings below will be enabled once you add a
+                                        recipient.
                                     </p>
                                 </div>
 
@@ -1181,7 +1343,8 @@
                                         <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">📤 Auto-send
                                             report
                                             on clock-out</span>
-                                        <label class="toggle-switch" style="position: relative; width: 50px; height: 26px;">
+                                        <label class="toggle-switch"
+                                            style="position: relative; width: 50px; height: 26px;">
                                             <input type="checkbox" id="toggle-auto-send-clockout"
                                                 style="opacity: 0; width: 0; height: 0;" disabled>
                                             <span class="toggle-slider"
@@ -1193,7 +1356,8 @@
                                         <span class="toggle-label" style="font-size: 14px; color: #C9D1D9;">⏰ Auto-email
                                             before
                                             data deletion</span>
-                                        <label class="toggle-switch" style="position: relative; width: 50px; height: 26px;">
+                                        <label class="toggle-switch"
+                                            style="position: relative; width: 50px; height: 26px;">
                                             <input type="checkbox" id="toggle-auto-email-delete"
                                                 style="opacity: 0; width: 0; height: 0;" disabled>
                                             <span class="toggle-slider"
@@ -1204,14 +1368,17 @@
 
                                 <div class="email-note"
                                     style="margin-top: 15px; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; color: #9CA3AF; font-size: 13px;">
-                                    ℹ️ <strong>Note:</strong> Email automation features require configured recipients. The system will automatically disable these settings if all email recipients are removed.
+                                    ℹ️ <strong>Note:</strong> Email automation features require configured recipients.
+                                    The system will automatically disable these settings if all email recipients are
+                                    removed.
                                 </div>
                             </div>
 
                             <!-- Custom Email Formatting Tile (COMING SOON) -->
                             <div class="tile" style="position: relative;">
                                 <h2><span class="tile-icon">✉️</span>Custom Email Formatting</h2>
-                                <p class="tile-description" style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
+                                <p class="tile-description"
+                                    style="color: #8B949E; font-size: 13px; margin-bottom: 15px;">
                                     Customize the format and appearance of automated email reports</p>
 
                                 <div class="coming-soon-overlay"
@@ -1237,7 +1404,7 @@
 
                         <!-- Action Buttons -->
                         <div class="action-buttons-container">
-                            
+
                             <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                                 class="btn support-button">
                                 <span>✉️</span>
@@ -1257,7 +1424,8 @@
                         <div class="sync-notice">
                             <div class="sync-notice-icon">⏳</div>
                             <div class="sync-notice-text">
-                                <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord commands.
+                                <strong>Sync Notice:</strong> Changes may take up to 10 seconds to sync with Discord
+                                commands.
                                 Refresh this page to see the latest updates.
                             </div>
                         </div>
@@ -1265,7 +1433,8 @@
                         <div class="tiles-grid">
                             <div class="tile">
                                 <h2><span class="tile-icon">&#9200;</span>Timezone Settings</h2>
-                                <p class="tile-description">Set the timezone for displaying time entries in reports and notifications.</p>
+                                <p class="tile-description">Set the timezone for displaying time entries in reports and
+                                    notifications.</p>
 
                                 <select id="timezone-select" class="timezone-select">
                                     <option value="America/New_York">Eastern Time (US & Canada)</option>
@@ -1286,10 +1455,12 @@
 
                                 <button id="save-timezone-btn" class="save-btn">Save Timezone</button>
                             </div>
-                            
+
                             <div class="tile">
                                 <h2><span class="tile-icon">&#128227;</span>Announcement Channel</h2>
-                                <p class="tile-description">Choose where the bot sends announcements and broadcasts. If not set, it will use the system channel or find the first available text channel.</p>
+                                <p class="tile-description">Choose where the bot sends announcements and broadcasts. If
+                                    not set, it will use the system channel or find the first available text channel.
+                                </p>
 
                                 <select id="broadcast-channel-select" class="timezone-select">
                                     <option value="">Use default (system channel)</option>
@@ -1301,7 +1472,7 @@
 
                         <!-- Action Buttons -->
                         <div class="action-buttons-container">
-                            
+
                             <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                                 class="btn support-button">
                                 <span>✉️</span>
@@ -1349,7 +1520,7 @@
 
                 <!-- Action Buttons -->
                 <div class="action-buttons-container">
-                    
+
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
                         <span>✉️</span>
@@ -1364,7 +1535,7 @@
                     <h1 class="content-title">⏰ On the Clock</h1>
                     <p class="content-subtitle">See who's currently working</p>
                 </div>
-                
+
                 <!-- Currently Clocked In Co-workers -->
                 <div class="tile" style="margin-bottom: 24px;">
                     <h2><span class="tile-icon">👥</span> Co-workers Currently Working</h2>
@@ -1372,11 +1543,12 @@
                         <div class="empty-state">Loading...</div>
                     </div>
                 </div>
-                
+
                 <!-- My Contact Info -->
                 <div class="tile">
                     <h2><span class="tile-icon">📇</span> My Contact Card</h2>
-                    <p style="color: #8B949E; font-size: 13px; margin-bottom: 16px;">This information is visible to your employer</p>
+                    <p style="color: #8B949E; font-size: 13px; margin-bottom: 16px;">This information is visible to your
+                        employer</p>
                     <div id="my-contact-form">
                         <div class="empty-state" style="color: #8B949E;">Contact card feature coming soon</div>
                     </div>
@@ -1384,7 +1556,7 @@
 
                 <!-- Action Buttons -->
                 <div class="action-buttons-container">
-                    
+
                     <a href="mailto:hypnotikotc@gmail.com?subject=On%20the%20Clock%20-%20App%20Ideas%20%26%20Requests"
                         class="btn support-button">
                         <span>✉️</span>
@@ -1403,38 +1575,53 @@
 
                 <!-- Calendar View - adapts based on role -->
                 <div class="tile" id="adjustments-calendar-container" style="margin-bottom: 30px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <!-- For admin: "Pending Requests Calendar", for employee: "My Work Calendar" -->
-                        <h2 id="calendar-title"><span class="tile-icon">&#128197;</span><span id="calendar-title-text">My Work Calendar</span></h2>
+                        <h2 id="calendar-title"><span class="tile-icon">&#128197;</span><span
+                                id="calendar-title-text">My Work Calendar</span></h2>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <button id="calendar-prev-month" class="calendar-nav-btn" title="Previous Month">&larr; Prev</button>
-                            <span id="calendar-month-year" style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
-                            <button id="calendar-next-month" class="calendar-nav-btn" title="Next Month">Next &rarr;</button>
+                            <button id="calendar-prev-month" class="calendar-nav-btn" title="Previous Month">&larr;
+                                Prev</button>
+                            <span id="calendar-month-year"
+                                style="color: #D4AF37; font-weight: 600; min-width: 150px; text-align: center;">Loading...</span>
+                            <button id="calendar-next-month" class="calendar-nav-btn" title="Next Month">Next
+                                &rarr;</button>
                         </div>
                     </div>
-                    
+
                     <!-- Employee: Active session alert with Clock Out button -->
-                    <div id="active-session-alert" style="display: none; margin-bottom: 20px; padding: 15px; background: rgba(245, 158, 11, 0.15); border: 1px solid #F59E0B; border-radius: 8px;">
+                    <div id="active-session-alert"
+                        style="display: none; margin-bottom: 20px; padding: 15px; background: rgba(245, 158, 11, 0.15); border: 1px solid #F59E0B; border-radius: 8px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <span style="color: #F59E0B; font-weight: 600;">&#9888; You are currently clocked in</span>
-                                <div id="active-session-time" style="color: #8B949E; font-size: 13px; margin-top: 4px;">Since: --:--</div>
+                                <span style="color: #F59E0B; font-weight: 600;">&#9888; You are currently clocked
+                                    in</span>
+                                <div id="active-session-time" style="color: #8B949E; font-size: 13px; margin-top: 4px;">
+                                    Since: --:--</div>
                             </div>
-                            <button id="clock-out-now-btn" class="btn-warning" style="padding: 8px 16px; background: #F59E0B; color: #0A0F1F; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Clock Out Now</button>
+                            <button id="clock-out-now-btn" class="btn-warning"
+                                style="padding: 8px 16px; background: #F59E0B; color: #0A0F1F; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Clock
+                                Out Now</button>
                         </div>
                     </div>
-                    
+
                     <div id="calendar-grid" class="calendar-grid">
-                        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">Loading calendar...</div>
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8B949E;">Loading
+                            calendar...</div>
                     </div>
-                    <div id="calendar-help-text" style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
-                        <div style="font-size: 13px; color: #C9D1D9;"><strong>&#128161; How to use:</strong> <span id="calendar-help-content">Click on any day with work sessions to view details.</span></div>
+                    <div id="calendar-help-text"
+                        style="margin-top: 20px; padding: 15px; background: rgba(212, 175, 55, 0.1); border-radius: 8px; border-left: 3px solid #D4AF37;">
+                        <div style="font-size: 13px; color: #C9D1D9;"><strong>&#128161; How to use:</strong> <span
+                                id="calendar-help-content">Click on any day with work sessions to view details.</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Pending Requests Section (shown for both, but content differs) -->
                 <div id="pending-requests-section" style="margin-top: 30px;">
-                    <h2 style="color: #D4AF37; margin-bottom: 20px;">&#128276; <span id="pending-section-title">Pending Requests</span></h2>
+                    <h2 style="color: #D4AF37; margin-bottom: 20px;">&#128276; <span id="pending-section-title">Pending
+                            Requests</span></h2>
                     <p id="pending-section-desc" style="color: #8B949E; font-size: 13px; margin-bottom: 15px;"></p>
                     <div id="pending-adjustments-list">
                         <div class="empty-state">Loading...</div>
@@ -1443,9 +1630,12 @@
 
                 <!-- Past Requests Section (collapsible) -->
                 <div id="past-requests-section" style="margin-top: 30px;">
-                    <div id="past-requests-header" style="cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="togglePastRequests()">
+                    <div id="past-requests-header"
+                        style="cursor: pointer; display: flex; align-items: center; gap: 10px;"
+                        onclick="togglePastRequests()">
                         <span id="past-requests-toggle" style="transition: transform 0.2s;">&#9654;</span>
-                        <h2 style="color: #8B949E; margin: 0;">&#128196; Past Requests <span id="past-requests-count" style="font-size: 14px; opacity: 0.7;">(0)</span></h2>
+                        <h2 style="color: #8B949E; margin: 0;">&#128196; Past Requests <span id="past-requests-count"
+                                style="font-size: 14px; opacity: 0.7;">(0)</span></h2>
                     </div>
                     <div id="past-requests-content" style="display: none; margin-top: 15px;">
                         <div id="past-adjustments-list">
@@ -1465,88 +1655,88 @@
     </div>
 
     <!-- Employee Detail Modal -->
-        <div id="employee-detail-overlay" class="employee-detail-overlay" style="display: none;">
-            <div class="employee-detail-modal manila-folder">
-                <div class="folder-tab">EMPLOYEE FILE</div>
-                <button class="modal-close-btn" onclick="closeEmployeeDetailView()">✕</button>
+    <div id="employee-detail-overlay" class="employee-detail-overlay" style="display: none;">
+        <div class="employee-detail-modal manila-folder">
+            <div class="folder-tab">EMPLOYEE FILE</div>
+            <button class="modal-close-btn" onclick="closeEmployeeDetailView()">✕</button>
 
-                <div class="employee-detail-header">
-                    <div class="employee-avatar-large" id="detail-avatar">&#63;</div>
-                    <div class="employee-info">
-                        <h2 id="detail-name">Loading...</h2>
-                        <div id="detail-status">Status: Loading...</div>
-                    </div>
-                </div>
-
-                <div class="employee-detail-content">
-                    <!-- Weekly Timecard -->
-                    <section class="detail-section">
-                        <h3>📅 Weekly Timecard</h3>
-                        <div id="weekly-timecard-grid" class="timecard-grid">
-                            <!-- Populated by JS -->
-                        </div>
-                    </section>
-
-                    <!-- Recent Requests -->
-                    <section class="detail-section">
-                        <h3>📝 Recent Adjustment Requests</h3>
-                        <div id="recent-requests-list">
-                            <!-- Populated by JS -->
-                        </div>
-                    </section>
+            <div class="employee-detail-header">
+                <div class="employee-avatar-large" id="detail-avatar">&#63;</div>
+                <div class="employee-info">
+                    <h2 id="detail-name">Loading...</h2>
+                    <div id="detail-status">Status: Loading...</div>
                 </div>
             </div>
+
+            <div class="employee-detail-content">
+                <!-- Weekly Timecard -->
+                <section class="detail-section">
+                    <h3>📅 Weekly Timecard</h3>
+                    <div id="weekly-timecard-grid" class="timecard-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </section>
+
+                <!-- Recent Requests -->
+                <section class="detail-section">
+                    <h3>📝 Recent Adjustment Requests</h3>
+                    <div id="recent-requests-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </section>
+            </div>
         </div>
+    </div>
 
-        <!-- Matrix Animation Script -->
-        <script src="/static/js/dashboard-matrix.js"></script>
-        <!-- Dashboard Roles -->
-        <script src="/static/js/dashboard-roles.js"></script>
+    <!-- Matrix Animation Script -->
+    <script src="/static/js/dashboard-matrix.js"></script>
+    <!-- Dashboard Roles -->
+    <script src="/static/js/dashboard-roles.js"></script>
 
-        <!-- Dashboard Core Logic -->
-        <script src="/static/js/dashboard-core.js"></script>
-        <!-- Dashboard Adjustments Calendar -->
-        <script src="/static/js/dashboard-adjustments.js"></script>
+    <!-- Dashboard Core Logic -->
+    <script src="/static/js/dashboard-core.js"></script>
+    <!-- Dashboard Adjustments Calendar -->
+    <script src="/static/js/dashboard-adjustments.js"></script>
 
-        <!-- Calendar Initialization -->
-        <script>
-            // Initialize calendar when adjustments section is active
-            const currentGuildId = document.getElementById('guild-selector')?.value;
-            const currentUserId = '{{ user.user_id }}';
-            
-            if (currentGuildId && currentUserId) {
-                // Wait for calendar script to load, then initialize
-                setTimeout(() => {
-                    if (typeof initializeAdjustmentsCalendar === 'function') {
-                        initializeAdjustmentsCalendar(currentGuildId, currentUserId);
-                    }
-                }, 500);
-            }
-        </script>
+    <!-- Calendar Initialization -->
+    <script>
+        // Initialize calendar when adjustments section is active
+        const currentGuildId = document.getElementById('guild-selector')?.value;
+        const currentUserId = '{{ user.user_id }}';
+
+        if (currentGuildId && currentUserId) {
+            // Wait for calendar script to load, then initialize
+            setTimeout(() => {
+                if (typeof initializeAdjustmentsCalendar === 'function') {
+                    initializeAdjustmentsCalendar(currentGuildId, currentUserId);
+                }
+            }, 500);
+        }
+    </script>
 
     <!-- Sidebar Toggle Script (mobile/tablet support) -->
     <script>
-        (function() {
+        (function () {
             const sidebar = document.getElementById('sidebar');
             const mobileOverlay = document.getElementById('mobileOverlay');
             const mobileHamburger = document.getElementById('mobileHamburger');
-            
+
             function isMobile() {
                 return window.innerWidth <= 1024;
             }
-            
+
             function openSidebar() {
                 document.body.classList.add('sidebar-open');
                 sidebar.classList.remove('mobile-hidden');
                 document.body.style.overflow = 'hidden';
             }
-            
+
             function closeSidebar() {
                 document.body.classList.remove('sidebar-open');
                 sidebar.classList.add('mobile-hidden');
                 document.body.style.overflow = '';
             }
-            
+
             function initSidebarState() {
                 document.body.classList.remove('sidebar-open');
                 document.body.style.overflow = '';
@@ -1556,11 +1746,11 @@
                     sidebar.classList.remove('mobile-hidden');
                 }
             }
-            
+
             initSidebarState();
-            
+
             if (mobileHamburger) {
-                mobileHamburger.addEventListener('click', function(e) {
+                mobileHamburger.addEventListener('click', function (e) {
                     e.stopPropagation();
                     if (sidebar.classList.contains('mobile-hidden')) {
                         openSidebar();
@@ -1571,24 +1761,24 @@
             }
 
             if (mobileOverlay) {
-                mobileOverlay.addEventListener('click', function() {
+                mobileOverlay.addEventListener('click', function () {
                     closeSidebar();
                 });
             }
 
             const navLinks = sidebar.querySelectorAll('.nav-item, .back-to-servers');
             navLinks.forEach(link => {
-                link.addEventListener('click', function() {
+                link.addEventListener('click', function () {
                     if (isMobile()) {
                         closeSidebar();
                     }
                 });
             });
-            
+
             let resizeTimer;
-            window.addEventListener('resize', function() {
+            window.addEventListener('resize', function () {
                 clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(function() {
+                resizeTimer = setTimeout(function () {
                     document.body.classList.remove('sidebar-open');
                     document.body.style.overflow = '';
                     if (!isMobile()) {
@@ -1630,7 +1820,7 @@
         // Allow Enter key to submit
         const ownerInput = document.getElementById('owner-guild-id-input');
         if (ownerInput) {
-            ownerInput.addEventListener('keypress', function(e) {
+            ownerInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') {
                     goToOwnerKiosk();
                 }
