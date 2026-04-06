@@ -463,11 +463,12 @@ def require_paid_access(f):
             # Log the check for debugging
             app.logger.info(f"Real-time admin check for user {user_session.get('username')} in guild {guild_id}: is_member={is_member}, is_admin={is_admin}, reason={reason}")
             
-            # Fail closed on bot API errors
+            # Graceful fallback on bot API errors — preserve session, redirect to dashboard with error
+            # Do NOT clear session here — that triggers a full Discord OAuth re-login loop
             if reason in ['api_secret_missing', 'bot_api_error', 'check_error']:
-                app.logger.error(f"Bot API check failed for user {user_session.get('username')} in guild {guild_id}, denying access (fail closed)")
-                session.clear()
-                return redirect('/auth/login?error=api_check_failed')
+                app.logger.error(f"Bot API check failed for user {user_session.get('username')} in guild {guild_id}, returning to dashboard (session preserved)")
+                return redirect(f'/dashboard?error=api_unavailable&guild_id={guild_id}')
+
             
             # Validate access requirements
             if not access_status['bot_invited']:
