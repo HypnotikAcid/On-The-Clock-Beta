@@ -14,6 +14,7 @@ from app import (
 )
 from web.utils.auth import get_bot_api_headers
 from web.utils.db import get_db
+from entitlements import UserTier
 
 api_server_bp = Blueprint('api_server', __name__)
 @api_server_bp.route("/api/server/<guild_id>/admin-roles/add", methods=["POST"])
