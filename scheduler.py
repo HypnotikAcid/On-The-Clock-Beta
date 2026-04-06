@@ -533,7 +533,7 @@ async def run_discord_auto_prune():
 
 async def reset_demo_data_job():
     """Job to reset demo server data by calling the internal seeding function."""
-    logger.info("🔄 Running scheduled demo data reset...")
+    logger.info("[SYNC] Running scheduled demo data reset...")
     try:
         from app import seed_demo_data_internal
         success = seed_demo_data_internal()

@@ -474,8 +474,9 @@ def require_paid_access(f):
                 app.logger.info(f"Bot not invited to guild {guild_id}, redirecting to invite page")
                 return redirect(f'/dashboard/invite?guild_id={guild_id}')
             
-            if not access_status['bot_access_paid']:
-                app.logger.info(f"Guild {guild_id} does not have paid access, redirecting to purchase page")
+            flask_access = get_flask_guild_access(guild_id)
+            if not flask_access['is_exempt'] and flask_access['tier'] == 'free' and not flask_access['trial_active']:
+                app.logger.info(f"Guild {guild_id} has no active trial or subscription, redirecting to purchase page")
                 return redirect(f'/dashboard/purchase?guild_id={guild_id}')
             
             # Check guild membership (real-time from bot)
@@ -551,11 +552,12 @@ def require_paid_api_access(f):
                     'redirect': f'/dashboard/invite?guild_id={guild_id}'
                 }), 403
             
-            if not access_status['bot_access_paid']:
+            flask_access = get_flask_guild_access(guild_id)
+            if not flask_access['is_exempt'] and flask_access['tier'] == 'free' and not flask_access['trial_active']:
                 return jsonify({
                     'success': False,
-                    'error': 'Server does not have paid bot access',
-                    'code': 'NO_PAID_ACCESS',
+                    'error': 'Your 30-day free trial has expired. Upgrade to Premium to continue.',
+                    'code': 'TRIAL_EXPIRED',
                     'redirect': f'/dashboard/purchase?guild_id={guild_id}'
                 }), 403
             

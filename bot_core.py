@@ -1306,7 +1306,7 @@ def cleanup_old_sessions(guild_id: Optional[int] = None) -> int:
             
         except psycopg2.OperationalError as e:
             if "database is locked" in str(e) and attempt < max_retries - 1:
-                print(f"🔄 Database locked, retrying cleanup attempt {attempt + 1}/{max_retries}")
+                print(f"[SYNC] Database locked, retrying cleanup attempt {attempt + 1}/{max_retries}")
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
                 continue
             else:
@@ -1339,7 +1339,7 @@ def cleanup_user_sessions(guild_id: int, user_id: int) -> int:
             
         except psycopg2.OperationalError as e:
             if "database is locked" in str(e) and attempt < max_retries - 1:
-                print(f"🔄 Database locked, retrying user cleanup attempt {attempt + 1}/{max_retries}")
+                print(f"[SYNC] Database locked, retrying user cleanup attempt {attempt + 1}/{max_retries}")
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
                 continue
             else:
@@ -4524,7 +4524,7 @@ async def on_ready():
 
                 # If guild sync fails, try global
                 if synced_count == 0:
-                    print("🔄 Guild sync returned 0 commands, trying global sync...")
+                    print("[SYNC] Guild sync returned 0 commands, trying global sync...")
                     synced = await tree.sync()
                     synced_count = len(synced)
                     sync_location = "globally (after guild failed)"
@@ -4532,7 +4532,7 @@ async def on_ready():
 
             except Exception as guild_error:
                 print(f"❌ Guild sync failed: {guild_error}")
-                print("🔄 Trying global sync as fallback...")
+                print("[SYNC] Trying global sync as fallback...")
                 # Fallback to global sync
                 synced = await tree.sync()
                 synced_count = len(synced)
@@ -4592,7 +4592,7 @@ async def on_ready():
         print(f"❌ Error backfilling trial start dates: {e}")
 
     # --- Employee Profile Catch-up ---
-    print("🔄 Running employee profile catch-up...")
+    print("[SYNC] Running employee profile catch-up...")
     try:
         with db() as conn:
             for guild in bot.guilds:

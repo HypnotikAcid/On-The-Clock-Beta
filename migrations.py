@@ -7,7 +7,7 @@ from contextlib import contextmanager
 def db_connection():
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
-        print("⚠️ DATABASE_URL not set, skipping migrations")
+        print("[WARN] DATABASE_URL not set, skipping migrations")
         return
 
     conn = psycopg2.connect(database_url)
@@ -31,7 +31,7 @@ def run_migrations():
     if _migrations_run:
         return True
     
-    print("🔄 Checking database schema...")
+    print("[SYNC] Checking database schema...")
     
     try:
         with db_connection() as conn:
@@ -645,11 +645,11 @@ def run_migrations():
                 """)
 
         _migrations_run = True
-        print("✅ Database schema is up to date")
+        print("[OK] Database schema is up to date")
         return True
 
     except Exception as e:
-        print(f"❌ Migration failed: {e}")
+        print(f"[FAIL] Migration failed: {e}")
         # Don't crash the app, but log the error clearly
         return False
 
