@@ -14,7 +14,7 @@
 
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #0A0F1F;
+            background: transparent;
             color: #C9D1D9;
             min-height: 100vh;
             padding: 0;
@@ -25,7 +25,9 @@
         /* Sidebar Navigation */
         .owner-sidebar {
             width: 280px;
-            background: rgba(15, 20, 35, 0.95);
+            background: rgba(10, 15, 31, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             border-right: 1px solid rgba(0, 255, 255, 0.1);
             display: flex;
             flex-direction: column;
@@ -119,8 +121,9 @@
             height: 100vh;
             overflow-y: auto;
             padding: 40px;
-            background: radial-gradient(circle at top right, rgba(138, 43, 226, 0.05), transparent 40%),
-                radial-gradient(circle at bottom left, rgba(0, 255, 255, 0.05), transparent 40%);
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
         }
 
         .tab-pane {
@@ -1074,7 +1077,12 @@
     </style>
 </head>
 
-<body>
+<body data-user-id="{{ user_session.user_id if user_session else '' }}">
+    <!-- Neon Cyber Matrix Background -->
+    <div id="matrix-container" aria-hidden="true" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;">
+        <canvas id="matrix-canvas"></canvas>
+        <div class="clock-fade-mask" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, transparent 0%, #0a0a12 80%);"></div>
+    </div>
     <!-- SIDEBAR -->
     <nav class="owner-sidebar">
         <div class="sidebar-brand">
@@ -1633,32 +1641,7 @@
                 </div>
             </div>
 
-            <!-- FEATURE FLAGS PANEL -->
-            <div class="neon-box" style="margin-top: 24px;">
-                <div class="box-title"><span>🧪</span> Feature Flags</div>
-                <div class="collapsible-content" style="padding: 0;">
-                    <p style="color: #8B949E; margin-bottom: 20px;">Toggle experimental features globally.</p>
-                    
-                    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(30,35,45,0.4); border-radius: 8px;">
-                        <div>
-                            <strong style="color: #C9D1D9;">V2 UI (Neon Cyber)</strong>
-                            <p style="color: #8B949E; font-size: 12px; margin-top: 4px;">Enable the new user interface redesign across Landing, Dashboard, and Kiosk.</p>
-                        </div>
-                        
-                        <!-- Toggle Switch -->
-                        <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 24px;">
-                            <input type="checkbox" id="v2UiToggle" onchange="toggleFeatureFlag('v2_ui', this.checked)" {% if feature_flags and feature_flags.get('v2_ui') %}checked{% endif %} style="opacity: 0; width: 0; height: 0;">
-                            <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,107,107,0.3); transition: .4s; border-radius: 34px; border: 1px solid rgba(255,107,107,0.5);"></span>
-                        </label>
-                        <style>
-                            .switch input:checked + .slider { background-color: rgba(52,211,153,0.3); border-color: rgba(52,211,153,0.5); }
-                            .switch input:focus + .slider { box-shadow: 0 0 1px rgba(52,211,153,0.5); }
-                            .switch input + .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 3px; background-color: #C9D1D9; transition: .4s; border-radius: 50%; }
-                            .switch input:checked + .slider:before { transform: translateX(24px); background-color: #34D399; }
-                        </style>
-                    </div>
-                </div>
-            </div>
+            
 
         </div>
 
@@ -2977,6 +2960,7 @@
             }
         }
     </script>
+    <script src="/static/js/dashboard-matrix.js"></script>
 </body>
 
 </html>

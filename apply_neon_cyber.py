@@ -1,11 +1,9 @@
 import re
-import os
 
 file_path = 'templates/owner_dashboard.html'
 with open(file_path, 'r', encoding='utf-8') as f:
     content = f.read()
 
-# 1. Body background transparent
 content = re.sub(
     r'(body\s*\{[^}]*?)background:\s*#0A0F1F;',
     r'\1background: transparent;',
@@ -13,7 +11,6 @@ content = re.sub(
     flags=re.DOTALL
 )
 
-# 2. Main content background frosted
 content = re.sub(
     r'(\.main-content\s*\{[^}]*?)background:\s*radial-gradient[^\;]+;',
     r'\1background: rgba(0, 0, 0, 0.2);\n            backdrop-filter: blur(5px);\n            -webkit-backdrop-filter: blur(5px);',
@@ -21,7 +18,6 @@ content = re.sub(
     flags=re.DOTALL
 )
 
-# 3. Sidebar background frosted
 content = re.sub(
     r'(\.owner-sidebar\s*\{[^}]*?)background:\s*rgba\(15, 20, 35, 0\.95\);',
     r'\1background: rgba(10, 15, 31, 0.7);\n            backdrop-filter: blur(15px);\n            -webkit-backdrop-filter: blur(15px);',
@@ -29,7 +25,6 @@ content = re.sub(
     flags=re.DOTALL
 )
 
-# 4. Inject Matrix background after <body
 matrix_html = '''<body data-user-id="{{ user_session.user_id if user_session else '' }}">
     <!-- Neon Cyber Matrix Background -->
     <div id="matrix-container" aria-hidden="true" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;">
@@ -38,14 +33,12 @@ matrix_html = '''<body data-user-id="{{ user_session.user_id if user_session els
     </div>'''
 content = re.sub(r'<body[^>]*>', matrix_html, content, count=1)
 
-# 5. Inject Matrix JS before </body>
 js_html = '''    <script src="/static/js/dashboard-matrix.js"></script>\n</body>'''
 content = content.replace('</body>', js_html)
 
-# 6. Remove the Feature Flags Panel entirely
 feature_flag_pattern = r'<!-- FEATURE FLAGS PANEL -->.*?</div>\s*</div>\s*</div>'
 content = re.sub(feature_flag_pattern, '', content, flags=re.DOTALL)
 
-with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
+with open(file_path, 'w', encoding='utf-8') as f:
     f.write(content)
 print("owner_dashboard.html successfully overhauled with Neon Cyber UI.")
