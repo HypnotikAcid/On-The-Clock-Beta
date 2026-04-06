@@ -41,14 +41,14 @@ const DashboardTour = {
         },
         {
             page: 'adjustments',
-            target: '.tabs',
+            target: '.content-header',
             title: '3. Time Adjustments',
             content: 'When employees forget to clock out, they request adjustments. You approve or deny them here.',
             position: 'bottom',
             preview: 'adjustments'
         },
         {
-            page: 'email',
+            page: 'integrations',
             target: '.content-header',
             title: '4. Shift Reports',
             content: 'Configure daily and weekly automatic email reports so you never have to log in to check hours.',
@@ -63,11 +63,11 @@ const DashboardTour = {
             dynamicFeature: 'payroll' // Used to alter text based on tier
         },
         {
-            page: 'kiosk',
-            target: '.content-header',
+            page: '',
+            target: '#kiosk-access-tile',
             title: '6. Tablet Kiosk Mode',
             content: 'Mount an iPad at your workplace! Employees can clock in using a 4-digit PIN instead of Discord.',
-            position: 'bottom',
+            position: 'top',
             dynamicFeature: 'kiosk' // Used to alter text based on tier
         }
     ],
@@ -181,21 +181,9 @@ const DashboardTour = {
     },
 
     checkAutoStart() {
-        if (!this.guildId) return;
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const viewAs = urlParams.get('view_as');
-        const detectedRole = viewAs || (window.location.pathname.includes('/server/') ? 'admin' : null);
-
-        if (detectedRole && !localStorage.getItem(this.keys[detectedRole])) {
-            if (localStorage.getItem('tourCompleted')) {
-                localStorage.setItem(this.keys.admin, 'true');
-                localStorage.setItem(this.keys.employee, 'true');
-                localStorage.removeItem('tourCompleted');
-                return;
-            }
-            setTimeout(() => this.start(detectedRole), 1500);
-        }
+        // Disabled for modern SaaS UX: We no longer force users into dark-overlay tours.
+        // The tour must now be manually triggered via direct user action.
+        return;
     },
 
     createElements() {
@@ -320,6 +308,19 @@ const DashboardTour = {
         if (!this.isOnCorrectPage(step.page)) {
             const targetUrl = this.getPageUrl(step.page);
             if (targetUrl) {
+                // --- Redirect Loop Circuit Breaker ---
+                // If we tried to go to this URL on the last execution, but the server bumped us back here
+                // (e.g. lack of admin permissions, tier gating), stop the tour to prevent a permanent loop.
+                const lastRedirect = sessionStorage.getItem('tour_last_redirect');
+                if (lastRedirect === targetUrl) {
+                    console.error('Tour Error: Infinite redirect loop detected. Server rejected tour navigation.');
+                    sessionStorage.removeItem('tour_last_redirect');
+                    this.clearState();
+                    this.end();
+                    return;
+                }
+                sessionStorage.setItem('tour_last_redirect', targetUrl);
+
                 this.saveState();
                 window.location.href = targetUrl;
                 return;
@@ -330,11 +331,14 @@ const DashboardTour = {
             }
         }
 
+        // Successfully landed on the target page, clear the redirect lock
+        sessionStorage.removeItem('tour_last_redirect');
+
         this.waitForElement(step.target, (target) => {
             if (!target) {
-                this.currentStep++;
-                this.saveState();
-                return this.showStep();
+                console.warn(`Tour Step Missing: Could not find target '${step.target}' on page '${step.page}'`);
+                this.end(); // Stop safely. Do NOT blindly increment and recursive-redirect.
+                return;
             }
 
             target.scrollIntoView({ behavior: 'smooth', block: 'center' });
