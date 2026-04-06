@@ -115,325 +115,335 @@
             }
         </style>
 
-        <button onclick="dismissSetupWidget()" class="btn-secondary"
-            style="width: 100%; margin-top: 20px; font-size: 0.85rem; background: transparent; border: 1px dashed rgba(255,255,255,0.2); transition: background 0.2s;">Dismiss
-            Checklist (I know what I'm doing)</button>
-    </div>
-    {% endif %}
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button onclick="DashboardTour.start('admin')" class="btn-primary hover-glow"
+                style="flex: 1; padding: 10px 15px; border-radius: 8px; font-weight: bold; background: linear-gradient(135deg, rgba(0,255,255,0.1), rgba(0,153,255,0.1)); border: 1px solid rgba(0,255,255,0.5); color: #00FFFF; cursor: pointer;">
+                <span style="font-size: 1.1rem; margin-right: 5px; vertical-align: middle;">🗺️</span> Take the Guided
+                Tour
+            </button>
+            <button onclick="dismissSetupWidget()" class="btn-secondary"
+                style="flex: 1; font-size: 0.85rem; padding: 10px; background: transparent; border: 1px dashed rgba(255,255,255,0.2); transition: background 0.2s; cursor: pointer;">
+                Dismiss Checklist
+            </button>
+        </div>
+        {% endif %}
 
-    <div class="tile" id="subscription-tile">
-        <h2><span class="tile-icon">💎</span>Subscription Status</h2>
-        <div class="stat-row">
-            <span class="stat-label">Tier:</span>
-            <span class="stat-value" id="tier-status">Loading...</span>
+        <div class="tile" id="subscription-tile">
+            <h2><span class="tile-icon">💎</span>Subscription Status</h2>
+            <div class="stat-row">
+                <span class="stat-label">Tier:</span>
+                <span class="stat-value" id="tier-status">Loading...</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Dashboard Access:</span>
+                <span class="stat-value" id="dashboard-access">Loading...</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Data Retention:</span>
+                <span class="stat-value" id="retention-days">Loading...</span>
+            </div>
+            <div class="stat-row" id="cancellation-warning-row" style="display: none;">
+                <span class="stat-label">Status:</span>
+                <span class="stat-value" id="cancellation-warning" style="color: #ef4444; font-weight: bold;">Canceling
+                    on
+                    period end</span>
+            </div>
+            <div id="subscription-actions" style="margin-top: 15px; display: none;">
+                <!-- Buttons injected here by JS -->
+            </div>
         </div>
-        <div class="stat-row">
-            <span class="stat-label">Dashboard Access:</span>
-            <span class="stat-value" id="dashboard-access">Loading...</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Data Retention:</span>
-            <span class="stat-value" id="retention-days">Loading...</span>
-        </div>
-        <div class="stat-row" id="cancellation-warning-row" style="display: none;">
-            <span class="stat-label">Status:</span>
-            <span class="stat-value" id="cancellation-warning" style="color: #ef4444; font-weight: bold;">Canceling on
-                period end</span>
-        </div>
-        <div id="subscription-actions" style="margin-top: 15px; display: none;">
-            <!-- Buttons injected here by JS -->
-        </div>
-    </div>
 
-    <div class="tile" id="kiosk-access-tile">
-        <h2><span class="tile-icon">🖥️</span>Kiosk Access</h2>
-        <p class="tile-description">Tablet-friendly clock-in station.</p>
-        {% if server_settings.tier in ['pro', 'premium', 'grandfathered'] or is_demo_server %}
-        <a href="/kiosk/{{ server.id }}" target="_blank" class="btn btn-primary"
-            style="display: block; text-align: center; margin-top: 15px; text-decoration: none;">Launch Kiosk 🚀</a>
-        {% else %}
-        <a href="/dashboard/purchase?guild_id={{ server.id }}" class="btn btn-secondary"
-            style="display: block; text-align: center; margin-top: 15px; text-decoration: none; opacity: 0.7;"
-            title="Requires Pro Tier">Launch Kiosk 🔒</a>
+        <div class="tile" id="kiosk-access-tile">
+            <h2><span class="tile-icon">🖥️</span>Kiosk Access</h2>
+            <p class="tile-description">Tablet-friendly clock-in station.</p>
+            {% if server_settings.tier in ['pro', 'premium', 'grandfathered'] or is_demo_server %}
+            <a href="/kiosk/{{ server.id }}" target="_blank" class="btn btn-primary"
+                style="display: block; text-align: center; margin-top: 15px; text-decoration: none;">Launch Kiosk 🚀</a>
+            {% else %}
+            <a href="/dashboard/purchase?guild_id={{ server.id }}" class="btn btn-secondary"
+                style="display: block; text-align: center; margin-top: 15px; text-decoration: none; opacity: 0.7;"
+                title="Requires Pro Tier">Launch Kiosk 🔒</a>
+            {% endif %}
+        </div>
+
+        <div class="tile" id="quick-stats-tile">
+            <h2><span class="tile-icon">📊</span>Quick Stats</h2>
+            <div class="stat-row">
+                <span class="stat-label">Active Employees:</span>
+                <span class="stat-value" id="employee-count">Loading...</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Currently Clocked In:</span>
+                <span class="stat-value" id="clocked-in-count">Loading...</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Pending Adjustments:</span>
+                <span class="stat-value" id="pending-adjustments">{{ pending_adjustments }}</span>
+            </div>
+        </div>
+
+        <div class="tile" id="system-health-tile"
+            style="border: 1px solid {% if error_count > 0 %}rgba(239,68,68,0.3){% else %}rgba(16,185,129,0.2){% endif %};">
+            <h2><span class="tile-icon">🩺</span>System Health</h2>
+            <div class="stat-row">
+                <span class="stat-label">Unresolved Errors:</span>
+                <span class="stat-value"
+                    style="color: {% if error_count > 0 %}#ef4444{% else %}#10B981{% endif %}; font-weight: bold;">{{
+                    error_count }}</span>
+            </div>
+            {% if error_count > 0 %}
+            <a href="#" class="tile-link" style="color: #ef4444; margin-top: 10px; display: inline-block;">Resolve
+                Errors
+                &rarr;</a>
+            {% else %}
+            <p class="tile-description" style="color: #10B981; font-size: 0.85rem; margin-top: 10px;">All systems
+                operational.</p>
+            {% endif %}
+        </div>
+
+        <div class="tile" id="data-pruning-tile">
+            <h2><span class="tile-icon">🧹</span>Auto-Pruning</h2>
+            <div class="stat-row">
+                <span class="stat-label">Shift Logs:</span>
+                <span class="stat-value" id="prune-logs-status">Loading...</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Generated Reports:</span>
+                <span class="stat-value" id="prune-reports-status">Loading...</span>
+            </div>
+            <a href="/dashboard/server/{{ server.id }}/integrations" class="tile-link"
+                style="margin-top: 10px; display: inline-block;">Configure Pruning &rarr;</a>
+        </div>
+
+        {% if user_role == 'admin' %}
+        <div class="tile" id="admin-roles-tile">
+            <h2><span class="tile-icon">👥</span>Admin Roles</h2>
+            <p class="tile-description">Manage who has admin access</p>
+            <div id="admin-roles-preview">Loading...</div>
+            <a href="/dashboard/server/{{ server.id }}/admin-roles" class="tile-link">Manage Admin Roles &rarr;</a>
+        </div>
+
+        <div class="tile" id="employee-roles-tile">
+            <h2><span class="tile-icon">👷</span>Employee Roles</h2>
+            <p class="tile-description">Manage employee role access</p>
+            <div id="employee-roles-preview">Loading...</div>
+            <a href="/dashboard/server/{{ server.id }}/employee-roles" class="tile-link">Manage Employee Roles
+                &rarr;</a>
+        </div>
         {% endif %}
     </div>
+    {% endblock %}
 
-    <div class="tile" id="quick-stats-tile">
-        <h2><span class="tile-icon">📊</span>Quick Stats</h2>
-        <div class="stat-row">
-            <span class="stat-label">Active Employees:</span>
-            <span class="stat-value" id="employee-count">Loading...</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Currently Clocked In:</span>
-            <span class="stat-value" id="clocked-in-count">Loading...</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Pending Adjustments:</span>
-            <span class="stat-value" id="pending-adjustments">{{ pending_adjustments }}</span>
-        </div>
-    </div>
+    {% block page_scripts %}
+    <script>
+        const guildId = '{{ server.id }}';
+        const userRole = '{{ user_role }}';
 
-    <div class="tile" id="system-health-tile"
-        style="border: 1px solid {% if error_count > 0 %}rgba(239,68,68,0.3){% else %}rgba(16,185,129,0.2){% endif %};">
-        <h2><span class="tile-icon">🩺</span>System Health</h2>
-        <div class="stat-row">
-            <span class="stat-label">Unresolved Errors:</span>
-            <span class="stat-value"
-                style="color: {% if error_count > 0 %}#ef4444{% else %}#10B981{% endif %}; font-weight: bold;">{{
-                error_count }}</span>
-        </div>
-        {% if error_count > 0 %}
-        <a href="#" class="tile-link" style="color: #ef4444; margin-top: 10px; display: inline-block;">Resolve Errors
-            &rarr;</a>
-        {% else %}
-        <p class="tile-description" style="color: #10B981; font-size: 0.85rem; margin-top: 10px;">All systems
-            operational.</p>
-        {% endif %}
-    </div>
+        async function loadOverviewData() {
+            try {
+                const response = await fetch(`/api/server/${guildId}/settings`);
+                const data = await response.json();
 
-    <div class="tile" id="data-pruning-tile">
-        <h2><span class="tile-icon">🧹</span>Auto-Pruning</h2>
-        <div class="stat-row">
-            <span class="stat-label">Shift Logs:</span>
-            <span class="stat-value" id="prune-logs-status">Loading...</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Generated Reports:</span>
-            <span class="stat-value" id="prune-reports-status">Loading...</span>
-        </div>
-        <a href="/dashboard/server/{{ server.id }}/integrations" class="tile-link"
-            style="margin-top: 10px; display: inline-block;">Configure Pruning &rarr;</a>
-    </div>
+                if (data.success) {
+                    const settings = data.settings;
 
-    {% if user_role == 'admin' %}
-    <div class="tile" id="admin-roles-tile">
-        <h2><span class="tile-icon">👥</span>Admin Roles</h2>
-        <p class="tile-description">Manage who has admin access</p>
-        <div id="admin-roles-preview">Loading...</div>
-        <a href="/dashboard/server/{{ server.id }}/admin-roles" class="tile-link">Manage Admin Roles &rarr;</a>
-    </div>
+                    const tier = settings.tier || 'free';
+                    const retentionDays = settings.retention_days || 1;
 
-    <div class="tile" id="employee-roles-tile">
-        <h2><span class="tile-icon">👷</span>Employee Roles</h2>
-        <p class="tile-description">Manage employee role access</p>
-        <div id="employee-roles-preview">Loading...</div>
-        <a href="/dashboard/server/{{ server.id }}/employee-roles" class="tile-link">Manage Employee Roles &rarr;</a>
-    </div>
-    {% endif %}
-</div>
-{% endblock %}
+                    const tierLabels = { 'premium': 'Premium', 'pro': 'Pro', 'grandfathered': 'Premium (Legacy)', 'free': 'Free' };
+                    document.getElementById('tier-status').textContent = tierLabels[tier] || tier;
+                    document.getElementById('tier-status').style.color = tier !== 'free' ? '#10B981' : '#8B949E';
 
-{% block page_scripts %}
-<script>
-    const guildId = '{{ server.id }}';
-    const userRole = '{{ user_role }}';
+                    document.getElementById('dashboard-access').textContent = tier !== 'free' ? 'Enabled' : 'Upgrade Required';
+                    document.getElementById('dashboard-access').style.color = tier !== 'free' ? '#10B981' : '#F59E0B';
 
-    async function loadOverviewData() {
-        try {
-            const response = await fetch(`/api/server/${guildId}/settings`);
-            const data = await response.json();
+                    const retentionText = retentionDays >= 30 ? '30 days' : (retentionDays >= 7 ? '7 days' : '24 hours');
+                    document.getElementById('retention-days').textContent = retentionText;
 
-            if (data.success) {
-                const settings = data.settings;
+                    const pruneLogs = settings.auto_prune_logs_days || 0;
+                    const pruneReports = settings.auto_prune_reports_days || 0;
+                    document.getElementById('prune-logs-status').textContent = pruneLogs > 0 ? `Every ${pruneLogs} Days` : 'Disabled';
+                    document.getElementById('prune-reports-status').textContent = pruneReports > 0 ? `Every ${pruneReports} Days` : 'Disabled';
 
-                const tier = settings.tier || 'free';
-                const retentionDays = settings.retention_days || 1;
+                    // Cancellation logic
+                    if (settings.cancel_at_period_end) {
+                        document.getElementById('cancellation-warning-row').style.display = 'flex';
+                        let dateStr = 'period end';
+                        if (settings.current_period_end) {
+                            const date = new Date(settings.current_period_end * 1000);
+                            dateStr = date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                        }
+                        document.getElementById('cancellation-warning').textContent = `Canceling on ${dateStr}`;
 
-                const tierLabels = { 'premium': 'Premium', 'pro': 'Pro', 'grandfathered': 'Premium (Legacy)', 'free': 'Free' };
-                document.getElementById('tier-status').textContent = tierLabels[tier] || tier;
-                document.getElementById('tier-status').style.color = tier !== 'free' ? '#10B981' : '#8B949E';
-
-                document.getElementById('dashboard-access').textContent = tier !== 'free' ? 'Enabled' : 'Upgrade Required';
-                document.getElementById('dashboard-access').style.color = tier !== 'free' ? '#10B981' : '#F59E0B';
-
-                const retentionText = retentionDays >= 30 ? '30 days' : (retentionDays >= 7 ? '7 days' : '24 hours');
-                document.getElementById('retention-days').textContent = retentionText;
-
-                const pruneLogs = settings.auto_prune_logs_days || 0;
-                const pruneReports = settings.auto_prune_reports_days || 0;
-                document.getElementById('prune-logs-status').textContent = pruneLogs > 0 ? `Every ${pruneLogs} Days` : 'Disabled';
-                document.getElementById('prune-reports-status').textContent = pruneReports > 0 ? `Every ${pruneReports} Days` : 'Disabled';
-
-                // Cancellation logic
-                if (settings.cancel_at_period_end) {
-                    document.getElementById('cancellation-warning-row').style.display = 'flex';
-                    let dateStr = 'period end';
-                    if (settings.current_period_end) {
-                        const date = new Date(settings.current_period_end * 1000);
-                        dateStr = date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-                    }
-                    document.getElementById('cancellation-warning').textContent = `Canceling on ${dateStr}`;
-
-                    if (userRole === 'admin') {
-                        document.getElementById('subscription-actions').style.display = 'block';
-                        document.getElementById('subscription-actions').innerHTML = `
+                        if (userRole === 'admin') {
+                            document.getElementById('subscription-actions').style.display = 'block';
+                            document.getElementById('subscription-actions').innerHTML = `
                         <button onclick="resumeSubscription()" class="btn btn-secondary" style="width: 100%; margin-top: 8px;">Resume Subscription</button>
                     `;
-                    }
-                } else if (tier === 'premium' || tier === 'pro') {
-                    document.getElementById('cancellation-warning-row').style.display = 'none';
+                        }
+                    } else if (tier === 'premium' || tier === 'pro') {
+                        document.getElementById('cancellation-warning-row').style.display = 'none';
 
-                    if (userRole === 'admin') {
-                        document.getElementById('subscription-actions').style.display = 'block';
-                        document.getElementById('subscription-actions').innerHTML = `
+                        if (userRole === 'admin') {
+                            document.getElementById('subscription-actions').style.display = 'block';
+                            document.getElementById('subscription-actions').innerHTML = `
                         <button onclick="cancelSubscription()" class="btn" style="width: 100%; margin-top: 8px; background: transparent; border: 1px solid #ef4444; color: #ef4444;">Cancel Subscription</button>
                     `;
+                        }
+                    } else {
+                        document.getElementById('cancellation-warning-row').style.display = 'none';
+                        document.getElementById('subscription-actions').style.display = 'none';
+                    }
+                }
+
+                if (userRole === 'admin') {
+                    const empResponse = await fetch(`/api/server/${guildId}/employees`);
+                    const empData = await empResponse.json();
+
+                    if (empData.success) {
+                        const employees = empData.employees || [];
+                        const activeCount = employees.filter(e => e.is_active).length;
+                        const clockedIn = employees.filter(e => e.is_clocked_in).length;
+
+                        document.getElementById('employee-count').textContent = activeCount;
+                        document.getElementById('clocked-in-count').textContent = clockedIn;
+                        document.getElementById('clocked-in-count').style.color = clockedIn > 0 ? '#10B981' : '#8B949E';
+                    }
+
+                    const rolesResponse = await fetch(`/api/server/${guildId}/roles`);
+                    const rolesData = await rolesResponse.json();
+
+                    if (rolesData.success) {
+                        const adminRoles = rolesData.admin_roles || [];
+                        const employeeRoles = rolesData.employee_roles || [];
+
+                        document.getElementById('admin-roles-preview').textContent =
+                            adminRoles.length > 0 ? `${adminRoles.length} role(s) configured` : 'No roles configured';
+                        document.getElementById('employee-roles-preview').textContent =
+                            employeeRoles.length > 0 ? `${employeeRoles.length} role(s) configured` : 'No roles configured';
                     }
                 } else {
-                    document.getElementById('cancellation-warning-row').style.display = 'none';
-                    document.getElementById('subscription-actions').style.display = 'none';
-                }
-            }
-
-            if (userRole === 'admin') {
-                const empResponse = await fetch(`/api/server/${guildId}/employees`);
-                const empData = await empResponse.json();
-
-                if (empData.success) {
-                    const employees = empData.employees || [];
-                    const activeCount = employees.filter(e => e.is_active).length;
-                    const clockedIn = employees.filter(e => e.is_clocked_in).length;
-
-                    document.getElementById('employee-count').textContent = activeCount;
-                    document.getElementById('clocked-in-count').textContent = clockedIn;
-                    document.getElementById('clocked-in-count').style.color = clockedIn > 0 ? '#10B981' : '#8B949E';
+                    document.getElementById('employee-count').textContent = '--';
+                    document.getElementById('clocked-in-count').textContent = '--';
                 }
 
-                const rolesResponse = await fetch(`/api/server/${guildId}/roles`);
-                const rolesData = await rolesResponse.json();
+                // Dynamic Checklist Widget Progression
+                if (userRole === 'admin') {
+                    let progressPercent = 25; // Base 25% for connecting
 
-                if (rolesData.success) {
-                    const adminRoles = rolesData.admin_roles || [];
-                    const employeeRoles = rolesData.employee_roles || [];
-
-                    document.getElementById('admin-roles-preview').textContent =
-                        adminRoles.length > 0 ? `${adminRoles.length} role(s) configured` : 'No roles configured';
-                    document.getElementById('employee-roles-preview').textContent =
-                        employeeRoles.length > 0 ? `${employeeRoles.length} role(s) configured` : 'No roles configured';
-                }
-            } else {
-                document.getElementById('employee-count').textContent = '--';
-                document.getElementById('clocked-in-count').textContent = '--';
-            }
-
-            // Dynamic Checklist Widget Progression
-            if (userRole === 'admin') {
-                let progressPercent = 25; // Base 25% for connecting
-
-                // Check Timezone
-                const hasTimezone = "{{ 'false' if show_tz_reminder else 'true' }}" === "true";
-                if (hasTimezone) {
-                    progressPercent += 25;
-                    const tzEl = document.getElementById('setup-check-tz');
-                    if (tzEl) {
-                        tzEl.style.background = 'rgba(16, 185, 129, 0.1)';
-                        tzEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                        document.getElementById('setup-icon-tz').textContent = '✅';
-                        document.getElementById('setup-text-tz').style.color = '#8B949E';
-                        document.getElementById('setup-text-tz').style.textDecoration = 'line-through';
+                    // Check Timezone
+                    const hasTimezone = "{{ 'false' if show_tz_reminder else 'true' }}" === "true";
+                    if (hasTimezone) {
+                        progressPercent += 25;
+                        const tzEl = document.getElementById('setup-check-tz');
+                        if (tzEl) {
+                            tzEl.style.background = 'rgba(16, 185, 129, 0.1)';
+                            tzEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                            document.getElementById('setup-icon-tz').textContent = '✅';
+                            document.getElementById('setup-text-tz').style.color = '#8B949E';
+                            document.getElementById('setup-text-tz').style.textDecoration = 'line-through';
+                        }
+                    } else {
+                        const tzEl = document.getElementById('setup-check-tz');
+                        if (tzEl) {
+                            tzEl.style.background = 'rgba(245, 158, 11, 0.1)';
+                            tzEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                            document.getElementById('setup-icon-tz').textContent = '⏳';
+                            document.getElementById('setup-text-tz').style.color = '#00FFFF';
+                        }
                     }
-                } else {
-                    const tzEl = document.getElementById('setup-check-tz');
-                    if (tzEl) {
-                        tzEl.style.background = 'rgba(245, 158, 11, 0.1)';
-                        tzEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
-                        document.getElementById('setup-icon-tz').textContent = '⏳';
-                        document.getElementById('setup-text-tz').style.color = '#00FFFF';
-                    }
-                }
 
-                // Check Admin Roles (Using rolesData fetched previously if available, wait the roles fetch happened earlier but not exposed globally here. We can re-fetch or use logic)
-                const rolesCheckResp = await fetch(`/api/server/${guildId}/roles`);
-                const rData = await rolesCheckResp.json();
-                if (rData.success && rData.admin_roles && rData.admin_roles.length > 0) {
-                    progressPercent += 25;
-                    const rEl = document.getElementById('setup-check-roles');
-                    if (rEl) {
-                        rEl.style.background = 'rgba(16, 185, 129, 0.1)';
-                        rEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                        document.getElementById('setup-icon-roles').textContent = '✅';
-                        document.getElementById('setup-text-roles').style.color = '#8B949E';
-                        document.getElementById('setup-text-roles').style.textDecoration = 'line-through';
+                    // Check Admin Roles (Using rolesData fetched previously if available, wait the roles fetch happened earlier but not exposed globally here. We can re-fetch or use logic)
+                    const rolesCheckResp = await fetch(`/api/server/${guildId}/roles`);
+                    const rData = await rolesCheckResp.json();
+                    if (rData.success && rData.admin_roles && rData.admin_roles.length > 0) {
+                        progressPercent += 25;
+                        const rEl = document.getElementById('setup-check-roles');
+                        if (rEl) {
+                            rEl.style.background = 'rgba(16, 185, 129, 0.1)';
+                            rEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                            document.getElementById('setup-icon-roles').textContent = '✅';
+                            document.getElementById('setup-text-roles').style.color = '#8B949E';
+                            document.getElementById('setup-text-roles').style.textDecoration = 'line-through';
+                        }
+                    } else {
+                        // Check if it's demo server and roles don't exist
+                        const rEl = document.getElementById('setup-check-roles');
+                        if (rEl) {
+                            if (progressPercent >= 50) { // Timezone is done, this is the current active step
+                                rEl.style.background = 'rgba(245, 158, 11, 0.1)';
+                                rEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                                document.getElementById('setup-icon-roles').textContent = '⏳';
+                                document.getElementById('setup-text-roles').style.color = '#00FFFF';
+                            }
+                        }
                     }
-                } else {
-                    // Check if it's demo server and roles don't exist
-                    const rEl = document.getElementById('setup-check-roles');
-                    if (rEl) {
-                        if (progressPercent >= 50) { // Timezone is done, this is the current active step
-                            rEl.style.background = 'rgba(245, 158, 11, 0.1)';
-                            rEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
-                            document.getElementById('setup-icon-roles').textContent = '⏳';
-                            document.getElementById('setup-text-roles').style.color = '#00FFFF';
+
+                    const pText = document.getElementById('setup-progress-text');
+                    const pBar = document.getElementById('setup-progress-bar');
+                    if (pText && pBar) {
+                        pText.textContent = `Setup: ${progressPercent}% Completed`;
+                        pBar.style.width = `${progressPercent}%`;
+                        if (progressPercent === 100) {
+                            pText.style.color = '#10B981';
+                            pBar.style.background = '#10B981';
+                            pBar.style.boxShadow = '0 0 10px #10B981';
                         }
                     }
                 }
+            } catch (error) {
+                console.error('Failed to load overview:', error);
+            }
+        }
 
-                const pText = document.getElementById('setup-progress-text');
-                const pBar = document.getElementById('setup-progress-bar');
-                if (pText && pBar) {
-                    pText.textContent = `Setup: ${progressPercent}% Completed`;
-                    pBar.style.width = `${progressPercent}%`;
-                    if (progressPercent === 100) {
-                        pText.style.color = '#10B981';
-                        pBar.style.background = '#10B981';
-                        pBar.style.boxShadow = '0 0 10px #10B981';
-                    }
+        async function cancelSubscription() {
+            if (!confirm('Are you sure you want to cancel your subscription? You will retain access until the end of your current billing period.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/server/${guildId}/subscription/cancel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Subscription canceled. You will retain access until the end of the billing period.');
+                    loadOverviewData();
+                } else {
+                    alert(data.error || data.demo_note || 'Failed to cancel subscription.');
                 }
+            } catch (error) {
+                console.error('Cancel error:', error);
+                alert('An error occurred while canceling the subscription.');
             }
-        } catch (error) {
-            console.error('Failed to load overview:', error);
-        }
-    }
-
-    async function cancelSubscription() {
-        if (!confirm('Are you sure you want to cancel your subscription? You will retain access until the end of your current billing period.')) {
-            return;
         }
 
-        try {
-            const response = await fetch(`/api/server/${guildId}/subscription/cancel`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                alert('Subscription canceled. You will retain access until the end of the billing period.');
-                loadOverviewData();
-            } else {
-                alert(data.error || data.demo_note || 'Failed to cancel subscription.');
+        async function resumeSubscription() {
+            if (!confirm('Are you sure you want to resume your subscription? Your regular billing will continue.')) {
+                return;
             }
-        } catch (error) {
-            console.error('Cancel error:', error);
-            alert('An error occurred while canceling the subscription.');
-        }
-    }
 
-    async function resumeSubscription() {
-        if (!confirm('Are you sure you want to resume your subscription? Your regular billing will continue.')) {
-            return;
-        }
+            try {
+                const response = await fetch(`/api/server/${guildId}/subscription/resume`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
 
-        try {
-            const response = await fetch(`/api/server/${guildId}/subscription/resume`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                alert('Subscription resumed successfully.');
-                loadOverviewData();
-            } else {
-                alert(data.error || data.demo_note || 'Failed to resume subscription.');
+                if (data.success) {
+                    alert('Subscription resumed successfully.');
+                    loadOverviewData();
+                } else {
+                    alert(data.error || data.demo_note || 'Failed to resume subscription.');
+                }
+            } catch (error) {
+                console.error('Resume error:', error);
+                alert('An error occurred while resuming the subscription.');
             }
-        } catch (error) {
-            console.error('Resume error:', error);
-            alert('An error occurred while resuming the subscription.');
         }
-    }
 
-    document.addEventListener('DOMContentLoaded', loadOverviewData);
-</script>
-{% endblock %}
+        document.addEventListener('DOMContentLoaded', loadOverviewData);
+    </script>
+    {% endblock %}
