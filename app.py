@@ -1063,25 +1063,29 @@ def verify_guild_access(user_session, guild_id, allow_employee=False):
     # If allow_employee and no admin access, check employee_profiles
     if allow_employee:
         user_id = user_session.get('user_id')
-        with get_db() as conn:
-            cursor = conn.execute("""
-                SELECT ep.guild_id, bg.guild_name
-                FROM employee_profiles ep
-                JOIN bot_guilds bg ON bg.guild_id = CAST(ep.guild_id AS TEXT)
-                WHERE ep.user_id = %s 
-                  AND ep.guild_id = %s 
-                  AND ep.is_active = TRUE
-            """, (str(user_id), int(guild_id)))
-            
-            employee_guild = cursor.fetchone()
-            if employee_guild:
-                # Return a guild-like dict with employee access
-                return ({
-                    'id': str(guild_id),
-                    'name': employee_guild['guild_name'],
-                    'owner': False,
-                    'permissions': '0'
-                }, 'employee')
+        try:
+            with get_db() as conn:
+                cursor = conn.execute("""
+                    SELECT ep.guild_id, bg.guild_name
+                    FROM employee_profiles ep
+                    JOIN bot_guilds bg ON bg.guild_id = CAST(ep.guild_id AS TEXT)
+                    WHERE ep.user_id = %s 
+                      AND ep.guild_id = %s 
+                      AND ep.is_active = TRUE
+                """, (int(user_id), int(guild_id)))
+                
+                employee_guild = cursor.fetchone()
+                if employee_guild:
+                    # Return a guild-like dict with employee access
+                    return ({
+                        'id': str(guild_id),
+                        'name': employee_guild['guild_name'],
+                        'owner': False,
+                        'permissions': '0'
+                    }, 'employee')
+        except Exception as e:
+            app.logger.error(f"Error in verify_guild_access for employee {user_id}: {e}")
+            pass
     
     return (None, None)
 
