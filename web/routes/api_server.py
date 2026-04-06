@@ -1082,7 +1082,7 @@ def api_get_server_data(user_session, guild_id):
 
 
 @api_server_bp.route("/api/server/<guild_id>/settings", methods=["GET"])
-@require_paid_api_access
+@require_api_auth
 def api_get_server_settings(user_session, guild_id):
     """API endpoint to fetch server settings for dashboard pages"""
     access = get_flask_guild_access(guild_id)
