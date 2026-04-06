@@ -322,69 +322,68 @@
                 let progressPercent = 25; // Base 25% for connecting
 
                 // Check Timezone
-                const hasTimezone = {{ 'false' if show_tz_reminder else 'true' }
-            };
-            if (hasTimezone) {
-                progressPercent += 25;
-                const tzEl = document.getElementById('setup-check-tz');
-                if (tzEl) {
-                    tzEl.style.background = 'rgba(16, 185, 129, 0.1)';
-                    tzEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                    document.getElementById('setup-icon-tz').textContent = '✅';
-                    document.getElementById('setup-text-tz').style.color = '#8B949E';
-                    document.getElementById('setup-text-tz').style.textDecoration = 'line-through';
+                const hasTimezone = "{{ 'false' if show_tz_reminder else 'true' }}" === "true";
+                if (hasTimezone) {
+                    progressPercent += 25;
+                    const tzEl = document.getElementById('setup-check-tz');
+                    if (tzEl) {
+                        tzEl.style.background = 'rgba(16, 185, 129, 0.1)';
+                        tzEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                        document.getElementById('setup-icon-tz').textContent = '✅';
+                        document.getElementById('setup-text-tz').style.color = '#8B949E';
+                        document.getElementById('setup-text-tz').style.textDecoration = 'line-through';
+                    }
+                } else {
+                    const tzEl = document.getElementById('setup-check-tz');
+                    if (tzEl) {
+                        tzEl.style.background = 'rgba(245, 158, 11, 0.1)';
+                        tzEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                        document.getElementById('setup-icon-tz').textContent = '⏳';
+                        document.getElementById('setup-text-tz').style.color = '#00FFFF';
+                    }
                 }
-            } else {
-                const tzEl = document.getElementById('setup-check-tz');
-                if (tzEl) {
-                    tzEl.style.background = 'rgba(245, 158, 11, 0.1)';
-                    tzEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
-                    document.getElementById('setup-icon-tz').textContent = '⏳';
-                    document.getElementById('setup-text-tz').style.color = '#00FFFF';
-                }
-            }
 
-            // Check Admin Roles (Using rolesData fetched previously if available, wait the roles fetch happened earlier but not exposed globally here. We can re-fetch or use logic)
-            const rolesCheckResp = await fetch(`/api/server/${guildId}/roles`);
-            const rData = await rolesCheckResp.json();
-            if (rData.success && rData.admin_roles && rData.admin_roles.length > 0) {
-                progressPercent += 25;
-                const rEl = document.getElementById('setup-check-roles');
-                if (rEl) {
-                    rEl.style.background = 'rgba(16, 185, 129, 0.1)';
-                    rEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                    document.getElementById('setup-icon-roles').textContent = '✅';
-                    document.getElementById('setup-text-roles').style.color = '#8B949E';
-                    document.getElementById('setup-text-roles').style.textDecoration = 'line-through';
+                // Check Admin Roles (Using rolesData fetched previously if available, wait the roles fetch happened earlier but not exposed globally here. We can re-fetch or use logic)
+                const rolesCheckResp = await fetch(`/api/server/${guildId}/roles`);
+                const rData = await rolesCheckResp.json();
+                if (rData.success && rData.admin_roles && rData.admin_roles.length > 0) {
+                    progressPercent += 25;
+                    const rEl = document.getElementById('setup-check-roles');
+                    if (rEl) {
+                        rEl.style.background = 'rgba(16, 185, 129, 0.1)';
+                        rEl.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                        document.getElementById('setup-icon-roles').textContent = '✅';
+                        document.getElementById('setup-text-roles').style.color = '#8B949E';
+                        document.getElementById('setup-text-roles').style.textDecoration = 'line-through';
+                    }
+                } else {
+                    // Check if it's demo server and roles don't exist
+                    const rEl = document.getElementById('setup-check-roles');
+                    if (rEl) {
+                        if (progressPercent >= 50) { // Timezone is done, this is the current active step
+                            rEl.style.background = 'rgba(245, 158, 11, 0.1)';
+                            rEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                            document.getElementById('setup-icon-roles').textContent = '⏳';
+                            document.getElementById('setup-text-roles').style.color = '#00FFFF';
+                        }
+                    }
                 }
-            } else {
-                // Check if it's demo server and roles don't exist
-                const rEl = document.getElementById('setup-check-roles');
-                if (rEl) {
-                    if (progressPercent >= 50) { // Timezone is done, this is the current active step
-                        rEl.style.background = 'rgba(245, 158, 11, 0.1)';
-                        rEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
-                        document.getElementById('setup-icon-roles').textContent = '⏳';
-                        document.getElementById('setup-text-roles').style.color = '#00FFFF';
+
+                const pText = document.getElementById('setup-progress-text');
+                const pBar = document.getElementById('setup-progress-bar');
+                if (pText && pBar) {
+                    pText.textContent = `Setup: ${progressPercent}% Completed`;
+                    pBar.style.width = `${progressPercent}%`;
+                    if (progressPercent === 100) {
+                        pText.style.color = '#10B981';
+                        pBar.style.background = '#10B981';
+                        pBar.style.boxShadow = '0 0 10px #10B981';
                     }
                 }
             }
-
-            const pText = document.getElementById('setup-progress-text');
-            const pBar = document.getElementById('setup-progress-bar');
-            if (pText && pBar) {
-                pText.textContent = `Setup: ${progressPercent}% Completed`;
-                pBar.style.width = `${progressPercent}%`;
-                if (progressPercent === 100) {
-                    pText.style.color = '#10B981';
-                    pBar.style.background = '#10B981';
-                    pBar.style.boxShadow = '0 0 10px #10B981';
-                }
-            }
-        }
         } catch (error) {
-        console.error('Failed to load overview:', error);
-    }
+            console.error('Failed to load overview:', error);
+        }
     }
 
     async function cancelSubscription() {
