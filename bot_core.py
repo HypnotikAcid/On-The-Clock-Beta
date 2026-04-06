@@ -740,7 +740,8 @@ async def mutate_employee_roles(guild_id: int, user_id: int, action: str):
             try:
                 await member.remove_roles(*roles_to_remove, reason=f"TimeWarden: Auto-sync on clock {action}")
             except discord.Forbidden:
-                print(f"❌ Missing Permissions to remove role in {guild_id}")
+                guild_name = guild.name if guild else guild_id
+                print(f"⚠️ [ROLE SYNC] Forbidden (403) removing role in '{guild_name}' (ID: {guild_id}). Check: 1) Bot has 'Manage Roles' permission, 2) Bot's role is ABOVE the target roles in Server Settings → Roles hierarchy.")
             except discord.HTTPException as he:
                 print(f"❌ Discord API error removing role in {guild_id}: {he}")
                 
@@ -748,7 +749,8 @@ async def mutate_employee_roles(guild_id: int, user_id: int, action: str):
             try:
                 await member.add_roles(*roles_to_add, reason=f"TimeWarden: Auto-sync on clock {action}")
             except discord.Forbidden:
-                print(f"❌ Missing Permissions to add role in {guild_id}")
+                guild_name = guild.name if guild else guild_id
+                print(f"⚠️ [ROLE SYNC] Forbidden (403) adding role in '{guild_name}' (ID: {guild_id}). Check: 1) Bot has 'Manage Roles' permission, 2) Bot's role is ABOVE the target roles in Server Settings → Roles hierarchy.")
             except discord.HTTPException as he:
                 print(f"❌ Discord API error adding role in {guild_id}: {he}")
                 
@@ -4513,46 +4515,68 @@ async def on_ready():
         description = getattr(cmd, 'description', 'No description')
         print(f"   - {cmd.name}: {description}")
     
-    # Try syncing commands with better error handling
     synced_count = 0
     sync_location = "nowhere"
 
-    try:
-        if GUILD_ID:
-            # Try guild-specific sync first (main production server)
-            try:
-                guild_obj = discord.Object(id=int(GUILD_ID))
-                synced = await tree.sync(guild=guild_obj)
-                synced_count = len(synced)
-                sync_location = f"guild {GUILD_ID}"
-                print(f"✅ Synced {synced_count} commands to guild {GUILD_ID}")
+    import hashlib, json as _json
+    cmd_signatures = sorted([
+        f"{cmd.name}:{getattr(cmd, 'description', '')}:{[p.name for p in getattr(cmd, 'parameters', [])]}"
+        for cmd in commands
+    ])
+    current_hash = hashlib.sha256(_json.dumps(cmd_signatures).encode()).hexdigest()[:16]
+    hash_file = os.path.join(os.path.dirname(__file__), '.command_sync_hash')
 
-                # If guild sync fails, try global
-                if synced_count == 0:
-                    print("[SYNC] Guild sync returned 0 commands, trying global sync...")
+    previous_hash = None
+    try:
+        with open(hash_file, 'r') as f:
+            previous_hash = f.read().strip()
+    except FileNotFoundError:
+        pass
+
+    if current_hash == previous_hash:
+        print(f"⏭️ Command tree unchanged (hash: {current_hash}), skipping Discord sync to avoid rate limits")
+        synced_count = len(commands)
+        sync_location = "skipped (cached)"
+    else:
+        print(f"🔄 Command tree changed (old: {previous_hash}, new: {current_hash}), syncing with Discord...")
+        try:
+            if GUILD_ID:
+                try:
+                    guild_obj = discord.Object(id=int(GUILD_ID))
+                    synced = await tree.sync(guild=guild_obj)
+                    synced_count = len(synced)
+                    sync_location = f"guild {GUILD_ID}"
+                    print(f"✅ Synced {synced_count} commands to guild {GUILD_ID}")
+
+                    if synced_count == 0:
+                        print("[SYNC] Guild sync returned 0 commands, trying global sync...")
+                        synced = await tree.sync()
+                        synced_count = len(synced)
+                        sync_location = "globally (after guild failed)"
+                        print(f"✅ Global sync: {synced_count} commands")
+
+                except Exception as guild_error:
+                    print(f"❌ Guild sync failed: {guild_error}")
+                    print("[SYNC] Trying global sync as fallback...")
                     synced = await tree.sync()
                     synced_count = len(synced)
-                    sync_location = "globally (after guild failed)"
-                    print(f"✅ Global sync: {synced_count} commands")
-
-            except Exception as guild_error:
-                print(f"❌ Guild sync failed: {guild_error}")
-                print("[SYNC] Trying global sync as fallback...")
-                # Fallback to global sync
+                    sync_location = "globally"
+                    print(f"✅ Synced {synced_count} commands globally (fallback)")
+            else:
                 synced = await tree.sync()
                 synced_count = len(synced)
                 sync_location = "globally"
-                print(f"✅ Synced {synced_count} commands globally (fallback)")
-        else:
-            # No guild ID provided, sync globally
-            synced = await tree.sync()
-            synced_count = len(synced)
-            sync_location = "globally"
-            print(f"✅ Synced {synced_count} global commands")
+                print(f"✅ Synced {synced_count} global commands")
 
-    except Exception as e:
-        print(f"❌ All command sync attempts failed: {e}")
-        synced_count = 0
+            try:
+                with open(hash_file, 'w') as f:
+                    f.write(current_hash)
+            except Exception:
+                pass
+
+        except Exception as e:
+            print(f"❌ All command sync attempts failed: {e}")
+            synced_count = 0
 
     print(f"🎯 Final result: {synced_count} commands synced {sync_location}")
     if bot.user:

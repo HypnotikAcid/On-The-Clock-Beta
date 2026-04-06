@@ -289,6 +289,21 @@ Moving code between files is the #1 source of silent catastrophic breakage in th
 - **Fix**: Refactored `require_paid_api_access` and `require_paid_access` in `web/utils/auth.py` to inherently evaluate `get_flask_guild_access()` natively. This unblocks all free trials without having to rewrite 34 individual fetch routes.
 - **Pattern**: When deprecating a security constraint, update the global decorator directly rather than bypassing it sequentially inside the downstream routes.
 
+## Slash Command Sync Caching to Avoid Discord Rate Limits (2026-04-06)
+- **Root Cause**: `on_ready()` called `tree.sync()` on every bot restart, even when no commands had changed. Discord rate-limits global command sync calls, causing `Rate limited by Discord API during global slash command sync` errors on frequent restarts.
+- **Fix**: Hash the command tree (name + description + parameters) and store in `.command_sync_hash`. On startup, compare current hash to stored hash — only call `tree.sync()` when commands have actually changed. Skipped syncs log `⏭️ Command tree unchanged`.
+- **Pattern**: Never unconditionally sync slash commands on every startup. Use a hash file or database flag to detect changes. To force a re-sync (e.g., after manually editing commands), delete `.command_sync_hash` and restart.
+
+## Stripe Webhook Log Levels (2026-04-06)
+- **Root Cause**: Requests hitting the Stripe webhook endpoint without a `Stripe-Signature` header were logged as ERROR, creating false alarms. These are typically health check probes, bots, or direct URL hits — not failed Stripe deliveries.
+- **Fix**: Changed from `app.logger.error()` to `app.logger.warning()` with context explaining likely causes. The endpoint still correctly returns 400.
+- **Pattern**: Distinguish between "expected noise" (unsigned requests = WARN) and "actual failures" (invalid signature on a real Stripe request = ERROR). Reserve ERROR for situations that indicate a real problem needing attention.
+
+## Role Sync 403 Forbidden — Actionable Logging (2026-04-06)
+- **Root Cause**: When the bot's role hierarchy was too low or the bot lacked `Manage Roles` permission, role sync silently printed `❌ Missing Permissions` with no guidance.
+- **Fix**: Changed to `⚠️ [ROLE SYNC] Forbidden (403)` with the guild name and a checklist: 1) Bot has 'Manage Roles' permission, 2) Bot's role is ABOVE the target roles in Server Settings → Roles hierarchy.
+- **Pattern**: When logging Discord permission errors, always include the guild name and actionable steps to fix. Server admins need to know exactly what to check in their Discord server settings.
+
 ## Python Console Log Unicode Emulators Crashing Gunicorn (2026-04-06)
 - **Root Cause**: Gunicorn crashed in the Windows deployment environment when it attempted to stdout emojis like `🔄` and `❌` from `migrations.py` and `bot_core.py`. The Windows console defaults to `cp1252` encoding which throws a fatal `UnicodeEncodeError`.
 - **Fix**: Replaced graphical emojis inside initialization prints with standard bracket strings like `[SYNC]`, `[FAIL]`, and `[OK]`.

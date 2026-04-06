@@ -209,7 +209,7 @@ def stripe_webhook():
         return jsonify({'error': 'Webhook secret not configured'}), 400
     
     if not sig_header:
-        app.logger.error("[ERROR] Missing Stripe signature header")
+        app.logger.warning("[WARN] Stripe webhook request missing signature header (likely a health check probe or direct URL hit, not a real Stripe delivery)")
         return jsonify({'error': 'Missing signature'}), 400
     
     try:

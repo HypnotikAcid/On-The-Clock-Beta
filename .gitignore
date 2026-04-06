@@ -28,6 +28,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Bot command sync cache
+.command_sync_hash
+
 # CLI Agent Caches
 .claude/
 .gemini/
