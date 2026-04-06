@@ -311,6 +311,13 @@ if __name__ != '__main__':
     import os
     print("[STARTUP] Flask app initializing under Gunicorn...")
     print(f"[STARTUP] Health check endpoint ready at /health")
+    # ⚠️ CRITICAL WIRING: BOT_API_SECRET must be set as a shared env var.
+    # Both bot_core.py (aiohttp server) and api_owner.py (Flask broadcast) use this to authenticate.
+    # See: docs/lessons-learned.md "Refactoring Safety Protocol"
+    if not os.getenv('BOT_API_SECRET'):
+        print("[STARTUP] ⚠️  WARNING: BOT_API_SECRET is not set. Bot internal API calls (broadcast, admin checks) will fail. Set this in environment secrets.")
+    else:
+        print("[STARTUP] ✅ BOT_API_SECRET configured")
     
     worker_id = os.environ.get('GUNICORN_WORKER_ID', '1')
     # Only start bot in first worker to avoid multiple instances

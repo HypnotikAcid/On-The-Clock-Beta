@@ -10,6 +10,7 @@ from app import (
     __version__, CHANGELOG, verify_guild_access, Entitlements, UserRole, _parse_stickers,
     get_bot, flask_check_bot_access
 )
+from web.utils.auth import get_bot_api_headers
 from web.utils.db import get_db
 
 kiosk_bp = Blueprint('api_kiosk', __name__)
@@ -31,10 +32,13 @@ def api_kiosk_employees(guild_id):
         def prune_ghosts():
             try:
                 bot_api_secret = os.getenv('BOT_API_SECRET')
+                if not bot_api_secret:
+                    app.logger.debug("[Prune Ghosts] Skipped: BOT_API_SECRET not configured")
+                    return
                 bot_port = os.getenv('BOT_API_PORT', '8081')
                 response = requests.post(
                     f"http://127.0.0.1:{bot_port}/api/guild/{guild_id}/employees/prune-ghosts", 
-                    headers={'Authorization': f'Bearer {bot_api_secret}'} if bot_api_secret else {},
+                    headers=get_bot_api_headers(bot_api_secret),
                     timeout=2
                 )
                 if response.status_code != 200:

@@ -4,7 +4,8 @@ from bot_core import (
     TOKEN,
     run_migrations,
     init_db,
-    schedule_daily_cleanup
+    schedule_daily_cleanup,
+    start_bot_api_server
 )
 
 async def run_bot_with_api():
@@ -14,6 +15,11 @@ async def run_bot_with_api():
     await bot.load_extension("bot.cogs.employee_cmds")
     await bot.load_extension("bot.cogs.admin_cmds")
     await bot.load_extension("bot.cogs.owner_cmds")
+    
+    # ⚠️ CRITICAL WIRING: Launches the bot's internal HTTP API on port 8081.
+    # Without this line, all Flask→Bot calls fail with ConnectionError.
+    # See: docs/lessons-learned.md "Refactoring Safety Protocol"
+    asyncio.create_task(start_bot_api_server())
     
     # Start Discord bot (will block until disconnected)
     await bot.start(TOKEN)

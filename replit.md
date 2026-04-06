@@ -42,6 +42,7 @@
 - Allow all hosts (`allowedHosts: true`) in dev configs.
 - Bind frontend to `0.0.0.0:5000`.
 - Always verify `replit.md` before and after work.
+- **Before ANY refactor**: Read `docs/lessons-learned.md` → "Refactoring Safety Protocol". Map wiring (server startups, route registrations, background threads), not just functions. Run the connection audit before AND after. Verify startup log markers still appear.
 
 # CLI Agent Instructions
 This project supports multiple AI coding agents. All agents should:

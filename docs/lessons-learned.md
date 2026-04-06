@@ -32,6 +32,53 @@
 - **Git Discipline**: CLI agents (Claude Code, Gemini) don't auto-commit - commit frequently.
 - **File Isolation**: Don't have multiple agents edit the same files simultaneously.
 - **Briefing Request**: When switching agents, ask "Give me a briefing on CURRENT_TASK.md".
+
+## Refactoring Safety Protocol (MANDATORY — All Agents)
+Moving code between files is the #1 source of silent catastrophic breakage in this project. The Antigravity Cog refactor (`706cf69`) is the cautionary example: all handler functions were moved correctly, but the server startup code that *wired them together* was dropped — killing the entire bot API with zero errors at import time.
+
+### Before Any Refactor
+1. **Map the wiring, not just the functions.** For every file being refactored, identify:
+   - Server/service startup code (e.g., `web.Application()`, `AppRunner`, `TCPSite`, `create_task`)
+   - Registration code (e.g., `app.router.add_post(...)`, `app.register_blueprint(...)`)
+   - Initialization sequences (e.g., `asyncio.create_task(start_something())`)
+   - Background thread launches (e.g., `threading.Thread(target=...).start()`)
+   These are the "glue" — they don't look important but without them nothing works.
+
+2. **Run the connection audit before AND after.** Check that every endpoint/handler is still reachable:
+   ```bash
+   # Bot API server wiring (must show web.Application + all routes + AppRunner + TCPSite):
+   grep -n "web\.Application\|app\.router\.add\|AppRunner\|TCPSite\|start_bot_api_server" bot_core.py
+   
+   # Flask blueprint registration:
+   grep -n "register_blueprint" app.py
+   
+   # Verify startup log markers exist — if these prints are gone, the wiring is gone:
+   grep -n "🔌 Bot API server running\|Bot API server" bot_core.py discord_runner.py
+   ```
+
+3. **Leave breadcrumb comments at critical wiring points.** Any code that starts a server, registers routes, or launches background tasks MUST have a comment like:
+   ```python
+   # ⚠️ CRITICAL WIRING: This starts the aiohttp API server on port 8081.
+   # All Flask→Bot API calls (broadcast, sync, channels, etc.) depend on this.
+   # If this is removed or not called, Flask will get ConnectionError on every bot API call.
+   # See: docs/lessons-learned.md "Refactoring Safety Protocol"
+   ```
+
+4. **Verify with a smoke test.** After any refactor that moves bot or Flask code:
+   - Restart the workflow
+   - Confirm `🔌 Bot API server running on http://0.0.0.0:8081` appears in startup logs
+   - Confirm `✅ BOT_API_SECRET configured` appears in startup logs
+   - Confirm no `ConnectionError` when hitting a bot API endpoint
+
+### Critical Wiring Points in This Project
+| What | Where | Startup Log Marker | If Missing |
+|------|-------|--------------------|------------|
+| Bot API server (aiohttp on :8081) | `bot_core.py:start_bot_api_server()` | `🔌 Bot API server running on http://0.0.0.0:8081` | ALL Flask→Bot calls fail (broadcast, sync, channels, reports, onboarding) |
+| Bot API task launch | `discord_runner.py:run_bot_with_api()` | (same as above) | Server function exists but never runs |
+| BOT_API_SECRET | Environment variable | `✅ BOT_API_SECRET configured` | Bot API returns 401 on every call |
+| Flask blueprints | `app.py:register_blueprint()` | N/A — check route registration | Dashboard/API routes return 404 |
+| Discord bot thread | `app.py:start_discord_bot()` | `🤖 Logged in as On the Clock` | Bot offline, no slash commands |
+| Email scheduler | `bot_core.py` via `on_ready` | `✅ Email scheduler started` | Scheduled reports stop sending |
 - **Context Files**: All agents should read `replit.md` first, then this file.
 - **Progressive Disclosure**: Don't overload context - point to specific docs when needed.
 - **Date Awareness**: AI may think it's 2024 - verify current date if time-sensitive.
@@ -176,6 +223,36 @@
 ## Committed-but-Undeployed Fixes Still Cause Production Outages (2026-02-27)
 - **Root Cause**: Antigravity correctly fixed the `resolved` column migration but never published the deployment. The git commit existed but the production environment never received it. A subsequent publish by another session pushed BOTH the column fix AND a new template bug together.
 - **Pattern**: After any agent commits a critical fix, explicitly verify a new deployment has been triggered. Compare the timestamp of the last git commit against the timestamp of the last "Published your App" checkpoint. If commit is newer than publish, the fix is not live.
+
+## BOT_API_SECRET Must Be a Fixed Env Var — Never Rely on Runtime Generation (2026-03-21)
+- **Root Cause**: `bot_core.py` generates a random `BOT_API_SECRET` at startup via `secrets.token_hex(32)` when the env var is not set. Flask (in `api_owner.py`) tries `os.getenv("BOT_API_SECRET", "")` (gets `""`) then falls back to `_get_bot_module().BOT_API_SECRET`. That fallback calls `import bot` — but the bot module is `bot_core.py`, not `bot.py`, so the import silently fails and the secret stays empty. Flask sends `Authorization: Bearer ` (empty) → bot API returns 401 → Flask propagates "Unauthorized" to the user.
+- **Fix**: Set `BOT_API_SECRET` as a fixed shared environment variable. Both `bot_core.py` and `api_owner.py` already read from `os.getenv("BOT_API_SECRET")` — they just need a stable value to agree on.
+- **Hardening Added**:
+  1. Startup check in `app.py` now logs `✅ BOT_API_SECRET configured` or `⚠️ WARNING: BOT_API_SECRET is not set` — misconfiguration is immediately visible in startup logs instead of silently failing at runtime.
+  2. The broadcast endpoint in `api_owner.py` now uses the same fast-fail pattern as every other bot API call: `bot_api_secret = os.getenv('BOT_API_SECRET')` → return 503 if missing. No more silent fallback.
+- **Pattern**: All bot-internal API calls must use `get_bot_api_headers()` from `web/utils/auth.py`. This helper generates `Authorization`, `X-Timestamp`, and `X-Signature` headers required by `bot_core.py`'s HMAC replay defense. Never build headers manually or use bare `Authorization: Bearer`:
+  ```python
+  from web.utils.auth import get_bot_api_headers
+  
+  bot_api_secret = os.getenv('BOT_API_SECRET')
+  if not bot_api_secret:
+      return jsonify({'success': False, 'error': 'Bot API not configured.'}), 503
+  response = requests.get(url, headers=get_bot_api_headers(bot_api_secret), timeout=5)
+  ```
+- **Audit (2026-03-22)**: Fixed 12 Flask→Bot API call sites that were missing X-Timestamp/X-Signature replay defense headers: 5 in `api_server.py`, 6 in `api_owner.py`, 1 in `api_kiosk.py`, plus `check_user_admin_realtime` in `web/utils/auth.py` (which gates every dashboard page). Also removed the broken `_get_bot_module()` fallback pattern from all 5 `api_server.py` endpoints.
+
+## Antigravity Refactor Dropped the Bot API Server Startup (2026-03-21)
+- **Root Cause**: Antigravity's commit `706cf69` (modularize monolith into Cogs) moved all handler functions from `bot.py` → `bot_core.py` but dropped the `start_bot_api_server()` function and the `asyncio.create_task(start_bot_api_server())` call in `run_bot_with_api()`. The handlers existed but were never registered with an aiohttp Application, so nothing listened on port 8081.
+- **Symptom**: Flask → `http://127.0.0.1:8081/api/broadcast` → `ConnectionError` → "Bot is not ready" (503). Also affects employee sync, channel listing, report export, onboarding, and all other bot API calls.
+- **Fix**: Restored `start_bot_api_server()` in `bot_core.py` and the `asyncio.create_task()` call in `discord_runner.py:run_bot_with_api()` — exact code from the last working commit (`f2070a9`).
+- **Pattern**: When refactoring, always verify that server startup/wiring code is preserved, not just handler definitions. Grep for `web.Application`, `AppRunner`, `TCPSite` to confirm the aiohttp server is still being started.
+- **Verification**: Startup logs must show `🔌 Bot API server running on http://0.0.0.0:8081`. If this line is missing, the bot API is broken.
+
+## Antigravity Refactor Stranded send_broadcast_to_guilds in tmp_help.txt (2026-03-22)
+- **Root Cause**: The `send_broadcast_to_guilds` function — which `handle_broadcast` calls to actually send Discord messages — was dropped from bot_core.py during the Cog refactor and left in `tmp_help.txt`. Additionally, `bot/cogs/owner_cmds.py` called the function but never imported it from `bot_core`.
+- **Symptom**: Broadcast API returns 500 with `NameError: name 'send_broadcast_to_guilds' is not defined`.
+- **Fix**: Restored the function into `bot_core.py` (before `handle_broadcast`), added `send_broadcast_to_guilds` to the imports in `bot/cogs/owner_cmds.py`, and added `'success': True` to the return dict to match the contract expected by `handle_broadcast` and `api_owner.py`.
+- **Pattern**: When moving functions between files, always grep for ALL call sites and verify each one has the correct import. Use: `grep -rn "function_name" --include="*.py"` to find every reference.
 
 ## Atomic Layering vs Monolithic Feature Phases (Architectural Standard)
 - **The Problem**: Building an entire vertical feature (Database + Backend + Webhooks + Discord Commands + Javascript UI) in a single massive "Phase" introduces extreme regression risk. If one layer fails, it masks bugs in the others.
